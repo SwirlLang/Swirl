@@ -1,6 +1,6 @@
-#import "filename.lc"
+#import "filename.lc"  
 ** Comment
-*** multi
+*** multi  
 line
 Comment ***
 
