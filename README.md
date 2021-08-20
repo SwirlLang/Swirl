@@ -1,18 +1,26 @@
-#import "filename.lc"  
-** Comment
-*** multi  
-line
-Comment ***
+## import statement
+` #import "filename.lc" `
 
+## comments
+```
+** Comment<br>
+*** multi  
+line<br>
+Comment ***
+```
+## defining functions
+```
 func name(arg1, arg2)
-print(arg1, arg2)
-return var
+  print(arg1, arg2)
+  return var
 endfunc
 
 arrowfunc = () =>
-logic
-return var
+  **logic**
+  return var
 endfunc
+```
+## data types
 
 string
 int16
@@ -25,41 +33,50 @@ float64
 
 Array[length, Type]
 
+## if, elseif, for and while statements
+```
 if code == code2
 logic
 endif
-
+```
+```
 elseif code == code2
 logic
 endif
-
+```
+```
 for 1 in var
 logic
 endfor
-
+```
+```
 while true
 logic
 endwhile
+```
 
-Operators
+## Operators
 
-== equal
-!= not equal
-<= lower than or equal
->= greater than or equal
-< lower than
-> greater than
+== equal <br>
+!= not equal <br>
+<= lower than or equal <br>
+>= greater than or equal <br>
+< lower than <br>
+> greater than <br>
 
-= assignement
+= assignement <br>
 
-++ increment by 1
--- increment by -1
+++ increment by 1 <br>
+-- increment by -1 <br>
 
-+=
--=
-*=
++= <br>
+-= <br>
+*= <br>
 
+## structure (structs)
+```
 structure name
-int16 arg1
-string arg2
+  int16 arg1
+  string arg2
 endstructure
+```
