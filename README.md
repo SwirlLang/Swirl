@@ -1,14 +1,14 @@
-## import statement
+# import statement
 ` #import "filename.lc" `
 
-## comments
+# comments
 ```
-** Comment
-*** multi  
+// Comment
+/// multi  
 line
-Comment ***
+Comment ///
 ```
-## defining functions
+# defining functions
 ```
 func name(arg1, arg2)
   print(arg1, arg2)
@@ -20,20 +20,19 @@ arrowfunc = () =>
   return var
 endfunc
 ```
-## data types
+# data types
+
 
 string
-int16
-int32
-int64
 
-float16
-float32
-float64
+int
 
-Array[length, Type]
+float
 
-## if, elseif, for and while statements
+Array[Type, length]
+
+const string
+# if, elseif, for and while statements
 ```
 if code == code2
 logic
@@ -60,18 +59,18 @@ endwhile
 == equal <br>
 != not equal <br>
 <= lower than or equal <br>
->= greater than or equal <br>
+\>= greater than or equal <br>
 < lower than <br>
-> greater than <br>
+\> greater than <br>
 
-= assignement <br>
+= assignment <br>
 
 ++ increment by 1 <br>
--- increment by -1 <br>
-
+-- decrement by 1 <br>
 += <br>
 -= <br>
 *= <br>
+/= <br>
 
 ## structure (structs)
 ```
