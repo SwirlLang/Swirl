@@ -13,12 +13,12 @@ Comment ///
 func name(arg1, arg2)
   print(arg1, arg2)
   return var
-endfunc
+end
 
 arrowfunc = () =>
   **logic**
   return var
-endfunc
+end
 ```
 # data types
 
@@ -36,22 +36,22 @@ const string
 ```
 if code == code2
 logic
-endif
+end
 ```
 ```
 elseif code == code2
 logic
-endif
+end
 ```
 ```
 for 1 in var
 logic
-endfor
+end
 ```
 ```
 while true
 logic
-endwhile
+end
 ```
 
 ## Operators
