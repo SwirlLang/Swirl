@@ -56,6 +56,7 @@ end
 
 ## Operators
 
+=== strict equality operator
 == equal <br>
 != not equal <br>
 <= lower than or equal <br>
