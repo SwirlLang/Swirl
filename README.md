@@ -32,7 +32,7 @@ float
 Array[Type, length]
 
 const string
-# if, elseif, for and while statements
+# Conditional statements, iterations and conditional loops
 ```
 if code == code2
 logic
