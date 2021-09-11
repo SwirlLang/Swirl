@@ -23,13 +23,13 @@ end
 # data types
 
 
-string
+string name = "rick"
 
-int
+int name = 7
 
-float
+float name = 0.1
 
-Array[Type, length]
+array arr[type,length] = 1,2,2,3,3,4
 
 const string
 # Conditional statements and iterations
@@ -75,10 +75,4 @@ end
 and
 
 or
-## structure (structs)
-```
-structure name
-  int16 arg1
-  string arg2
-endstructure
-```
+
