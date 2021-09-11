@@ -71,7 +71,10 @@ end
 -= <br>
 *= <br>
 /= <br>
+### Logical operators
+and
 
+or
 ## structure (structs)
 ```
 structure name
