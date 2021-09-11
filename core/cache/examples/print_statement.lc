@@ -1,0 +1,7 @@
+///
+example of print statement
+///
+
+func main ()
+    print("Hello world!")
+    end
