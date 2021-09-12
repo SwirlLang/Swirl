@@ -35,22 +35,22 @@ const string
 # Conditional statements and iterations
 ```
 if code == code2
-logic
+  your code
 end
 ```
 ```
 elseif code == code2
-logic
+  your code
 end
 ```
 ```
 for 1 in var
-logic
+  your code
 end
 ```
 ```
 while true
-logic
+  your code
 end
 ```
 
@@ -67,12 +67,11 @@ end
 
 ++ increment by 1 <br>
 -- decrement by 1 <br>
-+= <br>
--= <br>
-*= <br>
-/= <br>
++= increment by the number specified<br>
+-= decrement by the number specified<br>
+*= multiplication by the number specified<br>
+/= division by the number specified<br>
 ### Logical operators
 and
 
 or
-
