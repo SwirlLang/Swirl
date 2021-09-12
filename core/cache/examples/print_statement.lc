@@ -4,4 +4,16 @@ example of print statement
 
 func main ()
     print("Hello world!")
-    end
+end
+
+func main ()
+    print("Hello world!")
+end
+
+func main ()
+    print("Hello world!")
+end
+
+func main ()
+    print("Hello world!")
+end

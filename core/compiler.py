@@ -2,12 +2,6 @@
 
 import re
 import sys
-# import argparse
-
-# parser = argparse.ArgumentParser(description="The lambda code high level compiler.", prog="compiler")
-# parser.add_argument("file_name", type=str, help="The name of the file that has to be compiled")
-# args = parser.parse_args()
-# print(args.file_name)
 
 filename = ''
 try:
@@ -32,21 +26,28 @@ main_func = readed_file
 for func in functions:
     main_func = main_func.replace(func, "")
 
+print(functions)
 source.close()
+
 example_code = '''
 int abc = 9
 int b = 10
 float c = 0.9
 float c = 9
-string[7] name = "mrinmoy"
+string[99] name = "mrinmoy"
 array arr[int,5] = (1,2,2,3,3,4)
 array arr[int,5] = 1, 2, 2, 3 , 3,4
+// hello world this is a comment
 '''
-int_regex = "int \\w* = \\d"
-float_regex = "(float \\w* = \\w*\\.\\w*)|(float \\w* = \\w*)"
-string_regex = "string\\[\\d\\] \\w* = \"\\w*\""
-array_regex = "(array \\w*\\[\\w*,\\d\\] = \\d.*)|(array \\w*\\[\\w*,\\d\\] = \\(\\d.*)"
-print(re.findall(int_regex,example_code))
-print([fnumber for result in re.findall(float_regex, example_code) for fnumber in result if fnumber != ""])
-print(re.findall(string_regex, example_code))
-print([ar for result in re.findall(array_regex, example_code) for ar in result if ar != ""])
+
+class re_patterns():
+    int_regex = "int \\w* = \\d"
+    float_regex = "(float \\w* = \\w*\\.\\w*)|(float \\w* = \\w*)"
+    string_regex = "string\[\d*\].*"
+    array_regex = "(array \\w*\\[\\w*,\\d\\] = \\d.*)|(array \\w*\\[\\w*,\\d\\] = \\(\\d.*)"
+
+
+print(re.findall(re_patterns.int_regex,example_code))
+print([fnumber for result in re.findall(re_patterns.float_regex, example_code) for fnumber in result if fnumber != ""])
+print(re.findall(re_patterns.string_regex, example_code))
+print([ar for result in re.findall(re_patterns.array_regex, example_code) for ar in result if ar != ""])
