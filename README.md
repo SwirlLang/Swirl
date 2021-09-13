@@ -86,4 +86,6 @@ endclass
 So as for simplicity, the parameters of the constructor is defined directly inside the parantheses.
 
 ## Encapsulation
-
+### Access Modifiers
+-> **Sheild:** Can only be accessed within the class
+-> **Global:** Can be accesed from anywhere
