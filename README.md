@@ -75,3 +75,11 @@ end
 and
 
 or
+
+# Object Oriented Programming
+## Encapsulation
+Classes:```
+class <Name> (params)
+  <accesModifier> <type> attr = <default>
+endclass
+```
