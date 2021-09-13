@@ -78,7 +78,8 @@ or
 
 # Object Oriented Programming
 ## Encapsulation
-Classes:```
+Classes:
+```
 class <Name> (params)
   <accesModifier> <type> attr = <default>
 endclass
