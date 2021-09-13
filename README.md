@@ -77,7 +77,7 @@ and
 or
 
 # Object Oriented Programming
-Classes:
+## Classes:
 ```
 class <Name> (params)
   <accesModifier> <type> attr = <default>
@@ -85,4 +85,5 @@ endclass
 ```
 So as for simplicity, the parameters of the constructor is defined directly inside the parantheses.
 
-## 
+## Encapsulation
+
