@@ -77,7 +77,6 @@ and
 or
 
 # Object Oriented Programming
-## Encapsulation
 Classes:
 ```
 class <Name> (params)
@@ -85,3 +84,5 @@ class <Name> (params)
 endclass
 ```
 So as for simplicity, the parameters of the constructor is defined directly inside the parantheses.
+
+## 
