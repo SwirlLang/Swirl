@@ -1,6 +1,4 @@
-///
-example of print statement
-///
+//example of print statement
 
 func main ()
     print("Hello world!")
