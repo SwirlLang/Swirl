@@ -90,3 +90,17 @@ So as for simplicity, the parameters of the constructor is defined directly insi
 -> **Sheild:** Can only be accessed within the class
 
 -> **Global:** Can be accesed from anywhere
+## Inheritance 
+```
+class Animal () 
+  func eat () 
+    print("I am eating some stuff")
+  endfunc
+endclass
+
+class Dog inherits Animal () 
+  func bark () 
+    print("Woof woof!")
+  endfunc
+endclass
+```  
