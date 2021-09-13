@@ -81,7 +81,7 @@ or
 ```
 class <Name> (params)
   <accessModifier> <type> attr = <default>
-endclass
+end
 ```
 So as for simplicity, the parameters of the constructor is defined directly inside the parantheses.
 
@@ -95,12 +95,12 @@ So as for simplicity, the parameters of the constructor is defined directly insi
 class Animal () 
   func eat () 
     print("I am eating some stuff")
-  endfunc
-endclass
+  end
+end
 
 class Dog inherits Animal () 
   func bark () 
     print("Woof woof!")
-  endfunc
-endclass
+  end
+end
 ```  
