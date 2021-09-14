@@ -45,9 +45,10 @@ elseif code == code2
 ```
 else code == code2
 	your code
+endif
 ```
 ```
-for 1 in var
+for i in var
   your code
 endfor
 ```
@@ -84,7 +85,7 @@ or
 ```
 class <Name> (params)
   <accessModifier> <type> attr = <default>
-end
+endclass
 ```
 So as for simplicity, the parameters of the constructor is defined directly inside the parantheses.
 
@@ -98,12 +99,12 @@ So as for simplicity, the parameters of the constructor is defined directly insi
 class Animal () 
   func eat () 
     print("I am eating some stuff")
-  end
-end
+  endfunc
+endclass
 
 class Dog inherits Animal () 
   func bark () 
     print("Woof woof!")
-  end
-end
+  endfunc
+endclass
 ```  
