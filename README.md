@@ -27,7 +27,7 @@ string name = "rick"
 
 int name = 7 (32bits int)
 
-long int name = 98739823 (64bits int)
+long int name = 98739823544856 (64bits int)
 
 float name = 0.1
 
@@ -86,7 +86,7 @@ or
 ```
 class <Name> (params)
   <accessModifier> <type> attr = <default>
-end
+endclass
 ```
 So as for simplicity, the parameters of the constructor is defined directly inside the parantheses.
 
@@ -100,14 +100,14 @@ So as for simplicity, the parameters of the constructor is defined directly insi
 class Animal () 
   func eat () 
     print("I am eating some stuff")
-  end
-end
+  endfunc
+endclass
 
 class Dog inherits Animal () 
   func bark () 
     print("Woof woof!")
-  end
-end
+  endfunc
+endclass
 ```  
 
 We recommend VSCode for Lambda Code programming as it has support for lambda code. Install this extension before working. https://marketplace.visualstudio.com/items?itemName=MrinmoyHaloi.lc-lang-support&ssr=false#overview
