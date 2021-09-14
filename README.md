@@ -34,16 +34,16 @@ array arr[type,length] = 1,2,2,3,3,4
 const string
 # Conditional statements and iterations
 ```
-if code == code2
+if (code == code2)
   your code
 endif
 ```
 ```
-elseif code == code2
+elseif (code == code2)
   your code
 ```
 ```
-else code == code2
+else (code == code2)
 	your code
 ```
 ```
