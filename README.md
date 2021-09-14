@@ -47,7 +47,6 @@ elseif (code == code2)
 ```
 else code == code2
 	your code
-endif
 ```
 ```
 for i in var
