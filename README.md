@@ -25,7 +25,9 @@ endfunc
 
 string name = "rick"
 
-int name = 7
+int name = 7 (32bits int)
+
+long int name = 98739823544856 (64bits int)
 
 float name = 0.1
 
@@ -34,12 +36,12 @@ array arr[type,length] = 1,2,2,3,3,4
 const string
 # Conditional statements and iterations
 ```
-if code == code2
+if (code == code2)
   your code
 endif
 ```
 ```
-elseif code == code2
+elseif (code == code2)
   your code
 ```
 ```
@@ -108,3 +110,5 @@ class Dog inherits Animal ()
   endfunc
 endclass
 ```  
+
+We recommend VSCode for Lambda Code programming as it has support for lambda code. Install this extension before working. https://marketplace.visualstudio.com/items?itemName=MrinmoyHaloi.lc-lang-support&ssr=false#overview
