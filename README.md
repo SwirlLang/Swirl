@@ -43,7 +43,7 @@ elseif (code == code2)
   your code
 ```
 ```
-else (code == code2)
+else
 	your code
 ```
 ```
