@@ -25,7 +25,9 @@ endfunc
 
 string name = "rick"
 
-int name = 7
+int name = 7 (32bits int)
+
+long int name = 98739823 (64bits int)
 
 float name = 0.1
 
