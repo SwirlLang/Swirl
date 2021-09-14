@@ -1,14 +1,14 @@
 """ Class defining all naming conventions and the formatter for Lambda-code (still in development)"""
 
 
-class Coventions:
+class Conventions:
   def apply_all(self, snippet: str) -> None:
     """ apply all conventions to the snippet
     :param snippet: Any content yo apply the convention on    
     """
-    self.apply_camel_case()
-    self.apply_pascal_case()
-    self.apply_snake_case()
+    self.apply_camel_case(snippet)
+    self.apply_pascal_case(snippet)
+    self.apply_snake_case(snippet)
   
   def apply_camel_case(self, snippet: str) -> None:
     """ apply camel case convention to the given snippet of code
