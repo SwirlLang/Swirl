@@ -1,17 +1,18 @@
 //example of print statement
 
-func main ()
+func main()
     print("Hello world!")
-end
+endfunc
 
-func main ()
-    print("Hello world!")
-end
+func main():int
+    print("Hello bye!")
+	return 0
+endfunc
 
-func main ()
+func main()
     print("Hello world!")
-end
+endfunc
 
-func main ()
+func main()
     print("Hello world!")
-end
+endfunc
