@@ -1,0 +1,18 @@
+//example of print statement
+
+func main()
+    print("Hello world!")
+endfunc
+
+func main2():int
+    print("Hello bye!")
+	return 0
+endfunc
+
+func main3()
+    print("Hello world!")
+endfunc
+
+func main4()
+    print("Hello world!")
+endfunc
