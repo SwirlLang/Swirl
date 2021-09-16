@@ -2,6 +2,9 @@
 
 import re
 import argparse
+import sys
+
+sys.tracebacklimit = 0
 
 parser = argparse.ArgumentParser(
     prog="compiler", description="Compiler for lambda code"
@@ -14,10 +17,8 @@ parsed = parser.parse_args()
 
 
 class CompilerError(Exception):
-    pass
+    __module__ = "builtins"
 
-
-filename = ""
 
 filename = parsed.file
 
@@ -29,36 +30,43 @@ fi2 = readed_file.find("endfunc")
 comment_index = readed_file.find("///")
 gvariables = {}
 
-while comment_index != -1:
-    ci2 = readed_file.find("///", comment_index + 3)
-    if ci2 == -1:
-        row = readed_file[:comment_index].count("\n") + 1
-        col = comment_index + 1 - (readed_file[:comment_index].rfind("\n") + 1)
-        raise CompilerError(f"{row}:{col}: error: unfinished multi-line comment")
-    readed_file = readed_file.replace(readed_file[comment_index : ci2 + 3], "")
-
 while index != -1:
     row = readed_file[:index].count("\n") + 1
     col = index + 1 - (readed_file[:index].rfind("\n") + 1)
     fi2 = readed_file.find("endfunc", index)
-    if index == fi2 - 3:
-        raise CompilerError(f"{row}:{col}: missing func to corresponding endfunc")
-
-    elif fi2 == -1:
-        raise CompilerError(f"{row}:{col}: unfinished function declaration")
-	
-    tmp = readed_file[index + 4 : fi2]
-    tmp = tmp.replace("\\\"", "")
-    tmp = tmp.replace("\\'", "")
-    string_index = tmp.find("\"")
-    si2 = tmp.find("\"", string_index + 1)
-    if si2 == -1:
-        raise CompilerError(f"{row}:{col} unfinished string inside this function")
-    if "func" in tmp or "class" in tmp:
+    if index == fi2 + 3:
         raise CompilerError(
-            f"{row}:{col}: cannot declare a class or function inside another function, bruh"
+            f"Line {row}, column {col}: missing func to corresponding endfunc"
         )
 
+    elif fi2 == -1:
+        print(index)
+        print(fi2)
+        raise CompilerError(
+            f"Line {row}, column {col}: unfinished function declaration"
+        )
+
+    tmp = readed_file[index + 4 : fi2]
+    tmp = tmp.replace('\\"', "")
+    tmp = tmp.replace("\\'", "")
+    string_index = tmp.find('"')
+    si2 = tmp.find('"', string_index + 1)
+    if si2 == -1:
+        raise CompilerError(
+            f"Line {row}, column {col} unfinished string inside this function"
+        )
+    if "func" in tmp or "class" in tmp:
+        raise CompilerError(
+            f'Line {row}, column {col}: Declaration Error: cannot declare a class or function inside another function, eight "bruh"s for you'
+        )
+
+    nextfunc = readed_file[index + 4 : fi2].replace(" ", "")
+    for func in functions:
+        func = func.replace(" ", "")
+        if nextfunc[: nextfunc.find(":")] == func[: func.find(":")]:
+            raise CompilerError(
+                f"Line {row}, column {col}: declaration of duplicate function"
+            )
     functions.append(readed_file[index + 4 : fi2])
     index = readed_file.find("func", fi2 + 7)
 
