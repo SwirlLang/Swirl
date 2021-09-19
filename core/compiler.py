@@ -32,13 +32,68 @@ source = open(filename, "r")
 readed_file = source.read()
 functions = []
 index = readed_file.find("func")
-fi2 = readed_file.find("endfunc")
-comment_index = readed_file.find("///")
-gvariables = {}
+string_indices = []
+s_index1 = readed_file.find("'")
+s_index2 = readed_file.find('"')
+while s_index1 != -1 != s_index2:
+    tmp_index = min(s_index1, s_index2)
+    row = readed_file[: tmp_index].count("\n")
+    col = tmp_index - readed_file[: tmp_index].rfind("\n")
+    if readed_file[tmp_index - 1] == '\\' != readed_file[tmp_index - 2]:
+        raise CompilerError(f"Line {row}, column {col - 1}: unexpected backslash")
+
+    elif s_index1 < s_index2:
+        singlei = readed_file.find("'", s_index2 + 1)
+        if singlei == -1:
+            raise CompilerError(f"Line {row}, column {col}: unfinished string")
+        while readed_file[singlei - 1] == "\\" != readed_file[singlei - 2]:
+            singlei = readed_file.find("'", singlei + 1)
+            if singlei == -1:
+                raise CompilerError(f"Line {row}, column {col}: unfinished string")
+        string_indices.append((s_index1, singlei))
+        singlei += 1
+        s_index1 = readed_file.find("'", singlei)
+        if s_index2 < singlei:
+            s_index2 = readed_file.find('"', singlei)
+
+    else:
+        doublei = readed_file.find('"', s_index2 + 1)
+        if doublei == -1:
+            raise CompilerError(f"Line {row}, column {col}: unfinished string")
+        while readed_file[doublei - 1] == "\\" != readed_file[doublei - 2]:
+            doublei = readed_file.find('"', doublei + 1)
+            if doublei == -1:
+                raise CompilerError(f"Line {row}, column {col}: unfinished string")
+        string_indices.append((s_index2, doublei))  # fun fact: this string indices list is already sorted on its own
+        doublei += 1
+        s_index2 = readed_file.find('"', doublei)
+        if s_index1 < doublei:
+            s_index1 = readed_file.find("'", doublei)
+
+while s_index1 != -1:
+    row = readed_file[: s_index1].count("\n")
+    col = s_index1 - readed_file[: s_index1].rfind("\n")
+    if readed_file[s_index1 - 1] == '\\' != readed_file[s_index1 - 2]:
+        raise CompilerError(f"Line {row}, column {col - 1}: unexpected backslash")
+    singlei = readed_file.find("'", s_index1 + 1)
+    if singlei == -1:
+        raise CompilerError(f"Line {row}, column {col}: unfinished string")
+    while readed_file[singlei - 1] == "\\" != readed_file[singlei - 2]:
+        singlei = readed_file.find("'", singlei + 1)
+        if singlei == -1:
+            raise CompilerError(f"Line {row}, column {col}: unfinished string")
+    string_indices.append((s_index1, singlei))
+    s_index1 = readed_file.find("'", singlei + 1)
+
+while s_index2 != -1:
+    row = readed_file[: s_index2].count("\n")
+    col = s_index2 - readed_file[: s_index2].rfind("\n")
+    if readed_file[s_index2 - 1] == '\\' != readed_file[]
+
 
 while index != -1:
     row = readed_file[:index].count("\n") + 1
-    col = index + 1 - (readed_file[:index].rfind("\n") + 1)
+    col = index - readed_file[:index].rfind("\n")
     fi2 = readed_file.find("endfunc", index - 3)
     if index == fi2 + 3:
         raise CompilerError(
@@ -56,13 +111,13 @@ while index != -1:
     string_index = tmp.find('"')
     si2 = tmp.find('"', string_index + 1)
     if si2 == -1:
-        raise CompilerError(
-            f"Line {row}, column {col} unfinished string inside this function"
-        )
-    if "func" in tmp or "class" in tmp:
-        raise CompilerError(
-            f'Line {row}, column {col}: Declaration Error: cannot declare a class or function inside another function, eight "bruh"s for you'
-        )
+        raise CompilerError(f"Line {row}, column {col} unfinished string inside this fun")
+
+    if "func " in tmp:
+        raise CompilerError(f'Line {row}, column {col}: cannot declare a function inside another function, eight "bruh"s for you')
+
+    if "class" in tmp:
+        raise CompilerError(f"Line {row}, column {col}: cannot declare a class inside a function")
 
     nextfunc = readed_file[index + 4 : fi2].replace(" ", "")
     nextfunc = nextfunc[: nextfunc.find(":")]
@@ -70,41 +125,14 @@ while index != -1:
         raise CompilerError(f"Line {row}, column {col}: cannot call a function \"main\" because the main function is placed in the global scope")
     
     for func in functions:
-        func = func.replace(" ", "")
+        func = func[0].replace(" ", "")
         if nextfunc == func[: func.find(":")]:
             raise CompilerError(
                 f"Line {row}, column {col}: declaration of duplicate function"
             )
-    functions.append(readed_file[index + 4 : fi2])
+    functions.append((readed_file[index + 4 : fi2], row))
     index = readed_file.find("func", fi2 + 7)
 
-string_indices = []
-s_index1 = readed_file.find("'")
-s_index2 = readed_file.find('"')
-
-# you didn't specify the file
-
-if s_index1 < s_index2:
-    row = readed_file[: s_index1].count("\n") + 1
-    if readed_file[s_index1 - 1 : s_index1 + 1] == "\\'":
-        col = s_index1 - (readed_file[: s_index1].rfind("\n") + 1)
-        raise CompilerError(f"Line {row}, column {col}: unexpected backslash")
-    singlei = readed_file.find("'", s_index1 + 1)
-    if singlei == -1:
-        col = s_index1 + 1 - (readed_file[: s_index1].rfind("\n") + 1)
-        raise CompilerError(f"Line {row}, column {col}: unfinished string")
-    while readed_file[singlei - 1 : singlei + 1] == "\\'" and readed_file[singlei - 2] != '\\':
-        singlei = readed_file.find("'", singlei + 1)
-    string_indices.append((s_index1, singlei))
-else:
-    if readed_file[s_index2 - 1 : s_index2 + 1] == '\\"':
-        row = readed_file[: s_index1].count("\n") + 1
-        col = s_index1 - (readed_file[: s_index1].rfind("\n") + 1)
-        raise CompilerError(f"Line {row}, column {col}: unexpected backslash")
-
-
-            
-# """Removes all functions, and what remains in the global scope will be the main code"""
 # for func in functions:
 #     main_func = main_func.replace(func, "")
 
@@ -158,7 +186,8 @@ print(
 #     """ Precompiles the code before translating it to CPP (e.g. removing comments and pasting imported stuffs) """
 #    # we can only ignore comments, not remove them, because we need the number of c
 
-def compile(data: str) -> str:
+
+def _compile(data: str) -> str:
     """ Compiles the snippet passed into the data param into C++ """
     _home_dir = pathlib.Path.home()
     try:
@@ -168,11 +197,16 @@ def compile(data: str) -> str:
         env_debug_path_to_exe = debug_dir
     except Exception: 
         pass
-    
+    return ''
 
-compile("ello ello")
+
+_compile("ello ello")
+
 
 def debug():
     """ Only meant for debugging purposes """
     os.system(f"cd {pathlib.Path.home()}/Lambda-Code/core/")
-    os.system("python3 compiler.py print_statement.lc")
+    os.system("python3 compiler.py C:/Users/Ashok Kumar/Lambda-Code/core/print_statement.lc")
+
+
+debug()
