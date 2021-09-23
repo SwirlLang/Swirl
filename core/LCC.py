@@ -379,10 +379,3 @@ def _compile(data: str) -> str:
 
 
 #_compile("ello ello")
-
-
-def debug():
-    """ Only meant for debugging purposes """
-    os.system(f"cd {pathlib.Path.home()}/Lambda-Code/core/")
-    os.system("python3 compiler.py C:/Users/Ashok Kumar/Lambda-Code/core/print_statement.lc")
-#debug()
