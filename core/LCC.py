@@ -209,7 +209,7 @@ while index != -1:
 
     elif index == fi2 + 3:
         translation = False
-        raise Error(f"Line {row}, column {col - 3}: missing func to corresponding endfunc")
+        raise Error(f"Line {row}, column {col - 3}: missing keyword 'func' to corresponding keyword 'endfunc'")
 
     else:
         while True:
