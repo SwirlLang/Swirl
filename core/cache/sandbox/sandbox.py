@@ -15,9 +15,12 @@ def class_parser(snippet: str) -> dict:
         return name[1]
 
     def get_super_classes() -> list:
-        _inheritance = ((" ".join((snippet.split("inherits")[1]).split())).split("(")[0]).split()
-        _inheritance.remove("and")
-        return _inheritance
+        try:
+            _inheritance = ((" ".join((snippet.split("inherits")[1]).split())).split("(")[0]).split()
+            _inheritance.remove("and")
+            return _inheritance
+        except IndexError:
+            pass
 
     def get_params() -> list:
         _params = (snippet.split("(")[1]).split(")")[0]
@@ -37,3 +40,14 @@ def class_parser(snippet: str) -> dict:
     parsed_dict["super_class"] = get_super_classes()
     parsed_dict["params"] = get_params()
     return parsed_dict
+
+
+test = '''
+class HelloWorld(int param1, string param2, float param3)
+    func main()
+        print("Hello world!")
+    endfunc
+endclass
+'''
+
+print (class_parser(test))

@@ -391,9 +391,12 @@ def class_parser(snippet: str) -> dict:
         return name[1]
 
     def get_super_classes() -> list:
-        _inheritance = ((" ".join((snippet.split("inherits")[1]).split())).split("(")[0]).split()
-        _inheritance.remove("and")
-        return _inheritance
+        try:
+            _inheritance = ((" ".join((snippet.split("inherits")[1]).split())).split("(")[0]).split()
+            _inheritance.remove("and")
+            return _inheritance
+        except IndexError:
+            pass
 
     def get_params() -> list:
         _params = (snippet.split("(")[1]).split(")")[0]
