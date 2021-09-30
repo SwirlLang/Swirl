@@ -110,4 +110,4 @@ class Dog inherits Animal ()
 endclass
 ```  
 
-We recommend VSCode for Lambda Code programming as it has support for lambda code. Install this extension before working. https://marketplace.visualstudio.com/items?itemName=MrinmoyHaloi.lc-lang-support&ssr=false#overview
+We recommend VSCode for Lambda Code programming as it has support for lambda code. Install this extension before working. [Lambda code vscode extension](https://marketplace.visualstudio.com/items?itemName=MrinmoyHaloi.lc-lang-support&ssr=false#overview)
