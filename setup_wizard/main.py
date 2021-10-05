@@ -1,10 +1,11 @@
-import sys
+import ctypes
 import os
 import pathlib
+import sys
+
+from kivy.core.window import Window
 from kivy.lang import Builder
 from kivymd.app import MDApp
-from kivy.core.window import Window
-
 
 KV = '''
 <Home@Screen>
@@ -122,10 +123,19 @@ ScreenManager:
 '''
 
 
+def _check_if_admin() -> bool:
+    if sys.platform == "win32":
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except Exception:
+            return False
+
+
 class SetupWizard(MDApp):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.homePath = pathlib.Path.home()
+        self.path = None
 
     def build(self):
         Window.size = 550, 400
@@ -135,6 +145,18 @@ class SetupWizard(MDApp):
 
     def on_start(self):
         Window.left, Window.right = (500, 500)
+
+    def set_path_env_var(self) -> None:
+        os.environ['path'] += self.path
+
+    def execute(self) -> None:
+        # TODO
+        if _check_if_admin():
+            pass
+        else:
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", sys.executable, " ".join(sys.argv), None, 1
+            )
 
 
 SetupWizard().run()

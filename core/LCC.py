@@ -71,7 +71,7 @@ while s_index1 != -1 != s_index2:
             while readed_file[singlei - bscount - 1] == '\\':
                 bscount += 1
         bscount = 0
-        if singlei != -1:    
+        if singlei != -1:
             singlei += 1
             string_indices.append(range(s_index1, singlei))
             s_index1 = readed_file.find("'", singlei)
@@ -81,7 +81,7 @@ while s_index1 != -1 != s_index2:
             string_indices.append(range(s_index1, size))
             s_index1, s_index2 = -1, -1
             break
-                
+
     else:
         doublei = readed_file.find('"', s_index2 + 1)
         if doublei == -1:
@@ -103,9 +103,10 @@ while s_index1 != -1 != s_index2:
                 while readed_file[doublei - bscount - 1] == '\\':
                     bscount += 1
             bscount = 0
-            if doublei != -1:            
+            if doublei != -1:
                 doublei += 1
-                string_indices.append(range(s_index2, doublei))  # fun fact: this string indices list is already sorted on its own
+                string_indices.append(
+                    range(s_index2, doublei))  # fun fact: this string indices list is already sorted on its own
                 s_index2 = readed_file.find('"', doublei)
                 if s_index1 < doublei:
                     s_index1 = readed_file.find("'", doublei)
@@ -113,7 +114,6 @@ while s_index1 != -1 != s_index2:
                 string_indices.append(range(s_index2, size))
                 s_index1, s_index2 = -1, -1
                 break
-
 
 while s_index1 != -1:
     row = readed_file[: s_index1].count("\n") + 1
@@ -149,8 +149,6 @@ while s_index1 != -1:
         s_index2 = -1
         break
 
-
-
 while s_index2 != -1:
     row = readed_file[: s_index2].count("\n") + 1
     col = s_index2 - readed_file[: s_index2].rfind("\n")
@@ -183,10 +181,6 @@ while s_index2 != -1:
         string_indices.append(range(s_index2, size))
         break
 
-
-
-
-
 while index != -1:
     while True:
         for sindex in string_indices:
@@ -195,7 +189,7 @@ while index != -1:
                 continue
         else:
             break
-    
+
     if index == -1:
         break
 
@@ -271,33 +265,35 @@ while index != -1:
                 errIndex1 = readed_file.find("func", sindex[-1] + 1, fi2)
                 break
         else:
-            row1 += readed_file[rIndex1 : errIndex1].count("\n")
+            row1 += readed_file[rIndex1: errIndex1].count("\n")
             col = errIndex1 - readed_file[: errIndex1].rfind("\n")
             rIndex1 = errIndex1
             errIndex1 = readed_file.find("func", errIndex1 + 4, fi2)
             translation = False
             valid = False
-            print(f'Error: Line {row1}, column {col}: cannot declare a function inside another function, eight "bruh"s for you')
+            print(
+                f'Error: Line {row1}, column {col}: cannot declare a function inside another function, eight "bruh"s for you')
     while errIndex2 != -1:
         for sindex in string_indices:
             if errIndex2 in sindex:
                 errIndex2 = readed_file.find("class", errIndex2 + 5, fi2)
                 break
         else:
-            row2 += readed_file[rIndex2 : errIndex2].count("\n")
+            row2 += readed_file[rIndex2: errIndex2].count("\n")
             col = errIndex2 - readed_file[: errIndex2].rfind("\n")
             rIndex2 = errIndex2
             errIndex2 = readed_file.find("class", errIndex2 + 5, fi2)
             translation = False
             valid = False
             print(f"Error: Line {row2}, column {col}: cannot declare a class inside a function")
-    
-    nextfunc = readed_file[rType + 1 : parbracket].replace(" ", "")
+
+    nextfunc = readed_file[rType + 1: parbracket].replace(" ", "")
     if nextfunc == "main":
         translation = False
-        print(f"Error: Line {row}, column {col}: cannot call a function \"main\" because the main function is placed in the global scope")
+        print(
+            f"Error: Line {row}, column {col}: cannot call a function \"main\" because the main function is placed in the global scope")
         break
-    
+
     for func in functions:
         func = func[0].replace(" ", "")
         if nextfunc == func[: func.find(":")]:
@@ -305,7 +301,7 @@ while index != -1:
             valid = False
             print(f"Error: Line {row}, column {col}: declaration of duplicate function")
     if valid:
-        functions.append((readed_file[index : fi2], row))
+        functions.append((readed_file[index: fi2], row))
         func_indices.append(range(index - 4, fi2 + 8))
         index = readed_file.find("func", fi2 + 7)
     valid = True
@@ -325,8 +321,8 @@ array arr[int,5] = (1,2,2,3,3,4)
 array arr[int,5] = 1, 2, 2, 3 , 3,4
 // hello world this is a comment
 """
- 
- 
+
+
 class RePattern:
     """ Class defining patterns for LambdaCode (later used for pattern matching)"""
 
@@ -336,7 +332,7 @@ class RePattern:
     array_regex = (
         "(array \\w*\\[\\w*,\\d\\] = \\d.*)|(array \\w*\\[\\w*,\\d\\] = \\(\\d.*)"
     )
-    class_regex = r"[a-z A-Z] [inherits]? [a-z A-Z]()\w.endclass{1}"  #TODO unstable, needs work 
+    class_regex = r"[a-z A-Z] [inherits]? [a-z A-Z]()\w.endclass{1}"  # TODO unstable, needs work
 
 
 """ print(re.findall(RePattern.int_regex, example_code))
@@ -359,6 +355,7 @@ print(
     ]
 ) """
 
+
 # def precompile(snippet: str) -> str:
 #     """ Precompiles the code before translating it to CPP (e.g. removing comments and pasting imported stuffs) """
 #    # we can only ignore comments, not remove them, because we need the number of c
@@ -372,7 +369,7 @@ def _compile(data: str) -> str:
         os.mkdir(f"{_home_dir}/debug/{(parsed.file.split('.'))[0]}")
         debug_dir = f"{_home_dir}/debug/{(parsed.file.split('.'))[0]}"
         env_debug_path_to_exe = debug_dir
-    except Exception: 
+    except Exception:
         pass
     return ''
 
@@ -411,3 +408,45 @@ def class_parser(snippet: str) -> dict:
     parsed_dict["params"] = [__names, __types]
     return parsed_dict
 
+
+def func_parser(snippet: str) -> list:
+    """
+    A basic function parser (might be unstable)
+    :param snippet: The snippet to parse(str)
+    """
+
+    # TODO test the stability of the parser
+
+    __main_dict__ = []
+    _funcs = snippet.split("func ")
+    _types = ["string", "int", "float", "array"]
+    _param_name = []
+    _param_types = []
+    for item in _funcs:
+        if item == "\n":
+            _funcs.remove(item)
+    for function in _funcs:
+        helper = (
+            (
+                "".join(" ".join(function.split(function.split('(')[0])).split(")")
+                        )
+            ).split("\n")[0]).split("(")
+        _helper = "".join("".join(("".join(helper[1])).split(":")).split(",")).split()
+        for paramName in _helper:
+            if paramName in _types:
+                _helper.remove(paramName)
+        _param_name = _helper
+        _typeHelper = "".join("".join(("".join(helper[1])).split(":")).split(",")).split()
+        for paramType in _typeHelper:
+            if paramType in _param_name:
+                _typeHelper.remove(paramType)
+        _param_types = _typeHelper
+
+        __main_dict__.append(
+            {
+                "name": function.split('(')[0],
+                "params": [_param_name, _param_types]
+            }
+        )
+
+    return __main_dict__
