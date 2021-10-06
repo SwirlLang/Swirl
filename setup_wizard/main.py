@@ -6,17 +6,22 @@ import sys
 from kivy.core.window import Window
 from kivy.lang import Builder
 from kivymd.app import MDApp
+from kivy.uix.progressbar import ProgressBar
+from kivy.metrics import dp
+from pygments.lexers.console import PyPyLogLexer
 
 KV = '''
 <Home@Screen>
 <Components@Screen>
 <Additionals@Screen>
+<Install@Screen>
 #: import os os
 
 ScreenManager:
     Home:
     Components:
     Additionals:
+    Install:
 
 <Home>:
     name: "home"
@@ -78,7 +83,7 @@ ScreenManager:
         halign: "center"
         pos_hint: {"center_y": 0.6}
     MDLabel:
-        text: "GCC (install if you don't have)"
+        text: "G++ (Only install if you don't have)"
         halign: "center"
         pos_hint: {"center_y": 0.45}
     MDRaisedButton:
@@ -105,8 +110,8 @@ ScreenManager:
             pos_hint: {"center_x": 0.4, "center_y": 0.8}
             hint_text: "PATH TO INSTALL LAMBDA-CODE AT"
             id: pathToInstall
-        MDRaisedButton:
-            text: "BROWSE"
+        MDIconButton:
+            icon: "folder"
             pos_hint: {"center_y": 0.81}
     MDCard:
         size_hint_y: 0.05
@@ -119,8 +124,34 @@ ScreenManager:
     MDLabel:
         text: "Create a 64-bit launcher"
         pos_hint: {"center_y": 0.6}
-        halign: "left"
+        halign: "center"
+    MDRaisedButton:
+        text: "INSTALL"
+        pos_hint: {"center_x": 0.9, "center_y": 0.1}
+        on_release: app.install()
+    MDFlatButton:
+        text: "BACK"
+        pos_hint: {"center_x": 0.73, "center_y": 0.1}
+        on_release: root.manager.current = "components"
+        
+
+<Install>:
+    name: "install"
+    MDBoxLayout:
+        orientation: "vertical"
+        padding: "20dp"
+        spacing: "5dp"
+    InstallationProgress:
+        allow_stretch: True
+        CodeInput:
+            readonly: True
 '''
+
+
+class InstallationProgress(ProgressBar):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint_y: 0.1
 
 
 def _check_if_admin() -> bool:
@@ -145,18 +176,19 @@ class SetupWizard(MDApp):
 
     def on_start(self):
         Window.left, Window.right = (500, 500)
-
-    def set_path_env_var(self) -> None:
-        os.environ['path'] += self.path
-
-    def execute(self) -> None:
-        # TODO
+        return
         if _check_if_admin():
-            pass
+            return
         else:
             ctypes.windll.shell32.ShellExecuteW(
                 None, "runas", sys.executable, " ".join(sys.argv), None, 1
             )
+
+    def set_path_env_var(self) -> None:
+        os.environ['path'] += self.path
+
+    def install(self) -> None:
+        self.root.current = "install"
 
 
 SetupWizard().run()
