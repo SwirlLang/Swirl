@@ -1,10 +1,21 @@
 """ Just a simple dir and file for testing new stuffs, not meant for end-users """
 
+import os
+
+
+class ConventionError(Exception):
+    __module__ = "builtins"
+
 
 def func_parser(snippet: str) -> list:
     __main_dict__ = []
     _funcs = snippet.split("func ")
     _types = ["string", "int", "float", "array"]
+    invalid_chars = [
+        "!", "@", "#", "$", "%", "^", "&", "*", "(", ")"
+        "~", "`", "<", ">", "?", "/", "{", "}", "[", "]",
+        "%s" % os.pathsep, "|"
+    ]
     _param_name = []
     _param_types = []
     for item in _funcs:
@@ -26,10 +37,16 @@ def func_parser(snippet: str) -> list:
             if paramType in _param_name:
                 _typeHelper.remove(paramType)
         _param_types = _typeHelper
+        func_name = function.split('(')[0]
+        if func_name[0] in invalid_chars:
+            raise ConventionError(
+                f"The name of the function at index {_funcs.index(function)} is starting with an invalid "
+                f"character '{func_name[0]}'\nCompilation Terminated "
+            )
 
         __main_dict__.append(
             {
-                "name": function.split('(')[0],
+                "name": func_name,
                 "params": [_param_name, _param_types]
             }
         )
@@ -42,7 +59,7 @@ func helloWorld(param1: string, param2: int)
     print("hello world!")
 endfunc
 
-func byeWorld(param1: string, param2: int)
+func %yeWorld(param1: string, param2: int)
     print("bye world")
 endfunc
 

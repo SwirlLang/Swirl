@@ -409,6 +409,12 @@ def class_parser(snippet: str) -> dict:
     return parsed_dict
 
 
+class ConventionError(Exception):
+    """ Exception raised when basic conventions are not followed appropriately, eg: When function name is starting
+    with an invalid character """
+    __module__ = "builtins"
+
+
 def func_parser(snippet: str) -> list:
     """
     A basic function parser (might be unstable)
