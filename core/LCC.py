@@ -5,6 +5,7 @@ import re
 import argparse
 import sys
 import pathlib
+import logging
 
 sys.tracebacklimit = 0  # Removes the annoying traceback text
 
@@ -407,12 +408,6 @@ def class_parser(snippet: str) -> dict:
     parsed_dict["super_class"] = _inheritance
     parsed_dict["params"] = [__names, __types]
     return parsed_dict
-
-
-class ConventionError(Exception):
-    """ Exception raised when basic conventions are not followed appropriately, eg: When function name is starting
-    with an invalid character """
-    __module__ = "builtins"
 
 
 def func_parser(snippet: str) -> list:

@@ -1,20 +1,28 @@
 """ Just a simple dir and file for testing new stuffs, not meant for end-users """
 
 import os
+import logging
 
 
-class ConventionError(Exception):
+class Error(Exception):
+    """ Class for compiler's error """
     __module__ = "builtins"
 
 
-def func_parser(snippet: str) -> list:
+def func_parser(snippet: str, check_for_conventions: bool = False) -> list:
+    """
+    :param snippet: the snippet to parse (str)
+    :param check_for_conventions: if true, will return a warning for wrong conventions (bool). Defaults to False
+    """
+
     __main_dict__ = []
     _funcs = snippet.split("func ")
     _types = ["string", "int", "float", "array"]
     invalid_chars = [
         "!", "@", "#", "$", "%", "^", "&", "*", "(", ")"
         "~", "`", "<", ">", "?", "/", "{", "}", "[", "]",
-        "%s" % os.pathsep, "|"
+        "%s" % os.pathsep, "|", "1", "2", "3", "4", "5",
+        "6", "7", "8", "9", "0"
     ]
     _param_name = []
     _param_types = []
@@ -38,8 +46,14 @@ def func_parser(snippet: str) -> list:
                 _typeHelper.remove(paramType)
         _param_types = _typeHelper
         func_name = function.split('(')[0]
+
+        if check_for_conventions:
+            if func_name[0].isupper():
+                logging.warning(f"The name of the function should start with lower case\nFunction '{func_name}'")
+                pass
+
         if func_name[0] in invalid_chars:
-            raise ConventionError(
+            raise Error(
                 f"The name of the function at index {_funcs.index(function)} is starting with an invalid "
                 f"character '{func_name[0]}'\nCompilation Terminated "
             )
@@ -59,7 +73,7 @@ func helloWorld(param1: string, param2: int)
     print("hello world!")
 endfunc
 
-func %yeWorld(param1: string, param2: int)
+func ByeWorld(param1: string, param2: int)
     print("bye world")
 endfunc
 
@@ -72,4 +86,4 @@ func byeWorld4(param1: string, param2: int)
 endfunc
 '''
 
-print(func_parser(test))
+print(func_parser(test, True))
