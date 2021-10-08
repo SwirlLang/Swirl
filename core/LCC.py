@@ -44,144 +44,102 @@ string_indices = []
 s_index1 = readed_file.find("'")
 s_index2 = readed_file.find('"')
 bscount = 0
-while s_index1 != -1 != s_index2:
-    tmp_index = min(s_index1, s_index2)
-    row = readed_file[: tmp_index].count("\n") + 1
-    col = tmp_index - readed_file[: tmp_index].rfind("\n")
-    if readed_file[tmp_index - 1] == '\\':
-        translation = False
-        print(f"Error: Line {row}, column {col - 1}: unexpected backslash")
-
-    if s_index1 < s_index2:
+comment_indices = []
+c_index1 = readed_file.find("//")
+c_index2 = readed_file.find("///")
+row = 0
+tmp_index = 0
+while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
+    min_index = min([x for x in [s_index1, s_index2, c_index1, c_index2] if x != -1])
+    row += readed_file[tmp_index : min_index].count("\n")
+    col = min_index - readed_file[: min_index].rfind("\n")
+    tmp_index = min_index
+    if min_index == c_index1:
+        if c_index1 == c_index2:
+            multi_c = readed_file.find("///", c_index2 + 3)
+            if multi_c == -1:
+                raise Error(f"Line {row}, column {col}: unfinished multi-line comment")
+            multi_c += 3
+            comment_indices.append(range(c_index2, multi_c))
+            c_index1 = readed_file.find("//", multi_c)
+            c_index2 = readed_file.find("///", multi_c)
+            if -1 != s_index1 < multi_c:
+                s_index1 = readed_file.find("'", multi_c)
+            if -1 != s_index2 < multi_c:
+                s_index2 = readed_file.find('"', multi_c)
+        else:
+            single_c = readed_file.find("\n", c_index1 + 2)
+            if single_c == -1:
+                comment_indices.append(range(c_index1, size))
+                break
+            single_c += 2
+            comment_indices.append(range(c_index1, single_c))
+            c_index1 = readed_file.find("//", single_c)
+            if -1 != c_index2 < single_c:
+                c_index2 = readed_file.find("///", single_c)
+            if -1 != s_index1 < single_c:
+                s_index1 = readed_file.find("'", single_c)
+            if -1 != s_index2 < single_c:
+                s_index2 = readed_file.find('"', single_c)
+    elif min_index == s_index1:
+        if readed_file[s_index1 - 1] == '\\':
+            translation = False
+            print(f"Error: Line {row}, column {col - 1}: unexpected backslash")
         singlei = readed_file.find("'", s_index1 + 1)
         if singlei == -1:
-            string_indices.append(range(s_index1, size))
-            s_index1, s_index2 = -1, -1
-            translation = False
-            print(f"Error: Line {row}, column {col}: unfinished string")
-            break
+            raise Error(f"Line {row}, column {col}: unfinished string")
         while readed_file[singlei - bscount - 1] == '\\':
             bscount += 1
         while bscount & 1:
             bscount = 0
             singlei = readed_file.find("'", singlei + 1)
             if singlei == -1:
-                translation = False
-                print(f"Error: Line {row}, column {col}: unfinished string")
-                break
+                raise Error(f"Line {row}, column {col}: unfinished string")
             while readed_file[singlei - bscount - 1] == '\\':
                 bscount += 1
         bscount = 0
-        if singlei != -1:
-            singlei += 1
-            string_indices.append(range(s_index1, singlei))
-            s_index1 = readed_file.find("'", singlei)
-            if s_index2 < singlei:
-                s_index2 = readed_file.find('"', singlei)
-        else:
-            string_indices.append(range(s_index1, size))
-            s_index1, s_index2 = -1, -1
-            break
-
-    else:
-        doublei = readed_file.find('"', s_index2 + 1)
-        if doublei == -1:
-            string_indices.append(range(s_index2, size))
-            s_index1, s_index2 = -1, -1
-            translation = False
-            print(f"Error: Line {row}, column {col}: unfinished string")
-            break
-        else:
-            while readed_file[doublei - bscount - 1] == '\\':
-                bscount += 1
-            while bscount & 1:
-                bscount = 0
-                doublei = readed_file.find('"', doublei + 1)
-                if doublei == -1:
-                    translation = False
-                    print(f"Error: Line {row}, column {col}: unfinished string")
-                    break
-                while readed_file[doublei - bscount - 1] == '\\':
-                    bscount += 1
-            bscount = 0
-            if doublei != -1:
-                doublei += 1
-                string_indices.append(
-                    range(s_index2, doublei))  # fun fact: this string indices list is already sorted on its own
-                s_index2 = readed_file.find('"', doublei)
-                if s_index1 < doublei:
-                    s_index1 = readed_file.find("'", doublei)
-            else:
-                string_indices.append(range(s_index2, size))
-                s_index1, s_index2 = -1, -1
-                break
-
-while s_index1 != -1:
-    row = readed_file[: s_index1].count("\n") + 1
-    col = s_index1 - readed_file[: s_index1].rfind("\n")
-    if readed_file[s_index1 - 1] == '\\':
-        translation = False
-        print(f"Error: Line {row}, column {col - 1}: unexpected backslash")
-    singlei = readed_file.find("'", s_index1 + 1)
-    if singlei == -1:
-        translation = False
-        string_indices.append(range(s_index1, size))
-        s_index2 = -1
-        print(f"Error: Line {row}, column {col}: unfinished string")
-        break
-    while readed_file[singlei - bscount - 1] == '\\':
-        bscount += 1
-    while bscount & 1:
-        bscount = 0
-        singlei = readed_file.find("'", singlei + 1)
-        if singlei == -1:
-            translation = False
-            print(f"Error: Line {row}, column {col}: unfinished string")
-            break
-        while readed_file[singlei - bscount - 1] == '\\':
-            bscount += 1
-    bscount = 0
-    if singlei != -1:
         singlei += 1
         string_indices.append(range(s_index1, singlei))
         s_index1 = readed_file.find("'", singlei)
+        if -1 != s_index2 < singlei:
+            s_index2 = readed_file.find('"', singlei)
+        if -1 != c_index1 < singlei:
+            c_index1 = readed_file.find("//", singlei)
+        if -1 != c_index2 < singlei:
+            c_index2 = readed_file.find("///", singlei) 
     else:
-        string_indices.append(range(s_index1, size))
-        s_index2 = -1
-        break
-
-while s_index2 != -1:
-    row = readed_file[: s_index2].count("\n") + 1
-    col = s_index2 - readed_file[: s_index2].rfind("\n")
-    if readed_file[s_index2 - 1] == '\\':
-        translation = False
-        print(f"Error: Line {row}, column {col - 1}: unexpected backslash")
-    doublei = readed_file.find('"', s_index2 + 1)
-    if doublei == -1:
-        translation = False
-        string_indices.append(range(s_index2, size))
-        print(f"Error: Line {row}, column {col}: unfinished string")
-        break
-    while readed_file[doublei - bscount - 1] == '\\':
-        bscount += 1
-    while bscount & 1:
-        bscount = 0
-        doublei = readed_file.find('"', doublei + 1)
+        if readed_file[s_index2 - 1] == "\\":
+            translation == False
+            print(f"Error: Line {row}, column {col - 1}: unexpected backslash")
+        doublei = readed_file.find('"', s_index2 + 1)
         if doublei == -1:
-            translation = False
-            print(f"Error: Line {row}, column {col}: unfinished string")
-            break
+            raise Error(f"Line {row}, column {col}: unfinished string")
         while readed_file[doublei - bscount - 1] == '\\':
             bscount += 1
-    bscount = 0
-    if doublei != -1:
+        while bscount & 1:
+            bscount = 0
+            doublei = readed_file.find('"', doublei + 1)
+            if doublei == -1:
+                raise Error(f"Line {row}, column {col}: unfinished string")
+            while readed_file[doublei - bscount - 1] == '\\':
+                bscount += 1
+        bscount = 0            
         doublei += 1
-        string_indices.append(range(s_index2, doublei))
+        string_indices.append(range(s_index2, doublei))  # fun fact: this string indices list is already sorted on its own
         s_index2 = readed_file.find('"', doublei)
-    else:
-        string_indices.append(range(s_index2, size))
-        break
-
+        if -1 != s_index1 < doublei:
+            s_index1 = readed_file.find("'", doublei)
+        if -1 != c_index1 < doublei:
+            c_index1 = readed_file.find("//", doublei)
+            if readed_file[c_index1 + 2] == "/":
+                c_index2 = c_index1
+        if -1 != c_index2 < doublei:
+            c_index2 = readed_file.find("///", doublei)
+            
+            
+            
+            
+        
 while index != -1:
     while True:
         for sindex in string_indices:
