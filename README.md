@@ -1,7 +1,7 @@
 <a href="https://marketplace.visualstudio.com/items?itemName=MrinmoyHaloi.lc-lang-support">
-    <img src="https://img.shields.io/visual-studio-marketplace/v/MrinmoyHaloi.lc-lang-support?color=blue&label=VSCode%20Extension&logo=visualstudiocode&logoColor=blue&style=for-the-badge">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/MrinmoyHaloi.lc-lang-support?color=blue&label=VSCode%20Extension&logo=visualstudiocode&logoColor=blue&style=flat-square">
 <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/mrinmoyhaloi/lambda-code?style=for-the-badge">
+    <img src="https://img.shields.io/github/license/mrinmoyhaloi/lambda-code?style=flat-square">
 </a>
 
 # Lambda Code
