@@ -401,7 +401,7 @@ def func_parser(snippet: str) -> list:
 
     # TODO test the stability of the parser
 
-    __main_dict__ = []
+    __parsed_data__ = []
     _funcs = snippet.split("func ")
     _types = ["string", "int", "float", "array"]
     _param_name = []
@@ -426,11 +426,11 @@ def func_parser(snippet: str) -> list:
                 _typeHelper.remove(paramType)
         _param_types = _typeHelper
 
-        __main_dict__.append(
+        __parsed_data__.append(
             {
                 "name": function.split('(')[0],
                 "params": [_param_name, _param_types]
             }
         )
 
-    return __main_dict__
+    return __parsed_data__
