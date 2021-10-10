@@ -1,113 +1,39 @@
-# import statement
-` #import "filename.lc" `
+<a href="https://marketplace.visualstudio.com/items?itemName=MrinmoyHaloi.lc-lang-support">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/MrinmoyHaloi.lc-lang-support?color=blue&label=VSCode%20Extension&logo=visualstudiocode&logoColor=blue">
+<a href="LICENSE">
+    <img src="https://img.shields.io/github/license/mrinmoyhaloi/lambda-code">
+</a>
 
-# comments
-```
-// Comment
-/// multi  
-line
-Comment ///
-```
-# defining functions
-```
-func name(arg1, arg2)
-  print(arg1, arg2)
-  return var
-endfunc
+# Lambda Code
 
-arrowfunc = () =>
-  **logic**
-  return var
+Lambda code is a new high level compiled staticly typed language. Written in python, C, C++. Its [syntax](syntax.md) is far more easier then other high level compiled languages. like cpp for example.
+
+### Lambda Code
+```lc
+func name:int()
+  print("Hello world")
+  return 0 //return code is optional
 endfunc
 ```
-# data types
+### C++
+```cpp
+#include<iostream>
 
-
-string name = "rick"
-
-int name = 7 (32bits int)
-
-long int name = 98739823544856 (64bits int)
-
-float name = 0.1
-
-array arr[type,length] = 1,2,2,3,3,4
-
-const string
-# Conditional statements and iterations
-```
-if (code == code2)
-  your code
-endif
-```
-```
-elseif (code == code2)
-  your code
-```
-```
-else 
-    your code
-```
-```
-for i in var
-  your code
-endfor
-```
-```
-while true
-  your code
-endwhile
+using namespace std;
+ 
+int main()
+{
+    cout<<"Hello World";     
+    return 0;
+}
 ```
 
-## Operators
+The language will have its own GUI library for making desktop softwares, a web framework for making dynamic websites etc.
 
-== equal <br>
-!= not equal <br>
-<= lower than or equal <br>
-\>= greater than or equal <br>
-< lower than <br>
-\> greater than <br>
+The language is still in heavy development. There are lots of work that needs to be done.
 
-= assignment <br>
+## contributing
+Contributions to the language are appreciated. We want to work in a open source community. If you want to contribute to the language you can make a pull request. We will review it. And if we think its good enough to take, we will merge it in our language.
 
-++ increment by 1 <br>
--- decrement by 1 <br>
-+= increment by the number specified<br>
--= decrement by the number specified<br>
-*= multiplication by the number specified<br>
-/= division by the number specified<br>
-### Logical operators
-and
-
-or
-
-# Object Oriented Programming
-## Classes:
-```
-class <Name> (params)
-  <accessModifier> <type> attr = <default>
-endclass
-```
-So as for simplicity, the parameters of the constructor is defined directly inside the parantheses.
-
-## Encapsulation
-### Access Modifiers
--> **Shield:** Can only be accessed within the class
-
--> **Global:** Can be accesed from anywhere
-## Inheritance 
-```
-class Animal () 
-  func eat () 
-    print("I am eating some stuff")
-  endfunc
-endclass
-
-class Dog inherits Animal () 
-  func bark () 
-    print("Woof woof!")
-  endfunc
-endclass
-```  
-
-We recommend VSCode for Lambda Code programming as it has support for lambda code. Install this extension before working. [Lambda code vscode extension](https://marketplace.visualstudio.com/items?itemName=MrinmoyHaloi.lc-lang-support&ssr=false#overview)
+## Issues and feature request
+If you want to request any new feature or want to tell us about any sorts of bug you can use github issues for it. We will try to reply as fast as we can.
