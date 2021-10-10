@@ -195,7 +195,6 @@ while index != -1:
     index += 4
 
     rType = readed_file.find(":", index, fi2)
-    print(rType)
     if rType == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
