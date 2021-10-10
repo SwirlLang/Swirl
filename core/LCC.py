@@ -56,7 +56,7 @@ bscount = 0
 comment_indices = []
 c_index1 = readed_file.find("//")
 c_index2 = readed_file.find("///")
-row = 0
+row = 1
 tmp_index = 0
 while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     min_index = min([x for x in (s_index1, s_index2, c_index1, c_index2) if x != -1])
@@ -149,9 +149,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             break
         bscount = 0
         doublei += 1
-        string_indices.append(
-            range(s_index2, doublei)
-        )  # fun fact: this string indices list is already sorted on its own
+        string_indices.append(range(s_index2, doublei))  # fun fact: this string indices list is already sorted on its own
         s_index2 = readed_file.find('"', doublei)
         if -1 != s_index1 < doublei:
             s_index1 = readed_file.find("'", doublei)
@@ -197,6 +195,7 @@ while index != -1:
     index += 4
 
     rType = readed_file.find(":", index, fi2)
+    print(rType)
     if rType == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
@@ -260,6 +259,7 @@ while index != -1:
             translation = False
             valid = False
             print(f"Error: Line {row2}, column {col}: cannot declare a class inside a function")
+            break
 
     nextfunc = readed_file[rType + 1 : parbracket].replace(" ", "")
     if nextfunc == "main":
@@ -276,7 +276,7 @@ while index != -1:
     if valid:
         func_indices.append(range(index - 4, fi2 + 8))
         functions.append((readed_file[index : fi2], row))
-        index = readed_file.find("func", fi2 + 7)
+    index = readed_file.find("func", fi2 + 7)
     valid = True
 
 source.close()
