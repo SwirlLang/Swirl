@@ -6,8 +6,16 @@ name: Python application
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.markdown'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.markdown'
+
+    
 
 jobs:
   build:
