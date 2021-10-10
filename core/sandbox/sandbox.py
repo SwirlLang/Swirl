@@ -1,15 +1,18 @@
+ 
 
 def class_parser(snippet: str) -> list:
+
+     
     __parsed_data__ = []
     _types = ["string", "int", "float", "array"]
-
+    
     splitter = snippet.split("class ")
     for item in splitter:
         if item == "\n":
             splitter.remove(item)
 
     for CLASS in splitter:
-        name = ""
+        name = "" 
         super_classes = []
         constructor_params = []
 
@@ -60,17 +63,9 @@ def class_parser(snippet: str) -> list:
 
 
 test = '''
-class Person(string name, int age)
-    func sayHi(): void
-        print("Hi there!")
-    endfunc
-endclass
-
-class Bike inherits Vehicle and SomeShit(int speed, string name)
-    func start(): void
-        print("brooooom broooooom")
-    endfunc
-endclass 
+func helloWorld:void()
+    print("hello world")
+endfunc
 '''
 
 print(class_parser(test))
