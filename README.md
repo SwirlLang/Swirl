@@ -28,7 +28,7 @@ int main()
 }
 ```
 
-The language will have its own GUI library for making desktop softwares, a web framework for making dynamic websites etc.
+The language will have its own GUI library for making desktop apps, a web framework for making dynamic websites etc.
 
 The language is still in heavy development. There are lots of work that needs to be done.
 
