@@ -1,7 +1,6 @@
 """ The core of the compiler """
 
 import os
-import re
 import argparse
 import sys
 import pathlib
@@ -10,25 +9,35 @@ import logging
 sys.tracebacklimit = 0  # Removes the annoying traceback text
 
 # contains the debug dir path of the current project in which exe's have to be produced
-env_debug_path_to_exe = None  # always access this var after calling the compile function
+env_debug_path_to_exe = (
+    None  # always access this var after calling the compile function
+)
+# the command line interface for the compiler
+arg_parser = argparse.ArgumentParser(
+    prog="LCC",
+    description="Compiler for lambda code",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog="""
+Copyright Lambda code foundation 2021.
+report bugs at https://github.com/mrinmoyhaloi/lambdacode
+	""",
+)
 
-parser = argparse.ArgumentParser(
-    prog="LCC", description="Compiler for lambda code"
+file_arg = arg_parser.add_argument("file", type=str, help="Filename of the input file")
+out_filename_arg = arg_parser.add_argument(
+    "-o", "--output", nargs="?", help="Filename of the output file", type=str
 )
-file_arg = parser.add_argument(
-    "file",
-    type=str,
-)
-parsed = parser.parse_args()
+parsed = arg_parser.parse_args()
 
 
 class Error(Exception):
-    """ Class for compiler's error """
+    "Class for compiler's error"
+
     __module__ = "builtins"  # Removes the annoying "__main__." before errors
 
 
 filename = parsed.file
-
+print(parsed.out_filename_arg)
 source = open(filename, "r")
 readed_file = source.read()
 size = len(readed_file)
@@ -36,7 +45,6 @@ if not size:
     raise Error("empty file")
 translation = True
 valid = True
-functions = []
 func_indices = []
 ifunc = 0
 index = readed_file.find("func")
@@ -51,14 +59,16 @@ row = 0
 tmp_index = 0
 while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     min_index = min([x for x in [s_index1, s_index2, c_index1, c_index2] if x != -1])
-    row += readed_file[tmp_index : min_index].count("\n")
-    col = min_index - readed_file[: min_index].rfind("\n")
+    row += readed_file[tmp_index:min_index].count("\n")
+    col = min_index - readed_file[:min_index].rfind("\n")
     tmp_index = min_index
     if min_index == c_index1:
         if c_index1 == c_index2:
             multi_c = readed_file.find("///", c_index2 + 3)
             if multi_c == -1:
-                raise Error(f"Line {row}, column {col}: unfinished multi-line comment")
+                raise Error(
+                    f"Line {row}, character {col}: unfinished multi-line comment"
+                )
             multi_c += 3
             comment_indices.append(range(c_index2, multi_c))
             c_index1 = readed_file.find("//", multi_c)
@@ -82,20 +92,20 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             if -1 != s_index2 < single_c:
                 s_index2 = readed_file.find('"', single_c)
     elif min_index == s_index1:
-        if readed_file[s_index1 - 1] == '\\':
+        if readed_file[s_index1 - 1] == "\\":
             translation = False
-            print(f"Error: Line {row}, column {col - 1}: unexpected backslash")
+            print(f"Error: Line {row}, character {col - 1}: unexpected backslash")
         singlei = readed_file.find("'", s_index1 + 1)
         if singlei == -1:
-            raise Error(f"Line {row}, column {col}: unfinished string")
-        while readed_file[singlei - bscount - 1] == '\\':
+            raise Error(f"Line {row}, character {col}: unfinished string")
+        while readed_file[singlei - bscount - 1] == "\\":
             bscount += 1
         while bscount & 1:
             bscount = 0
             singlei = readed_file.find("'", singlei + 1)
             if singlei == -1:
-                raise Error(f"Line {row}, column {col}: unfinished string")
-            while readed_file[singlei - bscount - 1] == '\\':
+                raise Error(f"Line {row}, character {col}: unfinished string")
+            while readed_file[singlei - bscount - 1] == "\\":
                 bscount += 1
         bscount = 0
         singlei += 1
@@ -106,26 +116,28 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
         if -1 != c_index1 < singlei:
             c_index1 = readed_file.find("//", singlei)
         if -1 != c_index2 < singlei:
-            c_index2 = readed_file.find("///", singlei) 
+            c_index2 = readed_file.find("///", singlei)
     else:
         if readed_file[s_index2 - 1] == "\\":
             translation == False
-            print(f"Error: Line {row}, column {col - 1}: unexpected backslash")
+            print(f"Error: Line {row}, character {col - 1}: unexpected backslash")
         doublei = readed_file.find('"', s_index2 + 1)
         if doublei == -1:
-            raise Error(f"Line {row}, column {col}: unfinished string")
-        while readed_file[doublei - bscount - 1] == '\\':
+            raise Error(f"Line {row}, character {col}: unfinished string")
+        while readed_file[doublei - bscount - 1] == "\\":
             bscount += 1
         while bscount & 1:
             bscount = 0
             doublei = readed_file.find('"', doublei + 1)
             if doublei == -1:
-                raise Error(f"Line {row}, column {col}: unfinished string")
-            while readed_file[doublei - bscount - 1] == '\\':
+                raise Error(f"Line {row}, character {col}: unfinished string")
+            while readed_file[doublei - bscount - 1] == "\\":
                 bscount += 1
-        bscount = 0            
+        bscount = 0
         doublei += 1
-        string_indices.append(range(s_index2, doublei))  # fun fact: this string indices list is already sorted on its own
+        string_indices.append(
+            range(s_index2, doublei)
+        )  # fun fact: this string indices list is already sorted on its own
         s_index2 = readed_file.find('"', doublei)
         if -1 != s_index1 < doublei:
             s_index1 = readed_file.find("'", doublei)
@@ -135,11 +147,8 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
                 c_index2 = c_index1
         if -1 != c_index2 < doublei:
             c_index2 = readed_file.find("///", doublei)
-            
-            
-            
-            
-        
+
+
 while index != -1:
     while True:
         for sindex in string_indices:
@@ -157,11 +166,13 @@ while index != -1:
     fi2 = readed_file.find("endfunc", index - 3)
     if fi2 == -1:
         translation = False
-        raise Error(f"Line {row}, column {col}: unfinished function declaration")
+        raise Error(f"Line {row}, character {col}: unfinished function declaration")
 
     elif index == fi2 + 3:
         translation = False
-        raise Error(f"Line {row}, column {col - 3}: missing func to corresponding endfunc")
+        raise Error(
+            f"Line {row}, character {col - 3}: missing func to corresponding endfunc"
+        )
 
     else:
         while True:
@@ -173,7 +184,7 @@ while index != -1:
                 break
     if fi2 == -1:
         translation = False
-        raise Error(f"Line {row}, column {col}: unfinished function declaration")
+        raise Error(f"Line {row}, character {col}: unfinished function declaration")
 
     index += 4
 
@@ -181,7 +192,7 @@ while index != -1:
     if rType == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        print(f"Error: Line {row}, column {col}: missing function return type")
+        print(f"Error: Line {row}, character {col}: missing function return type")
         continue
     while True:
         for sindex in string_indices:
@@ -193,14 +204,16 @@ while index != -1:
     if rType == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        print(f"Error: Line {row}, column {col}: missing function return type")
+        print(f"Error: Line {row}, character {col}: missing function return type")
         continue
 
     parbracket = readed_file.find("(", rType, fi2)
     if parbracket == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        print(f"Error: Line {row}, column {col}: missing parameters syntax in this function")
+        print(
+            f"Error: Line {row}, character {col}: missing parameters syntax in this function"
+        )
         continue
     for sindex in string_indices:
         if parbracket in sindex:
@@ -209,7 +222,9 @@ while index != -1:
     if parbracket == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        print(f"Error: Line {row}, column {col}: missing parameters syntax in this function")
+        print(
+            f"Error: Line {row}, character {col}: missing parameters syntax in this function"
+        )
         continue
 
     errIndex1 = readed_file.find("func", index, fi2)
@@ -224,33 +239,37 @@ while index != -1:
                 errIndex1 = readed_file.find("func", sindex[-1] + 1, fi2)
                 break
         else:
-            row1 += readed_file[rIndex1: errIndex1].count("\n")
-            col = errIndex1 - readed_file[: errIndex1].rfind("\n")
+            row1 += readed_file[rIndex1:errIndex1].count("\n")
+            col = errIndex1 - readed_file[:errIndex1].rfind("\n")
             rIndex1 = errIndex1
             errIndex1 = readed_file.find("func", errIndex1 + 4, fi2)
             translation = False
             valid = False
             print(
-                f'Error: Line {row1}, column {col}: cannot declare a function inside another function, eight "bruh"s for you')
+                f'Error: Line {row1}, character {col}: cannot declare a function inside another function, eight "bruh"s for you'
+            )
     while errIndex2 != -1:
         for sindex in string_indices:
             if errIndex2 in sindex:
                 errIndex2 = readed_file.find("class", errIndex2 + 5, fi2)
                 break
         else:
-            row2 += readed_file[rIndex2: errIndex2].count("\n")
-            col = errIndex2 - readed_file[: errIndex2].rfind("\n")
+            row2 += readed_file[rIndex2:errIndex2].count("\n")
+            col = errIndex2 - readed_file[:errIndex2].rfind("\n")
             rIndex2 = errIndex2
             errIndex2 = readed_file.find("class", errIndex2 + 5, fi2)
             translation = False
             valid = False
-            print(f"Error: Line {row2}, column {col}: cannot declare a class inside a function")
+            print(
+                f"Error: Line {row2}, character {col}: cannot declare a class inside a function"
+            )
 
-    nextfunc = readed_file[rType + 1: parbracket].replace(" ", "")
+    nextfunc = readed_file[rType + 1 : parbracket].replace(" ", "")
     if nextfunc == "main":
         translation = False
         print(
-            f"Error: Line {row}, column {col}: cannot call a function \"main\" because the main function is placed in the global scope")
+            f'Error: Line {row}, character {col}: cannot call a function "main" because the main function is placed in the global scope'
+        )
         break
 
     for func in functions:
@@ -258,62 +277,15 @@ while index != -1:
         if nextfunc == func[: func.find(":")]:
             translation = False
             valid = False
-            print(f"Error: Line {row}, column {col}: declaration of duplicate function")
+            print(
+                f"Error: Line {row}, character {col}: declaration of duplicate function"
+            )
     if valid:
-        functions.append((readed_file[index: fi2], row))
         func_indices.append(range(index - 4, fi2 + 8))
         index = readed_file.find("func", fi2 + 7)
     valid = True
 
-# for func in functions:
-#     main_func = main_func.replace(func, "")
-
 source.close()
-
-example_code = """
-int abc = 9
-int b = 10
-float c = 0.9
-float c = 9
-string[99] name = "mrinmoy"
-array arr[int,5] = (1,2,2,3,3,4)
-array arr[int,5] = 1, 2, 2, 3 , 3,4
-// hello world this is a comment
-"""
-
-
-class RePattern:
-    """ Class defining patterns for LambdaCode (later used for pattern matching)"""
-
-    int_regex = "int \\w* = \\d"
-    float_regex = "(float \\w* = \\w*\\.\\w*)|(float \\w* = \\w*)"
-    string_regex = "string\[\d*\].*"
-    array_regex = (
-        "(array \\w*\\[\\w*,\\d\\] = \\d.*)|(array \\w*\\[\\w*,\\d\\] = \\(\\d.*)"
-    )
-    class_regex = r"[a-z A-Z] [inherits]? [a-z A-Z]()\w.endclass{1}"  # TODO unstable, needs work
-
-
-""" print(re.findall(RePattern.int_regex, example_code))
-print(
-    [
-        fnumber
-        for result in re.findall(RePattern.float_regex, example_code)
-        for fnumber in result
-        if fnumber != ""
-    ]
-)
-# this is just for printing stuff and we'll remove them anyway okay :thumbsup:
-print(re.findall(RePattern.string_regex, example_code))
-print(
-    [
-        ar
-        for result in re.findall(RePattern.array_regex, example_code)
-        for ar in result
-        if ar != ""
-    ]
-) """
-
 
 # def precompile(snippet: str) -> str:
 #     """ Precompiles the code before translating it to CPP (e.g. removing comments and pasting imported stuffs) """
@@ -321,7 +293,7 @@ print(
 
 
 def _compile(data: str) -> str:
-    """ Compiles the snippet passed into the data param into C++ """
+    """Compiles the snippet passed into the data param into C++"""
     _home_dir = pathlib.Path.home()
     try:
         os.mkdir(f"{_home_dir}/debug")
@@ -330,7 +302,7 @@ def _compile(data: str) -> str:
         env_debug_path_to_exe = debug_dir
     except Exception:
         pass
-    return ''
+    return ""
 
 
 def class_parser(snippet: str) -> list:
@@ -348,7 +320,7 @@ def class_parser(snippet: str) -> list:
         constructor_params = []
 
         n_helper = CLASS.split()
-        if 'inherits' in n_helper:
+        if "inherits" in n_helper:
             name = n_helper[0]
             super_classes = "".join(
                 ("".join(CLASS.split("inherits"))).split("(")[0]
@@ -357,8 +329,12 @@ def class_parser(snippet: str) -> list:
                 super_classes.remove("and")
             if name in super_classes:
                 super_classes.remove(name)
-            name_helper = "".join(("".join("".join(CLASS.split("(")[1])).split(")")[0]).split(",")).split()
-            type_helper = "".join(("".join("".join(CLASS.split("(")[1])).split(")")[0]).split(",")).split()
+            name_helper = "".join(
+                ("".join("".join(CLASS.split("(")[1])).split(")")[0]).split(",")
+            ).split()
+            type_helper = "".join(
+                ("".join("".join(CLASS.split("(")[1])).split(")")[0]).split(",")
+            ).split()
             for _type_ in type_helper:
                 if _type_ not in _types:
                     type_helper.remove(_type_)
@@ -369,7 +345,7 @@ def class_parser(snippet: str) -> list:
 
         else:
             name = CLASS.split("(")[0]
-            p_helper = (" ".join(CLASS.split('('))).split(")")
+            p_helper = (" ".join(CLASS.split("("))).split(")")
             Ptypes = ("".join(p_helper[0])).split()
             Ptypes.remove(Ptypes[0])
             Pnames = ("".join(p_helper[0])).split()
@@ -386,7 +362,7 @@ def class_parser(snippet: str) -> list:
             {
                 "name": name,
                 "super_classes": super_classes,
-                "constructor_params": constructor_params
+                "constructor_params": constructor_params,
             }
         )
 
@@ -395,11 +371,11 @@ def class_parser(snippet: str) -> list:
 
 def func_parser(snippet: str) -> list:
     """
-    A basic function parser (might be unstable)
+    A basic function arg_parser (might be unstable)
     :param snippet: The snippet to parse(str)
     """
 
-    # TODO test the stability of the parser
+    # TODO test the stability of the arg_parser
 
     __parsed_data__ = []
     _funcs = snippet.split("func ")
@@ -412,25 +388,24 @@ def func_parser(snippet: str) -> list:
     for function in _funcs:
         helper = (
             (
-                "".join(" ".join(function.split(function.split('(')[0])).split(")")
-                        )
-            ).split("\n")[0]).split("(")
+                "".join(" ".join(function.split(function.split("(")[0])).split(")"))
+            ).split("\n")[0]
+        ).split("(")
         _helper = "".join("".join(("".join(helper[1])).split(":")).split(",")).split()
         for paramName in _helper:
             if paramName in _types:
                 _helper.remove(paramName)
         _param_name = _helper
-        _typeHelper = "".join("".join(("".join(helper[1])).split(":")).split(",")).split()
+        _typeHelper = "".join(
+            "".join(("".join(helper[1])).split(":")).split(",")
+        ).split()
         for paramType in _typeHelper:
             if paramType in _param_name:
                 _typeHelper.remove(paramType)
         _param_types = _typeHelper
 
         __parsed_data__.append(
-            {
-                "name": function.split('(')[0],
-                "params": [_param_name, _param_types]
-            }
+            {"name": function.split("(")[0], "params": [_param_name, _param_types]}
         )
 
     return __parsed_data__
