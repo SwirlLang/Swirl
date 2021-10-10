@@ -44,7 +44,7 @@ size = len(readed_file)
 if not size:
     raise Error("empty file")
 translation = True
-valid = True
+valid = False
 functions = []
 func_indices = []
 ifunc = 0
@@ -69,6 +69,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             if multi_c == -1:
                 translation = False
                 print(f"Error: Line {row}, column {col}: unfinished multi-line comment")
+                break
             multi_c += 3
             comment_indices.append(range(c_index2, multi_c))
             c_index1 = readed_file.find("//", multi_c)
@@ -99,6 +100,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
         if singlei == -1:
             translation = False
             print(f"Error: Line {row}, column {col}: unfinished string")
+            break
         while readed_file[singlei - bscount - 1] == "\\":
             bscount += 1
         while bscount & 1:
@@ -106,9 +108,13 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             singlei = readed_file.find("'", singlei + 1)
             if singlei == -1:
                 translation = False
+                valid = True
                 print(f"Error: Line {row}, column {col}: unfinished string")
+                break
             while readed_file[singlei - bscount - 1] == "\\":
                 bscount += 1
+        if valid:
+            break
         bscount = 0
         singlei += 1
         string_indices.append(range(s_index1, singlei))
@@ -127,6 +133,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
         if doublei == -1:
             translation = False
             print(f"Error: Line {row}, column {col}: unfinished string")
+            break
         while readed_file[doublei - bscount - 1] == "\\":
             bscount += 1
         while bscount & 1:
@@ -134,9 +141,12 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             doublei = readed_file.find('"', doublei + 1)
             if doublei == -1:
                 translation = False
+                valid = True
                 print(f"Error: Line {row}, column {col}: unfinished string")
             while readed_file[doublei - bscount - 1] == "\\":
                 bscount += 1
+        if valid:
+            break
         bscount = 0
         doublei += 1
         string_indices.append(
@@ -152,6 +162,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
         if -1 != c_index2 < doublei:
             c_index2 = readed_file.find("///", doublei)
 
+valid = True
 
 while index != -1:
     for sindex in string_indices:
