@@ -333,39 +333,64 @@ def _compile(data: str) -> str:
     return ''
 
 
-def class_parser(snippet: str) -> dict:
-    """
-     :param snippet: the piece of code to be parsed
-    """
+def class_parser(snippet: str) -> list:
+    __parsed_data__ = []
     _types = ["string", "int", "float", "array"]
-    parsed_dict = {
-        "name": "Class", "params": [], "super_class": None,
-    }
 
-    name = snippet.split()
+    splitter = snippet.split("class ")
+    for item in splitter:
+        if item == "\n":
+            splitter.remove(item)
 
-    try:
-        _inheritance = ((" ".join((snippet.split("inherits")[1]).split())).split("(")[0]).split()
-        _inheritance.remove("and")
-    except IndexError:
-        pass
+    for CLASS in splitter:
+        name = ""
+        super_classes = []
+        constructor_params = []
 
-    _params = (snippet.split("(")[1]).split(")")[0]
-    __names = " ".join((" ".join(_params.split(','))).split(":")).split()
-    __types = " ".join((" ".join(_params.split(','))).split(":")).split()
-    for item in __types:
-        """ Iterates and removes every item except the data types """
-        if not item in _types:
-            __types.remove(item)
-    for _item in __names:
-        """ Iterates over __names and removes data types """
-        if _item in _types:
-            __names.remove(_item)
+        n_helper = CLASS.split()
+        if 'inherits' in n_helper:
+            name = n_helper[0]
+            super_classes = "".join(
+                ("".join(CLASS.split("inherits"))).split("(")[0]
+            ).split()
+            if "and" in super_classes:
+                super_classes.remove("and")
+            if name in super_classes:
+                super_classes.remove(name)
+            name_helper = "".join(("".join("".join(CLASS.split("(")[1])).split(")")[0]).split(",")).split()
+            type_helper = "".join(("".join("".join(CLASS.split("(")[1])).split(")")[0]).split(",")).split()
+            for _type_ in type_helper:
+                if _type_ not in _types:
+                    type_helper.remove(_type_)
+            for _name_ in name_helper:
+                if _name_ in _types:
+                    name_helper.remove(_name_)
+            constructor_params = [name_helper, type_helper]
 
-    parsed_dict["name"] = name[1]
-    parsed_dict["super_class"] = _inheritance
-    parsed_dict["params"] = [__names, __types]
-    return parsed_dict
+        else:
+            name = CLASS.split("(")[0]
+            p_helper = (" ".join(CLASS.split('('))).split(")")
+            Ptypes = ("".join(p_helper[0])).split()
+            Ptypes.remove(Ptypes[0])
+            Pnames = ("".join(p_helper[0])).split()
+            Pnames.remove(Pnames[0])
+            for _item in Pnames:
+                if _item in _types:
+                    Pnames.remove(_item)
+            for _item_ in Ptypes:
+                if _item_ not in _types:
+                    Ptypes.remove(_item_)
+            constructor_params = [Pnames, Ptypes]
+
+        __parsed_data__.append(
+            {
+                "name": name,
+                "super_classes": super_classes,
+                "constructor_params": constructor_params
+            }
+        )
+
+    return __parsed_data__
 
 
 def func_parser(snippet: str) -> list:
