@@ -45,6 +45,7 @@ if not size:
     raise Error("empty file")
 translation = True
 valid = True
+functions = []
 func_indices = []
 ifunc = 0
 index = readed_file.find("func")
@@ -282,6 +283,7 @@ while index != -1:
             )
     if valid:
         func_indices.append(range(index - 4, fi2 + 8))
+	functions.append((readed_file[index : fi2], row))
         index = readed_file.find("func", fi2 + 7)
     valid = True
 
