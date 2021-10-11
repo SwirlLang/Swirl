@@ -16,7 +16,7 @@ endfunc
 ```
 ### C++
 ```cpp
-#include<iostream>
+#include <iostream>
 
 using namespace std;
  
