@@ -10,9 +10,8 @@ Lambda code is a new high level compiled staticly typed programming language. Wr
 
 ### Lambda Code
 ```lc
-func name:int()
+func name:void()
   print("Hello world")
-  return 0 //return code is optional
 endfunc
 ```
 ### C++
