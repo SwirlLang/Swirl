@@ -1,0 +1,10 @@
+///
+A file to test the imports parser
+///
+
+
+class Test()
+    func hello():
+        print("hello world")
+    endfunc
+endclass
