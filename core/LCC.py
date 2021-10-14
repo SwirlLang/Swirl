@@ -4,7 +4,7 @@ import os
 import argparse
 import sys
 import pathlib
-import logging
+import logging  
 
 sys.tracebacklimit = 0  # Removes the annoying traceback text
 
@@ -19,15 +19,22 @@ arg_parser = argparse.ArgumentParser(
     formatter_class=argparse.RawDescriptionHelpFormatter,
     epilog="""
 Copyright Lambda code foundation 2021.
-report bugs at https://github.com/mrinmoyhaloi/lambdacode
-	""",
+report bugs at https://github.com/mrinmoyhaloi/lambda-code
+""",
 )
 
-file_arg = arg_parser.add_argument("file", type=str, help="Filename of the input file")
-out_filename_arg = arg_parser.add_argument(
-    "-o", "--output", nargs="?", help="Filename of the output file", type=str
-)
-parsed = arg_parser.parse_args()
+arg_parser.add_argument(
+    "file", 
+    type=str, 
+    help="Filename of the input file")
+arg_parser.add_argument(
+    "-o", 
+    "--output", 
+    nargs="?", 
+    help="Filename of the output file",
+    type=str)
+
+parsed_args = arg_parser.parse_args()
 
 
 class Error(Exception):
@@ -35,9 +42,43 @@ class Error(Exception):
 
     __module__ = "builtins"  # Removes the annoying "__main__." before errors
 
+def binary_search(indices: list, index: int) -> bool:
+    middle = len(indices)
+    if middle > 1:
+        if middle == 2:
+            if index in indices[0] or index in indices[1]:
+                return True
+            else:
+                return False
+        middle //= 2
+        offset = middle // 2 + 1
+        while offset != 0:
+            if index < indices[middle][0]:
+                middle -= offset
+                offset //= 2
+            elif index >= indices[middle][1]:
+                middle += offset
+                offset //= 2
+            else:
+                return True
+        if index in indices[middle]:
+            return True
+        else:
+            return False
+    elif middle == 0:
+        return False
+    else:
+        if index in indices[0]:
+            return True
+        else:
+            return False
+    
+    
 
-filename = parsed.file
-# print(parsed.out_filename_arg)
+
+filename = parsed_args.file
+output_filename = parsed_args.output
+
 source = open(filename, "r")
 readed_file = source.read()
 size = len(readed_file)
@@ -58,6 +99,7 @@ c_index1 = readed_file.find("//")
 c_index2 = readed_file.find("///")
 row = 1
 tmp_index = 0
+"""Checks for errors and produces two list of indexes of where strings or comments start and end at"""
 while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     min_index = min([x for x in (s_index1, s_index2, c_index1, c_index2) if x != -1])
     row += readed_file[tmp_index:min_index].count("\n")
@@ -99,7 +141,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
         singlei = readed_file.find("'", s_index1 + 1)
         if singlei == -1:
             translation = False
-            print(f"Error: Line {row}, column {col}: unfinished string")
+            print(f"Error: Line {row}, column {col}: unfinished string")#
             break
         while readed_file[singlei - bscount - 1] == "\\":
             bscount += 1
@@ -290,8 +332,8 @@ def _compile(data: str) -> str:
     _home_dir = pathlib.Path.home()
     try:
         os.mkdir(f"{_home_dir}/debug")
-        os.mkdir(f"{_home_dir}/debug/{(parsed.file.split('.'))[0]}")
-        debug_dir = f"{_home_dir}/debug/{(parsed.file.split('.'))[0]}"
+        os.mkdir(f"{_home_dir}/debug/{(filename.split('.'))[0]}")
+        debug_dir = f"{_home_dir}/debug/{(filename.split('.'))[0]}"
         env_debug_path_to_exe = debug_dir
     except Exception:
         pass
@@ -402,3 +444,8 @@ def func_parser(snippet: str) -> list:
         )
 
     return __parsed_data__
+
+if translation:
+    pass #TODO
+else:
+    sys.exit(1)

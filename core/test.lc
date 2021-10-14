@@ -7,7 +7,6 @@ int b = 454375873485738497589347589347534895734897589347
 func ahs:int()
     int b = 1
     string[12] c = 'func'
-    class
 endfunc
 endfunc
 "

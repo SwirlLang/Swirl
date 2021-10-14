@@ -9,7 +9,7 @@ def import_parser(snippet: str) -> list:
     return imported_file
 
 # the parser for classes
-def class_parser(snippet: str) -> list: 
+def class_parser(snippet: str) -> list:
 
     __parsed_data__ = []
     _types = ["string", "int", "float", "array"]
