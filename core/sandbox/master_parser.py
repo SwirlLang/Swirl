@@ -1,10 +1,21 @@
+# DEPRECATED in favour of pattern matching
+
 def master_parser(file: str) -> None:
     """
-    :param file: the file to parse (dispatch)
+    :param file: the file to parse (slice and dispatch them to their respective parsers)
     """
     splitter = file.split()
-    if "class" in splitter:
-        print("Why ?")
+    classes = []
+    functions = []
+
+    for TOKEN in splitter:
+        if TOKEN == "class":
+            classes.append(
+                splitter[splitter.index(TOKEN): splitter.index("endclass")]
+            )
+            print(classes)
+            continue
+
 
 test = '''
 class Test()
@@ -14,7 +25,14 @@ class Test()
 endclass
 
 func test:void()
-    prinr("hello world from a function") 
+    print("hello world from a function") 
 endfunc
+
+class Test2()
+    func test_2:void()
+        print("hello world from class")
+    endfunc
+endclass
 '''
-print(master_parser(test))  
+
+master_parser(test)

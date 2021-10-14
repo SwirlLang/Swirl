@@ -1,16 +1,8 @@
-# the parser for import statements. NOT STABLE
-def import_parser(snippet: str) -> list:
-    splitter = snippet.split("import ")[1:]
-    imported_file = []
-    for item in splitter:
-        item = item.replace("\n", "")
-        for file in item.split(","):
-                imported_file.append(file.replace(" ", ""))
-    return imported_file
+ 
 
-# the parser for classes
-def class_parser(snippet: str) -> list: 
+def class_parser(snippet: str) -> list:
 
+     
     __parsed_data__ = []
     _types = ["string", "int", "float", "array"]
     
@@ -69,15 +61,11 @@ def class_parser(snippet: str) -> list:
 
     return __parsed_data__
 
+
 test = '''
 func helloWorld:void()
     print("hello world")
 endfunc
 '''
-test2 = '''
-import something.lc, something_else.lc
-import helloworld.lc
-'''
 
-# print(class_parser(test))
-import_parser(test2)
+print(class_parser(test))
