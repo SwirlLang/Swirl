@@ -1,3 +1,5 @@
+# UNSTABLE
+
 import ctypes
 import os
 import pathlib
@@ -71,21 +73,14 @@ ScreenManager:
             markup: True
             font_style: "H6"
             font_name: "assets/fonts/AlfaSlabOne-Regular.ttf"
-        BoxLayout:
-    MDCheckbox:
-        pos_hint: {"center_x": 0.25, "center_y": 0.6}
-        size_hint: None, None
-    MDCheckbox:
-        pos_hint: {"center_x": 0.25, "center_y": 0.45}
-        size_hint: None, None
-    MDLabel:
-        text: "LCC (with all standard libraries)"
-        halign: "center"
-        pos_hint: {"center_y": 0.6}
-    MDLabel:
-        text: "G++ (Only install if you don't have)"
-        halign: "center"
-        pos_hint: {"center_y": 0.45}
+        GridLayout:
+            cols: 2
+            padding: "20dp"
+            BoxLayout:
+                spacing: "10dp"
+                MDCheckbox:
+                MDLabel:
+                    text: "App-Dev libs amd tools"
     MDRaisedButton:
         text: "NEXT"
         pos_hint: {"center_x": 0.9, "center_y": 0.1}

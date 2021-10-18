@@ -3,7 +3,7 @@
 import os
 import sys
 import logging
-import urllib
+import urllib3
 import pathlib
 
 err = """
@@ -33,7 +33,7 @@ else:
 def install_package(name: str, url: str) -> None:
     """ Installs the package name specified """
     try:
-        urllib.request.urlretrive(url, f"{pathlib.Path.home()}LambdaCode/{name}")
+        urllib3.request.urlretrive(url, f"{pathlib.Path.home()}LambdaCode/{name}")
     except Exception as anonymousError:
         sys.stdout.write(f"{anonymousError}")
 
