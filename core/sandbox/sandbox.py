@@ -1,23 +1,24 @@
- 
 
-# the parser for classes
 def class_parser(snippet: str) -> list:
-
-     
     __parsed_data__ = []
     _types = ["string", "int", "float", "array"]
-    
+
+    # just for easiness ...
+    _t = snippet.split()
     splitter = snippet.split("class ")
     for item in splitter:
         if item == "\n":
             splitter.remove(item)
 
+    # Iterating through and adding every class present, in the the list by using dicts
     for CLASS in splitter:
         name = "" 
         super_classes = []
         constructor_params = []
-
+        content = ''
         n_helper = CLASS.split()
+
+        # if the class is a child class ...
         if 'inherits' in n_helper:
             name = n_helper[0]
             super_classes = "".join(
@@ -52,11 +53,20 @@ def class_parser(snippet: str) -> list:
                     Ptypes.remove(_item_)
             constructor_params = [Pnames, Ptypes]
 
+        try:
+            content = _t[_t.index(f"{constructor_params[0][-1]})"): _t.index("endclass")]
+            for itm in content:
+                if itm == f"{constructor_params[0][-1]})":
+                    content.remove(itm)
+        except Exception as err:
+            raise err
+
         __parsed_data__.append(
             {
                 "name": name,
                 "super_classes": super_classes,
-                "constructor_params": constructor_params
+                "constructor_params": constructor_params,
+                "content": content
             }
         )
 
@@ -64,9 +74,25 @@ def class_parser(snippet: str) -> list:
 
 
 test = '''
-func helloWorld:void()
-    print("hello world")
-endfunc
+class HelloWorld inherits ByeWorld(int bye, string shit)
+    func helloWorld:void()
+        print("hello world")
+    endfunc
+
+    func helloWorld:void()
+        print("hello world")
+    endfunc
+endclass
+
+class HelloWorld inherits ByeWorld(int bye, string shit)
+    func helloWorld:void()
+        print("hello world")
+    endfunc
+
+    func helloWorld:void()
+        print("hello world")
+    endfunc
+endclass
 '''
 
 print(class_parser(test))
