@@ -67,8 +67,17 @@ for i in 1..paramCount():
         of "install", "-i":
             if paramCount() < 2:
                 error "No packages provided"
-            var packages: seq[string]
-            for arg in 2..paramCount(): packages.add(paramStr(arg))
+            for arg in 2..paramCount():
+                let p = paramStr(arg)
+                # just a show
+                for i in 0..100:
+                    let a = parseInt((($(i/2)).split(".")[0]))
+                    stdout.writeLine("Downloading: "& p & "\t"*4, " [",rgb(255-i,i+150,0), "⸺"*a, def(), ' '*(53-a), "]", ' ', i, "%")
+                    sleep 40
+                    moveCursorUp 1
+                rmLine()
+                echo "Downloaded: " & p & "\t"*4, " [",rgb(100,250,100),"⸺"*51,def(), "  ]", ' ', &"{rgb(0,255,0)}Done{def()}"
+            quit(0)
             # Packages name are now in memory, need to install them now
 
         of "remove", "-r":
