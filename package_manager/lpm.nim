@@ -71,12 +71,12 @@ for i in 1..paramCount():
                 let p = paramStr(arg)
                 # just a show
                 for i in 0..100:
-                    let a = parseInt((($(i/2)).split(".")[0]))
-                    stdout.writeLine("Downloading: "& p & "\t"*4, " [",rgb(255-i,i+150,0), "⸺"*a, def(), ' '*(53-a), "]", ' ', i, "%")
+                    let a = parseInt((($(i/4)).split(".")[0]))
+                    stdout.writeLine("Downloading: " & p & "\t"*2, " [",rgb(255-i,i+150,0), "⸺"*(a+1), def(), ' '*(28-a), "]", ' ', i, "%")
                     sleep 40
                     moveCursorUp 1
                 rmLine()
-                echo "Downloaded: " & p & "\t"*4, " [",rgb(100,250,100),"⸺"*51,def(), "  ]", ' ', &"{rgb(0,255,0)}Done{def()}"
+                echo "Downloaded: " & p & "\t"*2, " [",rgb(100,250,100),"⸺"*27,def(), "  ]", ' ', &"{rgb(0,255,0)}Done{def()}"
             quit(0)
             # Packages name are now in memory, need to install them now
 
