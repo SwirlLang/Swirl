@@ -1,4 +1,4 @@
-import strutils, strformat, tlib, os, httpclient, asyncdispatch, json
+import strutils, strformat, tlib, os, httpclient, asyncdispatch, json, regex
 
 let
     blue = rgb(11, 121, 255)
@@ -36,6 +36,12 @@ proc error(arg: string) =
     stdout.write &"{red}[ERROR]{def()} {arg}\n"
     quit(1)
 
+proc query(query: string): Future[string] {.async.} =
+    let body = await client.getContent("https://github.com/Lambda-Code-Organization/Lambda-code-Central-repository")
+    # regex for packages href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/.*"
+    return body
+
+
 proc info(arg: string) =
     stdout.write &"{blue}[INFO]{def()} {arg}\n"
 
@@ -53,6 +59,7 @@ proc pkg_info(pkg: string)=
     var 
         data: JsonNode
         status: string
+        url = "https://github.com/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/" & pkg
     if os.fileExists(path & pkg & "/metadata.json"):
         data = parseJson(readFile(path & pkg & "/metadata.json"))
         status = "INSTALLED"
@@ -63,16 +70,20 @@ proc pkg_info(pkg: string)=
         data = body.parseJson()
         status = "NOT INSTALLED"
 
+
+
     echo &"""
             PACKAGE INFORMATIONS
-{blue}Name:           {white}{data["name"].getStr()}{def()}
-{blue}Description:    {white}{data["description"].getStr()}{def()}
-{blue}Version:        {white}{data["version"].getStr()}{def()}
-{blue}Author:         {white}{data["author"].getStr()}{def()}
-{blue}License:        {white}{data["license"].getStr()}{def()}
-{blue}LC-version:     {white}{data["lc-version"].getStr()}{def()}
-{blue}Updated on:     {white}{data["last_updated"].getStr()}{def()}
-{blue}Status:         {white}{status}{def()}
+{blue}Name:                 {white}{data["name"].getStr()}{def()}
+{blue}Installation Name:    {white}{pkg}{def()}
+{blue}Description:          {white}{data["description"].getStr()}{def()}
+{blue}Version:              {white}{data["version"].getStr()}{def()}
+{blue}Author:               {white}{data["author"].getStr()}{def()}
+{blue}License:              {white}{data["license"].getStr()}{def()}
+{blue}URL:                  {white}{italic()}{url}{def()}
+{blue}LC-version:           {white}{data["lc-version"].getStr()}{def()}
+{blue}Updated on:           {white}{data["last_updated"].getStr()}{def()}
+{blue}Status:               {white}{status}{def()}
 """
 
 
@@ -110,7 +121,19 @@ for i in 1..paramCount():
         of "-h", "--help":
             show_help()
             exit(0)
-        
+       
+        of "query", "-q":
+            if paramCount() < 2:
+                error "No query provided"
+            let search = paramStr(2)
+            let body = waitFor query(search)
+            for m in body.findAll(re"""href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/.*""""):
+              let htm = (body[m.boundaries]).split('/')
+              let pkg = $(htm[len(htm)-1])
+              if search in pkg[0..len(pkg)-2]:
+                  pkg_info pkg[0..len(pkg)-2]
+            exit(0)
+            
         of "list", "-l":
             if dirExists(path):
                 var num_of_pkgs: int
