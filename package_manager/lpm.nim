@@ -15,10 +15,12 @@ Welcome to {green}L{red}P{blue}M{def()}, the {green}LambdaCode{def()} {red}Packa
 
                                 AVAILABLE COMMANDS
 
-            {blue}install{def()}, -i {white}<package-name>{def()}      - Install the provided package                           {green}[IMPLEMENTED]{def()}
-            {blue}remove{def()}, -r  {white}<package-name>{def()}      - Remove the given package                               {green}[IMPLEMENTED]{def()}
-            {blue}query{def()}, -q   {white}<search>{def()}            - Searches threw the database                            {red}[NOT IMPLEMENTED]{def()}
-            {blue}list{def()}, -l                        - List all installed packages along with their version   {green}[IMPLEMENTED]{def()}
+            {blue}install{def()}, -i {white}<package-name>{def()}      - Install the provided package
+            {blue}remove{def()}, -r  {white}<package-name>{def()}      - Remove the given package
+            {blue}query{def()}, -q   {white}<search>{def()}            - Searches threw the database
+            {blue}info{def()}, -s    {white}<package-name>{def()}      - List information about a package
+            {blue}list{def()}, -l                        - List all installed packages along with their version
+            
 
 """
 
@@ -47,35 +49,39 @@ proc exit(code: int)=
     chan.close()
     quit(code)
 
-proc get_meta(pkg: string): Future[string] {.async.} =
-# {
-#     "name": "Celestial",
-#     "version": "1.0.0",
-#     "description": "A test package for lambda code",
-#     "author": "Mrinmoy Haloi",
-#     "license": "MIT",
-#     "main": "test.lc",
-#     "lc-version": "1.0.0",
-#     "dependencies": {
-#         "python-api": "1.0.3"
-#     },
-#     "last_updated": "2019-01-01"
-# }
-    let body = await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/{pkg}/metadata.json")
-    let data = body.parseJson()
-    let
-        pkg_name = data["name"].getStr()
-        pkg_ver = data["version"].getStr()
-        pkg_desc = data["description"].getStr()
-        pkg_author = data["author"].getStr()
-        pkg_license = data["license"].getStr()
-        pkg_main = data["main"].getStr()
-        pkg_lc_ver = data["lc-version"].getStr()
-        pkg_update = data["last_updated"].getStr()
+proc pkg_info(pkg: string)=
+    var 
+        data: JsonNode
+        status: string
+    if os.fileExists(path & pkg & "/metadata.json"):
+        data = parseJson(readFile(path & pkg & "/metadata.json"))
+        status = "INSTALLED"
+    else:
+        let client = newHttpClient("lpm/v0.1")
+        let body = client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/{pkg}/metadata.json")
+        client.close()
+        data = body.parseJson()
+        status = "NOT INSTALLED"
 
+    echo &"""
+            PACKAGE INFORMATIONS
+{blue}Name:           {white}{data["name"].getStr()}{def()}
+{blue}Description:    {white}{data["description"].getStr()}{def()}
+{blue}Version:        {white}{data["version"].getStr()}{def()}
+{blue}Author:         {white}{data["author"].getStr()}{def()}
+{blue}License:        {white}{data["license"].getStr()}{def()}
+{blue}LC-version:     {white}{data["lc-version"].getStr()}{def()}
+{blue}Updated on:     {white}{data["last_updated"].getStr()}{def()}
+{blue}Status:         {white}{status}{def()}
+"""
+
+
+proc get_meta(pkg: string): Future[string] {.async.} =
+    let body = await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/{pkg}/metadata.json")
     client.close()
+    let data = body.parseJson()
     writeFile(&"{path}/{pkg}/metadata.json", body)
-    return pkg_main
+    return data["main"].getStr()
 
 proc packageExists(pkg: string): Future[bool] {.async.} =
     let resp = await client.request(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/{pkg}/metadata.json")
@@ -114,15 +120,27 @@ for i in 1..paramCount():
                         let splited = path.split(split_char)
                         package splited[len(splited)-1]
                 if num_of_pkgs == 0: info "No packages are installed on your system";exit(0)
-                info &"{num_of_pkgs} are installed on your system"
+                info &"{num_of_pkgs} pakages are installed on your system"
                 exit(0)
             else:
                 info "No packages are installed on your system"
                 exit(0)
+        
+        of "info", "-s", "status":
+            if paramCount() < 2:
+                error "No package(s) provided"
+            
+            for arg in 2..paramCount():
+                let pkg = paramStr(arg)
+                if not waitFor packageExists(pkg):
+                    error &"Package {pkg} does not exists"
+                pkg_info(pkg)
+            
+            quit(0)
 
         of "install", "-i":
             if paramCount() < 2:
-                error "No packages provided"
+                error "No package(s) provided"
             for arg in 2..paramCount():
                 let pkg = paramStr(arg)
                 if not waitFor packageExists(pkg):
@@ -136,7 +154,7 @@ for i in 1..paramCount():
 
         of "remove", "-r":
             if paramCount() < 2:
-                error "No packages provided"
+                error "No package(s) provided"
             for package in 2..paramCount():
                 let pkg_name = paramStr(package)
                 let pkg_path = path & pkg_name
