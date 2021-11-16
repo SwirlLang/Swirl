@@ -1,4 +1,4 @@
-""" CLI for the package manager """
+"" CLI for the package manager """
 
 import os
 import sys
