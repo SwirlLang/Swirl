@@ -97,15 +97,19 @@ So as for simplicity, the parameters of the constructor is defined directly insi
 -> **Global:** Can be accesed from anywhere
 ## Inheritance 
 ```
-class Animal () 
-  func eat () 
+class Animal() 
+  func eat() 
     print("I am eating some stuff")
   endfunc
 endclass
 
-class Dog inherits Animal () 
+class Dog() inherits Animal
   func bark () 
     print("Woof woof!")
+  endfunc
+  
+  override func eat()
+    print("Overrided the method!")
   endfunc
 endclass
 ```
