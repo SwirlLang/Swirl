@@ -6,7 +6,7 @@
 
 # Lambda Code
 
-Lambda code is a new high level compiled statically typed programming language. Written in python, C, C++. Its [syntax](syntax.md) is far more simpler than other middle level compiled languages like C, C++.
+Lambda code is a new high level, compiled, statically typed programming language. Written in python, C, C++. Its [syntax](syntax.md) is far more simpler than other middle level compiled languages like C, C++.
 
 ### Lambda Code
 ```lc
