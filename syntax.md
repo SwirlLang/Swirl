@@ -95,6 +95,7 @@ So as for simplicity, the parameters of the constructor is defined directly insi
 <li> **Shield:** Can only be accessed within the class </li>
 
 <li> **Global:** Can be accesed from anywhere </li>
+
 ## Inheritance 
 ```
 class Animal() 
