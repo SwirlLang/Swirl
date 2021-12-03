@@ -17,12 +17,12 @@ endfunc
 ### C++
 ```cpp
 #include <iostream>
-
-using namespace std;
  
+using namespace std;
+
 int main()
 {
-    cout<<"Hello World";     
+    cout << "Hello World";     
     return 0;
 }
 ```
