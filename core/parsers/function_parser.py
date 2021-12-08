@@ -8,9 +8,7 @@ def func_parser(snippet: str) -> list:
     :param snippet: The snippet to parse(str)
     """
 
-    # TODO test the stability of the arg_parser
-
-    __parsed_data__ = []
+    __ast__ = []  # final abstract syntax tree
     _funcs = snippet.split("func ")
     _types = ["string", "int", "float", "array"]
     _param_name = []
@@ -19,26 +17,20 @@ def func_parser(snippet: str) -> list:
         if item == "\n":
             _funcs.remove(item)
     for function in _funcs:
-        helper = (
-            (
-                "".join(" ".join(function.split(function.split("(")[0])).split(")"))
-            ).split("\n")[0]
-        ).split("(")
+        helper = (("".join(" ".join(function.split(function.split("(")[0])).split(")"))).split("\n")[0]).split("(")
         _helper = "".join("".join(("".join(helper[1])).split(":")).split(",")).split()
         for paramName in _helper:
             if paramName in _types:
                 _helper.remove(paramName)
         _param_name = _helper
-        _typeHelper = "".join(
-            "".join(("".join(helper[1])).split(":")).split(",")
-        ).split()
+        _typeHelper = "".join("".join(("".join(helper[1])).split(":")).split(",")).split()
         for paramType in _typeHelper:
             if paramType in _param_name:
                 _typeHelper.remove(paramType)
         _param_types = _typeHelper
 
-        __parsed_data__.append(
+        __ast__.append(
             {"name": function.split("(")[0], "params": [_param_name, _param_types]}
         )
 
-    return __parsed_data__
+    return __ast__

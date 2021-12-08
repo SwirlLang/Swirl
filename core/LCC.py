@@ -15,10 +15,9 @@ import logging
 
 sys.tracebacklimit = 0  # Removes the annoying traceback text
 
-# contains the debug dir path of the current project in which exe's have to be produced
-env_debug_path_to_exe = (
-    None  # always access this var after calling the compile function
-)
+"contains the debug dir path of the current project in which exe's have to be produced"
+ENV_DEBUG_DIR_PATH: str  # always access this var after calling the compile function
+
 # the command line interface for the compiler
 arg_parser = argparse.ArgumentParser(
     prog="LCC",
@@ -335,7 +334,7 @@ source.close()
 
 
 def _compile(data: str) -> str:
-    """Compiles the snippet passed into the data param into C++"""
+    """Compiles the snippet passed into the param data into C++"""
     _home_dir = pathlib.Path.home()
     try:
         os.mkdir(f"{_home_dir}/debug")
