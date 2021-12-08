@@ -1,6 +1,6 @@
 import strutils, strformat, tlib, os, httpclient, asyncdispatch, json, regex
 
-# Setting up some colors to avoid 
+# Setting up some colors to avoid
 # calling 'rgb' to much time
 let
     blue = rgb(11, 121, 255)
@@ -8,7 +8,7 @@ let
     green = rgb(0, 255, 127 )
     white = rgb(255,255,255)
     client = newAsyncHttpClient("lpm/v0.1")
-# Opening a channel to comunicate with 
+# Opening a channel to comunicate with
 # async procedures
 var chan: Channel[string]
 chan.open()
@@ -23,11 +23,11 @@ Welcome to {green}L{red}P{blue}M{def()}, the {green}LambdaCode{def()} {red}Packa
             {blue}query{def()}, -q   {white}<search>{def()}            - Searches threw the database
             {blue}info{def()}, -s    {white}<package-name>{def()}      - List information about a package
             {blue}list{def()}, -l                        - List all installed packages along with their version
-            
+
 
 """
 # Defining the 'path' for windows or linux (defined at compile time)
-var 
+var
     path: string
     split_char: char
 when defined(windows): path = os.getEnv("APPDATA") & "\\roaming\\lcm\\packages\\";split_char = '\\' else: path = os.getEnv("HOME") & "/.lpm/packages/";split_char = '/'
@@ -132,7 +132,7 @@ for i in 1..paramCount():
         of "-h", "--help":
             show_help()
             exit(0)
-       
+
         of "query", "-q":
             if paramCount() < 2:
                 error "No query provided"
@@ -148,7 +148,7 @@ for i in 1..paramCount():
                   # show package informations for package name minux the last chars
                   pkg_info pkg[0..len(pkg)-2]
             exit(0)
-            
+
         of "list", "-l":
             if dirExists(path):
                 var num_of_pkgs: int
@@ -163,17 +163,17 @@ for i in 1..paramCount():
             else:
                 info "No packages are installed on your system"
                 exit(0)
-        
+
         of "info", "-s", "status":
             if paramCount() < 2:
                 error "No package(s) provided"
-            
+
             for arg in 2..paramCount():
                 let pkg = paramStr(arg)
                 if not waitFor packageExists(pkg):
                     error &"Package {pkg} does not exists"
                 pkg_info(pkg)
-            
+
             quit(0)
 
         of "install", "-i":
