@@ -92,20 +92,25 @@ So as for simplicity, the parameters of the constructor is defined directly insi
 
 ## Encapsulation
 ### Access Modifiers
--> **Shield:** Can only be accessed within the class
+<li> Shield: Can only be accessed within the class </li>
 
--> **Global:** Can be accesed from anywhere
+<li> Global: Can be accesed from anywhere </li>
+
 ## Inheritance 
 ```
-class Animal () 
-  func eat () 
+class Animal() 
+  func eat() 
     print("I am eating some stuff")
   endfunc
 endclass
 
-class Dog inherits Animal () 
+class Dog() inherits Animal
   func bark () 
     print("Woof woof!")
+  endfunc
+  
+  override func eat()
+    print("Overrided the method!")
   endfunc
 endclass
 ```
