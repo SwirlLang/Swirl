@@ -25,7 +25,7 @@ arg_parser = argparse.ArgumentParser(
     formatter_class=argparse.RawDescriptionHelpFormatter,
     epilog="""
 Copyright Lambda code foundation 2021.
-report bugs at https://github.com/mrinmoyhaloi/lambda-code
+report bugs at https://github.com/Lambda-Code-Organization/Lambda-Code
 """,
 )
 
