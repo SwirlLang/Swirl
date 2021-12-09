@@ -33,6 +33,12 @@ def func_parser(snippet: str) -> list:
             if len(dicts_["params"][0]) != len(dicts_["params"][1]) \
                     and len(dicts_["params"][0]) == 1:
                 dicts_["params"][0] = []
+            for type__ in dicts_['params'][1]:
+                if type__ not in _types:
+                    dicts_['params'][1].remove(type__)
+            for name__ in dicts_['params'][0]:
+                if name__ == '=':
+                    dicts_['params'][0].remove(name__)
 
         __ast__.append(
             {"name": function.split("(")[0], "params": [_param_name, _param_types]}
