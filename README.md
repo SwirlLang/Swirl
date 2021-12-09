@@ -19,7 +19,7 @@ The language will have its own GUI library for making desktop apps, a web framew
 
 The language is still in heavy development. There are lots of work that needs to be done.
 
-## contributing
+## Contributing
 Contributions to the language are appreciated. We want to work in a open source community. If you want to contribute to the language you can make a pull request. We will review it. And if we think its good enough to take, we will merge it in our language.
 
 ## Issues and feature request
