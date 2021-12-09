@@ -1,8 +1,11 @@
 """
 Lambda-Code
-====================
+===========================================
 A fantastic, compiled high-level programming language.
-This file contains the parser, pre-processor
+This file contains unexpected EOF/EOL(s) checkers and
+pre-processors. Also integrates every scattered components(such as parsers)
+into a single language file.
+Copyright Lambda Code Organization 2021
 """
 
 import os
