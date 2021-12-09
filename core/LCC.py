@@ -11,7 +11,6 @@ Copyright Lambda Code Organization 2021
 import os
 import argparse
 import sys
-import termcolor
 import pathlib
 import logging
 
@@ -107,7 +106,6 @@ tmp_index = 0
 
 print(functions)
 print(string_indices)
-print()
 
 """Checks for errors and produces two list of indexes of where strings or comments start and end at"""
 while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
