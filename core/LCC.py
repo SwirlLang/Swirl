@@ -105,6 +105,10 @@ c_index2 = readed_file.find("///")
 row = 1
 tmp_index = 0
 
+print(functions)
+print(string_indices)
+print()
+
 """Checks for errors and produces two list of indexes of where strings or comments start and end at"""
 while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     min_index = min([x for x in (s_index1, s_index2, c_index1, c_index2) if x != -1])
@@ -328,9 +332,12 @@ while index != -1:
 
 source.close()
 
-# def precompile(snippet: str) -> str:
-#     """ Precompiles the code before translating it to CPP (e.g. removing comments and pasting imported stuffs) """
-#    # we can only ignore comments, not remove them, because we need the number of c
+
+def pre_process() -> None:
+    """
+    Pre-processes 
+    :return: None
+    """
 
 
 def _compile(func_ast: str, variables_ast: str, classes_ast: str) -> int:
@@ -340,7 +347,6 @@ def _compile(func_ast: str, variables_ast: str, classes_ast: str) -> int:
     :param variables_ast: AST of variables in x file
     :param classes_ast: AST of classes in x file
     """
-    # TODO
     return 0  # indicates process finished with no errors
 
 

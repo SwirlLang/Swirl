@@ -29,6 +29,11 @@ def func_parser(snippet: str) -> list:
                 _typeHelper.remove(paramType)
         _param_types = _typeHelper
 
+        for dicts_ in __ast__:
+            if len(dicts_["params"][0]) != len(dicts_["params"][1]) \
+                    and len(dicts_["params"][0]) == 1:
+                dicts_["params"][0] = []
+
         __ast__.append(
             {"name": function.split("(")[0], "params": [_param_name, _param_types]}
         )
