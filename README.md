@@ -9,25 +9,13 @@
 Lambda code is a new high level, compiled, statically typed programming language. Written in python, C, C++. Its [syntax](syntax.md) is far more simpler than other middle level compiled languages like C, C++.
 
 ### Lambda Code
-```lc
-func name:void()
-  print("Hello world")
-endfunc
-```
+<img src="https://user-images.githubusercontent.com/69071143/145410775-6652ff65-ff2c-4590-af31-227cf15fc474.png" width=400>
+
+
 ### C++
-```cpp
-#include <iostream>
- 
-using namespace std;
+<img src="https://user-images.githubusercontent.com/69071143/145410441-d8724bd9-5e8c-4a6b-ba2d-517935ccfeba.png" width=400>
 
-int main()
-{
-    cout << "Hello World";     
-    return 0;
-}
-```
-
-The language will have its own GUI library for making desktop apps, a web framework for making dynamic websites etc.
+The language will have its own GUI library for making desktop apps, a web framework for making dynamic websites etc. (maybe)
 
 The language is still in heavy development. There are lots of work that needs to be done.
 
