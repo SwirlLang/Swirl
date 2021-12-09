@@ -15,9 +15,6 @@ import logging
 
 sys.tracebacklimit = 0  # Removes the annoying traceback text
 
-"contains the debug dir path of the current project in which exe's have to be produced"
-ENV_DEBUG_DIR_PATH: str  # always access this var after calling the compile function
-
 # the command line interface for the compiler
 arg_parser = argparse.ArgumentParser(
     prog="LCC",
@@ -333,20 +330,18 @@ source.close()
 #    # we can only ignore comments, not remove them, because we need the number of c
 
 
-def _compile(data: str) -> str:
-    """Compiles the snippet passed into the param data into C++"""
-    _home_dir = pathlib.Path.home()
-    try:
-        os.mkdir(f"{_home_dir}/debug")
-        os.mkdir(f"{_home_dir}/debug/{(filename.split('.'))[0]}")
-        debug_dir = f"{_home_dir}/debug/{(filename.split('.'))[0]}"
-        env_debug_path_to_exe = debug_dir
-    except Exception:
-        pass
-    return ""
+def _compile(func_ast: str, variables_ast: str, classes_ast: str) -> int:
+    """
+    Generates a C++ source file in respect with the AST(s) provided
+    :param func_ast: AST of functions in x file
+    :param variables_ast: AST of variables in x file
+    :param classes_ast: AST of classes in x file
+    """
+    # TODO
+    return 0  # indicates process finished with no errors
 
 
 if translation:
-    pass  #TODO
+    pass  # TODO
 else:
     sys.exit(1)
