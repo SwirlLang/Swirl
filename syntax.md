@@ -1,40 +1,36 @@
-# import statement
-` #import "filename.lc" `
+# Syntax of Lambda Code
+## import statement
+` #import library `
 
-# comments
+## comments
 ```
 // Comment
 /// multi  
 line
 Comment ///
 ```
-# defining functions
+## defining functions
 ```
-func name(arg1, arg2)
-  print(arg1, arg2)
-  return var
-endfunc
-
-arrowfunc = () =>
-  **logic**
-  return var
+func name(int a, int b): int
+  print("a + b is ", a + b)
+  return a + b
 endfunc
 ```
-# data types
-
-
+## data types
 string name = "rick"
 
-int name = 7 (32bits int)
+int name = 7 //32bits int
 
-long int name = 98739823544856 (64bits int)
+long int name = 98739823544856 //64bits int
 
 float name = 0.1
 
-array arr[type,length] = 1,2,2,3,3,4
+array arr[type] = 1,2,2,3,3,4
 
-const string
-# Conditional statements and iterations
+## Type Qualifiers
+const
+
+## Conditional and Loop statements
 ```
 if (code == code2)
   your code
@@ -61,56 +57,39 @@ endwhile
 
 ## Operators
 
-== equal <br>
-!= not equal <br>
-<= lower than or equal <br>
-\>= greater than or equal <br>
+### Comparison Operators
+== equal to<br>
+!= not equal to<br>
+<= lower than or equal to<br>
+\>= greater than or equal to<br>
 < lower than <br>
 \> greater than <br>
 
+### Assignment Operators
 = assignment <br>
-
 ++ increment by 1 <br>
 -- decrement by 1 <br>
 += increment by the number specified<br>
 -= decrement by the number specified<br>
 *= multiplication by the number specified<br>
 /= division by the number specified<br>
-### Logical operators
-and
 
+### Arithmetic Operators
+\+ Addition<br>
+\- Subtraction<br>
+\* Multiplication<br>
+\/ Division<br>
+% Modulus
+
+### Bitwise Operators
+& Sets each bit to 1 if both bits are 1<br>
+| Sets each bit to 1 if one of two bits is 1<br>
+^ Sets each bit to 1 if only one of two bits is 1<br>
+~ Inverts all the bits<br>
+<< Shift left by pushing zeros in from the right and let the leftmost bits fall off<br>
+\>> Shift right by pushing copies of the leftmost bit in from the left, and let the rightmost bits fall off
+
+### Logical Operators
+and<br>
 or
 
-# Object Oriented Programming
-## Classes:
-```
-class <Name> (params)
-  <accessModifier> <type> attr = <default>
-endclass
-```
-So as for simplicity, the parameters of the constructor is defined directly inside the parantheses.
-
-## Encapsulation
-### Access Modifiers
-<li> Shield: Can only be accessed within the class </li>
-
-<li> Global: Can be accesed from anywhere </li>
-
-## Inheritance 
-```
-class Animal() 
-  func eat() 
-    print("I am eating some stuff")
-  endfunc
-endclass
-
-class Dog() inherits Animal
-  func bark () 
-    print("Woof woof!")
-  endfunc
-  
-  override func eat()
-    print("Overrided the method!")
-  endfunc
-endclass
-```

@@ -6,21 +6,21 @@
 
 # Lambda Code
 
-Lambda code is a new high level, compiled, statically typed programming language. Written in python, C, C++. Its [syntax](syntax.md) is far more simpler than other middle level compiled languages like C, C++.
+Lambda code is a new high level, compiled, statically typed, object-oriented programming language.
 
 ### Lambda Code
-<img src="https://user-images.githubusercontent.com/69071143/145413307-caa9203e-0eb1-4b86-be3b-a52a7a7251ee.png" width=400>
-
+<img src="https://user-images.githubusercontent.com/69071143/145572217-fb4a2ca6-cb78-48b5-843f-6f7bd041b34a.png" width=400>
 
 ### C++
 <img src="https://user-images.githubusercontent.com/69071143/145410441-d8724bd9-5e8c-4a6b-ba2d-517935ccfeba.png" width=400>
 
-The language will have its own GUI library for making desktop apps, a web framework for making dynamic websites etc. (maybe)
+<br>
+The language WILL have its own GUI library for making cross-platform desktop apps, a web framework for making dynamic websites etc.
 
 The language is still in heavy development. There are lots of work that needs to be done.
 
 ## Contributing
-Contributions to the language are appreciated. We want to work in a open source community. If you want to contribute to the language you can make a pull request. We will review it. And if we think its good enough to take, we will merge it in our language.
+Contributions to the language are appreciated. We want to work in a open source community. If you want to contribute to the language you can make a pull request. We will review it. And if we think its good enough to take, we will merge it.
 
 ## Issues and feature request
 If you want to request any new feature or want to tell us about any sorts of bug you can use github issues for it. We will try to reply as fast as we can.

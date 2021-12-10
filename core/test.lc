@@ -8,6 +8,9 @@ func ahs():int
     int b = 1
     string[12] c = 'func'
 endfunc
+func name()
+    print("Hello World")
+endfunc
 endfunc
 "
 
