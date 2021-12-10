@@ -1,9 +1,10 @@
 __all__ = "func_parser"
 
+import string
 import sys
 
 
-def func_parser(snippet: str, flags: str = None) -> list:
+def func_parser(snippet: str, flags: str = "") -> list:
     """
     Function parser; Parses ranges(start: end) of the functions,
     and returns a formatted syntax tree
@@ -16,8 +17,12 @@ def func_parser(snippet: str, flags: str = None) -> list:
     __ast__ = []  # final abstract syntax tree
     _funcs = snippet.split("func ")
     _types = ["string", "int", "float", "array"]
+    ascii = string.ascii_lowercase
+    _valid_naming_chars = list(ascii)
+    print(_valid_naming_chars)
     _param_name = []
     _param_types = []
+
     for item in _funcs:
         if item == "\n":
             _funcs.remove(item)
@@ -46,12 +51,24 @@ def func_parser(snippet: str, flags: str = None) -> list:
                     dicts_['params'][0].remove(name__)
 
         __ast__.append(
-            {"name": function.split("(")[0], "params": [_param_name, _param_types]}
+            {
+                "name": function.split("(")[0],
+                "params": [_param_name, _param_types],
+                "returns": ""
+            }
         )
+
+        "Checking if the name of the function is invalid"
+        for e_function in __ast__:
+            if e_function['name'][0].lower() not in _valid_naming_chars:
+                raise Exception(
+                    f"The function {e_function['name']} begins with an invalid character '{e_function['name'][0]}'"
+                )
+
         if 'debug' in flags:
             for dicts in __ast__:
                 sys.stdout.write(f"""
-                {dicts['name']}
+            \t\t {dicts['name']}
                      |
                      |-- params
                             |
