@@ -81,36 +81,3 @@ and
 
 or
 
-# Object Oriented Programming
-## Classes:
-```
-class <Name> (params)
-  <accessModifier> <type> attr = <default>
-endclass
-```
-So as for simplicity, the parameters of the constructor is defined directly inside the parantheses.
-
-## Encapsulation
-### Access Modifiers
-<li> Shield: Can only be accessed within the class </li>
-
-<li> Global: Can be accesed from anywhere </li>
-
-## Inheritance 
-```
-class Animal() 
-  func eat() 
-    print("I am eating some stuff")
-  endfunc
-endclass
-
-class Dog() inherits Animal
-  func bark () 
-    print("Woof woof!")
-  endfunc
-  
-  override func eat()
-    print("Overrided the method!")
-  endfunc
-endclass
-```
