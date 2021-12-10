@@ -1,11 +1,16 @@
 __all__ = "func_parser"
 
+import sys
 
-def func_parser(snippet: str) -> list:
+
+def func_parser(snippet: str, flags: str = None) -> list:
     """
     Function parser; Parses ranges(start: end) of the functions,
     and returns a formatted syntax tree
     :param snippet: The snippet to parse(str)
+    :param flags: available flags: 'debug', returns
+    a parse tree with improved readability, for
+    development use only.
     """
 
     __ast__ = []  # final abstract syntax tree
@@ -43,5 +48,14 @@ def func_parser(snippet: str) -> list:
         __ast__.append(
             {"name": function.split("(")[0], "params": [_param_name, _param_types]}
         )
-
+        if 'debug' in flags:
+            for dicts in __ast__:
+                sys.stdout.write(f"""
+                {dicts['name']}
+                     |
+                     |-- params
+                            |
+                            |---[[names], [types]] = {dicts['params']}      
+                """
+                                 )
     return __ast__
