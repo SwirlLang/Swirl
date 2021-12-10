@@ -15,7 +15,7 @@ Lambda code is a new high level, compiled, statically typed programming language
 ### C++
 <img src="https://user-images.githubusercontent.com/69071143/145410441-d8724bd9-5e8c-4a6b-ba2d-517935ccfeba.png" width=400>
 
-The language will have its own GUI library for making desktop apps, a web framework for making dynamic websites etc.
+The language will have its own GUI library for making cross-platform desktop apps, a web framework for making dynamic websites etc.
 
 The language is still in heavy development. There are lots of work that needs to be done.
 
