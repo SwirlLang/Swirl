@@ -1,9 +1,10 @@
 """
 Lambda-Code
 ===========================================
-A fantastic, compiled high-level programming language.
-This file contains unexpected EOF/EOL(s) checkers and
-pre-processors. Also integrates every scattered components(such as parsers)
+A fantastic, compiled, high-level and object-oriented
+programming language. This file contains unexpected
+EOF/EOL(s) checkers and pre-processors.
+Also integrates every scattered components(such as parsers)
 into a single language file.
 Copyright Lambda Code Organization 2021
 """
@@ -13,6 +14,7 @@ import argparse
 import sys
 import pathlib
 import logging
+import re
 
 
 sys.tracebacklimit = 0  # Removes the annoying traceback text
@@ -27,6 +29,20 @@ Copyright Lambda code foundation 2021.
 report bugs at https://github.com/Lambda-Code-Organization/Lambda-Code
 """,
 )
+
+
+def pre_process(source_: str, flags: str = None) -> None:
+    """
+    Deals with statements that need to be
+    handles right after the compiler started
+    :return: None
+    """
+    source_ = open(source_).read() if flags != "string" else source_
+
+    "Dealing with imports"
+    i_pattern = r'^#import[\s+]*[\S+]+'
+    import_find_results = re.findall(i_pattern, source_)
+    print(import_find_results)
 
 arg_parser.add_argument(
     "file",
@@ -329,13 +345,6 @@ while index != -1:
     valid = True
 
 source.close()
-
-
-def pre_process() -> None:
-    """
-    Pre-processes 
-    :return: None
-    """
 
 
 def _compile(func_ast: str, variables_ast: str, classes_ast: str) -> int:

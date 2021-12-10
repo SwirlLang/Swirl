@@ -1,74 +1,23 @@
-__all__ = "func_parser"
-
-import sys
+import re
 
 
-def func_parser(snippet: str, flags: str = None) -> list:
+def pre_process(source_: str, flags: str = None) -> None:
     """
-    Function parser; Parses ranges(start: end) of the functions,
-    and returns a formatted syntax tree
-    :param snippet: The snippet to parse(str)
-    :param flags: available flags: 'debug', returns
-    a parse tree with improved readability, for
-    development use only.
+    Deals with statements that need to be
+    handles right after the compiler started
+    :return: None
     """
+    source_ = open(source_).read() if flags != "string" else source_
 
-    __ast__ = []  # final abstract syntax tree
-    _funcs = snippet.split("func ")
-    _types = ["string", "int", "float", "array"]
-    _param_name = []
-    _param_types = []
-    for item in _funcs:
-        if item == "\n":
-            _funcs.remove(item)
-    for function in _funcs:
-        helper = (("".join(" ".join(function.split(function.split("(")[0])).split(")"))).split("\n")[0]).split("(")
-        _helper = "".join("".join(("".join(helper[1])).split(":")).split(",")).split()
-        for paramName in _helper:
-            if paramName in _types:
-                _helper.remove(paramName)
-        _param_name = _helper
-        _typeHelper = "".join("".join(("".join(helper[1])).split(":")).split(",")).split()
-        for paramType in _typeHelper:
-            if paramType in _param_name:
-                _typeHelper.remove(paramType)
-        _param_types = _typeHelper
-
-        for dicts_ in __ast__:
-            if len(dicts_["params"][0]) != len(dicts_["params"][1]) \
-                    and len(dicts_["params"][0]) == 1:
-                dicts_["params"][0] = []
-            for type__ in dicts_['params'][1]:
-                if type__ not in _types:
-                    dicts_['params'][1].remove(type__)
-            for name__ in dicts_['params'][0]:
-                if name__ == '=':
-                    dicts_['params'][0].remove(name__)
-
-        __ast__.append(
-            {"name": function.split("(")[0], "params": [_param_name, _param_types]}
-        )
-        if 'debug' in flags:
-            for dicts in __ast__:
-                sys.stdout.write(f"""
-                {dicts['name']}
-                     |
-                     |-- params
-                            |
-                            |---[[names], [types]] = {dicts['params']}      
-                """
-                                 )
-    return __ast__
+    "Dealing with imports"
+    i_pattern = r'#[\s+]?import[\s+]*[\S+]+'
+    import_find_results = re.findall(i_pattern, source_)
+    print(import_find_results)
 
 
 t = '''
-func thisAndThat(int blah, string blah_blah)
-    print(blah, blahBlah)
-endfunc
-
-func thatAndThis(int blah, string blah_blah)
-    print(blah, blahBlah)
-endfunc
+# import stuffs
+# import stuffs.moreStuffs.MORE_STUFFS
 '''
 
-print(func_parser(t, flags="debug"))
+pre_process(t, 'string')
