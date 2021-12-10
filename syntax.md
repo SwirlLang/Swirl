@@ -11,7 +11,7 @@ Comment ///
 ```
 ## defining functions
 ```
-func name(int a, int b):int
+func name(int a, int b): int
   print("a + b is ", a + b)
   return a + b
 endfunc
