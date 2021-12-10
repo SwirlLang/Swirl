@@ -9,12 +9,14 @@
 Lambda code is a new high level, compiled, statically typed, object-oriented programming language.
 
 ### Lambda Code
-<img src="https://user-images.githubusercontent.com/69071143/145413307-caa9203e-0eb1-4b86-be3b-a52a7a7251ee.png" width=400>
+<img src="https://user-images.githubusercontent.com/69071143/145572217-fb4a2ca6-cb78-48b5-843f-6f7bd041b34a.png" width=400>
 
+<br>
 
 ### C++
 <img src="https://user-images.githubusercontent.com/69071143/145410441-d8724bd9-5e8c-4a6b-ba2d-517935ccfeba.png" width=400>
 
+<br>
 The language WILL have its own GUI library for making cross-platform desktop apps, a web framework for making dynamic websites etc.
 
 The language is still in heavy development. There are lots of work that needs to be done.
