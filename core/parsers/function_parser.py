@@ -19,7 +19,6 @@ def func_parser(snippet: str, flags: str = "") -> list:
     _types = ["string", "int", "float", "array"]
     ascii = string.ascii_lowercase
     _valid_naming_chars = list(ascii)
-    print(_valid_naming_chars)
     _param_name = []
     _param_types = []
 
