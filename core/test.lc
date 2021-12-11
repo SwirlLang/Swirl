@@ -1,10 +1,13 @@
+#  import   stuffs
+# import     stuffs.moreStuffs.MORE_STUFFS
+
 string[4] a = 'func'
 
 print("ahsdf")
 int b = 454375873485738497589347589347534895734897589347
 
 
-func ahs():int
+func ahs(): int
     int b = 1
     string[12] c = 'func'
 endfunc
