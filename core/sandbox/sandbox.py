@@ -5,8 +5,8 @@ import pathlib
 
 def pre_process(source_: str, flags: str = "") -> None:
     """
-    Deals with statements that need to be
-    handles right after the compiler started
+    Deals with statements that needs to be
+    handled right after the compiler started
     :return: None
     """
 

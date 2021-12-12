@@ -26,7 +26,7 @@ arg_parser = argparse.ArgumentParser(
     formatter_class=argparse.RawDescriptionHelpFormatter,
     epilog="""
 Copyright Lambda code foundation 2021.
-report bugs at https://github.com/Lambda-Code-Organization/Lambda-Code
+Report Bugs At https://github.com/Lambda-Code-Organization/Lambda-Code/issues
 """,
 )
 
@@ -47,12 +47,12 @@ def pre_process(source_: str, flags: str = None) -> None:
 arg_parser.add_argument(
     "file",
     type=str,
-    help="Filename of the input file")
+    help="Input File Name")
 arg_parser.add_argument(
     "-o",
     "--output",
     nargs="?",
-    help="Filename of the output file",
+    help="Output File Name",
     type=str)
 
 parsed_args = arg_parser.parse_args()
@@ -102,7 +102,7 @@ readed_file = source.read()
 size = len(readed_file)
 
 if not size:
-    raise Error("empty file")
+    raise Error("Null File")
 
 translation = True
 valid = False
@@ -161,7 +161,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     elif min_index == s_index1:
         if readed_file[s_index1 - 1] == "\\":
             translation = False
-            print(f"Error: Line {row}, column {col - 1}: unexpected backslash")
+            print(f"Error: Line {row}, column {col - 1}: unexpected character - backslash")
         singlei = readed_file.find("'", s_index1 + 1)
         if singlei == -1:
             translation = False
@@ -194,7 +194,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     else:
         if readed_file[s_index2 - 1] == "\\":
             translation == False
-            print(f"Error: Line {row}, column {col - 1}: unexpected backslash")
+            print(f"Error: Line {row}, column {col - 1}: unexpected character - backslash")
         doublei = readed_file.find('"', s_index2 + 1)
         if doublei == -1:
             translation = False
@@ -242,11 +242,11 @@ while index != -1:
     fi2 = readed_file.find("endfunc", index - 3)
     if fi2 == -1:
         translation = False
-        raise Error(f"Line {row}, column {col}: unfinished function declaration")
+        raise Error(f"Line {row}, column {col}: function declaration incomplete")
 
     elif index == fi2 + 3:
         translation = False
-        raise Error(f"Line {row}, column {col - 3}: missing func to corresponding endfunc")
+        raise Error(f"Line {row}, column {col - 3}: \"endfunc\" cannot be used without \"func\"")
 
     else:
         for sindex in string_indices:
@@ -256,7 +256,7 @@ while index != -1:
 
     if fi2 == -1:
         translation = False
-        raise Error(f"Line {row}, column {col}: unfinished function declaration")
+        raise Error(f"Line {row}, column {col}: function declaration incomplete")
 
     index += 4
 
@@ -310,7 +310,7 @@ while index != -1:
             errIndex1 = readed_file.find("func", errIndex1 + 4, fi2)
             translation = False
             valid = False
-            print(f'Error: Line {row1}, column {col}: cannot declare a function inside another function, eight "bruh"s for you')
+            print(f'Error: Line {row1}, column {col}: cannot declare a function within a function')
     while errIndex2 != -1:
         for sindex in string_indices:
             if errIndex2 in sindex:
@@ -329,7 +329,7 @@ while index != -1:
     nextfunc = readed_file[rType + 1 : parbracket].replace(" ", "")
     if nextfunc == "main":
         translation = False
-        print(f'Error: Line {row}, column {col}: cannot call a function "main" because the main function is placed in the global scope')
+        print(f'Error: Line {row}, column {col}: cannot call a function "main" because it is placed in the global scope')
         break
 
     for func in functions:
@@ -337,7 +337,7 @@ while index != -1:
         if nextfunc == func[: func.find(":")]:
             translation = False
             valid = False
-            print(f"Error: Line {row}, column {col}: declaration of duplicate function")
+            print(f"Error: Line {row}, column {col}: duplicate function declared")
     if valid:
         func_indices.append(range(index - 4, fi2 + 8))
         functions.append((readed_file[index : fi2], row))
@@ -354,7 +354,7 @@ def _compile(func_ast: str, variables_ast: str, classes_ast: str) -> int:
     :param variables_ast: AST of variables in x file
     :param classes_ast: AST of classes in x file
     """
-    return 0  # indicates process finished with no errors
+    return 0 
 
 
 if translation:
