@@ -2,7 +2,7 @@ __all__ = "class_parser"
 
 
 def class_parser(snippet: str) -> list:
-    __parsed_data__ = []
+    __ast__ = []
     _types = ["string", "int", "float", "array"]
 
     # just for easiness ...
@@ -63,7 +63,7 @@ def class_parser(snippet: str) -> list:
         except Exception as err:
             raise err
 
-        __parsed_data__.append(
+        __ast__.append(
             {
                 "name": name,
                 "super_classes": super_classes,
@@ -72,4 +72,4 @@ def class_parser(snippet: str) -> list:
             }
         )
 
-    return __parsed_data__
+    return __ast__

@@ -4,7 +4,7 @@ import string
 import sys
 
 
-def func_parser(snippet: str, flags: str = "") -> list:
+def func_parser(snippet: str, flags: str = None) -> list:
     """
     Function parser; Parses ranges(start: end) of the functions,
     and returns a formatted syntax tree
@@ -38,6 +38,7 @@ def func_parser(snippet: str, flags: str = "") -> list:
                 _typeHelper.remove(paramType)
         _param_types = _typeHelper
 
+        "Bug fixes and error checking in the function name"
         for dicts_ in __ast__:
             if len(dicts_["params"][0]) != len(dicts_["params"][1]) \
                     and len(dicts_["params"][0]) == 1:
@@ -64,7 +65,8 @@ def func_parser(snippet: str, flags: str = "") -> list:
                     f"The function {e_function['name']} begins with an invalid character '{e_function['name'][0]}'"
                 )
 
-        if 'debug' in flags:
+        if flags == 'debug':
+            print(1)
             for dicts in __ast__:
                 sys.stdout.write(f"""
             \t\t {dicts['name']}
@@ -75,3 +77,12 @@ def func_parser(snippet: str, flags: str = "") -> list:
                 """
                                  )
     return __ast__
+
+
+t = '''
+func hello2332ooo(): int
+    print("statement")
+endfunc
+'''
+
+print(func_parser(t, 'debug'))
