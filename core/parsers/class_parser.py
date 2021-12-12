@@ -45,17 +45,17 @@ def class_parser(snippet: str, flags: str = "") -> list:
         else:
             name = CLASS.split("(")[0]
             p_helper = (" ".join(CLASS.split('('))).split(")")
-            Ptypes = ("".join(p_helper[0])).split()
-            Ptypes.remove(Ptypes[0])
-            Pnames = ("".join(p_helper[0])).split()
-            Pnames.remove(Pnames[0])
-            for _item in Pnames:
+            p_types = ("".join(p_helper[0])).split()
+            p_types.remove(p_types[0])
+            p_names = ("".join(p_helper[0])).split()
+            p_names.remove(p_names[0])
+            for _item in p_names:
                 if _item in _types:
-                    Pnames.remove(_item)
-            for _item_ in Ptypes:
+                    p_names.remove(_item)
+            for _item_ in p_types:
                 if _item_ not in _types:
-                    Ptypes.remove(_item_)
-            constructor_params = [Pnames, Ptypes]
+                    p_types.remove(_item_)
+            constructor_params = [p_names, p_types]
 
         try:
             content = _t[_t.index(f"{constructor_params[0][-1]})"): _t.index("endclass")]
