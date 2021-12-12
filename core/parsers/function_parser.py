@@ -6,7 +6,7 @@ import sys
 
 def func_parser(snippet: str, flags: str = None) -> list:
     """
-    Function parser; Parses ranges(start: end) of the functions,
+    Function parser: Parses ranges(start: end) of the functions,
     and returns a formatted syntax tree
     :param snippet: The snippet to parse(str)
     :param flags: available flags: 'debug', returns
@@ -62,7 +62,7 @@ def func_parser(snippet: str, flags: str = None) -> list:
         for e_function in __ast__:
             if e_function['name'][0].lower() not in _valid_naming_chars:
                 raise Exception(
-                    f"The function {e_function['name']} begins with an invalid character '{e_function['name'][0]}'"
+                    f"Function {e_function['name']} begins with an invalid character '{e_function['name'][0]}'"
                 )
 
         if flags == 'debug':
