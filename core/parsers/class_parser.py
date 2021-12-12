@@ -1,7 +1,9 @@
 __all__ = "class_parser"
 
+import sys
 
-def class_parser(snippet: str) -> list:
+
+def class_parser(snippet: str, flags: str = "") -> list:
     __ast__ = []
     _types = ["string", "int", "float", "array"]
 
@@ -71,5 +73,24 @@ def class_parser(snippet: str) -> list:
                 "content": content
             }
         )
+
+    if 'debug' in flags:
+        for class_ in __ast__:
+            sys.stdout.write(f"""
+                  {class_['name']}
+                        |
+                        |
+                        |---[INHERITS]
+                        |        |
+                        |        |
+                        |        [{class_['super_classes']}]
+                        |
+                        |
+                        |---[CONSTRUCTOR]
+                                 |
+                                 |
+                                 [{class_['constructor_params']}]
+            """)
+
 
     return __ast__
