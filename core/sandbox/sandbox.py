@@ -21,8 +21,9 @@ def pre_process(source_: str, flags: str = "") -> None:
                     i_helper_list.remove('#')
                     i_helper_list.remove('import')
                     imports.append(''.join(i_helper_list))
-                except ValueError:
-                    pass
+                except ValueError: pass
+
+    for dirs
 
 
 pre_process('../test.lc', 'string')

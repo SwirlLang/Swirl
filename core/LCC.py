@@ -31,23 +31,32 @@ Report Bugs At https://github.com/Lambda-Code-Organization/Lambda-Code/issues
 )
 
 
-def pre_process(source_: str, flags: str = None) -> None:
+def pre_process(source_: str, flags: str = "") -> None:
     """
-    Deals with statements that need to be
-    handles right after the compiler started
+    Deals with statements that needs to be
+    handled right after the compiler started
     :return: None
     """
-    source_ = open(source_).read() if flags != "string" else source_
 
-    "Dealing with imports"
-    i_pattern = r'^#import[\s+]*[\S+]+'
-    import_find_results = re.findall(i_pattern, source_)
-    print(import_find_results)
+    "Dealing with import statements"
+    imports = []
+    with open(source_, 'r') as i_source:  # i stands for imports
+        for i_line in i_source:
+            i_strip_ln = i_line.strip()
+            if '#' in i_strip_ln:
+                i_helper_list = i_strip_ln.split()
+                try:
+                    i_helper_list.remove('#')
+                    i_helper_list.remove('import')
+                    imports.append(''.join(i_helper_list))
+                except ValueError: pass
+
 
 arg_parser.add_argument(
     "file",
     type=str,
     help="Input File Name")
+
 arg_parser.add_argument(
     "-o",
     "--output",
