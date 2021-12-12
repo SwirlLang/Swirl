@@ -92,5 +92,4 @@ def class_parser(snippet: str, flags: str = "") -> list:
                                  [{class_['constructor_params']}]
             """)
 
-
     return __ast__
