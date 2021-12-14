@@ -20,7 +20,7 @@ Welcome to {green}L{red}P{blue}M{def()}, the {green}LambdaCode{def()} {red}Packa
 
             {blue}install{def()}, -i {white}<package-name>{def()}      - Install the provided package
             {blue}remove{def()}, -r  {white}<package-name>{def()}      - Remove the given package
-            {blue}query{def()}, -q   {white}<search>{def()}            - Searches threw the database
+            {blue}query{def()}, -q   {white}<search>{def()}            - Searches through the database
             {blue}info{def()}, -s    {white}<package-name>{def()}      - List information about a package
             {blue}list{def()}, -l                        - List all installed packages along with their version
 
@@ -110,7 +110,7 @@ proc packageExists(pkg: string): Future[bool] {.async.} =
 proc update_bar(total, progress, speed: int64) {.async.}=
     ## Procedure updating the progress bar with progress info
     let percentage = progress * 100 div total
-    # Block until we receive a something threw the channel
+    # Block until we receive a something through the channel
     var pkg = chan.recv()
     let a = percentage div 4
     moveCursorUp 1
