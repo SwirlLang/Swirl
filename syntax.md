@@ -12,7 +12,7 @@ Comment ///
 ## defining functions
 ```
 func name(int a, int b): int
-  print("a + b is ", a + b)
+  print("a + b is " + str(a + b))
   return a + b
 endfunc
 ```
