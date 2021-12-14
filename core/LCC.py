@@ -9,6 +9,7 @@ into a single language file.
 Copyright Lambda Code Organization 2021
 """
 
+import os
 import sys
 import pathlib
 import argparse
