@@ -9,8 +9,9 @@ into a single language file.
 Copyright Lambda Code Organization 2021
 """
 
-import argparse
 import sys
+import pathlib
+import argparse
 
 
 sys.tracebacklimit = 0  # Removes the annoying traceback text
