@@ -57,13 +57,13 @@ def class_parser(snippet: str, flags: str = "") -> list:
                     p_types.remove(_item_)
             constructor_params = [p_names, p_types]
 
-        try:
-            content = _t[_t.index(f"{constructor_params[0][-1]})"): _t.index("endclass")]
-            for itm in content:
-                if itm == f"{constructor_params[0][-1]})":
-                    content.remove(itm)
-        except Exception as err:
-            raise err
+        # try:
+        #     content = _t[_t.index(f"{constructor_params[0][-1]})"): _t.index("endclass")]
+        #     for itm in content:
+        #         if itm == f"{constructor_params[0][-1]})":
+        #             content.remove(itm)
+        # except Exception as err:
+        #     raise err
 
         __ast__.append(
             {
@@ -93,3 +93,14 @@ def class_parser(snippet: str, flags: str = "") -> list:
             """)
 
     return __ast__
+
+
+t = '''
+class my_new_class() inherits SuperClass
+    func Class(): int
+        return 0
+    endfunc
+endclass
+'''
+
+print(class_parser(t, 'debug'))
