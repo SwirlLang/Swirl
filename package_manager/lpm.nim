@@ -14,15 +14,15 @@ var chan: Channel[string]
 chan.open()
 
 let help = &"""
-Welcome to {green}L{red}P{blue}M{def()}, the {green}LambdaCode{def()} {red}Package{def()} {blue}Manager{def()}
+Welcome to {green}L{red}P{blue}M{def()}, {green}Lambdacode{def()} {red}Package{def()} {blue}Manager{def()}
 
-                                AVAILABLE COMMANDS
+            AVAILABLE COMMANDS
 
-            {blue}install{def()}, -i {white}<package-name>{def()}      - Install the provided package
-            {blue}remove{def()}, -r  {white}<package-name>{def()}      - Remove the given package
-            {blue}query{def()}, -q   {white}<search>{def()}            - Searches through the database
-            {blue}info{def()}, -s    {white}<package-name>{def()}      - List information about a package
-            {blue}list{def()}, -l                        - List all installed packages along with their version
+{green}install{def()}, {green}-i{def()} {white}<package-name>{def()}      - Install the provided package
+{green}remove{def()}, {green}-r{def()}  {white}<package-name>{def()}      - Remove the given package
+{green}query{def()}, {green}-q{def()}   {white}<search>{def()}            - Searches through the database
+{green}info{def()}, {green}-s{def()}    {white}<package-name>{def()}      - Show information about the package
+{green}list{def()}, {green}-l{def()}                        - List all installed packages along with their version
 
 
 """
@@ -138,7 +138,7 @@ for i in 1..paramCount():
                 error "No query provided"
             let search = paramStr(2)
             let body = waitFor query(search)
-            # Match everything starting with href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/
+            # Match everything starting with href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages/
             for m in body.findAll(re"""href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages/.*""""):
               # Take the body at current match boundaries, and spliting it on slashes
               let htm = (body[m.boundaries]).split('/')
@@ -158,7 +158,7 @@ for i in 1..paramCount():
                         let splited = path.split(split_char)
                         package splited[len(splited)-1]
                 if num_of_pkgs == 0: info "No packages are installed on your system";exit(0)
-                info &"{num_of_pkgs} pakages are installed on your system"
+                info &"{num_of_pkgs} packages are installed on your system"
                 exit(0)
             else:
                 info "No packages are installed on your system"
