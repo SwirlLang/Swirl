@@ -14,15 +14,15 @@ var chan: Channel[string]
 chan.open()
 
 let help = &"""
-Welcome to {green}L{red}P{blue}M{def()}, the {green}LambdaCode{def()} {red}Package{def()} {blue}Manager{def()}
+Welcome to {green}L{red}P{blue}M{def()}, {green}Lambdacode{def()} {red}Package{def()} {blue}Manager{def()}
 
-                                AVAILABLE COMMANDS
+            AVAILABLE COMMANDS
 
-            {blue}install{def()}, -i {white}<package-name>{def()}      - Install the provided package
-            {blue}remove{def()}, -r  {white}<package-name>{def()}      - Remove the given package
-            {blue}query{def()}, -q   {white}<search>{def()}            - Searches threw the database
-            {blue}info{def()}, -s    {white}<package-name>{def()}      - List information about a package
-            {blue}list{def()}, -l                        - List all installed packages along with their version
+{green}install{def()}, {green}-i{def()} {white}<package-name>{def()}      - Install the provided package
+{green}remove{def()}, {green}-r{def()}  {white}<package-name>{def()}      - Remove the given package
+{green}query{def()}, {green}-q{def()}   {white}<search>{def()}            - Searches through the database
+{green}info{def()}, {green}-s{def()}    {white}<package-name>{def()}      - Show information about the package
+{green}list{def()}, {green}-l{def()}                        - List all installed packages along with their version
 
 
 """
@@ -44,7 +44,7 @@ proc error(arg: string) =
 proc query(query: string): Future[string] {.async.} =
     ## Return back the content of the github page for the central repo
     let body = await client.getContent("https://github.com/Lambda-Code-Organization/Lambda-code-Central-repository")
-    # regex for packages href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/.*"
+    # regex for packages href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages.*"
     return body
 
 
@@ -68,13 +68,13 @@ proc pkg_info(pkg: string)=
     var
         data: JsonNode
         status: string
-        url = "https://github.com/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/" & pkg
+        url = "https://github.com/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages/" & pkg
     if os.fileExists(path & pkg & "/metadata.json"):
         data = parseJson(readFile(path & pkg & "/metadata.json"))
         status = "INSTALLED"
     else:
         let client = newHttpClient("lpm/v0.1")
-        let body = client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/{pkg}/metadata.json")
+        let body = client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/metadata.json")
         client.close()
         data = body.parseJson()
         status = "NOT INSTALLED"
@@ -95,7 +95,7 @@ proc pkg_info(pkg: string)=
 
 proc get_meta(pkg: string): Future[string] {.async.} =
     ## Get data from the Central Repo, install it then return it
-    let body = await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/{pkg}/metadata.json")
+    let body = await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/metadata.json")
     client.close()
     let data = body.parseJson()
     writeFile(&"{path}/{pkg}/metadata.json", body)
@@ -103,14 +103,14 @@ proc get_meta(pkg: string): Future[string] {.async.} =
 
 proc packageExists(pkg: string): Future[bool] {.async.} =
     ## Check if a package exists by checking the request's return code
-    let resp = await client.request(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/{pkg}/metadata.json")
+    let resp = await client.request(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/metadata.json")
     client.close()
     if resp.status != "200 OK": return false else: return true
 
 proc update_bar(total, progress, speed: int64) {.async.}=
     ## Procedure updating the progress bar with progress info
     let percentage = progress * 100 div total
-    # Block until we receive a something threw the channel
+    # Block until we receive a something through the channel
     var pkg = chan.recv()
     let a = percentage div 4
     moveCursorUp 1
@@ -119,7 +119,7 @@ proc update_bar(total, progress, speed: int64) {.async.}=
 proc download_pkg(pkg: string, path: string, main: string) {.async.}=
     ## Write the 'main' file from the repo to the local package
     client.onProgressChanged = update_bar
-    writeFile(&"{path}/{pkg}/{main}", await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/{pkg}/{main}"))
+    writeFile(&"{path}/{pkg}/{main}", await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/{main}"))
 
 if os.paramCount() == 0:
     ## Return the help if not arguments are provided
@@ -138,8 +138,8 @@ for i in 1..paramCount():
                 error "No query provided"
             let search = paramStr(2)
             let body = waitFor query(search)
-            # Match everything starting with href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/
-            for m in body.findAll(re"""href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/.*""""):
+            # Match everything starting with href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages/
+            for m in body.findAll(re"""href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages/.*""""):
               # Take the body at current match boundaries, and spliting it on slashes
               let htm = (body[m.boundaries]).split('/')
               # Take the last element of the htm as package name
@@ -158,7 +158,7 @@ for i in 1..paramCount():
                         let splited = path.split(split_char)
                         package splited[len(splited)-1]
                 if num_of_pkgs == 0: info "No packages are installed on your system";exit(0)
-                info &"{num_of_pkgs} pakages are installed on your system"
+                info &"{num_of_pkgs} packages are installed on your system"
                 exit(0)
             else:
                 info "No packages are installed on your system"
