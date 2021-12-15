@@ -29,6 +29,21 @@ Report Bugs At https://github.com/Lambda-Code-Organization/Lambda-Code/issues
 )
 
 
+arg_parser.add_argument(
+    "file",
+    type=str,
+    help="Input File Name")
+
+arg_parser.add_argument(
+    "-o",
+    "--output",
+    nargs="?",
+    help="Output File Name",
+    type=str)
+
+parsed_args = arg_parser.parse_args()
+
+
 def pre_process(source_: str, flags: str = "") -> None:
     """
     Deals with statements that needs to be
@@ -54,67 +69,36 @@ def pre_process(source_: str, flags: str = "") -> None:
         cls_imported = _import.split('.')[-1]
         "In case a single file is imported"
         if len(_import.split('.')) == 1:
-            if 'win' in sys.platform:
-                module_path = f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}packages{os.sep}{_import}"
-                if os.path.isfile(module_path):
-                    module_content = open(module_path, 'r').read()
-                    # TODO
-            else:
-                module_path = f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import}"
-                if os.path.isfile(module_path):
-                    module_content = open(module_path, 'r').read()
-                    # TODO
-
-
-arg_parser.add_argument(
-    "file",
-    type=str,
-    help="Input File Name")
-
-arg_parser.add_argument(
-    "-o",
-    "--output",
-    nargs="?",
-    help="Output File Name",
-    type=str)
-
-parsed_args = arg_parser.parse_args()
+            try:
+                module_content = open(_import, 'r').read()
+            except FileNotFoundError:
+                if 'win' in sys.platform:
+                    module_path = f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}packages{os.sep}{_import}"
+                    if os.path.isfile(module_path):
+                        module_content = open(module_path, 'r').read()
+                else:
+                    module_path = f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import}"
+                    if os.path.isfile(module_path):
+                        module_content = open(module_path, 'r').read()
+                        # TODO
 
 
 class Error(Exception):
     __module__ = "builtins"  # Removes the annoying "__main__." before errors
 
 
-def binary_search(indices: list, index: int) -> bool:
-    middle = len(indices)
-    if middle > 1:
-        if middle == 2:
-            if index in indices[0] or index in indices[1]:
-                return True
-            else:
-                return False
-        middle //= 2
-        offset = middle // 2 + 1
-        while offset != 0:
-            if index < indices[middle][0]:
-                middle -= offset
-                offset //= 2
-            elif index >= indices[middle][1]:
-                middle += offset
-                offset //= 2
-            else:
-                return True
-        if index in indices[middle]:
-            return True
+def binary_search(indices: list, start: int, end: int, index: int) -> int:
+    high = end
+    low = start
+    while high >= low:
+        middle = (low + high) >> 1
+        if index > indices[middle][-1]:
+            low = middle + 1
+        elif index < indices[middle][0]:
+            high = middle - 1
         else:
-            return False
-    elif middle == 0:
-        return False
-    else:
-        if index in indices[0]:
-            return True
-        else:
-            return False
+            return middle
+    return -1
 
 
 filename = parsed_args.file
@@ -368,6 +352,12 @@ while index != -1:
     valid = True
 
 source.close()
+
+AST = list
+
+
+def func_parser(ranges: list) -> AST:
+    pass
 
 
 def _compile(func_ast: str, variables_ast: str, classes_ast: str) -> int:
