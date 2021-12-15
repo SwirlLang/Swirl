@@ -23,6 +23,7 @@ Welcome to {green}L{red}P{blue}M{def()}, {green}Lambdacode{def()} {red}Package{d
 {green}query{def()}, {green}-q{def()}   {white}<search>{def()}            - Searches through the database
 {green}info{def()}, {green}-s{def()}    {white}<package-name>{def()}      - Show information about the package
 {green}list{def()}, {green}-l{def()}                        - List all installed packages along with their version
+{green}help{def()}, {green}-h{def()}                        - Show this help message
 
 
 """
@@ -122,14 +123,13 @@ proc download_pkg(pkg: string, path: string, main: string) {.async.}=
     writeFile(&"{path}/{pkg}/{main}", await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/{main}"))
 
 if os.paramCount() == 0:
-    ## Return the help if not arguments are provided
-    show_help()
-    error "Missing command"
+    echo &"{green}[USAGE]{def()} lpm <command> [arguments]"
+    error &"No command provided\n\nRun {green}help{def()} command for list of commands"
 
 for i in 1..paramCount():
     let current_param = paramStr(i)
     case current_param
-        of "-h", "--help":
+        of "-h", "--help", "help":
             show_help()
             exit(0)
 
@@ -157,7 +157,8 @@ for i in 1..paramCount():
                     if obj == pcDir:
                         let splited = path.split(split_char)
                         package splited[len(splited)-1]
-                if num_of_pkgs == 0: info "No packages are installed on your system";exit(0)
+                if num_of_pkgs == 0: info "No packages are installed on your system"
+                exit(0)
                 info &"{num_of_pkgs} packages are installed on your system"
                 exit(0)
             else:
@@ -208,5 +209,5 @@ for i in 1..paramCount():
                     error &"Package {pkg_name} not found !"
             exit(0)
         else:
-            show_help()
-            error &"Unknow command {current_param}"
+            echo &"Run {green}help{def()} command for list of commands"
+            error &"Unknown command {current_param}"
