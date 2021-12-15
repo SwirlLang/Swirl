@@ -44,7 +44,7 @@ proc error(arg: string) =
 proc query(query: string): Future[string] {.async.} =
     ## Return back the content of the github page for the central repo
     let body = await client.getContent("https://github.com/Lambda-Code-Organization/Lambda-code-Central-repository")
-    # regex for packages href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/.*"
+    # regex for packages href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages.*"
     return body
 
 
@@ -68,13 +68,13 @@ proc pkg_info(pkg: string)=
     var
         data: JsonNode
         status: string
-        url = "https://github.com/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/" & pkg
+        url = "https://github.com/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages/" & pkg
     if os.fileExists(path & pkg & "/metadata.json"):
         data = parseJson(readFile(path & pkg & "/metadata.json"))
         status = "INSTALLED"
     else:
         let client = newHttpClient("lpm/v0.1")
-        let body = client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/{pkg}/metadata.json")
+        let body = client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/metadata.json")
         client.close()
         data = body.parseJson()
         status = "NOT INSTALLED"
@@ -95,7 +95,7 @@ proc pkg_info(pkg: string)=
 
 proc get_meta(pkg: string): Future[string] {.async.} =
     ## Get data from the Central Repo, install it then return it
-    let body = await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/{pkg}/metadata.json")
+    let body = await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/metadata.json")
     client.close()
     let data = body.parseJson()
     writeFile(&"{path}/{pkg}/metadata.json", body)
@@ -103,7 +103,7 @@ proc get_meta(pkg: string): Future[string] {.async.} =
 
 proc packageExists(pkg: string): Future[bool] {.async.} =
     ## Check if a package exists by checking the request's return code
-    let resp = await client.request(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/{pkg}/metadata.json")
+    let resp = await client.request(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/metadata.json")
     client.close()
     if resp.status != "200 OK": return false else: return true
 
@@ -119,7 +119,7 @@ proc update_bar(total, progress, speed: int64) {.async.}=
 proc download_pkg(pkg: string, path: string, main: string) {.async.}=
     ## Write the 'main' file from the repo to the local package
     client.onProgressChanged = update_bar
-    writeFile(&"{path}/{pkg}/{main}", await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/{pkg}/{main}"))
+    writeFile(&"{path}/{pkg}/{main}", await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/{main}"))
 
 if os.paramCount() == 0:
     ## Return the help if not arguments are provided
@@ -139,7 +139,7 @@ for i in 1..paramCount():
             let search = paramStr(2)
             let body = waitFor query(search)
             # Match everything starting with href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/
-            for m in body.findAll(re"""href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/.*""""):
+            for m in body.findAll(re"""href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages/.*""""):
               # Take the body at current match boundaries, and spliting it on slashes
               let htm = (body[m.boundaries]).split('/')
               # Take the last element of the htm as package name
