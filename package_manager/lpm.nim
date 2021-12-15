@@ -44,7 +44,7 @@ proc error(arg: string) =
 
 proc query(query: string): Future[string] {.async.} =
     ## Return back the content of the github page for the central repo
-    let body = await client.getContent("https://github.com/Lambda-Code-Organization/Lambda-code-Central-repository")
+    let body = await client.getContent("https://github.com/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages")
     # regex for packages href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages.*"
     return body
 
