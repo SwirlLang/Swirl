@@ -29,6 +29,21 @@ Report Bugs At https://github.com/Lambda-Code-Organization/Lambda-Code/issues
 )
 
 
+arg_parser.add_argument(
+    "file",
+    type=str,
+    help="Input File Name")
+
+arg_parser.add_argument(
+    "-o",
+    "--output",
+    nargs="?",
+    help="Output File Name",
+    type=str)
+
+parsed_args = arg_parser.parse_args()
+
+
 def pre_process(source_: str, flags: str = "") -> None:
     """
     Deals with statements that needs to be
@@ -54,31 +69,18 @@ def pre_process(source_: str, flags: str = "") -> None:
         cls_imported = _import.split('.')[-1]
         "In case a single file is imported"
         if len(_import.split('.')) == 1:
-            if 'win' in sys.platform:
-                module_path = f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}packages{os.sep}{_import}"
-                if os.path.isfile(module_path):
-                    module_content = open(module_path, 'r').read()
-                    # TODO
-            else:
-                module_path = f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import}"
-                if os.path.isfile(module_path):
-                    module_content = open(module_path, 'r').read()
-                    # TODO
-
-
-arg_parser.add_argument(
-    "file",
-    type=str,
-    help="Input File Name")
-
-arg_parser.add_argument(
-    "-o",
-    "--output",
-    nargs="?",
-    help="Output File Name",
-    type=str)
-
-parsed_args = arg_parser.parse_args()
+            try:
+                module_content = open(_import, 'r').read()
+            except FileNotFoundError:
+                if 'win' in sys.platform:
+                    module_path = f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}packages{os.sep}{_import}"
+                    if os.path.isfile(module_path):
+                        module_content = open(module_path, 'r').read()
+                else:
+                    module_path = f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import}"
+                    if os.path.isfile(module_path):
+                        module_content = open(module_path, 'r').read()
+                        # TODO
 
 
 class Error(Exception):
