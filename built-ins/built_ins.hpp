@@ -1,11 +1,10 @@
 # include <iostream>
 # include <fstream>
 
-# define print(x) std::cout << x << endl;
-# define string(x) (std::string) x
-# define int(x) (int) x
-# define float(x) (float) x
-# define bool(x) (bool) x
+# define string(x) static_cast<bool>(x)
+# define int(x) static_cast<int>(x)
+# define float(x) static_cast<float>(x)
+# define bool(x) static_cast<bool>(x)
 
 
 void writeToFile(std::string path, std::string text)
@@ -13,4 +12,9 @@ void writeToFile(std::string path, std::string text)
     std::ofstream File(path);
     File << text;
     File.close();
+}
+
+void print(std::string& args, ...)
+{
+    std :: cout << args << std :: endl;
 }
