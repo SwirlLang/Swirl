@@ -16,14 +16,14 @@ chan.open()
 let help = &"""
 Welcome to {green}L{red}P{blue}M{def()}, {green}Lambdacode{def()} {red}Package{def()} {blue}Manager{def()}
 
-            AVAILABLE COMMANDS
+{white}AVAILABLE COMMANDS{def()}
 
 {green}install{def()}, {green}-i{def()} {white}<package-name>{def()}      - Install the provided package
-{green}remove{def()}, {green}-r{def()}  {white}<package-name>{def()}      - Remove the given package
-{green}query{def()}, {green}-q{def()}   {white}<search>{def()}            - Searches through the database
-{green}info{def()}, {green}-s{def()}    {white}<package-name>{def()}      - Show information about the package
-{green}list{def()}, {green}-l{def()}                        - List all installed packages along with their version
-{green}help{def()}, {green}-h{def()}                        - Show this help message
+{green}remove{def()},  {green}-r{def()} {white}<package-name>{def()}      - Remove the given package
+{green}query{def()},   {green}-q{def()} {white}<search>{def()}            - Searches through the database
+{green}info{def()},    {green}-s{def()} {white}<package-name>{def()}      - Show information about the package
+{green}list{def()},    {green}-l{def()}                     - List all installed packages along with their version
+{green}help{def()},    {green}-h{def()}                     - Show this help message
 
 
 """
@@ -63,7 +63,7 @@ proc exit(code: int)=
     chan.close()
     quit(code)
 
-proc pkg_info(pkg: string)=
+proc pkg_info(pkg: string, pkg_query: bool)=
     ## Check if a 'pkg' exists on the system, if found return the formated metadata otherwise
     ## check the Centre Repo for it and return it's metadata if found
     var
@@ -79,8 +79,18 @@ proc pkg_info(pkg: string)=
         client.close()
         data = body.parseJson()
         status = "NOT INSTALLED"
-
-    echo &"""
+    
+    if pkg_query == true:
+        echo &"""
+            PACKAGE INFORMATIONS
+{blue}Name:                 {white}{data["name"].getStr()}{def()}
+{blue}Description:          {white}{data["description"].getStr()}{def()}
+{blue}Version:              {white}{data["version"].getStr()}{def()}
+{blue}Author:               {white}{data["author"].getStr()}{def()}
+{blue}License:              {white}{data["license"].getStr()}{def()}
+"""
+    else:
+        echo &"""
             PACKAGE INFORMATIONS
 {blue}Name:                 {white}{data["name"].getStr()}{def()}
 {blue}Installation Name:    {white}{pkg}{def()}
@@ -93,6 +103,21 @@ proc pkg_info(pkg: string)=
 {blue}Updated on:           {white}{data["last_updated"].getStr()}{def()}
 {blue}Status:               {white}{status}{def()}
 """
+
+
+#     echo &"""
+#             PACKAGE INFORMATIONS
+# {blue}Name:                 {white}{data["name"].getStr()}{def()}
+# {blue}Installation Name:    {white}{pkg}{def()}
+# {blue}Description:          {white}{data["description"].getStr()}{def()}
+# {blue}Version:              {white}{data["version"].getStr()}{def()}
+# {blue}Author:               {white}{data["author"].getStr()}{def()}
+# {blue}License:              {white}{data["license"].getStr()}{def()}
+# {blue}URL:                  {white}{italic()}{url}{def()}
+# {blue}LC-version:           {white}{data["lc-version"].getStr()}{def()}
+# {blue}Updated on:           {white}{data["last_updated"].getStr()}{def()}
+# {blue}Status:               {white}{status}{def()}
+# """
 
 proc get_meta(pkg: string): Future[string] {.async.} =
     ## Get data from the Central Repo, install it then return it
@@ -146,7 +171,7 @@ for i in 1..paramCount():
               let pkg = $(htm[len(htm)-1])
               if search in pkg[0..len(pkg)-2]:
                   # show package informations for package name minux the last chars
-                  pkg_info pkg[0..len(pkg)-2]
+                  pkg_info pkg[0..len(pkg)-2], true
             exit(0)
 
         of "list", "-l":
@@ -173,7 +198,7 @@ for i in 1..paramCount():
                 let pkg = paramStr(arg)
                 if not waitFor packageExists(pkg):
                     error &"Package {pkg} does not exists"
-                pkg_info(pkg)
+                pkg_info(pkg, false)
 
             quit(0)
 
