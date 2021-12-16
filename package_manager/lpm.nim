@@ -104,21 +104,6 @@ proc pkg_info(pkg: string, pkg_query: bool)=
 {blue}Status:               {white}{status}{def()}
 """
 
-
-#     echo &"""
-#             PACKAGE INFORMATIONS
-# {blue}Name:                 {white}{data["name"].getStr()}{def()}
-# {blue}Installation Name:    {white}{pkg}{def()}
-# {blue}Description:          {white}{data["description"].getStr()}{def()}
-# {blue}Version:              {white}{data["version"].getStr()}{def()}
-# {blue}Author:               {white}{data["author"].getStr()}{def()}
-# {blue}License:              {white}{data["license"].getStr()}{def()}
-# {blue}URL:                  {white}{italic()}{url}{def()}
-# {blue}LC-version:           {white}{data["lc-version"].getStr()}{def()}
-# {blue}Updated on:           {white}{data["last_updated"].getStr()}{def()}
-# {blue}Status:               {white}{status}{def()}
-# """
-
 proc get_meta(pkg: string): Future[string] {.async.} =
     ## Get data from the Central Repo, install it then return it
     let body = await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/metadata.json")
