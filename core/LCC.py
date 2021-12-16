@@ -44,6 +44,13 @@ arg_parser.add_argument(
 parsed_args = arg_parser.parse_args()
 
 
+def _debug(flags: str = None):
+    os.system('python -m LCC.py test.lc')
+
+
+_debug()
+
+
 def pre_process(source_: str, flags: str = "") -> None:
     """
     Deals with statements that needs to be
@@ -101,10 +108,10 @@ def binary_search(indices: list, start: int, end: int, index: int) -> int:
     return -1
 
 
-filename = parsed_args.file
+FILE_NAME = parsed_args.file
 output_filename = parsed_args.output
 
-source = open(filename, "r")
+source = open(FILE_NAME, "r")
 readed_file = source.read()
 size = len(readed_file)
 
@@ -126,6 +133,7 @@ c_index1 = readed_file.find("//")
 c_index2 = readed_file.find("///")
 row = 1
 tmp_index = 0
+class_indices: list
 
 print(functions)
 print(string_indices)
@@ -347,17 +355,36 @@ while index != -1:
             print(f"Error: Line {row}, column {col}: duplicate function declared")
     if valid:
         func_indices.append(range(index - 4, fi2 + 8))
-        functions.append((readed_file[index : fi2], row))
+        functions.append((readed_file[index: fi2], row))
     index = readed_file.find("func", fi2 + 7)
     valid = True
+
+"Class indexing..."
+with open(FILE_NAME, 'r') as c_target_file:  # c stands for class, a convention in this context
+    f_content = c_target_file.read().split('\n')
 
 source.close()
 
 AST = list
 
+# TODO
+# def func_parser(ranges: list) -> AST:
+#     """
+#     Parses functions at provided ranges and produces an AST
+#     :param ranges: a list of ranges (begin: end) of functions
+#     :return: Abstract syntax tree AKA parse or syntax tree
+#     """
+#
+#     __ast__ = []  # the final syntax tree
+#     for f_range in ranges:
+#         with open(FILE_NAME) as target_file:
+#             _source = target_file.readlines()
+#             function = _source[]
+#
+#     return __ast__
 
-def func_parser(ranges: list) -> AST:
-    pass
+
+print(func_parser(func_indices))
 
 
 def _compile(func_ast: str, variables_ast: str, classes_ast: str) -> int:

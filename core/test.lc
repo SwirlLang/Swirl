@@ -1,5 +1,5 @@
-#  import   stuffs
-# import     stuffs.moreStuffs.MORE_STUFFS
+# import stuffs
+# import stuffs.moreStuffs.MORE_STUFFS
 
 string[4] a = 'func'
 
@@ -7,15 +7,23 @@ print("ahsdf")
 int b = 454375873485738497589347589347534895734897589347
 
 
-func ahs(): int
-    int b = 1
-    string[12] c = 'func'
-endfunc
 func name()
     print("Hello World")
 endfunc
-endfunc
-"
+
+class BlahBlah(int arg, float arg, string blah_blah ) inherits SuperClass
+    override func onCreate(args): int
+        return 0
+    endfunc
+
+    override func onName(args): int
+            return 0
+    endfunc
+
+    override func onEnd(args): int
+            return 0
+    endfunc
+endclass
 
 const array string hobbies = {
         "Music",
@@ -24,3 +32,15 @@ const array string hobbies = {
         "Reading",
         "Writing"
 };
+
+class HelloWorld(int arg, float arg, string blah_blah ) inherits SuperClass
+    override func onCreate(args): int
+        return 0
+    endfunc
+endclass
+
+class THIS(int arg, float arg, string blah_blah ) inherits SuperClass
+    override func onCreate(args): int
+        return 0
+    endfunc
+endclass
