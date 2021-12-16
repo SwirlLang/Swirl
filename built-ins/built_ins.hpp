@@ -7,7 +7,7 @@
 # define bool(x) static_cast<bool>(x)
 
 
-void writeToFile(std::string path, std::string text)
+void writeToFile(std::string& path, std::string& text)
 {
     std::ofstream File(path);
     File << text;
@@ -18,3 +18,4 @@ void print(std::string& args, ...)
 {
     std :: cout << args << std :: endl;
 }
+
