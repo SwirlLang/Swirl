@@ -2,7 +2,7 @@
 # include <fstream>
 
 # define print(x) std::cout << x << endl;
-# define str(x) (std::string) x
+# define string(x) (std::string) x
 # define int(x) (int) x
 # define float(x) (float) x
 # define bool(x) (bool) x
