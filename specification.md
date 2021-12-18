@@ -17,18 +17,22 @@ func name(int a, int b): int
 endfunc
 ```
 ## Builtin functions
-* `print`
-* `input` 
-* `range`
-* `find`
-* `count`
-* `findall`
-* `string`
-* `int`
-* `float`
-* `bool`
-* `len`
-* `exit`
+
+Function | Description   
+--- | ---
+print         | Outputs the string provided to the standard output.
+input      | Reads a string from the standard input.      
+range | Returns a list of integers from start to end, with step.
+find | Returns the index of the first occurrence of the substring sub in the string s.
+count | Returns the number of non-overlapping occurrences of substring sub in the string s.
+findall | Returns a list of all occurrences of the substring sub in the string s.
+string | Returns a string consisting of the characters in the specified sequence.
+int | Converts the argument to an integer.
+float | Converts the argument to a floating-point number.
+bool | Converts the argument to a Boolean value.
+len | Returns the length of the string argument.
+exit | Exits the program with the exit code provided. 
+
 ## Data types
 string name = "rick"
 
