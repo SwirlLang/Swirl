@@ -9,14 +9,27 @@
 line
 Comment ///
 ```
-## defining functions
+## Defining functions
 ```
 func name(int a, int b): int
   print("a + b is " + str(a + b))
   return a + b
 endfunc
 ```
-## data types
+## Builtin functions
+* `print`
+* `input` 
+* `range`
+* `find`
+* `count`
+* `findall`
+* `string`
+* `int`
+* `float`
+* `bool`
+* `len`
+* `exit`
+## Data types
 string name = "rick"
 
 int name = 7 //32bits int
