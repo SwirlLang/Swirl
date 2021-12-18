@@ -1,6 +1,8 @@
 # Syntax of Lambda Code
 ## import statement
-` #import library `
+```
+#import library 
+```
 
 ## comments
 ```
