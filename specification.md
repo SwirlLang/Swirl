@@ -44,7 +44,7 @@ long int name = 98739823544856 //64bits int
 
 float name = 0.1
 
-array arr[type] = 1,2,2,3,3,4
+list name = [1,"2",3.0]
 
 ## Type Qualifiers
 const
