@@ -1,19 +1,24 @@
 # include <iostream>
 # include <fstream>
+# include <string>
 
-# define int(x) static_cast<int>(x)
-# define float(x) static_cast<float>(x)
-# define string(x) static_cast<std::string>(x)
-# define bool(x) static_cast<bool>(x)
+# define len(x) sizeof(x)
+# define print(x) stdOut(x);
 
+using namespace std;
 
-void writeToFile(std::string path, std::string text)
+void writeToFile(std::string& path, std::string& text)
 {
-    std::ofstream File(path);
+    ofstream File(path);
     File << text;
     File.close();
 }
 
-void print(std::string& args, ...){
-    std :: cout << args << std :: endl;
+template<typename p_type>
+void stdOut(p_type args[], string&  end = '\n')
+{
+    std::cout << args << end;
 }
+
+stdOut("Hello world", "This.end");
+

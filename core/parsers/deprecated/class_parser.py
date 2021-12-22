@@ -3,7 +3,7 @@ __all__ = "class_parser"
 import sys
 
 
-def class_parser(snippet: str, flags: str = "") -> list:
+def class_parser(snippet: str, **flags) -> list:
     __ast__ = []
     _types = ["string", "int", "float", "array"]
 
@@ -89,7 +89,10 @@ def class_parser(snippet: str, flags: str = "") -> list:
                         |---[CONSTRUCTOR]
                                  |
                                  |
-                                 [{class_['constructor_params']}]
+                                 [PARAMETERS]
+                                      |
+                                      NAME
+                                        {constructor_params['name']}
             """)
 
     return __ast__
@@ -103,4 +106,4 @@ class my_new_class() inherits SuperClass
 endclass
 '''
 
-print(class_parser(t, 'debug'))
+print(class_parser(t, flags='debug'))
