@@ -31,7 +31,7 @@ Welcome to {green}L{red}P{blue}M{def()}, {green}Lambdacode{def()} {red}Package{d
 var
     path: string
     split_char: char
-when defined(windows): path = os.getEnv("APPDATA") & "\\roaming\\lpm\\packages\\";split_char = '\\' else: path = os.getEnv("HOME") & "/.lpm/packages/";split_char = '/'
+when defined(windows): path = os.getEnv("APPDATA") & "\\local\\lpm\\packages\\";split_char = '\\' else: path = os.getEnv("HOME") & "/.lpm/packages/";split_char = '/'
 
 proc show_help()=
     ## Write the help to stdout, kinda useless procedure poluting namespace lol
