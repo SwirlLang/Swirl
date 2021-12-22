@@ -42,13 +42,6 @@ arg_parser.add_argument(
 parsed_args = arg_parser.parse_args()
 
 
-def _debug(flags: str = None):
-    os.system('python -m LCC.py test.lc')
-
-
-_debug()
-
-
 def pre_process(source_: str, flags: str = "") -> None:
     """
     Deals with statements that needs to be
@@ -81,6 +74,7 @@ def pre_process(source_: str, flags: str = "") -> None:
                     module_path = f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}packages{os.sep}{_import}"
                     if os.path.isfile(module_path):
                         module_content = open(module_path, 'r').read()
+                        #TODO
                 else:
                     module_path = f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import}"
                     if os.path.isfile(module_path):
@@ -363,6 +357,19 @@ with open(FILE_NAME, 'r') as c_target_file:  # c stands for class, a convention 
 
 source.close()
 
+with open('../test.lc', 'r') as c_target_file:  # c stands for class, a convention in this context
+    t_lines = c_target_file.readlines()  # t: target
+    h_cls_index = []
+    two_multiples = ['2', '4', '6', '8', '0']
+    for c_line in t_lines:
+        if 'class' in c_line:
+            h_cls_index.append(t_lines.index(c_line) + 1)
+    len_cls_index = str(len(h_cls_index))
+    print(len_cls_index)
+    if len_cls_index in two_multiples: pass
+    else:
+        raise Exception("Incomplete class definition")
+
 AST = list
 
 # TODO
@@ -380,9 +387,6 @@ AST = list
 #             function = _source[]
 #
 #     return __ast__
-
-
-print(func_parser(func_indices))
 
 
 def _compile(func_ast: str, variables_ast: str, classes_ast: str) -> int:

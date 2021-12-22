@@ -7,11 +7,12 @@ print("ahsdf")
 int b = 454375873485738497589347589347534895734897589347
 
 
-func name()
+func name(string test = "yup", int yay)
     print("Hello World")
+    return 0
 endfunc
 
-class BlahBlah(int arg, float arg, string blah_blah ) inherits SuperClass
+class BlahBlah(int arg=3, float arg=2.4, string blah_blah="GG") inherits SuperClass, BigBlah
     override func onCreate(args): int
         return 0
     endfunc
@@ -40,6 +41,32 @@ class HelloWorld(int arg, float arg, string blah_blah ) inherits SuperClass
 endclass
 
 class THIS(int arg, float arg, string blah_blah ) inherits SuperClass
+    override func onCreate(args): int
+        return 0
+    endfunc
+endclass
+
+
+class Ayyy(int arg, float arg, string blah_blah ) inherits SuperClass
+    override func onCreate(args): int
+        return 0
+    endfunc
+endclass
+
+
+class Woo(int arg, float arg = 32.233232, string blah_blah ) inherits SuperClass
+    override func onCreate(args): int
+        return 0
+    endfunc
+endclass
+
+class Foo(int arg, float arg, string blah_blah ) inherits SuperClass
+    override func onCreate(args): int
+        return 0
+    endfunc
+endclass
+
+class Moo(int arg, float arg, string blah_blah ) inherits SuperClass
     override func onCreate(args): int
         return 0
     endfunc

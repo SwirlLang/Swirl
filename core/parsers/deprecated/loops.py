@@ -14,9 +14,7 @@ def loops_parser(snippet: str, flags: str = '') -> list:
         for item in target:
             if item == 'for':
                 target.remove('for')
-
         _object = loops.split('in')[1].split('\n')[0]
-
         __ast__.append(
             {
                 "target": ''.join(target),
