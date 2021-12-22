@@ -391,9 +391,6 @@ AST = list
 #     return __ast__
 
 
-print(func_parser(func_indices))
-
-
 def _compile(func_ast: str, variables_ast: str, classes_ast: str) -> int:
     """
     Generates a C++ source file in respect with the AST(s) provided
