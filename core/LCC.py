@@ -6,6 +6,7 @@ programming language. This file contains unexpected
 EOF/EOL(s) checkers and pre-processors.
 Also integrates every scattered components(such as parsers)
 into a single language file.
+Copyright Lambda Code Organization 2021
 """
 
 import os
@@ -22,6 +23,7 @@ arg_parser = argparse.ArgumentParser(
     description="Compiler for lambda code",
     formatter_class=argparse.RawDescriptionHelpFormatter,
     epilog="""
+Copyright Lambda code foundation 2021.
 Report Bugs At https://github.com/Lambda-Code-Organization/Lambda-Code/issues
 """,
 )
