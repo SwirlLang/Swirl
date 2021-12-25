@@ -20,5 +20,12 @@ void stdOut(p_type args[], string&  end = '\n')
     std::cout << args << end;
 }
 
-stdOut("Hello world", "This.end");
+
+string& input(std::string& prompt)
+{
+    string* input;
+    cout << prompt;
+    getline(cin, *input);
+    return *input;
+}
 

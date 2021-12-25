@@ -1,5 +1,5 @@
-# import stuffs
-# import stuffs.moreStuffs.MORE_STUFFS
+#import stuffs
+#import stuffs.moreStuffs.MORE_STUFFS
 
 string[4] a = 'func'
 
@@ -71,3 +71,6 @@ class Moo(int arg, float arg, string blah_blah ) inherits SuperClass
         return 0
     endfunc
 endclass
+
+
+ input()
