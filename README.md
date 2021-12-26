@@ -22,7 +22,7 @@ The language WILL have its own GUI library for making cross-platform desktop app
 The language is still in heavy development. There are lots of work that needs to be done.
 
 ## Contributing
-Contributions to the language are appreciated. We want to work in a open source community. If you want to contribute to the language you can make a pull request. We will review it. And if we think its good enough to take, we will merge it.
+Contributions to the language are appreciated. We want to work in a open source community. If you want to contribute to the language you can make a pull request. We will review it. And if we think its good enough to merge, we will merge it.
 
 ## Issues and feature request
 If you want to request any new feature or want to tell us about any sorts of bug you can use github issues for it. We will try to reply as fast as we can.
