@@ -127,8 +127,6 @@ row = 1
 tmp_index = 0
 class_indices: list
 
-print(functions)
-print(string_indices)
 
 """Checks for errors and produces two list of indexes of where strings or comments start and end at"""
 while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
@@ -141,7 +139,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             multi_c = readed_file.find("///", c_index2 + 3)
             if multi_c == -1:
                 translation = False
-                print(f"Error: Line {row}, column {col}: unfinished multi-line comment")
+                sys.stdout.write(f"Error: Line {row}, column {col}: unfinished multi-line comment")
                 break
             multi_c += 3
             comment_indices.append(range(c_index2, multi_c))
@@ -168,11 +166,11 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     elif min_index == s_index1:
         if readed_file[s_index1 - 1] == "\\":
             translation = False
-            print(f"Error: Line {row}, column {col - 1}: unexpected character - backslash")
+            sys.stdout.write(f"Error: Line {row}, column {col - 1}: unexpected character - backslash")
         singlei = readed_file.find("'", s_index1 + 1)
         if singlei == -1:
             translation = False
-            print(f"Error: Line {row}, column {col}: unfinished string")#
+            sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")#
             break
         while readed_file[singlei - bscount - 1] == "\\":
             bscount += 1
@@ -182,7 +180,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             if singlei == -1:
                 translation = False
                 valid = True
-                print(f"Error: Line {row}, column {col}: unfinished string")
+                sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")
                 break
             while readed_file[singlei - bscount - 1] == "\\":
                 bscount += 1
@@ -201,11 +199,11 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     else:
         if readed_file[s_index2 - 1] == "\\":
             translation == False
-            print(f"Error: Line {row}, column {col - 1}: unexpected character - backslash")
+            sys.stdout.write(f"Error: Line {row}, column {col - 1}: unexpected character - backslash")
         doublei = readed_file.find('"', s_index2 + 1)
         if doublei == -1:
             translation = False
-            print(f"Error: Line {row}, column {col}: unfinished string")
+            sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")
             break
         while readed_file[doublei - bscount - 1] == "\\":
             bscount += 1
@@ -215,7 +213,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             if doublei == -1:
                 translation = False
                 valid = True
-                print(f"Error: Line {row}, column {col}: unfinished string")
+                sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")
             while readed_file[doublei - bscount - 1] == "\\":
                 bscount += 1
         if valid:
@@ -271,7 +269,7 @@ while index != -1:
     if rType == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        print(f"Error: Line {row}, column {col}: missing function return type")
+        sys.stdout.write(f"Error: Line {row}, column {col}: missing function return type")
         continue
     for sindex in string_indices:
         if rType in sindex:
@@ -280,14 +278,14 @@ while index != -1:
     if rType == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        print(f"Error: Line {row}, column {col}: missing function return type")
+        sys.stdout.write(f"Error: Line {row}, column {col}: missing function return type")
         continue
 
     parbracket = readed_file.find("(", rType, fi2)
     if parbracket == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        print(f"Error: Line {row}, column {col}: missing parameters syntax in this function")
+        sys.stdout.write(f"Error: Line {row}, column {col}: missing parameters syntax in this function")
         continue
     for sindex in string_indices:
         if parbracket in sindex:
@@ -296,7 +294,7 @@ while index != -1:
     if parbracket == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        print(f"Error: Line {row}, column {col}: missing parameters syntax in this function")
+        sys.stdout.write(f"Error: Line {row}, column {col}: missing parameters syntax in this function")
         continue
 
     errIndex1 = readed_file.find("func", index, fi2)
@@ -317,7 +315,7 @@ while index != -1:
             errIndex1 = readed_file.find("func", errIndex1 + 4, fi2)
             translation = False
             valid = False
-            print(f'Error: Line {row1}, column {col}: cannot declare a function within a function')
+            sys.stdout.write(f'Error: Line {row1}, column {col}: cannot declare a function within a function')
     while errIndex2 != -1:
         for sindex in string_indices:
             if errIndex2 in sindex:
@@ -330,13 +328,13 @@ while index != -1:
             errIndex2 = readed_file.find("class", errIndex2 + 5, fi2)
             translation = False
             valid = False
-            print(f"Error: Line {row2}, column {col}: cannot declare a class inside a function")
+            sys.stdout.write(f"Error: Line {row2}, column {col}: cannot declare a class inside a function")
             break
 
     nextfunc = readed_file[rType + 1 : parbracket].replace(" ", "")
     if nextfunc == "main":
         translation = False
-        print(f'Error: Line {row}, column {col}: cannot call a function "main" because it is placed in the global scope')
+        sys.stdout.write(f'Error: Line {row}, column {col}: cannot call a function "main" because it is placed in the global scope')
         break
 
     for func in functions:
@@ -344,7 +342,7 @@ while index != -1:
         if nextfunc == func[: func.find(":")]:
             translation = False
             valid = False
-            print(f"Error: Line {row}, column {col}: duplicate function declared")
+            sys.stdout.write(f"Error: Line {row}, column {col}: duplicate function declared")
     if valid:
         func_indices.append(range(index - 4, fi2 + 8))
         functions.append((readed_file[index: fi2], row))
@@ -365,7 +363,7 @@ with open('../test.lc', 'r') as c_target_file:  # c stands for class, a conventi
         if 'class' in c_line:
             h_cls_index.append(t_lines.index(c_line) + 1)
     len_cls_index = str(len(h_cls_index))
-    print(len_cls_index)
+    sys.stdout.write(len_cls_index)
     if len_cls_index in two_multiples: pass
     else:
         raise Exception("Incomplete class definition")
