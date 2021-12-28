@@ -6,6 +6,12 @@ string[4] a = 'func'
 print("ahsdf")
 int b = 454375873485738497589347589347534895734897589347
 
+func hel(params)
+    
+endfunc
+    
+endfunc
+
 
 func name(string test = "yup", int yay)
     print("Hello World")
@@ -74,3 +80,10 @@ endclass
 
 
  input()
+
+ func eyy(string this)
+    /// ho ho ho ///
+    print()
+ endfunc
+
+
