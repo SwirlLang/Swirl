@@ -226,7 +226,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             c_index2 = readed_file.find("///", singlei)
     else:
         if readed_file[s_index2 - 1] == "\\":
-            translation == False
+            translation = False
             sys.stdout.write(f"Error: Line {row}, column {col - 1}: unexpected character - backslash")
         doublei = readed_file.find('"', s_index2 + 1)
         if doublei == -1:
