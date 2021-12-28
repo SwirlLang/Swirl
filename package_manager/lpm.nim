@@ -1,13 +1,13 @@
-import strutils, strformat, tlib, os, httpclient, asyncdispatch, json, regex, parsecfg, streams
+import strutils, strformat, tlib, os, httpclient, asyncdispatch, json, regex
 
 # Setting up some colors to avoid
 # calling 'rgb' to much time
 let
-    blue = rgb(11, 121, 255)
-    red = rgb(255, 77, 64)
-    green = rgb(0, 255, 127 )
-    white = rgb(255,255,255)
-    client = newAsyncHttpClient("lpm/v0.1")
+    blue        = rgb(11, 121, 255)
+    red         = rgb(255, 77, 64)
+    green       = rgb(0, 255, 127 )
+    white       = rgb(255,255,255)
+    client      = newAsyncHttpClient("lpm/v0.1")
 # Opening a channel to comunicate with
 # async procedures
 var chan: Channel[string]
@@ -27,32 +27,31 @@ Welcome to {green}L{red}P{blue}M{def()}, {green}Lambdacode{def()} {red}Package{d
 
 
 """
-let userName = os.getenv("USER")
-# Defining the paths for windows or linux (defined at compile time)
-let 
-    linux_config_path:string = &"/home/{userName}/.config/lpm/config"
-    windows_config_path:string = "APPDATA\\local\\lpm\\config"
-    global_linux_packages:string = "/usr/lib/lpm/packages"
-    local_linux_packages:string = ".lpm/packages"
-    global_windows_packages:string = "APPDATA\\roaming\\lpm\\packages"
-    local_windows_packages:string = "APPDATA\\local\\lpm\\packages"
+
+# Path related
 var
-    path: string
-    split_char: char
-when defined(windows): path = os.getEnv("APPDATA") & "\\local\\lpm\\packages\\";split_char = '\\' else: path = os.getEnv("HOME") & "/.lpm/packages/";split_char = '/'
+    path:               string
+    split_char:         char
+    cfg_path:           string
+    pkg_path_global:    string
 
-proc config()=
-    # check if the config file exists
-    if os.existsFile(linux_config_path):
-        let configFile = linux_config_path
-        let dict = loadConfig(configFile)
-        let compiler = dict.getSectionValue("Common","cc")
-        let version = dict.getSectionValue("Common","version")
-        echo "Compiler: " & compiler & "\n" & "Version: " & version
-    else:
-        echo "No config file found"
+# paths assignements
+when defined(windows):
+    path            = os.getEnv("APPDATA") & "\\local\\lpm\\packages\\"
+    cfg_path        = os.getEnv("APPDATA") & "\\local\\lpm\\config.ini"
+    split_char      = '\\'
+    pkg_path_global = os.getEnv("APPDATA") & "\\roaming\\lpm\\packages"
 
+else:
+    path            = os.getEnv("HOME") & "/.lpm/packages/"
+    cfg_path        = &"""/home/{os.getenv("USER")}/.config/lpm/config"""
+    split_char      = '/'
+    pkg_path_global = "/usr/lib/lpm/packages"
 
+# Configs
+var
+    compiler:   string  = "gpp"
+    version :   string  = "0.0.1"
 
 proc show_help()=
     ## Write the help to stdout, kinda useless procedure poluting namespace lol
@@ -152,6 +151,22 @@ proc download_pkg(pkg: string, path: string, main: string) {.async.}=
     ## Write the 'main' file from the repo to the local package
     client.onProgressChanged = update_bar
     writeFile(&"{path}/{pkg}/{main}", await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/{main}"))
+
+proc config()=
+    # check if the config file exists
+    if not os.fileExists(cfg_path): error "No config file found"
+    let lines = readFile(cfg_path).strip().splitLines()
+    for line in lines:
+        let cfg = line.split(':')
+        case cfg[0].strip()
+            of "compiler":
+                compiler = cfg[1].strip()
+            of "version":
+                version = cfg[1].strip()
+            else:
+                error &"Unknow config command line {lines.find(line)}: {cfg[0]}"
+    
+    echo "Compiler: " & compiler & "\n" & "Version: " & version
 
 if os.paramCount() == 0:
     echo &"{green}[USAGE]{def()} lpm <command> [arguments]"
