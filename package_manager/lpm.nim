@@ -1,4 +1,4 @@
-import strutils, strformat, tlib, os, httpclient, asyncdispatch, json, regex
+import strutils, strformat, tlib, os, httpclient, asyncdispatch, json, regex, parsecfg, streams
 
 # Setting up some colors to avoid
 # calling 'rgb' to much time
@@ -27,11 +27,32 @@ Welcome to {green}L{red}P{blue}M{def()}, {green}Lambdacode{def()} {red}Package{d
 
 
 """
-# Defining the 'path' for windows or linux (defined at compile time)
+let userName = os.getenv("USER")
+# Defining the paths for windows or linux (defined at compile time)
+let 
+    linux_config_path:string = &"/home/{userName}/.config/lpm/config"
+    windows_config_path:string = "APPDATA\\local\\lpm\\config"
+    global_linux_packages:string = "/usr/lib/lpm/packages"
+    local_linux_packages:string = ".lpm/packages"
+    global_windows_packages:string = "APPDATA\\roaming\\lpm\\packages"
+    local_windows_packages:string = "APPDATA\\local\\lpm\\packages"
 var
     path: string
     split_char: char
 when defined(windows): path = os.getEnv("APPDATA") & "\\local\\lpm\\packages\\";split_char = '\\' else: path = os.getEnv("HOME") & "/.lpm/packages/";split_char = '/'
+
+proc config()=
+    # check if the config file exists
+    if os.existsFile(linux_config_path):
+        let configFile = linux_config_path
+        let dict = loadConfig(configFile)
+        let compiler = dict.getSectionValue("Common","cc")
+        let version = dict.getSectionValue("Common","version")
+        echo "Compiler: " & compiler & "\n" & "Version: " & version
+    else:
+        echo "No config file found"
+
+
 
 proc show_help()=
     ## Write the help to stdout, kinda useless procedure poluting namespace lol
@@ -139,6 +160,9 @@ if os.paramCount() == 0:
 for i in 1..paramCount():
     let current_param = paramStr(i)
     case current_param
+        of "--config":
+            config()
+
         of "-h", "--help", "help":
             show_help()
             exit(0)
