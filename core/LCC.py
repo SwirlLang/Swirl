@@ -42,10 +42,27 @@ arg_parser.add_argument(
 parsed_args = arg_parser.parse_args()
 
 
-def pre_process(source_: str, flags: str = "") -> None:
+class Error:
+    """ Usage: Error(message: str = ..., exit_status: int = defaults to 1) """
+
+    def __init__(self, message: str, exit_status: int = 1) -> None:
+        """
+        Writes the message to CLI/Console and exits with the specified error message
+        with defaults to 1
+
+        :param message: The message to display, "Error" is automatically added at the
+        start of the string litiral
+        :param exit_status: the exist status to exit the interpreter with, defaults to 1
+        """
+        sys.stdout.write(f"Error: {message}")
+        sys.exit(exit_status)
+
+
+def pre_process(source_: str) -> None:
     """
-    Deals with statements that needs to be
+    Pre-processor, deals with statements that needs to be
     handled right after the compiler started
+    :param source_: must be a path pointing to a .lc file to process
     :return: None
     """
 
@@ -62,28 +79,39 @@ def pre_process(source_: str, flags: str = "") -> None:
                     imports.append(''.join(i_helper_list))
                 except ValueError: pass
 
-    "Pasting contents from the imported file into the target file"
-    for _import in imports:
-        cls_imported = _import.split('.')[-1]
-        "In case a single file is imported"
-        if len(_import.split('.')) == 1:
-            try:
-                module_content = open(_import, 'r').read()
-            except FileNotFoundError:
-                if 'win' in sys.platform:
-                    module_path = f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}packages{os.sep}{_import}"
-                    if os.path.isfile(module_path):
-                        module_content = open(module_path, 'r').read()
-                        #TODO
-                else:
-                    module_path = f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import}"
-                    if os.path.isfile(module_path):
-                        module_content = open(module_path, 'r').read()
-                        # TODO
+        "Pasting contents from the imported file into the namespace calling it"
+        for _import in imports:
+            cls_imported = _import.split('.')[-1]
+            "In case a single file is imported"
+            if 'win' in sys.platform:
+                if os.path.isfile(f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}\
+                        packages{os.sep}{_import.split('.')[-1]}.lc"):
+                    try:
+                        module_content = open(_import, 'r').read()
+                    except FileNotFoundError:
+                        module_path = f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}packages{os.sep}\
+                                            {_import.replace('.', os.sep)}"
+                        if os.path.isfile(module_path):
+                            module_content = open(module_path, 'r').read()
+                            # TODO use an alternative to .read() to save RAM
+                            i_source.read().replace(f'import {_import}', module_content)
+                        else:
+                            sys.stdout.write(f"Error: file {source}\n no module named {_import}")
+                            sys.exit(1)
+            else:
+                if os.path.isfile(f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import.split('.')[-1]}.lc")\
+                        or os.path.isfile(f"{_import.replace('.', os.sep)}"):
+                    try:
+                        module_content = open(_import, 'r').read()
+                    except FileNotFoundError:
+                        module_path = f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import.replace('.', os.sep)}"
+                        if os.path.isfile(module_path):
+                            module_content = open(module_path, 'r').read()
+                            i_source.read().replace(f"import {_import}", module_content)
+                        else:
+                            Error(f"file {source}\n module not found, no module named {_import}")
 
-
-class Error(Exception):
-    __module__ = "builtins"  # Removes the annoying "__main__." before errors
+    return  # just to be on the safe side :)
 
 
 def binary_search(indices: list, start: int, end: int, index: int) -> int:
