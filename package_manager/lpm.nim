@@ -175,7 +175,7 @@ for i in 1..paramCount():
                 info "No packages are installed on your system"
                 exit(0)
 
-        of "info", "-s", "status":
+        of "info", "-s", "show":
             if paramCount() < 2:
                 error "No package(s) provided"
 
