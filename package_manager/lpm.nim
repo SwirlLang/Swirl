@@ -3,11 +3,11 @@ import strutils, strformat, tlib, os, httpclient, asyncdispatch, json, regex
 # Setting up some colors to avoid
 # calling 'rgb' to much time
 let
-    blue = rgb(11, 121, 255)
-    red = rgb(255, 77, 64)
-    green = rgb(0, 255, 127 )
-    white = rgb(255,255,255)
-    client = newAsyncHttpClient("lpm/v0.1")
+    blue        = rgb(11, 121, 255)
+    red         = rgb(255, 77, 64)
+    green       = rgb(0, 255, 127 )
+    white       = rgb(255,255,255)
+    client      = newAsyncHttpClient("lpm/v0.1")
 # Opening a channel to comunicate with
 # async procedures
 var chan: Channel[string]
@@ -27,11 +27,31 @@ Welcome to {green}L{red}P{blue}M{def()}, {green}Lambdacode{def()} {red}Package{d
 
 
 """
-# Defining the 'path' for windows or linux (defined at compile time)
+
+# Path related
 var
-    path: string
-    split_char: char
-when defined(windows): path = os.getEnv("APPDATA") & "\\local\\lpm\\packages\\";split_char = '\\' else: path = os.getEnv("HOME") & "/.lpm/packages/";split_char = '/'
+    path:               string
+    split_char:         char
+    cfg_path:           string
+    pkg_path_global:    string
+
+# paths assignements
+when defined(windows):
+    path            = os.getEnv("APPDATA") & "\\local\\lpm\\packages\\"
+    cfg_path        = os.getEnv("APPDATA") & "\\local\\lpm\\config.ini"
+    split_char      = '\\'
+    pkg_path_global = os.getEnv("APPDATA") & "\\roaming\\lpm\\packages"
+
+else:
+    path            = os.getEnv("HOME") & "/.lpm/packages/"
+    cfg_path        = &"""/home/{os.getenv("USER")}/.config/lpm/config"""
+    split_char      = '/'
+    pkg_path_global = "/usr/lib/lpm/packages"
+
+# Configs
+var
+    compiler:   string  = "gpp"
+    version :   string  = "0.0.1"
 
 proc show_help()=
     ## Write the help to stdout, kinda useless procedure poluting namespace lol
@@ -132,6 +152,22 @@ proc download_pkg(pkg: string, path: string, main: string) {.async.}=
     client.onProgressChanged = update_bar
     writeFile(&"{path}/{pkg}/{main}", await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/{main}"))
 
+proc config()=
+    # check if the config file exists
+    if not os.fileExists(cfg_path): error "No config file found"
+    let lines = readFile(cfg_path).strip().splitLines()
+    for line in lines:
+        let cfg = line.split(':')
+        case cfg[0].strip()
+            of "compiler":
+                compiler = cfg[1].strip()
+            of "version":
+                version = cfg[1].strip()
+            else:
+                error &"Unknow config command line {lines.find(line)}: {cfg[0]}"
+    
+    echo "Compiler: " & compiler & "\n" & "Version: " & version
+
 if os.paramCount() == 0:
     echo &"{green}[USAGE]{def()} lpm <command> [arguments]"
     error &"No command provided\n\nRun {green}help{def()} command for list of commands"
@@ -139,6 +175,9 @@ if os.paramCount() == 0:
 for i in 1..paramCount():
     let current_param = paramStr(i)
     case current_param
+        of "--config":
+            config()
+
         of "-h", "--help", "help":
             show_help()
             exit(0)
