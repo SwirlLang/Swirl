@@ -12,7 +12,7 @@ import os
 import sys
 import pathlib
 import argparse
-
+from typing import Any
 
 sys.tracebacklimit = 0  # Removes the annoying traceback text
 
@@ -51,67 +51,11 @@ class Error:
         with defaults to 1
 
         :param message: The message to display, "Error" is automatically added at the
-        start of the string litiral
+        start of the string literal
         :param exit_status: the exist status to exit the interpreter with, defaults to 1
         """
         sys.stdout.write(f"Error: {message}")
         sys.exit(exit_status)
-
-
-def pre_process(source_: str) -> None:
-    """
-    Pre-processor, deals with statements that needs to be
-    handled right after the compiler started
-    :param source_: must be a path pointing to a .lc file to process
-    :return: None
-    """
-
-    "Parsing import statements, RIP regular expressions"
-    imports = []
-    with open(source_, 'r') as i_source:  # i stands for imports
-        for i_line in i_source:
-            i_strip_ln = i_line.strip()
-            if '#' in i_strip_ln:
-                i_helper_list = i_strip_ln.split()
-                try:
-                    i_helper_list.remove('#')
-                    i_helper_list.remove('import')
-                    imports.append(''.join(i_helper_list))
-                except ValueError: pass
-
-        "Pasting contents from the imported file into the namespace calling it"
-        for _import in imports:
-            cls_imported = _import.split('.')[-1]
-            "In case a single file is imported"
-            if 'win' in sys.platform:
-                if os.path.isfile(f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}\
-                        packages{os.sep}{_import.split('.')[-1]}.lc"):
-                    try:
-                        module_content = open(_import, 'r').read()
-                    except FileNotFoundError:
-                        module_path = f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}packages{os.sep}\
-                                            {_import.replace('.', os.sep)}"
-                        if os.path.isfile(module_path):
-                            module_content = open(module_path, 'r').read()
-                            # TODO use an alternative to .read() to save RAM
-                            i_source.read().replace(f'import {_import}', module_content)
-                        else:
-                            sys.stdout.write(f"Error: file {source}\n no module named {_import}")
-                            sys.exit(1)
-            else:
-                if os.path.isfile(f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import.split('.')[-1]}.lc")\
-                        or os.path.isfile(f"{_import.replace('.', os.sep)}"):
-                    try:
-                        module_content = open(_import, 'r').read()
-                    except FileNotFoundError:
-                        module_path = f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import.replace('.', os.sep)}"
-                        if os.path.isfile(module_path):
-                            module_content = open(module_path, 'r').read()
-                            i_source.read().replace(f"import {_import}", module_content)
-                        else:
-                            Error(f"file {source}\n module not found, no module named {_import}")
-
-    return  # just to be on the safe side :)
 
 
 def binary_search(indices: list, start: int, end: int, index: int) -> int:
@@ -136,7 +80,7 @@ readed_file = source.read()
 size = len(readed_file)
 
 if not size:
-    raise Error("Null File")
+    Error("Null File")
 
 translation = True
 valid = False
@@ -275,11 +219,11 @@ while index != -1:
     fi2 = readed_file.find("endfunc", index - 3)
     if fi2 == -1:
         translation = False
-        raise Error(f"Line {row}, column {col}: function declaration incomplete")
+        Error(f"Line {row}, column {col}: function declaration incomplete")
 
     elif index == fi2 + 3:
         translation = False
-        raise Error(f"Line {row}, column {col - 3}: \"endfunc\" cannot be used without \"func\"")
+        Error(f"Line {row}, column {col - 3}: \"endfunc\" cannot be used without \"func\"")
 
     else:
         for sindex in string_indices:
@@ -289,7 +233,7 @@ while index != -1:
 
     if fi2 == -1:
         translation = False
-        raise Error(f"Line {row}, column {col}: function declaration incomplete")
+        Error(f"Line {row}, column {col}: function declaration incomplete")
 
     index += 4
 
@@ -396,33 +340,106 @@ with open('../test.lc', 'r') as c_target_file:  # c stands for class, a conventi
     else:
         raise Exception("Incomplete class definition")
 
-AST = list
 
-# TODO
-# def func_parser(ranges: list) -> AST:
-#     """
-#     Parses functions at provided ranges and produces an AST
-#     :param ranges: a list of ranges (begin: end) of functions
-#     :return: Abstract syntax tree AKA parse or syntax tree
-#     """
-#
-#     __ast__ = []  # the final syntax tree
-#     for f_range in ranges:
-#         with open(FILE_NAME) as target_file:
-#             _source = target_file.readlines()
-#             function = _source[]
-#
-#     return __ast__
-
-
-def _compile(func_ast: str, variables_ast: str, classes_ast: str) -> int:
+def cache() -> str:
     """
-    Generates a C++ source file in respect with the AST(s) provided
-    :param func_ast: AST of functions in x file
-    :param variables_ast: AST of variables in x file
-    :param classes_ast: AST of classes in x file
+    Creates a __lc_cache__ dir and duplicates the file executed in it for further
+    compilation
+    :return: path of the cache file(str)
+    """
+
+    cache_file = None
+    root = f'{os.sep}'.join(os.path.abspath(parsed_args.file).split(os.sep).pop())
+
+    try:
+        os.mkdir(f"{root}__lc_cache__")
+        ofstream = open(f"{root}/__lc_cache__/{parsed_args.file.split(os.sep)[-1]}", 'x')
+        # TODO use an alternative to read()
+        ofstream.write(open(os.path.abspath(parsed_args.file)).read())
+        ofstream.close()
+        cache_file = f"{root}/__lc_cache__/{parsed_args.file.split(os.sep)[-1]}"
+    except FileExistsError:
+        cache_file = f"{root}/__lc_cache__/{parsed_args.file.split(os.sep)[-1]}"
+
+    return cache_file
+
+
+def pre_process(source: str) -> None:
+    """
+    Pre-processor, deals with statements that needs to be
+    handled right after the compiler started
+    :param source: must be a path pointing to a .lc file to process
+    :return: None
+    """
+
+    "Parsing import statements, RIP regular expressions"
+    imports = []
+    with open(source, 'r') as i_source:  # i stands for imports
+        for i_line in i_source:
+            i_strip_ln = i_line.strip()
+            if '#' in i_strip_ln:
+                i_helper_list = i_strip_ln.split()
+                try:
+                    i_helper_list.remove('#')
+                    i_helper_list.remove('import')
+                    imports.append(''.join(i_helper_list))
+                except ValueError: pass
+
+        "Pasting contents from the imported file into the namespace calling it"
+        for _import in imports:
+            cls_imported = _import.split('.')[-1]
+            "In case a single file is imported"
+            if 'win' in sys.platform:
+                if os.path.isfile(f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}\
+                        packages{os.sep}{_import.split('.')[-1]}.lc"):
+                    try:
+                        module_content = open(_import, 'r').read()
+                    except FileNotFoundError:
+                        module_path = f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}packages{os.sep}\
+                                            {_import.replace('.', os.sep)}"
+                        if os.path.isfile(module_path):
+                            module_content = open(module_path, 'r').read()
+                            # TODO use an alternative to .read() to save RAM
+                            i_source.read().replace(f'import {_import}', module_content)
+                        else:
+                            sys.stdout.write(f"Error: file {source}\n no module named {_import}")
+                            sys.exit(1)
+            else:
+                if os.path.isfile(f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import.split('.')[-1]}.lc")\
+                        or os.path.isfile(f"{_import.replace('.', os.sep)}"):
+                    try:
+                        module_content = open(_import, 'r').read()
+                    except FileNotFoundError:
+                        module_path = f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import.replace('.', os.sep)}"
+                        if os.path.isfile(module_path):
+                            module_content = open(module_path, 'r').read()
+                            i_source.read().replace(f"import {_import}", module_content)
+                        else:
+                            Error(f"file {source}\n module not found, no module named {_import}")
+
+    return  # just to be on the safe side :)
+
+
+"Invoking the pre processor"
+pre_process(cache())
+
+
+def _compile() -> int:
+    """
+    Invokes parsers and generates a C++ source file, return type (int) defines the
+    exit status
+    :return: ExitStatus (int), 0: no problems, 1: abnormal
     """
     return 0
+
+
+def _execute() -> None:
+    """
+    Invokes the C/C++ compiler present on the user's system and executes the C++
+    source generated by _compile
+    :return: NoReturn
+    """
+    return
 
 
 if translation:
