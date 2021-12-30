@@ -40,16 +40,16 @@ exit | Exits the program with the exit code provided.
 string name = "rick"
 ```
 ```
-int name = 7 //32bits int
+int name = 7  // 32bits int
 ```
 ```
-long int name = 98739823544856 //64bits int
+long int name = 98739823544856  // 64bits int
 ```
 ```
 float name = 0.1
 ```
 ```
-list name = [1,"2",3.0]
+list name = [1, "2", 3.0]
 ```
 ## Type Qualifiers
 const
