@@ -106,5 +106,3 @@ def parse_classes(ranges: list, file: str, flags: str = '') -> list:
                 )
 
     return __ast__
-
-
