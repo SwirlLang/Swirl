@@ -14,8 +14,8 @@ Comment ///
 ## Defining functions
 ```
 func name(int a, int b): int
-  print("a + b is " + str(a + b))
-  return a + b
+    print("a + b is " + str(a + b))
+    return a + b
 endfunc
 ```
 ## Builtin functions
@@ -57,25 +57,25 @@ const
 ## Conditional and Loop statements
 ```
 if (code == code2)
-  your code
+    print("Hello World")
 endif
 ```
 ```
 elseif (code == code2)
-  your code
+    print("Hello World")
 ```
 ```
 else 
-    your code
+    print("Hello World")
 ```
 ```
 for i in var
-  your code
+    print("Hello World")
 endfor
 ```
 ```
 while true
-  your code
+    print("Hello World")
 endwhile
 ```
 
