@@ -12,7 +12,8 @@ import os
 import sys
 import pathlib
 import argparse
-from typing import Any
+from parsers.core import functions, classes
+
 
 sys.tracebacklimit = 0  # Removes the annoying traceback text
 
@@ -43,8 +44,6 @@ parsed_args = arg_parser.parse_args()
 
 
 class Error:
-    """ Usage: Error(message: str = ..., exit_status: int = defaults to 1) """
-
     def __init__(self, message: str, exit_status: int = 1) -> None:
         """
         Writes the message to CLI/Console and exits with the specified error message
@@ -98,9 +97,11 @@ c_index2 = readed_file.find("///")
 row = 1
 tmp_index = 0
 class_indices: list
+for_indices = []
+while_indices = []
 
 
-"""Checks for errors and produces two list of indexes of where strings or comments start and end at"""
+"Checks for errors and produces two list of indexes of where strings or comments start and end at"
 while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     min_index = min([x for x in (s_index1, s_index2, c_index1, c_index2) if x != -1])
     row += readed_file[tmp_index:min_index].count("\n")
@@ -303,7 +304,7 @@ while index != -1:
             sys.stdout.write(f"Error: Line {row2}, column {col}: cannot declare a class inside a function")
             break
 
-    nextfunc = readed_file[rType + 1 : parbracket].replace(" ", "")
+    nextfunc = readed_file[rType + 1: parbracket].replace(" ", "")
     if nextfunc == "main":
         translation = False
         sys.stdout.write(f'Error: Line {row}, column {col}: cannot call a function "main" because it is placed in the global scope')
@@ -327,18 +328,34 @@ with open(FILE_NAME, 'r') as c_target_file:  # c stands for class, a convention 
 
 source.close()
 
-with open('../test.lc', 'r') as c_target_file:  # c stands for class, a convention in this context
-    t_lines = c_target_file.readlines()  # t: target
+with open(parsed_args.file) as c_target_file:
+    t_lines = c_target_file.readlines()
     h_cls_index = []
     two_multiples = ['2', '4', '6', '8', '0']
+
     for c_line in t_lines:
         if 'class' in c_line:
             h_cls_index.append(t_lines.index(c_line) + 1)
     len_cls_index = str(len(h_cls_index))
-    sys.stdout.write(len_cls_index)
-    if len_cls_index in two_multiples: pass
-    else:
-        raise Exception("Incomplete class definition")
+    if len_cls_index in two_multiples: pass  # RIP PEP-8 for a moment
+    else: Error("Incomplete class definition")
+
+    "For and while loop indexing in a single iteration"
+    for lp_line in t_lines:
+        # TODO
+        if 'for' in lp_line:
+            lp_index = t_lines.index(lp_line)
+            for s_range in string_indices:
+                if lp_index in s_range:
+                    pass
+                else:
+                    for_indices.append(lp_index)
+        if 'endfor' in lp_line:
+            for_indices.append(t_lines.index(lp_line))
+        if 'while' in lp_line:
+            while_indices.append(t_lines.index(lp_line))
+        if 'endwhile' in lp_line:
+            while_indices.append(t_lines.index(lp_line))
 
 
 def cache() -> str:
@@ -360,7 +377,6 @@ def cache() -> str:
         cache_file = f"{root}/__lc_cache__/{parsed_args.file.split(os.sep)[-1]}"
     except FileExistsError:
         cache_file = f"{root}/__lc_cache__/{parsed_args.file.split(os.sep)[-1]}"
-
     return cache_file
 
 
@@ -421,14 +437,14 @@ def pre_process(source: str) -> None:
 
 
 "Invoking the pre processor"
-pre_process(cache())
+cache()
 
 
 def _compile() -> int:
     """
     Invokes parsers and generates a C++ source file, return type (int) defines the
     exit status
-    :return: ExitStatus (int), 0: no problems, 1: abnormal
+    :return: ExitStatus
     """
     return 0
 
