@@ -42,7 +42,7 @@ People *love* thorough bug reports.
 
 ## Use a Consistent Coding Style
 
-* 4 spaces for indentation rather than tabs (yes we hate tabs)
+* 4 spaces for indentation rather than tabs
 * You can try the formatter of the python extension of vsocde
 
 ## License
