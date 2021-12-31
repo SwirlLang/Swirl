@@ -79,5 +79,5 @@ def parse_functions(ranges: list, file: str = '', flags: str = '') -> list:
     return __ast__
 
 
-print(parse_functions(['10:13'], '../../test.lc'))
+# print(parse_functions(['10:13'], '../../test.lc'))
 
