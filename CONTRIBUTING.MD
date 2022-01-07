@@ -33,7 +33,7 @@ We use GitHub issues to track public bugs. Report a bug by choosing a issue temp
 - A quick summary and/or background
 - Steps to reproduce
   - Be specific!
-  - Give sample code if you can. Code that *anyone* with a base python setup can run to reproduce what you were seeing
+  - Give sample code if you can. Code that *anyone* can run to reproduce what you were seeing
 - What you expected would happen
 - What actually happens
 - Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
@@ -42,7 +42,7 @@ People *love* thorough bug reports.
 
 ## Use a Consistent Coding Style
 
-* 4 spaces for indentation rather than tabs
+* 4 spaces for indentation rather than tabs if your PR has the python language
 * You can try the formatter of the python extension of vsocde
 
 ## License
