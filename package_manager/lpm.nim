@@ -104,11 +104,9 @@ proc pkg_info(pkg: string, pkg_query: bool)=
         echo &"""
             PACKAGE INFORMATIONS
 {blue}Name:                 {white}{data["name"].getStr()}{def()}
-{blue}Installation Name:    {white}{pkg}{def()}
 {blue}Description:          {white}{data["description"].getStr()}{def()}
 {blue}Version:              {white}{data["version"].getStr()}{def()}
 {blue}Author:               {white}{data["author"].getStr()}{def()}
-{blue}Updated on:           {white}{data["last_updated"].getStr()}{def()}
 {blue}License:              {white}{data["license"].getStr()}{def()}
 """
     else:
@@ -154,10 +152,10 @@ proc download_pkg(pkg: string, path: string, main: string) {.async.}=
     client.onProgressChanged = update_bar
     writeFile(&"{path}/{pkg}/{main}", await client.getContent(&"https://raw.githubusercontent.com/Lambda-Code-Organization/Lambda-code-Central-repository/main/packages/{pkg}/{main}"))
 
-proc config(path: string, debug:bool) =
+proc config()=
     # check if the config file exists
-    if not os.fileExists(path): error "No config file found"
-    let lines = readFile(path).strip().splitLines()
+    if not os.fileExists(cfg_path): error "No config file found"
+    let lines = readFile(cfg_path).strip().splitLines()
     for line in lines:
         let cfg = line.split(':')
         case cfg[0].strip()
@@ -168,34 +166,26 @@ proc config(path: string, debug:bool) =
             else:
                 error &"Unknow config command line {lines.find(line)}: {cfg[0]}"
     
-    if debug: info &"Using config file at '{path}'"
+    echo "Compiler: " & compiler & "\n" & "Version: " & version
 
 if os.paramCount() == 0:
     echo &"{green}[USAGE]{def()} lpm <command> [arguments]"
     error &"No command provided\n\nRun {green}help{def()} command for list of commands"
 
-config(cfg_path, false)
-var discard_next = false
 for i in 1..paramCount():
     let current_param = paramStr(i)
-    if discard_next:
-        discard_next = false
-        continue
     case current_param
         of "--config":
-            if paramCount() < i+1:
-                error "No path provided"
-            config(paramStr(i+1), true)
-            discard_next = true
+            config()
 
         of "-h", "--help", "help":
             show_help()
             exit(0)
 
         of "query", "-q":
-            if paramCount() < i+1:
+            if paramCount() < 2:
                 error "No query provided"
-            let search = paramStr(i+1)
+            let search = paramStr(2)
             let body = waitFor query(search)
             # Match everything starting with href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages/
             for m in body.findAll(re"""href="/Lambda-Code-Organization/Lambda-code-Central-repository/tree/main/packages/.*""""):
@@ -225,10 +215,10 @@ for i in 1..paramCount():
                 exit(0)
 
         of "info", "-s", "show":
-            if paramCount() < i+1:
+            if paramCount() < 2:
                 error "No package(s) provided"
 
-            for arg in (i+1)..paramCount():
+            for arg in 2..paramCount():
                 let pkg = paramStr(arg)
                 if not waitFor packageExists(pkg):
                     error &"Package {pkg} does not exists"
@@ -237,9 +227,9 @@ for i in 1..paramCount():
             quit(0)
 
         of "install", "-i":
-            if paramCount() < i+1:
+            if paramCount() < 2:
                 error "No package(s) provided"
-            for arg in (i+1)..paramCount():
+            for arg in 2..paramCount():
                 let pkg = paramStr(arg)
                 # check is 'pkg' exists
                 if not waitFor packageExists(pkg):
@@ -255,9 +245,9 @@ for i in 1..paramCount():
             exit(0)
 
         of "remove", "-r":
-            if paramCount() < i+1:
+            if paramCount() < 2:
                 error "No package(s) provided"
-            for package in (i+1)..paramCount():
+            for package in 2..paramCount():
                 let pkg_name = paramStr(package)
                 let pkg_path = path & pkg_name
 
