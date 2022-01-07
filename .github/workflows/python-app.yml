@@ -9,11 +9,19 @@ on:
     paths-ignore:
       - '**/*.md'
       - '**/*.markdown'
+      - '**/*.cpp'
+      - '**/*.hpp'
+      - '**/*.c'
+      - '**/*.h'
   pull_request:
     branches: [ main ]
     paths-ignore:
       - '**/*.md'
       - '**/*.markdown'
+      - '**/*.cpp'
+      - '**/*.hpp'
+      - '**/*.c'
+      - '**/*.h'
 
     
 

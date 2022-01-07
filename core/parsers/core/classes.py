@@ -10,11 +10,8 @@
 #     else:
 #         raise Error("Incomplete class definition")
 
-import re
 import sys
 import string
-from typing import NoReturn
-
 from functions import parse_functions
 
 
@@ -22,33 +19,12 @@ class Error(Exception):
     __module__ = 'builtins'
 
 
-def gen_cls_parse_tree(name: str, c_params: list, supers: list) -> str:
-    cls_def = f"""
-stmt
-    ClassDef
-        ident {name}
-"""
-    for _dict in c_params:
-        cls_def += f"""
-        ParamDef
-            ident {_dict["name"]}
-            type {_dict["type"]}
-            default {_dict["default"] if _dict["default"] is not None else "NO_DEFAULT_ARGUMENT_GIVEN_64"}
-"""
-
-    for _class in supers:
-        cls_def += f"""
-        Super
-            ident {_class}
-"""
-    return cls_def
-
-
-def parse_classes(ranges: list, file: str) -> str:
+def parse_classes(ranges: list, file: str, flags: str = '') -> list:
     """
     pareses classes in the provided ranges of the file
     :param ranges: ranges(start: end)
     :param file path pointing to the file to read from
+    :param flags: Available flags, 'debug' for development purpose only
     :return: Abstract syntax tree
     """
     __ast__ = []
@@ -101,12 +77,32 @@ def parse_classes(ranges: list, file: str) -> str:
                 for super_class in h_inheritance:
                     inheritance.append(super_class.lstrip())
 
-            "And finally appending everything into the syntax tree"
-            __ast__.append(gen_cls_parse_tree(name, final_params, inheritance))
+            "And finally appending everything into the syntax tree :)"
+            __ast__.append(
+                {
+                    "category": "class",
+                    "name": name,
+                    "supers": inheritance,
+                    "constructor_params": final_params
+                }
+            )
 
-    return ''.join(__ast__)
+            if 'debug' in flags:
+                sys.stdout.write(
+                    f"""
+                    {name}(class)
+                    |
+                    |-------[INHERITANCE]
+                    |              |
+                    |              |
+                    |             {inheritance}
+                    |
+                    |
+                    |-------[CONSTRUCTOR]
+                    |           |
+                    |           |
+                    |            {final_params}
+                    |"""
+                )
 
-
-# print(parse_classes(['4:8'], '../../../tests/project1/main.lc'))
-
-print(gen_cls_parse_tree("ello", [{"name": "yay", "default": "2323", "type": "int"}], ['wooHoo', 'thatThing']))
+    return __ast__

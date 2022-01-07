@@ -80,4 +80,3 @@ def parse_functions(ranges: list, file: str = '', flags: str = '') -> list:
 
 
 # print(parse_functions(['10:13'], '../../test.lc'))
-
