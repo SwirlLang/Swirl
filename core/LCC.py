@@ -12,7 +12,6 @@ import os
 import sys
 import pathlib
 import argparse
-from parsers.core import functions, classes
 
 
 sys.tracebacklimit = 0  # Removes the annoying traceback text
@@ -72,6 +71,10 @@ def binary_search(indices: list, start: int, end: int, index: int) -> int:
 
 
 FILE_NAME = parsed_args.file
+
+if FILE_NAME.split('.')[-1] != 'lcc':
+    sys.stderr.write("File path provided does not points to an output file")
+
 output_filename = parsed_args.output
 
 source = open(FILE_NAME, "r")
