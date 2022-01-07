@@ -12,7 +12,7 @@ import os
 import sys
 import pathlib
 import argparse
-from parsers.core import functions, classes
+from parsers.core import functions
 
 
 sys.tracebacklimit = 0  # Removes the annoying traceback text
@@ -143,7 +143,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
         singlei = readed_file.find("'", s_index1 + 1)
         if singlei == -1:
             translation = False
-            sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")#
+            sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")
             break
         while readed_file[singlei - bscount - 1] == "\\":
             bscount += 1
@@ -337,8 +337,10 @@ with open(parsed_args.file) as c_target_file:
         if 'class' in c_line:
             h_cls_index.append(t_lines.index(c_line) + 1)
     len_cls_index = str(len(h_cls_index))
-    if len_cls_index in two_multiples: pass  # RIP PEP-8 for a moment
-    else: Error("Incomplete class definition")
+    if len_cls_index in two_multiples:
+        pass
+    else:
+        Error("Incomplete class definition")
 
     "For and while loop indexing in a single iteration"
     for lp_line in t_lines:
@@ -399,7 +401,8 @@ def pre_process(source: str) -> None:
                     i_helper_list.remove('#')
                     i_helper_list.remove('import')
                     imports.append(''.join(i_helper_list))
-                except ValueError: pass
+                except ValueError:
+                    pass
 
         "Pasting contents from the imported file into the namespace calling it"
         for _import in imports:

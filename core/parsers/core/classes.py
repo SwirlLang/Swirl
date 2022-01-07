@@ -106,6 +106,3 @@ def parse_classes(ranges: list, file: str, flags: str = '') -> list:
                 )
 
     return __ast__
-
-
-print(parse_classes(['14:26', "62:66"], '../../test.lc', flags='debug'))
