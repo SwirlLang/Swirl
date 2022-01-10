@@ -44,7 +44,7 @@ parsed_args = arg_parser.parse_args()
 
 
 class Error:
-    def __init__(self, message: str, exit_status: int = 1) -> None:
+    def __init__(self, message: str = "", exit_status: int = 1) -> None:
         """
         Writes the message to CLI/Console and exits with the specified error message
         with defaults to 1
@@ -193,7 +193,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             break
         bscount = 0
         doublei += 1
-        string_indices.append(range(s_index2, doublei))  # fun fact: this string indices list is already sorted on its own
+        string_indices.append(range(s_index2, doublei))  # Fact: this string indices list is already sorted on its own
         s_index2 = readed_file.find('"', doublei)
         if -1 != s_index1 < doublei:
             s_index1 = readed_file.find("'", doublei)
@@ -360,26 +360,23 @@ with open(parsed_args.file) as c_target_file:
             while_indices.append(t_lines.index(lp_line))
 
 
-def cache() -> str:
+def cache(__file: str) -> str:
     """
-    Creates a __lc_cache__ dir and duplicates the file executed in it for further
-    compilation
+    Creates a cache if it does not already exist and returns a path to the cached file
     :return: path of the cache file(str)
     """
 
-    cache_file = None
-    root = f'{os.sep}'.join(os.path.abspath(parsed_args.file).split(os.sep).pop())
+    rl = open(__file).readlines()  # rl stands for read-lines
 
     try:
-        os.mkdir(f"{root}__lc_cache__")
-        ofstream = open(f"{root}/__lc_cache__/{parsed_args.file.split(os.sep)[-1]}", 'x')
-        # TODO use an alternative to read()
-        ofstream.write(open(os.path.abspath(parsed_args.file)).read())
-        ofstream.close()
-        cache_file = f"{root}/__lc_cache__/{parsed_args.file.split(os.sep)[-1]}"
+        os.mkdir(f"{os.path.dirname(__file)}{os.sep}__lc_cache__")
+        with open(f"{os.path.dirname(__file)}{os.sep}__lc_cache__{os.sep}{__file.split(os.sep)[-1]}", 'x') \
+                as translation_unit:
+            for t_line in rl:
+                translation_unit.write(t_line)
     except FileExistsError:
-        cache_file = f"{root}/__lc_cache__/{parsed_args.file.split(os.sep)[-1]}"
-    return cache_file
+        pass
+    return f"{os.path.dirname(__file)}{os.sep}__lc_cache__{os.sep}{__file.split(os.sep)[-1]}"
 
 
 def pre_process(source: str) -> None:
@@ -439,8 +436,7 @@ def pre_process(source: str) -> None:
     return  # just to be on the safe side :)
 
 
-"Invoking the pre processor"
-cache()
+pre_process(cache(str(FILE_NAME)))
 
 
 def _compile() -> int:
