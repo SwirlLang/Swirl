@@ -376,7 +376,17 @@ def cache(__file: str) -> str:
                 translation_unit.write(t_line)
     except FileExistsError:
         pass
-    return f"{os.path.dirname(__file)}{os.sep}__lc_cache__{os.sep}{__file.split(os.sep)[-1]}"
+
+    ret = f"{os.path.dirname(__file)}{os.sep}__lc_cache__{os.sep}{__file.split(os.sep)[-1]}"
+
+    if os.path.isfile(ret):
+        return ret
+    else:
+        with open(f"{os.path.dirname(__file)}{os.sep}__lc_cache__{os.sep}{__file.split(os.sep)[-1]}", 'x') \
+                as translation_unit:
+            for t_line in rl:
+                translation_unit.write(t_line)
+        return ret
 
 
 def pre_process(source: str) -> None:
@@ -455,6 +465,10 @@ def _execute() -> None:
     :return: NoReturn
     """
     return
+
+
+def my_function(x, y):
+    print(x, y)
 
 
 if translation:
