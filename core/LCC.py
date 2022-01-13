@@ -53,7 +53,6 @@ cli.add_argument(
 )
 
 args = cli.parse_args()
-print(args)
 
 class Error:
     def __init__(self, message: str = "", exit_status: int = 1) -> None:
