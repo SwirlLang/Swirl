@@ -28,7 +28,6 @@ import argparse
 from flags import Flags
 from parsers.core import functions
 
-
 sys.tracebacklimit = 0  # Removes the annoying traceback text
 
 # the command line interface for the compiler
@@ -41,7 +40,6 @@ Report bugs at https://github.com/Lambda-Code-Organization/Lambda-Code/issues
 """,
     usage="LCC [options] file",
 )
-
 
 cli.add_argument(
     "file",
@@ -101,7 +99,6 @@ tmp_index = 0
 class_indices: list
 for_indices = []
 while_indices = []
-
 
 "Checks for prints and produces two list of indexes of where strings or comments start and end at"
 while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
@@ -309,7 +306,8 @@ while index != -1:
     nextfunc = readed_file[rType + 1: parbracket].replace(" ", "")
     if nextfunc == "main":
         translation = False
-        sys.stdout.write(f'print: Line {row}, column {col}: cannot call a function "main" because it is placed in the global scope')
+        sys.stdout.write(
+            f'print: Line {row}, column {col}: cannot call a function "main" because it is placed in the global scope')
         break
 
     for func in functions:
@@ -433,7 +431,7 @@ def pre_process(source: str) -> None:
                             sys.stdout.write(f"print: file {source}\n no module named {_import}")
                             sys.exit(1)
             else:
-                if os.path.isfile(f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import.split('.')[-1]}.lc")\
+                if os.path.isfile(f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import.split('.')[-1]}.lc") \
                         or os.path.isfile(f"{_import.replace('.', os.sep)}"):
                     try:
                         module_content = open(_import, 'r').read()
@@ -459,6 +457,7 @@ def _compile() -> int:
     """
     return 0
 
+
 def _execute() -> None:
     """
     Invokes the C/C++ compiler present on the user's system and executes the C++
@@ -466,6 +465,7 @@ def _execute() -> None:
     :return: NoReturn
     """
     return
+
 
 if translation:
     pass  # TODO
