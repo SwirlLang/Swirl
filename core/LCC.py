@@ -12,6 +12,7 @@ import os
 import sys
 import pathlib
 import argparse
+from flags import Flags
 from parsers.core import functions
 
 
@@ -46,8 +47,8 @@ parsed_args = arg_parser.parse_args()
 class Error:
     def __init__(self, message: str = "", exit_status: int = 1) -> None:
         """
-        Writes the message to CLI/Console and exits with the specified error message
-        with defaults to 1
+        Writes the message to CLI/Console and exits with the given error code
+        defaults to 1
 
         :param message: The message to display, "Error" is automatically added at the
         start of the string literal
@@ -443,7 +444,7 @@ def pre_process(source: str) -> None:
                         else:
                             Error(f"file {source}\n module not found, no module named {_import}")
 
-    return  # just to be on the safe side :)
+    return
 
 
 pre_process(cache(str(FILE_NAME)))
