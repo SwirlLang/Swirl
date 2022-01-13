@@ -1,11 +1,21 @@
 """
 Lambda-Code
 ===========================================
-A fantastic, compiled, high-level and object-oriented
+A compiled, high-level and object-oriented
 programming language. This file contains unexpected
 EOF/EOL(s) checkers and pre-processors.
 Also integrates every scattered components(such as parsers)
 into a single language file.
+
+Copyright (C) 2022 Lambda Code Organization
+
+This file is part of the Lambda Code programming language
+
+Lambda Code is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+Lambda Code is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
@@ -25,6 +35,7 @@ arg_parser = argparse.ArgumentParser(
     epilog="""
 Report Bugs At https://github.com/Lambda-Code-Organization/Lambda-Code/issues
 """,
+    usage="LCC [options] file",
 )
 
 
@@ -457,7 +468,6 @@ def _compile() -> int:
     """
     return 0
 
-
 def _execute() -> None:
     """
     Invokes the C/C++ compiler present on the user's system and executes the C++
@@ -465,11 +475,6 @@ def _execute() -> None:
     :return: NoReturn
     """
     return
-
-
-def my_function(x, y):
-    print(x, y)
-
 
 if translation:
     pass  # TODO
