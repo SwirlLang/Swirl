@@ -1,8 +1,6 @@
-<a href="https://marketplace.visualstudio.com/items?itemName=MrinmoyHaloi.lc-lang-support">
-    <img src="https://img.shields.io/visual-studio-marketplace/v/MrinmoyHaloi.lc-lang-support?color=blue&label=VSCode%20Extension&logo=visualstudiocode&logoColor=blue&style=flat-square">
-<a href="LICENSE">
-    <img src="https://img.shields.io/github/license/lambda-code-organization/lambda-code?style=flat-square">
-</a>
+[![vsc extension](https://img.shields.io/visual-studio-marketplace/v/MrinmoyHaloi.lc-lang-support?color=blue&label=VSCode%20Extension&logo=visualstudiocode&logoColor=blue&style=flat-square)](https://marketplace.visualstudio.com/items?itemName=MrinmoyHaloi.lc-lang-support)
+[![License](https://img.shields.io/github/license/lambda-code-organization/lambda-code?style=flat-square)](LICENSE)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/Lambda-Code-Organization/Lambda-Code/Python%20application?style=flat-square)
 
 # Lambda Code
 

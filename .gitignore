@@ -6,3 +6,4 @@ lpm_deb
 workspace.code-workspace
 core/sandbox
 __pycache__
+__lc_cache__

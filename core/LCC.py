@@ -1,11 +1,21 @@
 """
 Lambda-Code
 ===========================================
-A fantastic, compiled, high-level and object-oriented
+A compiled, high-level and object-oriented
 programming language. This file contains unexpected
 EOF/EOL(s) checkers and pre-processors.
 Also integrates every scattered components(such as parsers)
 into a single language file.
+
+Copyright (C) 2022 Lambda Code Organization
+
+This file is part of the Lambda Code programming language
+
+Lambda Code is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+Lambda Code is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
@@ -19,30 +29,31 @@ from parsers.core import functions
 sys.tracebacklimit = 0  # Removes the annoying traceback text
 
 # the command line interface for the compiler
-arg_parser = argparse.ArgumentParser(
+cli = argparse.ArgumentParser(
     prog="LCC",
-    description="Compiler for lambda code",
+    description="Compiler of Lambda Code",
     formatter_class=argparse.RawDescriptionHelpFormatter,
     epilog="""
-Report Bugs At https://github.com/Lambda-Code-Organization/Lambda-Code/issues
+Report bugs at https://github.com/Lambda-Code-Organization/Lambda-Code/issues
 """,
+    usage="LCC [options] file",
 )
 
 
-arg_parser.add_argument(
+cli.add_argument(
     "file",
     type=str,
-    help="Input File Name")
+    help="input File Name")
 
-arg_parser.add_argument(
+cli.add_argument(
     "-o",
     "--output",
-    nargs="?",
-    help="Output File Name",
-    type=str)
+    help="output File Name",
+    type=str,
+    metavar="",
+)
 
-parsed_args = arg_parser.parse_args()
-
+args = cli.parse_args()
 
 class Error:
     def __init__(self, message: str = "", exit_status: int = 1) -> None:
@@ -72,8 +83,8 @@ def binary_search(indices: list, start: int, end: int, index: int) -> int:
     return -1
 
 
-FILE_NAME = parsed_args.file
-output_filename = parsed_args.output
+FILE_NAME = args.file
+output_filename = args.output
 
 source = open(FILE_NAME, "r")
 readed_file = source.read()
@@ -329,7 +340,7 @@ with open(FILE_NAME, 'r') as c_target_file:  # c stands for class, a convention 
 
 source.close()
 
-with open(parsed_args.file) as c_target_file:
+with open(args.file) as c_target_file:
     t_lines = c_target_file.readlines()
     h_cls_index = []
     two_multiples = ['2', '4', '6', '8', '0']
@@ -458,7 +469,6 @@ def _compile() -> int:
     """
     return 0
 
-
 def _execute() -> None:
     """
     Invokes the C/C++ compiler present on the user's system and executes the C++
@@ -466,11 +476,6 @@ def _execute() -> None:
     :return: NoReturn
     """
     return
-
-
-def my_function(x, y):
-    print(x, y)
-
 
 if translation:
     pass  # TODO
