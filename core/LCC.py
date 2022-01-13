@@ -58,6 +58,19 @@ cli.add_argument(
 
 args = cli.parse_args()
 
+class Error:
+    def __init__(self, message: str = "", exit_status: int = 1) -> None:
+        """
+        Writes the message to CLI/Console and exits with the given error code
+        defaults to 1
+
+        :param message: The message to display, "Error" is automatically added at the
+        start of the string literal
+        :param exit_status: the exist status to exit the interpreter with, defaults to 1
+        """
+        sys.stdout.write(f"Error: {message}")
+        sys.exit(exit_status)
+
 
 def binary_search(indices: list, start: int, end: int, index: int) -> int:
     high = end
@@ -81,7 +94,7 @@ readed_file = source.read()
 size = len(readed_file)
 
 if not size:
-    print("Null File")
+    Error("Null File")
 
 translation = True
 valid = False
@@ -103,7 +116,7 @@ for_indices = []
 while_indices = []
 
 
-"Checks for prints and produces two list of indexes of where strings or comments start and end at"
+"Checks for errors and produces two list of indexes of where strings or comments start and end at"
 while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     min_index = min([x for x in (s_index1, s_index2, c_index1, c_index2) if x != -1])
     row += readed_file[tmp_index:min_index].count("\n")
@@ -114,7 +127,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             multi_c = readed_file.find("///", c_index2 + 3)
             if multi_c == -1:
                 translation = False
-                sys.stdout.write(f"print: Line {row}, column {col}: unfinished multi-line comment")
+                sys.stdout.write(f"Error: Line {row}, column {col}: unfinished multi-line comment")
                 break
             multi_c += 3
             comment_indices.append(range(c_index2, multi_c))
@@ -141,11 +154,11 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     elif min_index == s_index1:
         if readed_file[s_index1 - 1] == "\\":
             translation = False
-            sys.stdout.write(f"print: Line {row}, column {col - 1}: unexpected character - backslash")
+            sys.stdout.write(f"Error: Line {row}, column {col - 1}: unexpected character - backslash")
         singlei = readed_file.find("'", s_index1 + 1)
         if singlei == -1:
             translation = False
-            sys.stdout.write(f"print: Line {row}, column {col}: unfinished string")
+            sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")
             break
         while readed_file[singlei - bscount - 1] == "\\":
             bscount += 1
@@ -155,7 +168,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             if singlei == -1:
                 translation = False
                 valid = True
-                sys.stdout.write(f"print: Line {row}, column {col}: unfinished string")
+                sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")
                 break
             while readed_file[singlei - bscount - 1] == "\\":
                 bscount += 1
@@ -174,11 +187,11 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     else:
         if readed_file[s_index2 - 1] == "\\":
             translation = False
-            sys.stdout.write(f"print: Line {row}, column {col - 1}: unexpected character - backslash")
+            sys.stdout.write(f"Error: Line {row}, column {col - 1}: unexpected character - backslash")
         doublei = readed_file.find('"', s_index2 + 1)
         if doublei == -1:
             translation = False
-            sys.stdout.write(f"print: Line {row}, column {col}: unfinished string")
+            sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")
             break
         while readed_file[doublei - bscount - 1] == "\\":
             bscount += 1
@@ -188,7 +201,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             if doublei == -1:
                 translation = False
                 valid = True
-                sys.stdout.write(f"print: Line {row}, column {col}: unfinished string")
+                sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")
             while readed_file[doublei - bscount - 1] == "\\":
                 bscount += 1
         if valid:
@@ -222,11 +235,11 @@ while index != -1:
     fi2 = readed_file.find("endfunc", index - 3)
     if fi2 == -1:
         translation = False
-        print(f"Line {row}, column {col}: function declaration incomplete")
+        Error(f"Line {row}, column {col}: function declaration incomplete")
 
     elif index == fi2 + 3:
         translation = False
-        print(f"Line {row}, column {col - 3}: \"endfunc\" cannot be used without \"func\"")
+        Error(f"Line {row}, column {col - 3}: \"endfunc\" cannot be used without \"func\"")
 
     else:
         for sindex in string_indices:
@@ -236,7 +249,7 @@ while index != -1:
 
     if fi2 == -1:
         translation = False
-        print(f"Line {row}, column {col}: function declaration incomplete")
+        Error(f"Line {row}, column {col}: function declaration incomplete")
 
     index += 4
 
@@ -244,7 +257,7 @@ while index != -1:
     if rType == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        sys.stdout.write(f"print: Line {row}, column {col}: missing function return type")
+        sys.stdout.write(f"Error: Line {row}, column {col}: missing function return type")
         continue
     for sindex in string_indices:
         if rType in sindex:
@@ -253,14 +266,14 @@ while index != -1:
     if rType == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        sys.stdout.write(f"print: Line {row}, column {col}: missing function return type")
+        sys.stdout.write(f"Error: Line {row}, column {col}: missing function return type")
         continue
 
     parbracket = readed_file.find("(", rType, fi2)
     if parbracket == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        sys.stdout.write(f"print: Line {row}, column {col}: missing parameters syntax in this function")
+        sys.stdout.write(f"Error: Line {row}, column {col}: missing parameters syntax in this function")
         continue
     for sindex in string_indices:
         if parbracket in sindex:
@@ -269,7 +282,7 @@ while index != -1:
     if parbracket == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        sys.stdout.write(f"print: Line {row}, column {col}: missing parameters syntax in this function")
+        sys.stdout.write(f"Error: Line {row}, column {col}: missing parameters syntax in this function")
         continue
 
     errIndex1 = readed_file.find("func", index, fi2)
@@ -290,7 +303,7 @@ while index != -1:
             errIndex1 = readed_file.find("func", errIndex1 + 4, fi2)
             translation = False
             valid = False
-            sys.stdout.write(f'print: Line {row1}, column {col}: cannot declare a function within a function')
+            sys.stdout.write(f'Error: Line {row1}, column {col}: cannot declare a function within a function')
     while errIndex2 != -1:
         for sindex in string_indices:
             if errIndex2 in sindex:
@@ -303,13 +316,13 @@ while index != -1:
             errIndex2 = readed_file.find("class", errIndex2 + 5, fi2)
             translation = False
             valid = False
-            sys.stdout.write(f"print: Line {row2}, column {col}: cannot declare a class inside a function")
+            sys.stdout.write(f"Error: Line {row2}, column {col}: cannot declare a class inside a function")
             break
 
     nextfunc = readed_file[rType + 1: parbracket].replace(" ", "")
     if nextfunc == "main":
         translation = False
-        sys.stdout.write(f'print: Line {row}, column {col}: cannot call a function "main" because it is placed in the global scope')
+        sys.stdout.write(f'Error: Line {row}, column {col}: cannot call a function "main" because it is placed in the global scope')
         break
 
     for func in functions:
@@ -317,7 +330,7 @@ while index != -1:
         if nextfunc == func[: func.find(":")]:
             translation = False
             valid = False
-            sys.stdout.write(f"print: Line {row}, column {col}: duplicate function declared")
+            sys.stdout.write(f"Error: Line {row}, column {col}: duplicate function declared")
     if valid:
         func_indices.append(range(index - 4, fi2 + 8))
         functions.append((readed_file[index: fi2], row))
@@ -342,7 +355,7 @@ with open(args.file) as c_target_file:
     if len_cls_index in two_multiples:
         pass
     else:
-        print("Incomplete class definition")
+        Error("Incomplete class definition")
 
     "For and while loop indexing in a single iteration"
     for lp_line in t_lines:
@@ -376,7 +389,7 @@ def cache(__file: str) -> str:
                 as translation_unit:
             for t_line in rl:
                 translation_unit.write(t_line)
-    except FileExistsprint:
+    except FileExistsError:
         pass
 
     ret = f"{os.path.dirname(__file)}{os.sep}__lc_cache__{os.sep}{__file.split(os.sep)[-1]}"
@@ -410,7 +423,7 @@ def pre_process(source: str) -> None:
                     i_helper_list.remove('#')
                     i_helper_list.remove('import')
                     imports.append(''.join(i_helper_list))
-                except Valueprint:
+                except ValueError:
                     pass
 
         "Pasting contents from the imported file into the namespace calling it"
@@ -422,7 +435,7 @@ def pre_process(source: str) -> None:
                         packages{os.sep}{_import.split('.')[-1]}.lc"):
                     try:
                         module_content = open(_import, 'r').read()
-                    except FileNotFoundprint:
+                    except FileNotFoundError:
                         module_path = f"{pathlib.Path.home()}roaming{os.sep}lpm{os.sep}packages{os.sep}\
                                             {_import.replace('.', os.sep)}"
                         if os.path.isfile(module_path):
@@ -430,20 +443,20 @@ def pre_process(source: str) -> None:
                             # TODO use an alternative to .read() to save RAM
                             i_source.read().replace(f'import {_import}', module_content)
                         else:
-                            sys.stdout.write(f"print: file {source}\n no module named {_import}")
+                            sys.stdout.write(f"Error: file {source}\n no module named {_import}")
                             sys.exit(1)
             else:
                 if os.path.isfile(f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import.split('.')[-1]}.lc")\
                         or os.path.isfile(f"{_import.replace('.', os.sep)}"):
                     try:
                         module_content = open(_import, 'r').read()
-                    except FileNotFoundprint:
+                    except FileNotFoundError:
                         module_path = f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import.replace('.', os.sep)}"
                         if os.path.isfile(module_path):
                             module_content = open(module_path, 'r').read()
                             i_source.read().replace(f"import {_import}", module_content)
                         else:
-                            print(f"file {source}\n module not found, no module named {_import}")
+                            Error(f"file {source}\n module not found, no module named {_import}")
 
     return
 
