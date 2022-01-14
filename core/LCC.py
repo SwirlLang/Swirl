@@ -58,18 +58,7 @@ cli.add_argument(
 
 args = cli.parse_args()
 
-class Error:
-    def __init__(self, message: str = "", exit_status: int = 1) -> None:
-        """
-        Writes the message to CLI/Console and exits with the given error code
-        defaults to 1
 
-        :param message: The message to display, "Error" is automatically added at the
-        start of the string literal
-        :param exit_status: the exist status to exit the interpreter with, defaults to 1
-        """
-        sys.stdout.write(f"Error: {message}")
-        sys.exit(exit_status)
 
 
 def binary_search(indices: list, start: int, end: int, index: int) -> int:
@@ -94,7 +83,7 @@ readed_file = source.read()
 size = len(readed_file)
 
 if not size:
-    Error("Null File")
+    sys.stdout.write("Null File")
 
 translation = True
 valid = False
@@ -235,11 +224,11 @@ while index != -1:
     fi2 = readed_file.find("endfunc", index - 3)
     if fi2 == -1:
         translation = False
-        Error(f"Line {row}, column {col}: function declaration incomplete")
+        sys.stdout.write(f"Line {row}, column {col}: function declaration incomplete")
 
     elif index == fi2 + 3:
         translation = False
-        Error(f"Line {row}, column {col - 3}: \"endfunc\" cannot be used without \"func\"")
+        sys.stdout.write(f"Line {row}, column {col - 3}: \"endfunc\" cannot be used without \"func\"")
 
     else:
         for sindex in string_indices:
@@ -249,7 +238,7 @@ while index != -1:
 
     if fi2 == -1:
         translation = False
-        Error(f"Line {row}, column {col}: function declaration incomplete")
+        sys.stdout.write(f"Line {row}, column {col}: function declaration incomplete")
 
     index += 4
 
@@ -355,7 +344,7 @@ with open(args.file) as c_target_file:
     if len_cls_index in two_multiples:
         pass
     else:
-        Error("Incomplete class definition")
+        sys.stdout.write("Incomplete class definition")
 
     "For and while loop indexing in a single iteration"
     for lp_line in t_lines:
@@ -456,7 +445,7 @@ def pre_process(source: str) -> None:
                             module_content = open(module_path, 'r').read()
                             i_source.read().replace(f"import {_import}", module_content)
                         else:
-                            Error(f"file {source}\n module not found, no module named {_import}")
+                            sys.stdout.write(f"file {source}\n module not found, no module named {_import}")
 
     return
 
