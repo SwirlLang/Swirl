@@ -33,7 +33,7 @@ class Error(Exception):
 
 def parse_classes(ranges: list, file: str, flags: str = '') -> list:
     """
-    parses classes in the provided ranges of the file
+    pareses classes in the provided ranges of the file
     :param ranges: ranges(start: end)
     :param file path pointing to the file to read from
     :param flags: Available flags, 'debug' for development purpose only
