@@ -326,43 +326,6 @@ while index != -1:
     index = readed_file.find("func", fi2 + 7)
     valid = True
 
-"Class indexing..."
-with open(FILE_NAME, 'r') as c_target_file:  # c stands for class, a convention in this context
-    f_content = c_target_file.read().split('\n')
-
-source.close()
-
-with open(args.file) as c_target_file:
-    t_lines = c_target_file.readlines()
-    h_cls_index = []
-    two_multiples = ['2', '4', '6', '8', '0']
-
-    for c_line in t_lines:
-        if 'class' in c_line:
-            h_cls_index.append(t_lines.index(c_line) + 1)
-    len_cls_index = str(len(h_cls_index))
-    if len_cls_index in two_multiples:
-        pass
-    else:
-        sys.stdout.write("Incomplete class definition")
-
-    "For and while loop indexing in a single iteration"
-    for lp_line in t_lines:
-        # TODO
-        if 'for' in lp_line:
-            lp_index = t_lines.index(lp_line)
-            for s_range in string_indices:
-                if lp_index in s_range:
-                    pass
-                else:
-                    for_indices.append(lp_index)
-        if 'endfor' in lp_line:
-            for_indices.append(t_lines.index(lp_line))
-        if 'while' in lp_line:
-            while_indices.append(t_lines.index(lp_line))
-        if 'endwhile' in lp_line:
-            while_indices.append(t_lines.index(lp_line))
-
 
 def cache(__file: str) -> str:
     """
