@@ -11,13 +11,10 @@
 line
 Comment ///
 ```
-## Defining functions
-```
-func name(int a, int b): int
-    print("a + b is " + str(a + b))
-    return a + b
-endfunc
-```
+
+## Example function definition
+<img src="https://user-images.githubusercontent.com/69071143/149722181-b8ded6f9-a0cc-472d-8ef4-25a75fe95c99.png" width=400>
+
 ## Builtin functions
 
 Function | Description   
