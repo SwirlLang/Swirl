@@ -115,7 +115,7 @@ Operator | description
 Operator | description
 --- | ---
 & |Sets each bit to 1 if both bits are 1<br>
-| |Sets each bit to 1 if one of two bits is 1<br>
+\| |Sets each bit to 1 if one of two bits is 1<br>
 ^ |Sets each bit to 1 if only one of two bits is 1<br>
 ~ |Inverts all the bits<br>
 << |Shift left by pushing zeros in from the right and let the leftmost bits fall off<br>
