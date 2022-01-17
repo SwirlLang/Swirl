@@ -83,7 +83,8 @@ readed_file = source.read()
 size = len(readed_file)
 
 if not size:
-    sys.stdout.write("Null File")
+    sys.stdout.write("Error: Empty File\n")
+    sys.exit(1)
 
 translation = True
 valid = False
