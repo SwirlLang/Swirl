@@ -1,9 +1,6 @@
 .vscode
 .vs
-lpm
-lpm_deb
 .idea
-workspace.code-workspace
-core/sandbox
+*.code-workspace
 __pycache__
 __lc_cache__
