@@ -1,13 +1,19 @@
-""" 
-Copyright (C) 2022 Lambda Code Organization
+"""
+Copyright (C) 2022 Lambda Code Organization.
 
 This file is part of the Lambda Code programming language
 
-Lambda Code is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+Lambda Code is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
-Lambda Code is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+Lambda Code is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.  
+You should have received a copy of the GNU General Public License along with
+this program. If not, see https://www.gnu.org/licenses/
 """
 
 # with open('../test.lc', 'r') as c_target_file:  # c stands for class, a convention in this context
@@ -33,14 +39,16 @@ class Error(Exception):
 
 def parse_classes(ranges: list, file: str, flags: str = '') -> list:
     """
-    pareses classes in the provided ranges of the file
+    Parse classes in the provided ranges of the file.
+
     :param ranges: ranges(start: end)
     :param file path pointing to the file to read from
     :param flags: Available flags, 'debug' for development purpose only
     :return: Abstract syntax tree
     """
     __ast__ = []
-    chars = [char for char in string.ascii_lowercase] + ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
+    chars = [char for char in string.ascii_lowercase] \
+        + ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
     with open(file, 'r') as file:
         file = file.readlines()
         for _range in ranges:
@@ -61,7 +69,8 @@ def parse_classes(ranges: list, file: str, flags: str = '') -> list:
                         raise Error(f"number {n_char} in between of a the class name {name}")
 
             "Extracting constructor parameters"
-            h_param0 = class_string.split(name)[-1].split(')')[0].split('(')[-1]
+            h_param0 = class_string.split(name)[-1].split(')')[0]\
+                .split('(')[-1]
             params_pairs = h_param0.split(',')
             final_params = []
             for _param in params_pairs:
@@ -84,7 +93,8 @@ def parse_classes(ranges: list, file: str, flags: str = '') -> list:
 
             "Checking for and extracting super class(s)"
             if 'inherits' in class_string:
-                h_inheritance = class_string.split('inherits')[-1].split('\n')[0].split(',')
+                h_inheritance = class_string.split('inherits')[-1]\
+                    .split('\n')[0].split(',')
                 inheritance = []
                 for super_class in h_inheritance:
                     inheritance.append(super_class.lstrip())
