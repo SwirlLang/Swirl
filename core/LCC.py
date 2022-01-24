@@ -365,10 +365,10 @@ def cache(__file: str) -> str:
 
 def pre_process(source: str) -> None:
     """
-    Pre-processor, deals with statements that needs to be\
-    handled right after the compiler started.
+    Pre-processor, deal with statements that needs to be\
+    handled after the compiler started.
 
-    :param source: must be a path pointing to a lc file to process
+    :param source: path pointing to a lc source file
     :return: None
     """
     "Parsing import statements"
