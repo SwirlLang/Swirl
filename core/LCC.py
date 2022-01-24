@@ -335,8 +335,8 @@ while index != -1:
 
 def cache(__file: str) -> str:
     """
-    Create a cache if it does not already exist and return a path to the \
-    cached file.
+    Create a cache if it does not exist and return a path to the \
+    cache file.
 
     :return: path of the cache file(str)
     """
