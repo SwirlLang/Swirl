@@ -14,11 +14,10 @@ You should have received a copy of the GNU General Public License along with thi
 #include <iostream>
 #include <string>
 #include <filesystem>
-#include <direct.h>
 
 namespace OS
 {
-    std::string& platform() {
+    std::string platform() {
         /*
         Returns a string containing the name of the OS the program
         is currently running on
@@ -46,7 +45,6 @@ namespace OS
     }
 
     void mkdir(std::string* _path) {
-        /* Creates a new directory at the specified path */
         _mkdir((const char*)_path);
     }
 
