@@ -103,6 +103,7 @@ tmp_index = 0
 class_indices: list
 for_indices = []
 while_indices = []
+CACHE_PATH: str
 
 
 "Checks for errors and produces two list of indexes of where strings or comments start and end at"
@@ -353,7 +354,7 @@ def cache(__file: str) -> str:
                 as translation_unit:
             for t_line in rl:
                 translation_unit.write(t_line)
-        return ret
+        CACHE_PATH = ret
 
 
 def pre_process(source: str) -> None:
@@ -424,6 +425,7 @@ def _compile() -> int:
     """
     return 0
 
+
 def _execute() -> None:
     """
     Invokes the C/C++ compiler present on the user's system and executes the C++
@@ -431,6 +433,7 @@ def _execute() -> None:
     :return: NoReturn
     """
     return
+
 
 if translation:
     pass  # TODO
