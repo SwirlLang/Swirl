@@ -7,7 +7,7 @@
 #define print(x) std::cout << x << std::endl;
 
 
-int main() 
+namespace __LambdaCode__
 {
-
+    
 }
