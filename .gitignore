@@ -4,3 +4,4 @@
 *.code-workspace
 __pycache__
 __lc_cache__
+*.exe
