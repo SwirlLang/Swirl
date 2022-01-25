@@ -1,6 +1,6 @@
 """
-Lambda-Code
-===========================================
+The Lambda Code compiler.
+
 A compiled, high-level and object-oriented
 programming language. This file contains unexpected
 EOF/EOL(s) checkers and pre-processors.
@@ -11,20 +11,24 @@ Copyright (C) 2022 Lambda Code Organization
 
 This file is part of the Lambda Code programming language
 
-Lambda Code is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
-License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
+Lambda Code is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
 version.
 
-Lambda Code is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
-warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+Lambda Code is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program. If not,
-see https://www.gnu.org/licenses/ """
+You should have received a copy of the GNU General Public License along with
+this program. If not, see https://www.gnu.org/licenses/
+"""
 
-import os
-import sys
-import pathlib
 import argparse
+import os
+import pathlib
+import sys
+
 from flags import Flags
 from parsers.core import functions
 
@@ -59,9 +63,8 @@ cli.add_argument(
 args = cli.parse_args()
 
 
-
-
 def binary_search(indices: list, start: int, end: int, index: int) -> int:
+    """Binary search implementation."""
     high = end
     low = start
     while high >= low:
@@ -83,7 +86,8 @@ readed_file = source.read()
 size = len(readed_file)
 
 if not size:
-    sys.stdout.write("Null File")
+    sys.stdout.write("Error: Empty File\n")
+    sys.exit(1)
 
 translation = True
 valid = False
@@ -106,7 +110,8 @@ while_indices = []
 CACHE_PATH: str
 
 
-"Checks for errors and produces two list of indexes of where strings or comments start and end at"
+"""Checks for errors and produces two list of indexes of where strings or
+comments start and end at"""
 while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     min_index = min([x for x in (s_index1, s_index2, c_index1, c_index2) if x != -1])
     row += readed_file[tmp_index:min_index].count("\n")
@@ -117,7 +122,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             multi_c = readed_file.find("///", c_index2 + 3)
             if multi_c == -1:
                 translation = False
-                sys.stdout.write(f"Error: Line {row}, column {col}: unfinished multi-line comment")
+                sys.stdout.write(f"Error: Line {row}, column {col}: unfinished multi-line comment\n")
                 break
             multi_c += 3
             comment_indices.append(range(c_index2, multi_c))
@@ -144,11 +149,11 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     elif min_index == s_index1:
         if readed_file[s_index1 - 1] == "\\":
             translation = False
-            sys.stdout.write(f"Error: Line {row}, column {col - 1}: unexpected character - backslash")
+            sys.stdout.write(f"Error: Line {row}, column {col - 1}: unexpected character - backslash\n")
         singlei = readed_file.find("'", s_index1 + 1)
         if singlei == -1:
             translation = False
-            sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")
+            sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string\n")
             break
         while readed_file[singlei - bscount - 1] == "\\":
             bscount += 1
@@ -158,7 +163,7 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             if singlei == -1:
                 translation = False
                 valid = True
-                sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")
+                sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string\n")
                 break
             while readed_file[singlei - bscount - 1] == "\\":
                 bscount += 1
@@ -177,11 +182,11 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
     else:
         if readed_file[s_index2 - 1] == "\\":
             translation = False
-            sys.stdout.write(f"Error: Line {row}, column {col - 1}: unexpected character - backslash")
+            sys.stdout.write(f"Error: Line {row}, column {col - 1}: unexpected character - backslash\n")
         doublei = readed_file.find('"', s_index2 + 1)
         if doublei == -1:
             translation = False
-            sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")
+            sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string\n")
             break
         while readed_file[doublei - bscount - 1] == "\\":
             bscount += 1
@@ -191,14 +196,15 @@ while (s_index1 + s_index2 + c_index1 + c_index2) != -4:
             if doublei == -1:
                 translation = False
                 valid = True
-                sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string")
+                sys.stdout.write(f"Error: Line {row}, column {col}: unfinished string\n")
             while readed_file[doublei - bscount - 1] == "\\":
                 bscount += 1
         if valid:
             break
         bscount = 0
         doublei += 1
-        string_indices.append(range(s_index2, doublei))  # Fact: this string indices list is already sorted on its own
+        string_indices.append(range(s_index2, doublei))
+        # Fact: this string indices list is already sorted on its own
         s_index2 = readed_file.find('"', doublei)
         if -1 != s_index1 < doublei:
             s_index1 = readed_file.find("'", doublei)
@@ -225,11 +231,11 @@ while index != -1:
     fi2 = readed_file.find("endfunc", index - 3)
     if fi2 == -1:
         translation = False
-        sys.stdout.write(f"Line {row}, column {col}: function declaration incomplete")
+        sys.stdout.write(f"Line {row}, column {col}: function declaration incomplete\n")
 
     elif index == fi2 + 3:
         translation = False
-        sys.stdout.write(f"Line {row}, column {col - 3}: \"endfunc\" cannot be used without \"func\"")
+        sys.stdout.write(f"Line {row}, column {col - 3}: \"endfunc\" cannot be used without \"func\"\n")
 
     else:
         for sindex in string_indices:
@@ -239,7 +245,7 @@ while index != -1:
 
     if fi2 == -1:
         translation = False
-        sys.stdout.write(f"Line {row}, column {col}: function declaration incomplete")
+        sys.stdout.write(f"Line {row}, column {col}: function declaration incomplete\n")
 
     index += 4
 
@@ -247,7 +253,7 @@ while index != -1:
     if rType == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        sys.stdout.write(f"Error: Line {row}, column {col}: missing function return type")
+        sys.stdout.write(f"Error: Line {row}, column {col}: missing function return type\n")
         continue
     for sindex in string_indices:
         if rType in sindex:
@@ -256,14 +262,14 @@ while index != -1:
     if rType == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        sys.stdout.write(f"Error: Line {row}, column {col}: missing function return type")
+        sys.stdout.write(f"Error: Line {row}, column {col}: missing function return type\n")
         continue
 
     parbracket = readed_file.find("(", rType, fi2)
     if parbracket == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        sys.stdout.write(f"Error: Line {row}, column {col}: missing parameters syntax in this function")
+        sys.stdout.write(f"Error: Line {row}, column {col}: missing parameters syntax in this function\n")
         continue
     for sindex in string_indices:
         if parbracket in sindex:
@@ -272,7 +278,7 @@ while index != -1:
     if parbracket == -1:
         translation = False
         index = readed_file.find("func", fi2 + 7)
-        sys.stdout.write(f"Error: Line {row}, column {col}: missing parameters syntax in this function")
+        sys.stdout.write(f"Error: Line {row}, column {col}: missing parameters syntax in this function\n")
         continue
 
     errIndex1 = readed_file.find("func", index, fi2)
@@ -306,7 +312,7 @@ while index != -1:
             errIndex2 = readed_file.find("class", errIndex2 + 5, fi2)
             translation = False
             valid = False
-            sys.stdout.write(f"Error: Line {row2}, column {col}: cannot declare a class inside a function")
+            sys.stdout.write(f"Error: Line {row2}, column {col}: cannot declare a class inside a function\n")
             break
 
     nextfunc = readed_file[rType + 1: parbracket].replace(" ", "")
@@ -320,7 +326,7 @@ while index != -1:
         if nextfunc == func[: func.find(":")]:
             translation = False
             valid = False
-            sys.stdout.write(f"Error: Line {row}, column {col}: duplicate function declared")
+            sys.stdout.write(f"Error: Line {row}, column {col}: duplicate function declared\n")
     if valid:
         func_indices.append(range(index - 4, fi2 + 8))
         functions.append((readed_file[index: fi2], row))
@@ -330,16 +336,17 @@ while index != -1:
 
 def cache(__file: str) -> str:
     """
-    Creates a cache if it does not already exist and returns a path to the cached file
+    Create a cache if it does not exist and return a path to the \
+    cache file.
+
     :return: path of the cache file(str)
     """
-
     rl = open(__file).readlines()  # rl stands for read-lines
 
     try:
         os.mkdir(f"{os.path.dirname(__file)}{os.sep}__lc_cache__")
-        with open(f"{os.path.dirname(__file)}{os.sep}__lc_cache__{os.sep}{__file.split(os.sep)[-1]}", 'x') \
-                as translation_unit:
+        with open(f"{os.path.dirname(__file)}{os.sep}__lc_cache__{os.sep}\
+                    {__file.split(os.sep)[-1]}", 'x') as translation_unit:
             for t_line in rl:
                 translation_unit.write(t_line)
     except FileExistsError:
@@ -359,15 +366,15 @@ def cache(__file: str) -> str:
 
 def pre_process(source: str) -> None:
     """
-    Pre-processor, deals with statements that needs to be
-    handled right after the compiler started
-    :param source: must be a path pointing to a .lc file to process
+    Pre-processor, deal with statements that needs to be\
+    handled after the compiler started.
+
+    :param source: path pointing to a lc source file
     :return: None
     """
-
-    "Parsing import statements, RIP regular expressions"
+    "Parsing import statements"
     imports = []
-    with open(source, 'r') as i_source:  # i stands for imports
+    with open(source, 'r') as i_source:  # i stands for imports. A convention here
         for i_line in i_source:
             i_strip_ln = i_line.strip()
             if '#' in i_strip_ln:
@@ -394,22 +401,26 @@ def pre_process(source: str) -> None:
                         if os.path.isfile(module_path):
                             module_content = open(module_path, 'r').read()
                             # TODO use an alternative to .read() to save RAM
-                            i_source.read().replace(f'import {_import}', module_content)
+                            i_source.read().replace(f'import {_import}',
+                                                    module_content)
                         else:
-                            sys.stdout.write(f"Error: file {source}\n no module named {_import}")
+                            sys.stdout.write(f"Error: file {source}\n no module named {_import}\n")
                             sys.exit(1)
             else:
-                if os.path.isfile(f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import.split('.')[-1]}.lc")\
+                if os.path.isfile(f"{pathlib.Path.home()}.lpm{os.sep}packages\
+                    {os.sep}{_import.split('.')[-1]}.lc")\
                         or os.path.isfile(f"{_import.replace('.', os.sep)}"):
                     try:
                         module_content = open(_import, 'r').read()
                     except FileNotFoundError:
-                        module_path = f"{pathlib.Path.home()}.lpm{os.sep}packages{os.sep}{_import.replace('.', os.sep)}"
+                        module_path = f"{pathlib.Path.home()}.lpm{os.sep}packages\
+                            {os.sep}{_import.replace('.', os.sep)}"
                         if os.path.isfile(module_path):
                             module_content = open(module_path, 'r').read()
-                            i_source.read().replace(f"import {_import}", module_content)
+                            i_source.read().replace(f"import {_import}",
+                                                    module_content)
                         else:
-                            sys.stdout.write(f"file {source}\n module not found, no module named {_import}")
+                            sys.stdout.write(f"file {source}\n module not found, no module named {_import}\n")
 
     return
 
@@ -419,8 +430,9 @@ pre_process(cache(str(FILE_NAME)))
 
 def _compile() -> int:
     """
-    Invokes parsers and generates a C++ source file, return type (int) defines the
-    exit status
+    Invoke parsers and generate a C++ source file, return type (int) \
+    define the exit status.
+
     :return: ExitStatus
     """
     return 0
@@ -428,8 +440,9 @@ def _compile() -> int:
 
 def _execute() -> None:
     """
-    Invokes the C/C++ compiler present on the user's system and executes the C++
-    source generated by _compile
+    Invoke the C/C++ compiler present on the user's system and executes the \
+    C++ source generated by _compile.
+
     :return: NoReturn
     """
     return
