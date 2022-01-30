@@ -14,6 +14,14 @@ You should have received a copy of the GNU General Public License along with thi
 #include <iostream>
 #include <string>
 #include <filesystem>
+#include <cstdlib>
+#include <string.h>
+
+#if defined(WIN32) || defined(_WIN32)
+#define PATH_SEPARATOR "\\"
+#else
+#define PATH_SEPARATOR "/"
+#endif
 
 namespace OS
 {
@@ -48,4 +56,11 @@ namespace OS
         _mkdir((const char*)_path);
     }
 
+    void sys(std::string command) {
+        system((const char*) &command);
+    }
+
+    std::string sep() {
+        return PATH_SEPARATOR;
+    }
 }

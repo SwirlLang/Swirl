@@ -334,6 +334,12 @@ while index != -1:
     valid = True
 
 
+class SyntacticalPatterns:
+    """
+    Data class consisting patterns
+    """
+
+
 def cache(__file: str) -> str:
     """
     Create a cache if it does not exist and return a path to the \
@@ -372,6 +378,7 @@ def pre_process(source: str) -> None:
     :param source: path pointing to a lc source file
     :return: None
     """
+
     "Parsing import statements"
     imports = []
     with open(source, 'r') as i_source:  # i stands for imports. A convention here
