@@ -19,7 +19,7 @@ You should have received a copy of the GNU General Public License along with thi
 # define print(x)    __LambdaCode__::stdOut(x);
 # define string(x)   __LambdaCode__::__string(x);
 # define int(x)      __LambdaCode__::__int(x);
-# define float(x)    __LambdaCode::__double(x);
+# define float(x)    __LambdaCode__::__double(x);
 
 
 using namespace std;
