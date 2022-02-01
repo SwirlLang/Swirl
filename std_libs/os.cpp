@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License along with thi
 #include <string>
 #include <filesystem>
 #include <cstdlib>
+#include <sstream>
 #include <string.h>
 
 #if defined(WIN32) || defined(_WIN32)
@@ -25,7 +26,9 @@ You should have received a copy of the GNU General Public License along with thi
 
 namespace OS
 {
-    std::string platform() {
+    namespace fs = std::filesystem;
+    std::string platform()
+    {
         /*
         Returns a string containing the name of the OS the program
         is currently running on
@@ -33,34 +36,67 @@ namespace OS
 
         std::string platform;
 
-        #ifdef _WIN32
-            platform = "WIN";
+#ifdef _WIN32
+        platform = "WIN";
 
-        #elif __linux__
-            platform = "linux";
+#elif __linux__
+        platform = "linux";
 
-        #elif TARGET_OS_MAC
-            platform = "darwin";
+#elif TARGET_OS_MAC
+        platform = "darwin";
 
-        #elif __ANDROID__
-            platform = "android";
+#elif __ANDROID__
+        platform = "android";
 
-        #elif __unix__
-            platform = "unix";
-        #endif
+#elif __unix__
+        platform = "unix";
+#endif
 
         return platform;
     }
 
-    void mkdir(std::string* _path) {
-        _mkdir((const char*)_path);
+    void mkdir(std::string &_dirPath)
+    {
+        fs::create_directory(_dirPath);
     }
 
-    void sys(std::string command) {
-        system((const char*) &command);
+    void mkdir(std::string &_dirPaths)
+    {
+        fs::create_directories(_dirPaths);
     }
 
-    std::string sep() {
+    void sys(std::string command)
+    {
+        system((const char *)&command);
+    }
+
+    void rmdir(std::string &_dirPath)
+    {
+        fs::remove(_dirPath);
+    }
+
+    void rename(std::string &_oldName, std::string &_newName)
+    {
+        fs::rename(_oldName, _newName);
+    }
+
+    void cpy(std::string &_from, std::string &_to)
+    {
+        fs::copy(_from, _to);
+    }
+
+    bool isDir(std::string &_path)
+    {
+        return fs::is_directory(_path);
+    }
+
+    bool isExists(std::string &_path)
+    {
+        return fs::exists(_path);
+    }
+
+    std::string sep()
+    {
         return PATH_SEPARATOR;
     }
 }
