@@ -6,3 +6,11 @@ def log(text: str):
 
     sys.stdout.write(ANSI_RED + text + ANSI_RED)
 
+def read_in_chunks(file, size=1024):
+    # Lazy function to read a file piece by piece.
+
+    while True:
+        data = file.read(size)
+        if not data:
+            break
+        yield data
