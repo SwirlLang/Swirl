@@ -34,7 +34,7 @@ from functions import parse_functions
 
 
 class Error(Exception):
-    __module__ = 'builtins'
+    __module__: str = 'builtins'
 
 
 def parse_classes(ranges: list, file: str, flags: str = '') -> list:
@@ -46,19 +46,19 @@ def parse_classes(ranges: list, file: str, flags: str = '') -> list:
     :param flags: Available flags, 'debug' for development purpose only
     :return: Abstract syntax tree
     """
-    __ast__ = []
-    chars = [char for char in string.ascii_lowercase] \
+    __ast__: list = []
+    chars: list = [char for char in string.ascii_lowercase] \
         + ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
     with open(file, 'r') as file:
         file = file.readlines()
         for _range in ranges:
-            "Separating ranges from a string"
-            rvec_x = int(_range.split(':')[0]) - 1  # r = range
-            rvec_y = int(_range.split(':')[-1])
-            class_string = "".join(file[rvec_x: rvec_y])
+            # Separating ranges from a string
+            rvec_x: int = int(_range.split(':')[0]) - 1  # r = range
+            rvec_y: int = int(_range.split(':')[-1])
+            class_string: str = "".join(file[rvec_x: rvec_y])
 
-            "Extracting the name"
-            name = ''.join(class_string.split('class')).split()[0]
+            # Extracting the name
+            name: str = ''.join(class_string.split('class')).split()[0]
             if '(' in name:
                 name = name.split('(')[0]
             for n_char in name:
@@ -68,17 +68,17 @@ def parse_classes(ranges: list, file: str, flags: str = '') -> list:
                     if name.index(n_char) < len(name):
                         raise Error(f"number {n_char} in between of a the class name {name}")
 
-            "Extracting constructor parameters"
-            h_param0 = class_string.split(name)[-1].split(')')[0]\
+            # Extracting constructor parameters
+            h_param0: str = class_string.split(name)[-1].split(')')[0]\
                 .split('(')[-1]
-            params_pairs = h_param0.split(',')
-            final_params = []
+            params_pairs: list = h_param0.split(',')
+            final_params: list = []
             for _param in params_pairs:
-                param_name = None
-                default = None
+                param_name: None
+                default: None
                 if '=' in _param:
                     # has default values
-                    default = _param.split('=')[-1]
+                    default: str = _param.split('=')[-1]
                 if not default:
                     param_name = _param.split()[-1]
                 else:
@@ -91,7 +91,7 @@ def parse_classes(ranges: list, file: str, flags: str = '') -> list:
                     }
                 )
 
-            "Checking for and extracting super class(s)"
+            # Checking for and extracting super class(s)
             if 'inherits' in class_string:
                 h_inheritance = class_string.split('inherits')[-1]\
                     .split('\n')[0].split(',')
@@ -99,7 +99,7 @@ def parse_classes(ranges: list, file: str, flags: str = '') -> list:
                 for super_class in h_inheritance:
                     inheritance.append(super_class.lstrip())
 
-            "And finally appending everything into the syntax tree :)"
+            # And finally appending everything into the syntax tree :)
             __ast__.append(
                 {
                     "category": "class",
