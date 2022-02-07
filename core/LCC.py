@@ -30,9 +30,9 @@ import pathlib
 import sys
 from typing import NoReturn, Any
 
-from utils import log
 from flags import Flags
 from parsers.core import functions
+from utils import log, read_in_chunks
 
 
 sys.tracebacklimit = 0  # Removes the annoying traceback text
