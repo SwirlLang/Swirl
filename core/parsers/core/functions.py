@@ -28,6 +28,7 @@ this program. If not, see https://www.gnu.org/licenses/
 #     if len_cls_index in two_multiples: pass
 #     else:
 #         raise Error("Incomplete class definition")
+from typing import Any
 
 
 def parse_functions(ranges: list, file: str = '', flags: str = '') -> list:
@@ -39,44 +40,44 @@ def parse_functions(ranges: list, file: str = '', flags: str = '') -> list:
     :param flags: optional available flags, available flags
     are ['debug', 'string --is-list']
     """
-    __ast__ = []
+    __ast__: list[Any] = []
     if 'string --is-list' not in flags:
         with open(file, 'r') as file:
-            file = file.readlines()
+            file: list = file.readlines()
             for _range in ranges:
-                "Extracting the string from range"
+                # Extracting the string from range
                 rvec_x = int(_range.split(':')[0]) - 1  # r = range
                 rvec_y = int(_range.split(':')[-1])
                 func_string = ''.join(file[rvec_x: rvec_y])
 
-                "Extracting the name of the function from the string"
+                # Extracting the name of the function from the string
                 func_name = ''.join(func_string.split('func')).split()[0]
                 if '(' in func_name:
-                    func_name = func_name.split('(')[0]
+                    func_name: str = func_name.split('(')[0]
 
-                "Checking the return type"
-                return_type = 'void'
-                endl_sep0 = func_string.split('\n')[0]
+                # Checking the return type
+                return_type: str = 'void'
+                endl_sep0: str = func_string.split('\n')[0]
                 if ':' in endl_sep0:
-                    return_type = endl_sep0.split(':')[-1].lstrip()
+                    return_type: str = endl_sep0.split(':')[-1].lstrip()
 
                 "Parameters, the lengthy part"
-                param_list_comma_sep = endl_sep0.split('(')[-1].split(')')[0]\
+                param_list_comma_sep: list = endl_sep0.split('(')[-1].split(')')[0]\
                     .split(',')
-                final_param_tree = []
+                final_param_tree: list = []
 
                 for _param in param_list_comma_sep:
 
-                    rem_t_spaces = _param.lstrip()
-                    param_name = None
+                    rem_t_spaces= _param.lstrip()
+                    param_name: None
                     p_default = None if '=' not in rem_t_spaces \
                         else rem_t_spaces.split('=')[-1]
                     p_type = rem_t_spaces.split()[0]
 
                     if not p_default:
-                        param_name = rem_t_spaces.split()[-1]
+                        param_name: str = rem_t_spaces.split()[-1]
                     else:
-                        param_name = rem_t_spaces.split('=')[0].split()[-1]\
+                        param_name: str = rem_t_spaces.split('=')[0].split()[-1]\
                             .lstrip()
                     final_param_tree.append(
                         {
@@ -95,8 +96,8 @@ def parse_functions(ranges: list, file: str = '', flags: str = '') -> list:
                 )
 
     else:
-        for function in ranges:
-            pass
+        # TODO: implement this part
+        pass
 
     return __ast__
 
