@@ -409,9 +409,10 @@ def pre_process(src: str) -> NoReturn:
                                             {_import.replace('.', os.sep)}"
                         if os.path.isfile(module_path):
                             module_content = open(module_path, 'r').read()
-                            # TODO use an alternative to .read() to save RAM
-                            i_source.read().replace(f'import {_import}',
-                                                    module_content)
+                            
+                            i_source = ''.join([piece for piece in read_in_chunks(i_source)]).replace(
+                                f'import {_import}',
+                                module_content)
                         else:
                             log(f"Error: file {src}\n no module named {_import}\n")
                             sys.exit(1)
@@ -426,8 +427,9 @@ def pre_process(src: str) -> NoReturn:
                             {os.sep}{_import.replace('.', os.sep)}"
                         if os.path.isfile(module_path):
                             module_content = open(module_path, 'r').read()
-                            i_source.read().replace(f"import {_import}",
-                                                    module_content)
+                            i_source = ''.join([piece for piece in read_in_chunks(i_source)]).replace(
+                                f'import {_import}',
+                                module_content)
                         else:
                             log(f"file {src}\n module not found, no module named {_import}\n")
 
