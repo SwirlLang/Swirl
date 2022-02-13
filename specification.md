@@ -56,7 +56,9 @@ list my_cool_list = [1, "2", 3.0]
 ```
 ## Type Qualifiers
 const
+
 public  ( for classes only )
+
 private ( for classes only)
 
 ## Conditional and Loop statements
