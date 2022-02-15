@@ -2,9 +2,9 @@ from enum import Enum
 
 
 class Flags(Enum):
-    NONE = 0,
-    DEBUG = "debug",
-    STRING = "string",
-    RETURN_STATUS = "return-status",
-    VERBOSE = "verbose"
-    SPLIT_WITH_ENDL = "\n"
+    NONE: int = 0,
+    DEBUG: str = "debug",
+    STRING: str = "string",
+    RETURN_STATUS: str = "return-status",
+    VERBOSE: str = "verbose"
+    SPLIT_WITH_ENDL: str = "\n"

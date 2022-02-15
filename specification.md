@@ -1,19 +1,25 @@
 # Syntax of Lambda Code
 ## import statement
 ```
-#import library 
+#import module
 ```
 
 ## comments
 ```
-// Comment
-/// multi  
+// Single line comment
+
+/// 
+multi  
 line
 Comment ///
 ```
 
 ## Example function definition
-<img src="https://user-images.githubusercontent.com/69071143/149722181-b8ded6f9-a0cc-472d-8ef4-25a75fe95c99.png" width=400>
+```
+func sayHelloWorld() {
+    print("Hello world!")
+}
+```
 
 ## Builtin functions
 
@@ -40,40 +46,46 @@ string name = "rick"
 int name = 7  // 32bits int
 ```
 ```
-long int name = 98739823544856  // 64bits int
+long int l_integer = 98739823544856  // 64bits int
 ```
 ```
-float name = 0.1
+float my_float = 0.1
 ```
 ```
-list name = [1, "2", 3.0]
+list my_cool_list = [1, "2", 3.0]
 ```
 ## Type Qualifiers
 const
 
+public  ( for classes only )
+
+private ( for classes only)
+
 ## Conditional and Loop statements
 ```
-if (code == code2)
+if code == code2 {
     print("Hello World")
-endif
+}
 ```
 ```
-elseif (code == code2)
+elif code == code2 {
     print("Hello World")
+}
 ```
 ```
-else 
+else {
     print("Hello World")
+}
 ```
 ```
-for i in var
+for i in range(10, 50) {
+    print(i)
+}
+```
+```
+while true {
     print("Hello World")
-endfor
-```
-```
-while true
-    print("Hello World")
-endwhile
+}
 ```
 
 ## Operators
