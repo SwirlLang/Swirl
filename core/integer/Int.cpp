@@ -1,13 +1,18 @@
 #include <iostream>
 #include <string>
-
+#include <memory>
 
 class Int {
 private:
     int value;
 
 public:
-    Int(int value): value(value) {}
+    Int(int value) {
+        if (value > INT_MAX) {
+            this->value = static_cast<long long>(this->value);
+        }
+    }
+
     Int(): value(0) {}
 
     void operator++() { this->value++; }
@@ -20,7 +25,13 @@ public:
     void operator^=(int value) { this->value ^= value; }
     void operator=(int value) { this->value = value; }
 
-    int operator+(int value) { return this->value + value; }
+    int operator+(int value) {
+        if (this->value + value > INT_MAX) {
+            return static_cast<long long>(this->value) + value;
+        }
+
+        return this->value + value;
+    }
     int operator-(int value) { return this->value - value; }
     int operator*(int value) { return this->value * value; }
     int operator/(int value) { return this->value / value; }
@@ -50,5 +61,5 @@ public:
     int cosec()   { return 1 / std::sin(this->value); }
 
     std::string toString() { std::to_string(this->value); }
-
+    double toFloat() { return static_cast<double>(this->value); }
 };
