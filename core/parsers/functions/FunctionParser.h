@@ -5,7 +5,7 @@
 #include <vector>
 #include <fstream>
 
-#include "../utils/utils.h"
+#include "../../utils/utils.h"
 
 #ifndef LAMBDA_CODE_FUNCTION_PARSER_H
 #define LAMBDA_CODE_FUNCTION_PARSER_H
@@ -36,7 +36,7 @@ Indexes _listIndexes, FunctionParserFlags flags = FunctionParserFlags::NONE) {
                 std::string h_params = splitString(splitString(current_line, '{'), ')');
                 std::string params_str = h_params.erase(0, h_params.find("func") + h_params.find("(") + 1);
                 final_ret_info += "\n params: " + params_str;
-                print(current_line.find(*strchr(current_line.c_str(), ')')));
+                auto temp = current_line.find(*strchr(current_line.c_str(), ')'));
             } else {
                 std::string h_params = splitString(current_line, ')');
                 std::string params_str = h_params.erase(0, h_params.find("func") + h_params.find("(") + 1);

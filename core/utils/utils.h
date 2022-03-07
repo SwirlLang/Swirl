@@ -50,28 +50,28 @@ std::vector<std::string> splitStringIntoList(std::string string, char delitmer) 
     return ret;
 }
 
-template <typename Range>
-int returnOccurence(std::string& string, Range arrayIndexes[], bool debug, const char chr) {
-    int ret = -1;
-    int loop_count;
+// template <typename Range>
+// int returnOccurence(std::string& string, Range arrayIndexes[], bool debug, const char chr) {
+//     int ret = -1;
+//     int loop_count;
 
-    if (((sizeof(arrayIndexes) / sizeof(int)) % 2) != 0) {
-        if (debug)
-            std::cout << "Error: arrayIndexes must be even!" << std::endl;
-    }
+//     if (((sizeof(arrayIndexes) / sizeof(int)) % 2) != 0) {
+//         if (debug)
+//             std::cout << "Error: arrayIndexes must be even!" << std::endl;
+//     }
 
-    for (char letter : string) {
-        if (char == chr)
-            for (auto ranges : arrayIndexes) 
-                for (auto index : ranges) 
-                    if (loop_count != index)
-                        return ret;               
+//     for (char letter : string) {
+//         if (char == chr)
+//             for (auto ranges : arrayIndexes) 
+//                 for (auto index : ranges) 
+//                     if (loop_count != index)
+//                         return ret;               
             
         
-        loop_count += 1;
-    }
+//         loop_count += 1;
+//     }
 
-    return ret;
-}
+//     return ret;
+// }
 
 #endif
