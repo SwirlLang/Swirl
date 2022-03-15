@@ -6,9 +6,6 @@ Thanks for contributing to Lambda Code. We want to make contributing to this pro
 - Submitting a fix
 - Proposing new features
 
-## We Develop with Github
-We use github to host code, to track issues and feature requests, as well as accept pull requests.
-
 ## All Code Changes Happen Through Pull Requests
 Pull requests are the best way to propose changes to the codebase. We actively welcome your pull requests:
 
@@ -19,11 +16,11 @@ Pull requests are the best way to propose changes to the codebase. We actively w
 5. Make sure your code is readable.
 6. Issue that pull request!
 
-## Any contributions you make will be under the GPL v2.0 License
-In short, when you submit code changes, your submissions are understood to be under the same [GPL v2.0 License](https://choosealicense.com/licenses/gpl-2.0/) that covers the project. Feel free to contact the maintainers if that's a concern.
+## Any contributions you make will be under the GPL v3.0 License
+In short, when you submit code changes, your submissions are understood to be under the same [GPL v3.0 License](https://choosealicense.com/licenses/gpl-3.0/) that covers the project. Feel free to contact the maintainers if that's a concern.
 
-## Report bugs using Github's [issues](https://github.com/Lambda-Code-Organization/Lambda-Code/issues)
-We use GitHub issues to track public bugs. Report a bug by choosing a issue template [here](https://github.com/Lambda-Code-Organization/Lambda-Code/issues/new/choose). it's that easy!
+## Report bugs using Github's [issues](https://github.com/LC-Lang/Lambda-Code/issues)
+We use GitHub issues to track public bugs. Report a bug by choosing a issue template [here](https://github.com/LC-Lang/Lambda-Code/issues/new/choose). it's that easy!
 
 ## Write bug reports with detail, background, and sample code
 [This is an example](http://stackoverflow.com/q/12488905/180626) of a bug report.
@@ -33,7 +30,7 @@ We use GitHub issues to track public bugs. Report a bug by choosing a issue temp
 - A quick summary and/or background
 - Steps to reproduce
   - Be specific!
-  - Give sample code if you can. Code that *anyone* can run to reproduce what you were seeing
+  - Give sample code if you can. Code that *anyone* can run to reproduce what you were seeing.
 - What you expected would happen
 - What actually happens
 - Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
@@ -41,4 +38,4 @@ We use GitHub issues to track public bugs. Report a bug by choosing a issue temp
 People *love* thorough bug reports.
 
 ## License
-By contributing, you agree that your contributions will be licensed under its GPL v2.0 License.
+By contributing, you agree that your contributions will be licensed under GPL v3.0 License.
