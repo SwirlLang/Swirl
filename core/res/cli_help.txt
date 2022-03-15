@@ -1,0 +1,13 @@
+The Lambda Code compiler
+
+Usage: lcc <file-path> [-o] <output> [--debug]
+
+Commands:
+    run     compile and run the executable
+
+Flags:
+    -d, --debug     log out steps of the compilation
+    -o, --output    Output file name
+    -h, --help      Show this help message
+
+Use lcc [command] --help for more information about the command

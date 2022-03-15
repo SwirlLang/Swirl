@@ -11,7 +11,7 @@ std::string LCC_OUTPUT;
 
 int main(int argc, const char* argv[]) {
     if (argc <= 1) {
-        std::ifstream lc_help_buf("res/lc_help.txt");
+        std::ifstream lc_help_buf("res/cli_help.txt");
         std::string lc_help;
 
         std::cout << "\n";
