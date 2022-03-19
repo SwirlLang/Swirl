@@ -1,14 +1,14 @@
 name: Test C++ application
 
-on: [push]
-  # push:
-  #   paths:
-  #     - '**.cpp'
-  #     - '**.h'
-  # pull_request:
-  #   paths:
-  #     - '**.cpp'
-  #     - '**.h'
+on:
+  push:
+    paths:
+      - '**.cpp'
+      - '**.h'
+  pull_request:
+    paths:
+      - '**.cpp'
+      - '**.h'
     
 
 jobs:
