@@ -20,8 +20,7 @@ jobs:
     - uses: actions/checkout@v3
     
     - name: Compile the LC compiler
-      run: g++ core/lcc.cpp -o lcc && ./lcc
+      run: g++ core/lcc.cpp -o core/lcc
 
-    - name: Run the LC compiler
-      run: ./lcc
-    
+    - name: Run the compiler
+      run: cd core && ./lcc
