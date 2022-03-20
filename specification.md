@@ -1,12 +1,12 @@
-# Syntax of Lambda Code
-## import statement
+# Specification of Lambda Code
+## using a external module/library
 ```
-#import module
+use module
 ```
 
 ## comments
 ```
-// Single line comment
+// single line comment
 
 /// 
 multi  
@@ -16,7 +16,7 @@ Comment ///
 
 ## Example function definition
 ```
-func sayHelloWorld() {
+func demo() {
     print("Hello world!")
 }
 ```
@@ -25,12 +25,12 @@ func sayHelloWorld() {
 
 Function | Description   
 --- | ---
-print         | Outputs the string provided to the standard output.
+print | Outputs the string provided to the standard output.
 input      | Reads a string from the standard input.      
 range | Returns a list of integers from start to end, with step.
-find | Returns the index of the first occurrence of the substring sub in the string s.
-count | Returns the number of non-overlapping occurrences of substring sub in the string s.
-findall | Returns a list of all occurrences of the substring sub in the string s.
+find | Returns the index of the first occurrence of the substring provided in a string.
+count | Returns the number of non-overlapping occurrences of the substring provided in a string.
+findall | Returns a list of all occurrences of the substring provided in a string.
 string | Returns a string consisting of the characters in the specified sequence.
 int | Converts the argument to an integer.
 float | Converts the argument to a floating-point number.
@@ -55,11 +55,11 @@ float my_float = 0.1
 list my_cool_list = [1, "2", 3.0]
 ```
 ## Type Qualifiers
-const
+`const`
 
-public  ( for classes only )
+`public`  ( for classes only )
 
-private ( for classes only)
+`private` ( for classes only)
 
 ## Conditional and Loop statements
 ```

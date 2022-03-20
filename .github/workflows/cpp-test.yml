@@ -1,0 +1,26 @@
+name: Test C++ application
+
+on:
+  push:
+    paths:
+      - '**.cpp'
+      - '**.h'
+  pull_request:
+    paths:
+      - '**.cpp'
+      - '**.h'
+    
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Compile the LC compiler
+      run: g++ core/lcc.cpp -o core/lcc
+
+    - name: Run the compiler
+      run: cd core && ./lcc

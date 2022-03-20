@@ -12,7 +12,7 @@ auto range(int start, int end) {
     return v;
 }
 
-std::vector<int> findAllOcurrences(std::string& str, char substr) {
+std::vector<int> findAllOccurrences(std::string& str, char substr) {
     std::vector<int> ret;
     int loop_count;
     for (loop_count = 0; loop_count < str.length(); loop_count++) {
@@ -23,10 +23,10 @@ std::vector<int> findAllOcurrences(std::string& str, char substr) {
     return ret;
 }
 
-std::string splitString(std::string string, char delitmer) {
+std::string splitString(std::string string, char delimeter) {
     std::string ret;
     for (auto item : string) {
-        if (item != delitmer) 
+        if (item != delimeter) 
             ret += item;
         else 
             break;
@@ -35,11 +35,11 @@ std::string splitString(std::string string, char delitmer) {
     return ret;
 }
 
-std::vector<std::string> splitStringIntoList(std::string string, char delitmer) {
+std::vector<std::string> splitStringIntoList(std::string string, char delimeter) {
     std::vector<std::string> ret;
     std::string temp;
     for (auto item : string) {
-        if (item != delitmer) {
+        if (item != delimeter) {
             temp += item;
         } else {
             ret.push_back(temp);
@@ -51,7 +51,7 @@ std::vector<std::string> splitStringIntoList(std::string string, char delitmer) 
 }
 
 // template <typename Range>
-// int returnOccurence(std::string& string, Range arrayIndexes[], bool debug, const char chr) {
+// int returnOccurrence(std::string& string, Range arrayIndexes[], bool debug, const char chr) {
 //     int ret = -1;
 //     int loop_count;
 

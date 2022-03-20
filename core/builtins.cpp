@@ -42,7 +42,7 @@ int len(T iterable) {
 }
 
 auto range(int start, int end = 0) {
-    /* returns an iterable vector containg a series of numbers as specified */
+    /* returns an iterable vector containing a series of numbers as specified */
 
     std::vector<int> ret;
     
@@ -53,3 +53,4 @@ auto range(int start, int end = 0) {
         ret.push_back(i);
     }
     return ret;
+}
