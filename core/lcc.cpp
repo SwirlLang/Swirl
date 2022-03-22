@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "parsers/functions/FunctionParser.h"
+#include "lambda-code.h"
 
 bool LCC_DEBUG = false;
 std::string LCC_FEEDED_FILE;

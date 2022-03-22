@@ -12,6 +12,8 @@ auto range(int start, int end) {
     return v;
 }
 
+
+
 std::vector<int> findAllOccurrences(std::string& str, char substr) {
     std::vector<int> ret;
     int loop_count;

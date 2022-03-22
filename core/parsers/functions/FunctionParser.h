@@ -20,7 +20,7 @@ auto parseFunctions(const char* _funcString, bool& _funcParserExitSuccess, Index
 Indexes _listIndexes, FunctionParserFlags flags = FunctionParserFlags::NONE) {
     /* The parser is very basic and minimal for now, more things will be added soon */
 
-    // TODO make the parser check brace presence in arrays
+    // TODO make the parser check brace presence in dicts
     
     std::stringstream func_string_stream(_funcString);
     std::string current_line;
