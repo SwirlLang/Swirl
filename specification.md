@@ -1,5 +1,5 @@
 # Specification of Lambda Code
-## using a external module/library
+## using an external namespace
 ```
 use module
 ```
