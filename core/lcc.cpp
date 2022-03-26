@@ -10,6 +10,7 @@ bool LCC_DEBUG = false;
 std::string LCC_FEEDED_FILE;
 std::string LCC_OUTPUT;
 
+
 int main(int argc, const char* argv[]) {
     if (argc <= 1) {
         std::ifstream lc_help_buf("res/cli_help.txt");

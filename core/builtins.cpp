@@ -16,6 +16,23 @@ You should have received a copy of the GNU General Public License along with thi
 #include <iostream>
 #include <string>
 #include <vector>
+#include <fstream>
+#include <variant>
+
+#include "utils/utils.h"
+#include "lambda-code.h"
+
+
+std::variant<F_IO_Object::R_ModeObject, F_IO_Object::W_ModeObject> open(
+    LambdaCode::string _filePath,
+    LambdaCode::string _mode = "r",
+    LambdaCode::string _encoding = "utf8"
+) {
+    if (_mode.has("w")) 
+        return F_IO_Object::W_ModeObject(_filePath);
+    else if (_mode.value == "r")
+        return F_IO_Object::R_ModeObject(_filePath);
+}
 
 template <typename T>
 void print(T string, const char* end = "\n") {

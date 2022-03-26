@@ -8,7 +8,6 @@
 
 namespace LambdaCode {
     typedef LC_String string;
-    
 }
 
 #endif
