@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 
-#include "lambda-code.h"
+#include "../lambda-code.h"
 
 #ifndef UTILS_H_LAMBDA_CODE
 #define UTILS_H_LAMBDA_CODE
