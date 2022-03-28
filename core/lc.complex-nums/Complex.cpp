@@ -7,15 +7,8 @@ private:
     long long re, im;
 
 public:
-    Complex() {
-        re = 0;
-        im = 0;
-    }
-
-    Complex(long long r, long long i) {
-        re = r;
-        im = i;
-    }
+    Complex(): re(0), im(0) {}
+    Complex(long long r, long long i): re(r), im(i) {}
 
     Complex add(Complex other) {
         return Complex(re + other.re, im + other.im);

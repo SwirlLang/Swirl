@@ -23,7 +23,11 @@ You should have received a copy of the GNU General Public License along with thi
 #include "lambda-code.h"
 
 
-std::variant<F_IO_Object::R_ModeObject, F_IO_Object::W_ModeObject> open(
+std::variant
+    <F_IO_Object::R_ModeObject, 
+    F_IO_Object::W_ModeObject, 
+    F_IO_Object::DualModeObject> open
+(
     LambdaCode::string _filePath,
     LambdaCode::string _mode = "r",
     LambdaCode::string _encoding = "utf8"
@@ -32,6 +36,8 @@ std::variant<F_IO_Object::R_ModeObject, F_IO_Object::W_ModeObject> open(
         return F_IO_Object::W_ModeObject(_filePath);
     else if (_mode.value == "r")
         return F_IO_Object::R_ModeObject(_filePath);
+    else if (_mode.value == "w+" || _mode.value == "r+")
+        return F_IO_Object::DualModeObject(_filePath);
 }
 
 template <typename T>
