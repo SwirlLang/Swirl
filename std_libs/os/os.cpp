@@ -1,5 +1,4 @@
-/* Contain functions and classes to allow LC to interact with Operating system.
-
+/*
 Copyright (C) 2022 Lambda Code Organization
 
 This file is part of the Lambda Code programming language
@@ -23,10 +22,24 @@ If not, see https://www.gnu.org/licenses/.
 #include <sstream>
 #include <string.h>
 
+#include "../core/lambda-code.h"
+
 #if defined(WIN32) || defined(_WIN32)
 #define PATH_SEPARATOR "\\"
 #else
 #define PATH_SEPARATOR "/"
+#endif
+
+#ifdef _WIN32
+#define platform_ "WIN"
+#elif __linux__
+#define platform_ "linux"
+#elif TARGET_OS_MAC
+#define platform_ "darwin"
+#elif __ANDROID__
+#define platform_ "android"
+#elif __unix__
+#define platform_ "unix"
 #endif
 
 using std::cout;
@@ -35,72 +48,49 @@ using std::endl;
 namespace OS
 {
     namespace fs = std::filesystem;
-    std::string platform()
+    LambdaCode::string platform()
     {
-        /*
-        Returns a string containing the name of the OS the program
-        is currently running on
-        */
-
-        std::string platform;
-
-#ifdef _WIN32
-        platform = "WIN";
-
-#elif __linux__
-        platform = "linux";
-
-#elif TARGET_OS_MAC
-        platform = "darwin";
-
-#elif __ANDROID__
-        platform = "android";
-
-#elif __unix__
-        platform = "unix";
-#endif
-
-        return platform;
+        return LambdaCode::string(platform_);
     }
 
-    void mkdir(std::string &_dirPath)
+    void mkdir(LambdaCode::string _dirPath)
     {
-        fs::create_directory(_dirPath);
+        fs::create_directory(_dirPath.__to_cstr__());
     }
 
-    void mkdir(std::string &_dirPaths)
+    void mkdir(LambdaCode::string _dirPaths)
     {
-        fs::create_directories(_dirPaths);
+        fs::create_directories(_dirPaths.__to_cstr__());
     }
 
-    void sys(std::string command)
+    void sys(LambdaCode::string command)
     {
-        system((const char *)&command);
+        system(command.__to_cstr__());
     }
 
-    void rmdir(std::string &_dirPath)
+    void rmdir(LambdaCode::string _dirPath)
     {
-        fs::remove(_dirPath);
+        fs::remove(_dirPath.__to_cstr__());
     }
 
-    void rename(std::string &_oldName, std::string &_newName)
+    void rename(LambdaCode::string _oldName, LambdaCode::string _newName)
     {
-        fs::rename(_oldName, _newName);
+        fs::rename(_oldName.__to_cstr__(), _newName.__to_cstr__());
     }
 
-    void cpy(std::string &_from, std::string &_to)
+    void cpy(LambdaCode::string _from, LambdaCode::string _to)
     {
-        fs::copy(_from, _to);
+        fs::copy(_from.__to_cstr__(), _to.__to_cstr__());
     }
 
-    bool isDir(std::string &_path)
+    bool isDir(LambdaCode::string _path)
     {
-        return fs::is_directory(_path);
+        return fs::is_directory(_path.__to_cstr__());
     }
 
-    bool isExists(std::string &_path)
+    bool isExists(LambdaCode::string _path)
     {
-        return fs::exists(_path);
+        return fs::exists(_path.__to_cstr__());
     }
 
     std::string sep()
@@ -108,7 +98,7 @@ namespace OS
         return PATH_SEPARATOR;
     }
 
-    void rmdir(std::string path) {
-        std::filesystem::remove(path);
+    void rmdir(LambdaCode::string path) {
+        std::filesystem::remove(path.__to_cstr__());
     }
 }
