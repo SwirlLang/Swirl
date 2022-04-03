@@ -31,7 +31,7 @@ If not, see https://www.gnu.org/licenses/.
 #endif
 
 #ifdef _WIN32
-#define platform_ "WIN"
+#define platform_ "win"
 #elif __linux__
 #define platform_ "linux"
 #elif TARGET_OS_MAC
