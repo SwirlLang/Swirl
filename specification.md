@@ -1,7 +1,8 @@
 # Specification of Lambda Code
 ## using an external namespace
 ```
-use module
+import package.dir.module  // injects the entire namespace 
+import package.dir.module.Scope  // only injects the scope being referenced
 ```
 
 ## comments
@@ -40,26 +41,19 @@ exit | Exits the program with the exit code provided.
 
 ## Data types
 ```
-string name = "rick"
+string name = "rick"  // char[]
 ```
 ```
-int name = 7  // 32bits int
+int name = 7  // dynamic integer blob (arbitrary precision)
 ```
 ```
-long int l_integer = 98739823544856  // 64bits int
-```
-```
-float my_float = 0.1
+float my_float = 0.1  // dynamic float blob
 ```
 ```
 list my_cool_list = [1, "2", 3.0]
 ```
 ## Type Qualifiers
 `const`
-
-`public`  ( for classes only )
-
-`private` ( for classes only)
 
 ## Conditional and Loop statements
 ```
