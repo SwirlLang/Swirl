@@ -7,7 +7,7 @@ Thanks for contributing to Lambda Code. We want to make contributing to this pro
 - Proposing new features
 
 ## All Code Changes Happen Through Pull Requests
-Pull requests are the best way to propose changes to the codebase. We actively welcome your pull requests:
+Pull requests are the best way to propose changes to the codebase. Do not make a pull request for adding a stuff which is incomplete or if you have not changed anything major in the source. If there are typos in identifiers or in strings, do NOT make PR's but create an issue to inform us instead. We actively welcome your pull requests:
 
 1. Fork the repo.
 2. If you've added code that should be tested, add tests.
