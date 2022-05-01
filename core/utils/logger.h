@@ -5,11 +5,11 @@
 #include <windows.h>
 #endif
 
+#ifndef LOGGER_H_Swirl
+#define LOGGER_H_Swirl
 
-#ifndef LOGGER_H_LAMBDA_CODE
-#define LOGGER_H_LAMBDA_CODE
-
-enum LogLevel {
+enum LogLevel
+{
     DEBUG,
     INFO,
     WARNING,
@@ -17,15 +17,18 @@ enum LogLevel {
     CRITICAL
 };
 
-class Logger {
+class Logger
+{
 public:
     LogLevel logLevel;
 
-    static void log(const char* message) {
+    static void log(const char *message)
+    {
         std::cout << "" << message << std::endl;
     }
 
-    static void logToFile(const char* _logMessage) {
+    static void logToFile(const char *_logMessage)
+    {
         fprintf(stdout, "%s\n", _logMessage);
     }
 };

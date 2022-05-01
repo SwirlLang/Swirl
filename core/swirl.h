@@ -3,10 +3,11 @@
 #include "lc.string/String.h"
 #include "lc.map/Map.h"
 
-#ifndef LAMBDA_CODE_H_LAMBDA_CODE
-#define LAMBDA_CODE_H_LAMBDA_CODE
+#ifndef Swirl_H_Swirl
+#define Swirl_H_Swirl
 
-namespace LambdaCode {
+namespace Swirl
+{
     typedef LC_String string;
 }
 

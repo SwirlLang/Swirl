@@ -1,6 +1,6 @@
-The Lambda Code compiler
+The Swirl compiler
 
-Usage: lcc <file-path> [-o] <output> [--debug]
+Usage: swirl <file-path> [-o] <output> [--debug]
 
 Commands:
     run     compile and run the executable
@@ -10,4 +10,4 @@ Flags:
     -o, --output    Output file name
     -h, --help      Show this help message
 
-Use lcc [command] --help for more information about the command
+Use swirl [command] --help for more information about the command

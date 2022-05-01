@@ -1,6 +1,8 @@
-#ifndef LAMBDA_CODE_INT_H
-#define LAMBDA_CODE_INT_H
+#ifndef Swirl_INT_H
+#define Swirl_INT_H
 
-class Int {};
+class Int
+{
+};
 
 #endif

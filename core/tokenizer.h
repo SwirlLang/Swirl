@@ -3,9 +3,9 @@
 
 #include "utils/utils.h"
 
-#ifndef TOKENIZER_H_LAMBDA_CODE
-#define TOKENIZER_H_LAMBDA_CODE
+#ifndef TOKENIZER_H_Swirl
+#define TOKENIZER_H_Swirl
 
 template <typename Any>
-std::vector<std::string> tokenize(const char*, Any, bool&);
+std::vector<std::string> tokenize(const char *, Any, bool &);
 #endif

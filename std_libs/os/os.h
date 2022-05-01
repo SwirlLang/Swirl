@@ -1,14 +1,14 @@
 /* Contain functions and classes to allow LC to interact with Operating system.
 
-Copyright (C) 2022 Lambda Code Organization
+Copyright (C) 2022 Swirl Organization
 
-This file is part of the Lambda Code programming language
+This file is part of the Swirl programming language
 
-Lambda Code is free software: you can redistribute it and/or modify it under the terms of the
+Swirl is free software: you can redistribute it and/or modify it under the terms of the
 GNU General Public License as published by the Free Software Foundation, either version 3 of the License,
 or (at your option) any later version.
 
-Lambda Code is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+Swirl is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  See the GNU General Public License for more details.
 
@@ -16,8 +16,8 @@ You should have received a copy of the GNU General Public License along with thi
 If not, see https://www.gnu.org/licenses/.
 */
 
-#ifndef LAMBDA_CODE_OS_H
-#define LAMBDA_CODE_OS_H
+#ifndef Swirl_OS_H
+#define Swirl_OS_H
 #include <iostream>
 #include <string>
 #include <filesystem>
