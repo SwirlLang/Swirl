@@ -22,9 +22,9 @@ Pull requests are the best way to propose changes to the codebase. Do not make a
 
 In short, when you submit code changes, your submissions are understood to be under the same [GPL v3.0 License](https://choosealicense.com/licenses/gpl-3.0/) that covers the project. Feel free to contact the maintainers if that's a concern.
 
-## Report bugs using Github's [issues](https://github.com/LC-Lang/Lambda-Code/issues)
+## Report bugs using Github's [issues](https://github.com/SwirlLang/Swirl/issues)
 
-We use GitHub issues to track public bugs. Report a bug by choosing a issue template [here](https://github.com/LC-Lang/Lambda-Code/issues/new/choose). it's that easy!
+We use GitHub issues to track public bugs. Report a bug by choosing a issue template [here](https://github.com/SwirlLang/Swirl/issues/new/choose). it's that easy!
 
 ## Write bug reports with detail, background, and sample code
 

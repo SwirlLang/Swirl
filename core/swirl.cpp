@@ -15,12 +15,12 @@ int main(int argc, const char *argv[])
 {
     if (argc <= 1)
     {
-        std::ifstream lc_help_buf("res/cli_help.txt");
-        std::string lc_help;
+        std::ifstream swirl_help_buf("res/cli_help.txt");
+        std::string swirl_help;
 
         std::cout << "\n";
-        while (std::getline(lc_help_buf, lc_help))
-            std::cout << lc_help << std::endl;
+        while (std::getline(swirl_help_buf, swirl_help))
+            std::cout << swirl_help << std::endl;
         std::cout << "\n";
     }
 

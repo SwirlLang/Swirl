@@ -3,6 +3,6 @@
 .idea
 *.code-workspace
 __pycache__
-__lc_cache__
+__swirl_cache__
 *.exe
 run

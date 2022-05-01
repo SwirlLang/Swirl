@@ -1,4 +1,4 @@
-/* Contain functions and classes to allow LC to interact with Operating system.
+/* Contain functions and classes to allow Swirl to interact with Operating system.
 
 Copyright (C) 2022 Swirl Organization
 
