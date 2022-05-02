@@ -3,7 +3,7 @@
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/SwirlLang/Swirl/Python%20application?style=flat-square)
 [![Discord](https://img.shields.io/discord/894989427628179477?color=blue&label=Discord&logo=Discord&logoColor=white&style=flat-square)](https://discord.gg/RSJ5TUDdqx)
 
-<img width=600 src="https://raw.githubusercontent.com/SwirlLang/branding/main/logos/Swirl%20wordmark%20logo(transparent).png">
+<img width=600 src="https://raw.githubusercontent.com/SwirlLang/branding/main/logos/Swirl-wordmark-logo(transparent).png">
 
 # Swirl programming language
 Swirl is a high level, statically typed, object-oriented and a fast programming language.
