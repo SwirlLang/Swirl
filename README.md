@@ -8,8 +8,8 @@
 # Swirl programming language
 Swirl is a high level, statically typed, object-oriented and a fast programming language.
 
-[Website](https://swirllang.vercel.app) |
-[Docs](https://swirllang.vercel.app/docs) |
+[Website](https://swirl-lang.vercel.app) |
+[Docs](https://swirl-lang.vercel.app/docs) |
 [Contributing](./CONTRIBUTING.md)
 
 
