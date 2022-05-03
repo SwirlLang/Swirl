@@ -1,7 +1,0 @@
-func doStuff()
-    print(23)
-endfunc
-
-func anythingElse(): int
-    return 0
-endfunc
