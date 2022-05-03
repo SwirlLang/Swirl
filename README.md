@@ -6,7 +6,7 @@
 <img width=600 src="https://raw.githubusercontent.com/SwirlLang/branding/main/logos/Swirl-wordmark-logo(transparent).png">
 
 # Swirl programming language
-Swirl is a high level, statically typed, object-oriented and a fast programming language.
+Swirl is a high level, statically typed, object-oriented and a feature rich programming language.
 
 [Website](https://swirl-lang.vercel.app) |
 [Docs](https://swirl-lang.vercel.app/docs) |
