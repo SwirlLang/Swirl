@@ -10,18 +10,25 @@ bool swirl_DEBUG = false;
 std::string swirl_FEEDED_FILE_PATH;
 std::string swirl_OUTPUT;
 std::string swirl_FEEDED_FILE_SOURCE;
+char swirl_help[] = R"(The Swirl compiler
+
+Usage: swirl <file-path> [-o] <output> [--debug]
+
+Commands:
+    run     compile and run the executable
+
+Flags:
+    -d, --debug     log out steps of the compilation
+    -o, --output    Output file name
+    -h, --help      Show this help message
+
+Use swirl [command] --help for more information about the command)";
 
 int main(int argc, const char *argv[])
 {
     if (argc <= 1)
     {
-        std::ifstream swirl_help_buf("res/cli_help.txt");
-        std::string swirl_help;
-
-        std::cout << "\n";
-        while (std::getline(swirl_help_buf, swirl_help))
-            std::cout << swirl_help << std::endl;
-        std::cout << "\n";
+        std::cout << swirl_help << std::endl;
     }
 
     if (argc > 1)
