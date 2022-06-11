@@ -12,7 +12,7 @@ Swirl is a high level, statically typed, object-oriented and a feature rich prog
 [Docs](https://swirl-lang.vercel.app/docs) |
 [Contributing](./CONTRIBUTING.md)
 
-
+<br>
 
 ### Hello World!
 
@@ -23,13 +23,14 @@ print("Hello world!")
 check the [specification](specification.md) for more details
 
 <br>
+
 The language will have its own gui library for making cross-platform desktop apps, a web framework for making websites etc.
 
 The language is still in development. There are lots of work that needs to be done. We are expecting to release the first alpha version this year.
 
 ## Contributing
 
-Contributions to the language are appreciated. We want to work in a open source community. If you want to contribute to the language you can read the contributing guidelines [here](CONTRIBUTING.MD).
+Contributions to the language are appreciated. We want to work in a open source community. If you want to contribute to the language or want to build the project check the [CONTRIBUTING](CONTRIBUTING.MD) guidelines.
 
 ## Issues and feature request
 
