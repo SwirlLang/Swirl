@@ -30,7 +30,7 @@ The language is still in development. There are lots of work that needs to be do
 
 ## Contributing
 
-Contributions to the language are appreciated. We want to work in a open source community. If you want to contribute to the language or want to build the project check the [CONTRIBUTING](CONTRIBUTING.MD) guidelines.
+Contributions to the language are appreciated. We want to work in a open source community. If you want to contribute to the language or want to build the project check the [CONTRIBUTING](https://github.com/SwirlLang/Swirl/blob/main/CONTRIBUTING.md) guidelines.
 
 ## Issues and feature request
 
