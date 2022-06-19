@@ -3,5 +3,4 @@
 
 #include "utils/utils.h"
 
-template <typename Any>
-std::vector<std::string> tokenize(const char *, Any, bool &);
+void tokenize(std::string a);
