@@ -68,10 +68,23 @@ struct F_IO_Object
     };
 };
 
-template <typename Indices>
-bool isInsideString(std::string &source, std::string substr, Indices stringIndices)
-{
-    throw std::runtime_error("Not implemented");
+std::string getPathSep() {
+    std::string path_sep;
+    #if defined(_WIN32)
+        path_sep = "\\"
+    #else
+        path_sep = "/";
+    #endif
+    return path_sep;
+}
+
+bool isInString(std::size_t _Pos, std::string _Source) {
+    // unimplemented
+    return false;
+}
+
+std::string getWorkingDirectory(const std::string& _path) {
+    return _path.substr(0, _path.find_last_of(getPathSep()));
 }
 
 std::vector<int> findAllOccurrences(std::string &str, char substr)

@@ -14,8 +14,14 @@ struct F_IO_Object
     class DualModeObject;
 };
 
+std::string getWorkingDirectory(const std::string&);
+
+bool isInString(std::size_t, std::string);
+
 template <typename Indices>
 bool isInsideString(std::string &source, std::string substr, Indices stringIndices);
+
+std::string getPathSep();
 
 std::vector<int> findAllOccurrences(std::string &str, char substr);
 
