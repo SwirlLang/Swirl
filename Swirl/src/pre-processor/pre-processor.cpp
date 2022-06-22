@@ -23,10 +23,6 @@ void preProcess(std::string _source, std::string _exeFilePath, uint8_t& _exitCod
         }
     }
 
-    for (auto& elem : imports) {
-        std::cout << elem << std::endl;
-    }
-
     try {
         std::filesystem::create_directory(std::string(working_directory) + getPathSep() + "__swirl_cache__");
         std::ofstream cached_file(swirl_cache_path + "file_cache.sw");
@@ -44,7 +40,7 @@ void preProcess(std::string _source, std::string _exeFilePath, uint8_t& _exitCod
                     _module << i_current_ln;
                 }
             }
-            catch ( std::exception& spm_search_paths) {
+            catch ( std::exception& spm_search_paths ) {
                 std::cout << "exception" << std::endl;
                 // TODO implement looking for packages in the package manager's downloads directory
             }
