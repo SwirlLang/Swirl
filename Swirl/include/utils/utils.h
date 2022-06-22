@@ -14,6 +14,8 @@ struct F_IO_Object
     class DualModeObject;
 };
 
+void replaceAll(std::string&, std::string, std::string);
+
 std::string getWorkingDirectory(const std::string&);
 
 bool isInString(std::size_t, std::string);

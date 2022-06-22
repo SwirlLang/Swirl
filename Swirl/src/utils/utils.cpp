@@ -61,13 +61,21 @@ struct F_IO_Object
             std::string c_l;
             while (std::getline(r_buf, c_l))
                 ret += c_l;
-            return Swirl::string(static_cast<const char*>(ret.c_str()));
+            return {static_cast<const char*>(ret.c_str())};
         }
 
         void close() { w_buf.close(); }
     };
 };
 
+void replaceAll(std::string& _source, std::string _from, std::string _to) {
+    std::size_t pos = _source.find(_from);
+    while( pos != std::string::npos)
+    {
+        _source.replace(pos, _from.size(), _to);
+        pos = _source.find(_from, pos + _to.size());
+    }
+}
 std::string getPathSep() {
     std::string path_sep;
     #if defined(_WIN32)
