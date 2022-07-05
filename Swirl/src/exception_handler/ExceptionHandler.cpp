@@ -2,25 +2,19 @@
 #include <vector>
 #include <sstream>
 
-#include <swirl.typedefs/swirl_t.h>
-
-class ExceptionHandler
-{
+class ExceptionHandler {
 public:
     static void raise(const char *_message, const char *_source, const char *_feeded_file_path,
-                      std::size_t _line, std::size_t _col_range[2], int _exit_code = 1)
-    {
+                      std::size_t _line, std::size_t _col_range[2], int _exit_code = 1) {
 
         std::istringstream source_buf(_source);
         std::size_t ln_count = 0;
         std::string err_ln;
         std::string bn_str;
 
-        for (std::string src_current_ln; std::getline(source_buf, src_current_ln);)
-        {
+        for (std::string src_current_ln; std::getline(source_buf, src_current_ln);) {
             ln_count++;
-            if (ln_count == _line)
-            {
+            if (ln_count == _line) {
                 std::size_t col_substr_size = src_current_ln.substr(_col_range[0], _col_range[1] - _col_range[0]).length();
                 std::string tilden_str = "";
                 for (std::size_t t_i = 0; t_i < _col_range[0]; t_i++)
