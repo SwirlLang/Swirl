@@ -12,11 +12,13 @@ void preProcess(std::string _source, std::string _exeFilePath, uint8_t& _exitCod
     std::string working_directory = getWorkingDirectory(_exeFilePath);
     std::string swirl_cache_path = working_directory + getPathSep() + "__swirl_cache__" + getPathSep();
     std::vector<std::string> imports = {};
+    std::vector<std::string> f_file_lines = {};
 
     for (std::string src_current_ln; std::getline(source_str_buf, src_current_ln);) {
+        f_file_lines.push_back(src_current_ln);
         if (!src_current_ln.starts_with("import") && !isInString(src_current_ln.find("import"), src_current_ln) && !src_current_ln.empty())
             break;
-        if (src_current_ln.find("import") != std::string::npos && !isInString(src_current_ln.find("import"), src_current_ln)) {\
+        if (src_current_ln.find("import") != std::string::npos && !isInString(src_current_ln.find("import"), src_current_ln)) {
             std::string t_module = src_current_ln.substr(7, src_current_ln.size());
             replaceAll(t_module, getPathSep(), ".");
             imports.push_back(t_module);
@@ -25,9 +27,13 @@ void preProcess(std::string _source, std::string _exeFilePath, uint8_t& _exitCod
 
     try {
         std::filesystem::create_directory(std::string(working_directory) + getPathSep() + "__swirl_cache__");
+        std::filesystem::create_directory(working_directory + getPathSep() + "bin");
         std::ofstream cached_file(swirl_cache_path + "file_cache.sw");
-        cached_file << _source;
-        cached_file.close();
+        for (const std::string& f_ln : f_file_lines) {
+            if (f_ln.find('\\') != std::string::npos && !isInString(f_ln.find('\\'), f_ln)) {
+//                f_ln.replace()
+            }
+        }
 
         std::ofstream cached_modules_source(swirl_cache_path + "modules_cache.sw");
 
