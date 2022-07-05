@@ -13,13 +13,13 @@ You should have received a copy of the GNU General Public License along with thi
 */
 
 #include <iostream>
-#include <string>
-#include <vector>
-#include <fstream>
-#include <variant>
+//#include <string>
+//#include <vector>
+//#include <fstream>
+//#include <variant>
 
-#include <utils/utils.h>
-#include <swirl.typedefs/swirl_t.h>
+//#include <utils/utils.h>
+//#include <swirl.typedefs/swirl_t.h>
 
 // commented because the code has some errors
 // std::variant<F_IO_Object::R_ModeObject,
@@ -38,11 +38,10 @@ You should have received a copy of the GNU General Public License along with thi
 //         return F_IO_Object::DualModeObject(_filePath);
 // }
 
-template <typename T>
-void print(T string, const char *end = "\n")
-{
+//template <typename T>
+void print(const char* string, const char *end = "\n") {
     /* writes to the standard output */
-    std::cout << std::to_string(string) << end;
+    std::cout << string << end;
 }
 
 std::string input(const char *prompt)
@@ -54,29 +53,29 @@ std::string input(const char *prompt)
     return ret;
 }
 
-template <typename T>
-int len(T iterable)
-{
-    /* returns the length of an iterable */
-    int ret = 0;
-    for (auto item : iterable)
-        ret++;
-
-    return ret;
-}
-
-auto range(int start, int end = 0)
-{
-    /* returns an iterable vector containing a series of numbers as specified */
-
-    std::vector<int> ret;
-
-    if (!end)
-        end = start;
-
-    for (int i = start; i < end; i++)
-    {
-        ret.push_back(i);
-    }
-    return ret;
-}
+//template <typename T>
+//int len(T iterable)
+//{
+//    /* returns the length of an iterable */
+//    int ret = 0;
+//    for (auto item : iterable)
+//        ret++;
+//
+//    return ret;
+//}
+//
+//auto range(int start, int end = 0)
+//{
+//    /* returns an iterable vector containing a series of numbers as specified */
+//
+//    std::vector<int> ret;
+//
+//    if (!end)
+//        end = start;
+//
+//    for (int i = start; i < end; i++)
+//    {
+//        ret.push_back(i);
+//    }
+//    return ret;
+//}
