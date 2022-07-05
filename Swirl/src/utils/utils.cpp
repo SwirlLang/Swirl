@@ -1,6 +1,7 @@
 #include <iostream>
-#include <vector>
 #include <fstream>
+#include <algorithm>
+#include <vector>
 
 #include "swirl.typedefs/swirl_t.h"
 
@@ -76,6 +77,8 @@ void replaceAll(std::string& _source, std::string _from, std::string _to) {
         pos = _source.find(_from, pos + _to.size());
     }
 }
+
+
 std::string getPathSep() {
     std::string path_sep;
     #if defined(_WIN32)
@@ -86,7 +89,34 @@ std::string getPathSep() {
     return path_sep;
 }
 
-bool isInString(std::size_t _Pos, std::string _Source) {
+template <class Iterable, typename Any>
+auto isIn(Iterable iter, Any val) {
+    return std::find(iter.begin(), iter.end(), val);
+}
+
+//std::vector<std::string> sliceVec(std::vector<std::string>& _vec, std::size_t _m, std::size_t _n ) {
+//    std::vector<std::string> ret;
+//    auto vec_start = _vec.begin() + _m;
+//    auto vec_end = _vec.end() + _n + 1;
+//    ret(_m - _n + 1);
+//    copy(vec_start, vec_end, ret.begin());
+//
+//    return ret;
+//}
+
+
+template <class Type, typename T>
+std::size_t getIndex(std::vector<Type> _vec, T _item) {
+    std::size_t index = 0;
+    for (auto const& item : _vec) {
+        if (item == _item)
+            return index;
+        index += 1;
+    }
+    return -1;
+}
+
+bool isInString(std::size_t _pos, std::string _source) {
     // unimplemented
     return false;
 }
@@ -106,12 +136,12 @@ std::vector<int> findAllOccurrences(std::string &str, char substr)
     return ret;
 }
 
-std::string splitString(std::string string, char delimeter)
+std::string splitString(std::string string, char delimiter)
 {
     std::string ret;
     for (auto item : string)
     {
-        if (item != delimeter)
+        if (item != delimiter)
             ret += item;
         else
             break;

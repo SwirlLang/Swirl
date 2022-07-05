@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <string>
 #include <fstream>
 
 #ifndef UTILS_H_Swirl
@@ -25,10 +26,19 @@ bool isInsideString(std::string &source, std::string substr, Indices stringIndic
 
 std::string getPathSep();
 
-std::vector<int> findAllOccurrences(std::string &str, char substr);
+//template <class Type, typename T>
+//std::size_t getIndex(std::vector<Type>, T);
 
-std::string splitString(std::string string, char delimeter);
+//template <class Type>
+std::vector<std::string> sliceVec(std::vector<std::string>&, std::size_t, std::size_t);
 
-std::vector<std::string> splitIntoIterable(std::string string, char delimeter);
+std::vector<int> findAllOccurrences(std::string&, char);
+
+template <class Iterable, typename it>
+bool isIn(Iterable, it);
+
+std::string splitString(std::string, char);
+
+std::vector<std::string> splitIntoIterable(std::string string, char);
 
 #endif
