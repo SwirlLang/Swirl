@@ -44,10 +44,13 @@ int main(int argc, const char *argv[]) {
 
     preProcess(swirl_FEEDED_FILE_SOURCE, swirl_FEEDED_FILE_PATH, pre_processor_exit_code);
     tokenize(swirl_FEEDED_FILE_SOURCE, swirl_FEEDED_FILE_PATH);
-    // transpile("print(\"Hello world\")", swirl_FEEDED_FILE_PATH);
 
     if (std::string(*argv).find("--run")) {
-        std::string cpp_obj = "g++ " + getWorkingDirectory(swirl_FEEDED_FILE_PATH) + getPathSep() + "bin" + getPathSep() + "obj.cpp" + " -o __OUT__ && ./__OUT__";
+        std::string file_name = swirl_FEEDED_FILE_PATH.substr(swirl_FEEDED_FILE_PATH.find_last_of("/\\") + 1);
+        std::string out_dir = swirl_FEEDED_FILE_PATH.replace(swirl_FEEDED_FILE_PATH.find(file_name),file_name.length(),"");
+        file_name = file_name.substr(0, file_name.find_last_of("."));
+
+        std::string cpp_obj = "g++ " + getWorkingDirectory(swirl_FEEDED_FILE_PATH) + getPathSep() + "bin" + getPathSep() + "obj.cpp" + " -o " + out_dir + file_name + " && " + "./" + out_dir + file_name;
         system(cpp_obj.c_str());
     }
 }
