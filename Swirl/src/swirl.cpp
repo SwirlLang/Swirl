@@ -4,13 +4,15 @@
 #include <vector>
 
 #include <pre-processor/pre-processor.h>
-#include <parsers/functions/FunctionParser.h>
 #include <swirl.typedefs/swirl_t.h>
+#include <tokenizer/tokenizer.h>
+//#include <transpiler/transpiler.h>
 
 bool swirl_DEBUG = false;
 std::string swirl_FEEDED_FILE_PATH;
 std::string swirl_OUTPUT;
 std::string swirl_FEEDED_FILE_SOURCE;
+
 char swirl_help[] = R"(The Swirl compiler
 
 Usage: swirl <file-path> [-o] <output> [--debug]
@@ -41,4 +43,12 @@ int main(int argc, const char *argv[]) {
     }
 
     preProcess(swirl_FEEDED_FILE_SOURCE, swirl_FEEDED_FILE_PATH, pre_processor_exit_code);
+    tokenize(swirl_FEEDED_FILE_SOURCE, swirl_FEEDED_FILE_PATH);
+    // transpile("print(\"Hello world\")", swirl_FEEDED_FILE_PATH);
+
+    if (std::string(*argv).find("--run")) {
+        std::string cpp_obj = "g++ " + getWorkingDirectory(swirl_FEEDED_FILE_PATH) + getPathSep() + "bin" + getPathSep() + "obj.cpp" + " -o __OUT__ && ./__OUT__";
+        system(cpp_obj.c_str());
+    }
 }
+
