@@ -1,5 +1,5 @@
-file(GLOB src 
-    builtins/builtins.cpp
+file(GLOB src
+        transpiler/builtins.txt
     exception_handler/ExceptionHandler.cpp
     parsers/class/ClassParser.cpp
     parsers/functions/FunctionParser.cpp
@@ -11,6 +11,8 @@ file(GLOB src
     tokenizer/tokenizer.cpp
     utils/logger.cpp
     utils/utils.cpp
+        builtins/builtins.txt
+#        transpiler/transpiler.cpp
 )
 
 target_sources(${PROJECT_NAME} PRIVATE ${src})
