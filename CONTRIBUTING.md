@@ -24,7 +24,7 @@ The project uses CMake as the build tool. So make sure you have CMake installed 
 After cloning the repo cd into it and follow the steps below.
 ### Configure CMake
 ```bash
-cmake -B build - DCMAKE_BUILD_TYPE=Debug -S Swirl
+cmake -B build -DCMAKE_BUILD_TYPE=Debug -S Swirl
 ```
 
 ### Build the project
