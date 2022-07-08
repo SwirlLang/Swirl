@@ -9,9 +9,9 @@
 //#include <transpiler/transpiler.h>
 
 bool swirl_DEBUG = false;
-std::string swirl_FEEDED_FILE_PATH;
+std::string swirl_FED_FILE_PATH;
 std::string swirl_OUTPUT;
-std::string swirl_FEEDED_FILE_SOURCE;
+std::string swirl_FED_FILE_SOURCE;
 
 char swirl_help[] = R"(The Swirl compiler
 
@@ -35,20 +35,20 @@ int main(int argc, const char *argv[]) {
     }
 
     if (argc > 1) {
-        swirl_FEEDED_FILE_PATH = argv[1];
-        std::ifstream feeded_file_src_buf(swirl_FEEDED_FILE_PATH);
+        swirl_FED_FILE_PATH = argv[1];
+        std::ifstream fed_file_src_buf(swirl_FED_FILE_PATH);
         std::string src_current_ln;
-        while (std::getline(feeded_file_src_buf, src_current_ln)){
-            swirl_FEEDED_FILE_SOURCE += src_current_ln + "\n";
+        while (std::getline(fed_file_src_buf, src_current_ln)){
+            swirl_FED_FILE_SOURCE += src_current_ln + "\n";
         }
-        preProcess(swirl_FEEDED_FILE_SOURCE, swirl_FEEDED_FILE_PATH, pre_processor_exit_code);
-        tokenize(swirl_FEEDED_FILE_SOURCE, swirl_FEEDED_FILE_PATH);
-        
-        std::string file_name = swirl_FEEDED_FILE_PATH.substr(swirl_FEEDED_FILE_PATH.find_last_of("/\\") + 1);
-        std::string out_dir = swirl_FEEDED_FILE_PATH.replace(swirl_FEEDED_FILE_PATH.find(file_name),file_name.length(),"");
+        preProcess(swirl_FED_FILE_SOURCE, swirl_FED_FILE_PATH, pre_processor_exit_code);
+        tokenize(swirl_FED_FILE_SOURCE, swirl_FED_FILE_PATH);
+
+        std::string file_name = swirl_FED_FILE_PATH.substr(swirl_FED_FILE_PATH.find_last_of("/\\") + 1);
+        std::string out_dir = swirl_FED_FILE_PATH.replace(swirl_FED_FILE_PATH.find(file_name),file_name.length(),"");
         file_name = file_name.substr(0, file_name.find_last_of("."));
         
-        std::string cpp_obj = "g++ " + getWorkingDirectory(swirl_FEEDED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP + file_name +".cpp" + " -o " + out_dir + file_name + " && " + "./" + out_dir + file_name;
+        std::string cpp_obj = "g++ " + getWorkingDirectory(swirl_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP + file_name +".cpp" + " -o " + out_dir + file_name + " && " + "./" + out_dir + file_name;
         system(cpp_obj.c_str());
     }
 }
