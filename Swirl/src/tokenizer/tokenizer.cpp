@@ -10,8 +10,10 @@
 
 void transpile(Object _expression, const std::string& fFilePath ) {
     std::vector<std::string> builtins = {"print", "len", "complex"};
-    std::string pr_txt = "#include <iostream>\n void print(const char* string, const char *end = \"\\n\") { std::cout << string << std::endl; }\n";
-    std::ofstream w_cpp_obj_file(getWorkingDirectory(fFilePath) + getPathSep() + "bin" + getPathSep() + "obj.cpp");
+    std::string pr_txt = "#include <iostream>\nvoid print(const char* string, const char *end = \"\\n\") { std::cout << string << end; }\n";
+    std::string file_name = fFilePath.substr(fFilePath.find_last_of("/\\") + 1);
+    file_name = file_name.substr(0, file_name.find_last_of("."));
+    std::ofstream w_cpp_obj_file(getWorkingDirectory(fFilePath) + getPathSep() + "__swirl_cache__" + getPathSep() + file_name + ".cpp");
 
     if (_expression.is_builtin) {
         w_cpp_obj_file << pr_txt << std::endl;
@@ -43,7 +45,7 @@ std::size_t getIndex(std::vector<Type>& _vec, T _item) {
 
 void tokenize(std::string _source, std::string _fFilePath) {
     std::vector<std::string> builtins = {
-            "print", "len", "complex"
+            "print", "len", "complex", "input"
     };
 
     auto* tokens = new std::vector<std::string>();

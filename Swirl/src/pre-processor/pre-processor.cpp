@@ -27,7 +27,7 @@ void preProcess(std::string _source, std::string _exeFilePath, uint8_t& _exitCod
 
     try {
         std::filesystem::create_directory(std::string(working_directory) + getPathSep() + "__swirl_cache__");
-        std::filesystem::create_directory(working_directory + getPathSep() + "bin");
+        // std::filesystem::create_directory(working_directory + getPathSep() + "__swirl_cache__");
         std::ofstream cached_file(swirl_cache_path + "file_cache.sw");
         for (const std::string& f_ln : f_file_lines) {
             if (f_ln.find('\\') != std::string::npos && !isInString(f_ln.find('\\'), f_ln)) {
