@@ -78,16 +78,11 @@ void replaceAll(std::string& _source, std::string _from, std::string _to) {
     }
 }
 
-
-std::string getPathSep() {
-    std::string path_sep;
-    #if defined(_WIN32)
-        path_sep = "\\"
-    #else
-        path_sep = "/";
-    #endif
-    return path_sep;
-}
+#if defined(_WIN32)
+#define PATH_SEP "\\"
+#else
+#define PATH_SEP "/"
+#endif
 
 template <class Iterable, typename Any>
 auto isIn(Iterable iter, Any val) {
@@ -103,7 +98,6 @@ auto isIn(Iterable iter, Any val) {
 //
 //    return ret;
 //}
-
 
 template <class Type, typename T>
 std::size_t getIndex(std::vector<Type> _vec, T _item) {
@@ -122,7 +116,7 @@ bool isInString(std::size_t _pos, std::string _source) {
 }
 
 std::string getWorkingDirectory(const std::string& _path) {
-    return _path.substr(0, _path.find_last_of(getPathSep()));
+    return _path.substr(0, _path.find_last_of(PATH_SEP));
 }
 
 std::vector<int> findAllOccurrences(std::string &str, char substr)

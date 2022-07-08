@@ -24,7 +24,11 @@ bool isInString(std::size_t, std::string);
 template <typename Indices>
 bool isInsideString(std::string &source, std::string substr, Indices stringIndices);
 
-std::string getPathSep();
+#if defined(_WIN32)
+#define PATH_SEP "\\"
+#else
+#define PATH_SEP "/"
+#endif
 
 //template <class Type, typename T>
 //std::size_t getIndex(std::vector<Type>, T);

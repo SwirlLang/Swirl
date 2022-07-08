@@ -13,7 +13,7 @@ void transpile(Object _expression, const std::string& fFilePath ) {
     std::string pr_txt = "#include <iostream>\nvoid print(const char* string, const char *end = \"\\n\") { std::cout << string << end; }\n";
     std::string file_name = fFilePath.substr(fFilePath.find_last_of("/\\") + 1);
     file_name = file_name.substr(0, file_name.find_last_of("."));
-    std::ofstream w_cpp_obj_file(getWorkingDirectory(fFilePath) + getPathSep() + "__swirl_cache__" + getPathSep() + file_name + ".cpp");
+    std::ofstream w_cpp_obj_file(getWorkingDirectory(fFilePath) + PATH_SEP + "__swirl_cache__" + PATH_SEP + file_name + ".cpp");
 
     if (_expression.is_builtin) {
         w_cpp_obj_file << pr_txt << std::endl;
@@ -51,10 +51,10 @@ void tokenize(std::string _source, std::string _fFilePath) {
     auto* tokens = new std::vector<std::string>();
     std::string cur_byte;
     std::vector<std::string> delimiters =
-            { "=", "+", "-", "*","/", "%", "&&", "!","//",
-              "///", "(", ")",".", "{", "}", "class", "func",
-              "import", "\n", " ", ":"
-            };
+        { "=", "+", "-", "*", "/", "%", "&&", "!", "//",
+         "///", "(", ")", ".", "{", "}", "class", "func",
+         "import", "\n", " ", ":"
+        };
 
     Object expression{};
     std::string s_current_ln;

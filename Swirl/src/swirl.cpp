@@ -48,7 +48,7 @@ int main(int argc, const char *argv[]) {
         std::string out_dir = swirl_FEEDED_FILE_PATH.replace(swirl_FEEDED_FILE_PATH.find(file_name),file_name.length(),"");
         file_name = file_name.substr(0, file_name.find_last_of("."));
         
-        std::string cpp_obj = "g++ " + getWorkingDirectory(swirl_FEEDED_FILE_PATH) + getPathSep()+ "__swirl_cache__" + getPathSep() + file_name +".cpp" + " -o " + out_dir + file_name + " && " + "./" + out_dir + file_name;
+        std::string cpp_obj = "g++ " + getWorkingDirectory(swirl_FEEDED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP + file_name +".cpp" + " -o " + out_dir + file_name + " && " + "./" + out_dir + file_name;
         system(cpp_obj.c_str());
     }
 }
