@@ -13,7 +13,7 @@ std::string swirl_FED_FILE_PATH;
 std::string swirl_OUTPUT;
 std::string swirl_FED_FILE_SOURCE;
 
-char swirl_help[] = R"(The Swirl compiler
+const char* swirl_help = R"(The Swirl compiler
 
 Usage: swirl <file-path> [-o] <output> [--debug]
 

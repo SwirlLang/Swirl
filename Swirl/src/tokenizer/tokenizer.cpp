@@ -71,12 +71,18 @@ void tokenize(std::string _source, std::string _fFilePath) {
                 s_current_ln.erase(s_current_ln.find('('), s_current_ln.find('(') + 1);
                 s_current_ln.erase(s_current_ln.find(')'), s_current_ln.find(')') + 1);
 
-                for (const auto& arg : splitIntoIterable(s_current_ln, ',')) {
-                    expression.arguments.push_back(arg);
+                // add the arguments to the expression
+                expression.arguments.push_back(s_current_ln.substr(s_current_ln.find('(') + 1, s_current_ln.find(')') - s_current_ln.find('(') - 1));
+                
+                // replace single quotes with double quotes in the argument
+                for (auto& arg : expression.arguments) {
+                    if (arg.find('\'') != std::string::npos) {
+                        arg.replace(arg.find('\''), 1, "\"");
+                        arg.replace(arg.find('\''), 1, "\"");
+                    }
                 }
             }
-        }
-
+        };
         transpile(expression, _fFilePath);
     }
 }
