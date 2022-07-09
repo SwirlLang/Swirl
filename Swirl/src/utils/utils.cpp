@@ -69,6 +69,12 @@ struct F_IO_Object
     };
 };
 
+#if defined(_WIN32)
+#define PATH_SEP "\\"
+#else
+#define PATH_SEP "/"
+#endif
+
 void replaceAll(std::string& _source, std::string _from, std::string _to) {
     std::size_t pos = _source.find(_from);
     while( pos != std::string::npos)
@@ -78,15 +84,9 @@ void replaceAll(std::string& _source, std::string _from, std::string _to) {
     }
 }
 
-#if defined(_WIN32)
-#define PATH_SEP "\\"
-#else
-#define PATH_SEP "/"
-#endif
-
 template <class Iterable, typename Any>
-auto isIn(Iterable iter, Any val) {
-    return std::find(iter.begin(), iter.end(), val);
+auto isIn(Iterable _iter, Any _val) {
+    return std::find(_iter.begin(), _iter.end(), _val);
 }
 
 //std::vector<std::string> sliceVec(std::vector<std::string>& _vec, std::size_t _m, std::size_t _n ) {
@@ -119,23 +119,23 @@ std::string getWorkingDirectory(const std::string& _path) {
     return _path.substr(0, _path.find_last_of(PATH_SEP));
 }
 
-std::vector<int> findAllOccurrences(std::string &str, char substr)
+std::vector<int> findAllOccurrences(std::string& _str, char _substr)
 {
     std::vector<int> ret;
     int loop_count;
-    for (loop_count = 0; loop_count < str.length(); loop_count++)
-        if (str[loop_count] == substr)
+    for (loop_count = 0; loop_count < _str.length(); loop_count++)
+        if (_str[loop_count] == _substr)
             ret.push_back(loop_count);
 
     return ret;
 }
 
-std::string splitString(std::string string, char delimiter)
+std::string splitString(std::string _str, char _delimiter)
 {
     std::string ret;
-    for (auto item : string)
+    for (auto item : _str)
     {
-        if (item != delimiter)
+        if (item != _delimiter)
             ret += item;
         else
             break;
@@ -143,13 +143,13 @@ std::string splitString(std::string string, char delimiter)
     return ret;
 }
 
-std::vector<std::string> splitIntoIterable(std::string string, char delimeter)
+std::vector<std::string> splitIntoIterable(std::string _str, char _delimeter)
 {
     std::vector<std::string> ret;
     std::string temp;
-    for (auto item : string)
+    for (auto item : _str)
     {
-        if (item != delimeter)
+        if (item != _delimeter)
             temp += item;
         else
         {
