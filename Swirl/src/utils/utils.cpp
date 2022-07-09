@@ -117,7 +117,7 @@ bool isInString(std::size_t _pos, std::string _source) {
 
 std::string getWorkingDirectory(const std::string& _path) {
     if (_path.find_last_of(PATH_SEP) == std::string::npos) {
-        return "." + _path;
+        return ".";
     }
     return _path.substr(0, _path.find_last_of(PATH_SEP));
 }
