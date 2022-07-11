@@ -8,12 +8,17 @@
 #include <tokenizer/tokenizer.h>
 //#include <transpiler/transpiler.h>
 
+#if defined(_WIN32)
+#define PATH_SEP_CHAR '\\'
+#else
+#define PATH_SEP_CHAR '/'
+#endif
 bool swirl_DEBUG = false;
 std::string swirl_FED_FILE_PATH;
 std::string swirl_OUTPUT;
 std::string swirl_FED_FILE_SOURCE;
 
-const char* swirl_help = R"(The Swirl compiler
+const char *swirl_help = R"(The Swirl compiler
 
 Usage: swirl <file-path> [-o] <output> [--debug]
 
@@ -47,8 +52,15 @@ int main(int argc, const char *argv[]) {
         std::string file_name = swirl_FED_FILE_PATH.substr(swirl_FED_FILE_PATH.find_last_of("/\\") + 1);
         std::string out_dir = swirl_FED_FILE_PATH.replace(swirl_FED_FILE_PATH.find(file_name),file_name.length(),"");
         file_name = file_name.substr(0, file_name.find_last_of("."));
-        
-        std::string cpp_obj = "g++ " + getWorkingDirectory(swirl_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP + file_name +".cpp" + " -o " + out_dir + file_name + " && " + "." + PATH_SEP + out_dir + file_name;
+
+        std::string cpp_obj;
+        if (out_dir[0] == PATH_SEP_CHAR)
+        {
+            cpp_obj = "g++ " + getWorkingDirectory(swirl_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP + file_name + ".cpp" + " -o " + out_dir + file_name + " && " + out_dir + file_name;
+        }
+        else {
+            cpp_obj = "g++ " + getWorkingDirectory(swirl_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP + file_name + ".cpp" + " -o " + out_dir + file_name + " && " + "." + PATH_SEP + out_dir + file_name;
+        }
         system(cpp_obj.c_str());
     }
 }
