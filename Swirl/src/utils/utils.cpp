@@ -5,6 +5,8 @@
 
 #include "swirl.typedefs/swirl_t.h"
 
+#define LOG(x) if (_debug) std::cout << "[DEBUG] " << "[" << __builtin_FUNCTION() << "]\t" << x << std::endl;
+
 struct F_IO_Object
 {
     class R_ModeObject

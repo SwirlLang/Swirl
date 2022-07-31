@@ -1,32 +1,33 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <sstream>
 #include <algorithm>
+#include <array>
 
 #include <utils/utils.h>
 #include <object/object.h>
 //#include <transpiler/transpiler.h>
 
-void transpile(Object _expression, const std::string& fFilePath ) {
+void transpile(std::string& expression, std::string fFilePath) {
     std::vector<std::string> builtins = {"print", "len", "complex"};
     std::string pr_txt = "#include <iostream>\nvoid print(const char* string, const char *end = \"\\n\") { std::cout << string << end; }\n";
     std::string file_name = fFilePath.substr(fFilePath.find_last_of("/\\") + 1);
     file_name = file_name.substr(0, file_name.find_last_of("."));
     std::ofstream w_cpp_obj_file(getWorkingDirectory(fFilePath) + PATH_SEP + "__swirl_cache__" + PATH_SEP + file_name + ".cpp");
 
-    if (_expression.is_builtin) {
-        w_cpp_obj_file << pr_txt << std::endl;
-
-        w_cpp_obj_file << "int main() {";
-        w_cpp_obj_file << _expression.calls_to + '(';
-        for (auto const& arg : _expression.arguments) {
-            w_cpp_obj_file << arg;
-        }
-
-        w_cpp_obj_file << ");";
-        w_cpp_obj_file << "}";
-    }
+    std::cout << expression << std::endl;
+//    if (_expression.is_builtin) {
+//        w_cpp_obj_file << pr_txt << std::endl;
+//
+//        w_cpp_obj_file << "int main() {";
+//        w_cpp_obj_file << _expression.calls_to + '(';
+//        for (auto const& arg : _expression.arguments) {
+//            w_cpp_obj_file << arg;
+//        }
+//
+//        w_cpp_obj_file << ");";
+//        w_cpp_obj_file << "}";
+//    }
 
     w_cpp_obj_file.close();
 }
@@ -43,46 +44,37 @@ std::size_t getIndex(std::vector<Type>& _vec, T _item) {
 }
 
 
-void tokenize(std::string _source, std::string _fFilePath) {
-    std::vector<std::string> builtins = {
-            "print", "len", "complex", "input"
-    };
-
+void tokenize(std::string _source, std::string _fFilePath, bool _debug = false) {
+    std::string c_byte;
     auto* tokens = new std::vector<std::string>();
-    std::string cur_byte;
-    std::vector<std::string> delimiters =
-        { "=", "+", "-", "*", "/", "%", "&&", "!", "//",
-         "///", "(", ")", ".", "{", "}", "class", "func",
-         "import", "\n", " ", ":"
-        };
+    std::vector<std::string> expressions;
+    std::array<char, 4> delimiters = {'(', ')', ' ', '\n'};
 
-    Object expression{};
-    std::string s_current_ln;
-    auto ss_buf = std::istringstream(_source);
-
-    while ( std::getline(ss_buf, s_current_ln)) {
-        // TODO implement Multiline expression support
-        for (auto const& builtin : builtins) {
-            if (s_current_ln.find(builtin) != std::string::npos) {
-                expression.is_builtin = true;
-                expression.calls_to = builtin;
-
-                s_current_ln.erase(s_current_ln.find(builtin), builtin.size());
-                s_current_ln.erase(s_current_ln.find('('), s_current_ln.find('(') + 1);
-                s_current_ln.erase(s_current_ln.find(')'), s_current_ln.find(')') + 1);
-
-                // add the arguments to the expression
-                expression.arguments.push_back(s_current_ln.substr(s_current_ln.find('(') + 1, s_current_ln.find(')') - s_current_ln.find('(') - 1));
-                
-                // replace single quotes with double quotes in the argument
-                for (auto& arg : expression.arguments) {
-                    if (arg.find('\'') != std::string::npos) {
-                        arg.replace(arg.find('\''), 1, "\"");
-                        arg.replace(arg.find('\''), 1, "\"");
-                    }
-                }
-            }
-        };
-        transpile(expression, _fFilePath);
+    // Makes tokens out of the char stream
+    for (const auto& chr : _source) {
+        if (std::find(delimiters.begin(), delimiters.end(), chr) != delimiters.end()) {
+            tokens->push_back(c_byte);
+            c_byte.clear();
+            tokens->push_back(std::string(1, chr));
+        } else {
+            c_byte += chr;
+        }
     }
+
+    std::string exp;
+    std::array<const char*, 2> expression{nullptr, nullptr};
+    for (const auto elem : *tokens) {
+        if (elem != "\n") {
+            exp.append(elem);
+        } else {
+            transpile(exp, _fFilePath);
+            exp.clear();
+        }
+    }
+
+    for (auto elem : expressions) {
+        LOG(elem)
+    }
+
+    delete tokens;
 }

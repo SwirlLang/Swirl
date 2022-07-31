@@ -6,6 +6,8 @@
 #ifndef UTILS_H_Swirl
 #define UTILS_H_Swirl
 
+#define LOG(x) if (_debug) std::cout << "[DEBUG] " << "[" << __builtin_FUNCTION() << "]\t" << x << std::endl;
+
 struct F_IO_Object
 {
     class R_ModeObject;

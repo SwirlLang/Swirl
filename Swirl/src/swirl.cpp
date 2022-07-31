@@ -41,8 +41,10 @@ int main(int argc, const char *argv[]) {
         while (std::getline(fed_file_src_buf, src_current_ln)){
             swirl_FED_FILE_SOURCE += src_current_ln + "\n";
         }
+
+        bool _debug = strcmp(argv[0], "--debug") != 0;
         preProcess(swirl_FED_FILE_SOURCE, swirl_FED_FILE_PATH, pre_processor_exit_code);
-        tokenize(swirl_FED_FILE_SOURCE, swirl_FED_FILE_PATH);
+        tokenize(swirl_FED_FILE_SOURCE, swirl_FED_FILE_PATH, _debug);
 
         std::string file_name = swirl_FED_FILE_PATH.substr(swirl_FED_FILE_PATH.find_last_of("/\\") + 1);
         std::string out_dir = swirl_FED_FILE_PATH.replace(swirl_FED_FILE_PATH.find(file_name),file_name.length(),"");
