@@ -64,7 +64,6 @@ list my_cool_list = [1, "2", 3.0]
 ## Type Qualifiers
 
 `const` ~ marks the variable as constant
-`var` ~ optional weak typing, makes the compiler check for the type.
 
 ## Conditional and Loop statements
 
