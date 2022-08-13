@@ -46,25 +46,24 @@ func demo() {
 ## Data types
 
 ```
-string name = "rick"  // char[]
+string name = "rick"  // Swirl::string(const char*) 
 ```
 
 ```
-int name = 7  // dynamic integer blob (arbitrary precision)
+int name = 7  // Max 128 bit
 ```
 
 ```
-float my_float = 0.1  // dynamic float blob
+float my_float = 0.1
 ```
 
 ```
-list my_cool_list = [1, "2", 3.0]
+list my_cool_list = [1, "2", 3.0] 
 ```
 
 ## Type Qualifiers
 
 `const` ~ marks the variable as constant
-`var` ~ optional weak typing, makes the compiler check for the type.
 
 ## Conditional and Loop statements
 
