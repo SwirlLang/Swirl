@@ -5,7 +5,8 @@
 
 #include <pre-processor/pre-processor.h>
 #include <swirl.typedefs/swirl_t.h>
-#include <tokenizer/tokenizer.h>
+#include <tokenizer/Tokenizer.h>
+#include <definitions/definitions.h>
 //#include <transpiler/transpiler.h>
 
 bool swirl_DEBUG = false;
@@ -29,6 +30,7 @@ Use swirl [command] --help for more information about the command)";
 
 int main(int argc, const char *argv[]) {
     uint8_t pre_processor_exit_code;
+    defs defs{};
 
     if (argc <= 1) {
         std::cout << swirl_help << std::endl;
@@ -44,8 +46,6 @@ int main(int argc, const char *argv[]) {
 
         bool _debug = strcmp(argv[0], "--debug") != 0;
         preProcess(swirl_FED_FILE_SOURCE, swirl_FED_FILE_PATH, pre_processor_exit_code);
-        tokenize(swirl_FED_FILE_SOURCE, swirl_FED_FILE_PATH, _debug);
-
         std::string file_name = swirl_FED_FILE_PATH.substr(swirl_FED_FILE_PATH.find_last_of("/\\") + 1);
         std::string out_dir = swirl_FED_FILE_PATH.replace(swirl_FED_FILE_PATH.find(file_name),file_name.length(),"");
         file_name = file_name.substr(0, file_name.find_last_of("."));
