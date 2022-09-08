@@ -5,6 +5,7 @@
 
 #include <pre-processor/pre-processor.h>
 #include <swirl.typedefs/swirl_t.h>
+#include <tokenizer/InputStream.h>
 #include <tokenizer/Tokenizer.h>
 #include <definitions/definitions.h>
 //#include <transpiler/transpiler.h>
@@ -44,7 +45,10 @@ int main(int argc, const char *argv[]) {
             swirl_FED_FILE_SOURCE += src_current_ln + "\n";
         }
 
-        bool _debug = strcmp(argv[0], "--debug") != 0;
+        uint8_t _debug = strcmp(argv[0], "--debug") != 0;
+        InputStream is(swirl_FED_FILE_SOURCE);
+        TokenStream tk(is);
+
         preProcess(swirl_FED_FILE_SOURCE, swirl_FED_FILE_PATH, pre_processor_exit_code);
         std::string file_name = swirl_FED_FILE_PATH.substr(swirl_FED_FILE_PATH.find_last_of("/\\") + 1);
         std::string out_dir = swirl_FED_FILE_PATH.replace(swirl_FED_FILE_PATH.find(file_name),file_name.length(),"");
