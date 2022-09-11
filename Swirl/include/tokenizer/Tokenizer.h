@@ -3,6 +3,8 @@
 #include <limits>
 #include <array>
 #include <functional>
+#include <cstring>
+#include <sstream>
 
 #include <tokenizer/InputStream.h>
 #include <utils/utils.h>
@@ -16,16 +18,18 @@ class TokenStream {
     std::string m_Ret;
     std::string m_Rax;
     InputStream m_Stream;
+    std::array<const char*, 2> m_Cur = {nullptr, nullptr};
     std::string keywords = "func return if else for while"
                            " is in or and class public"
                            " static int string float bool";
 public:
     explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream) {}
+
     bool isKeyword(const std::string& _str) { return keywords.find(_str) != std::string::npos; }
     static bool isDigit(char _chr) { return std::string("1 2 3 4 5 6 7 8 9 0").find(std::string(1, _chr)) != std::string::npos; }
     static uint8_t isId(char chr) { return isIdStart(chr) || std::string("\"?!-<>=0123456789").find(chr) != std::string::npos; }
     static bool isIdStart(char _chr) {
-        return std::string("_ a b c d e f g h i j k l m n o p q r s t u v w x y z").find(std::string(1, _chr)) != std::string::npos;
+        return std::string("_abcdefghijklmnopqrstuvwxyz").find(std::string(1, _chr)) != std::string::npos;
     }
 
     static uint8_t isPunctuation(char chr) { return std::string("();,{}[]").find(chr) >= 0; }
@@ -73,10 +77,10 @@ public:
     }
 
     std::array<const char*, 2> readIdent() {
-        auto ident = readWhile(isId);
+        m_Rax = readWhile(isId);
         return {
-                isKeyword(ident) ? "ident" : "var",
-                ident.c_str()
+                isKeyword(m_Rax) ? "ident" : "var",
+                m_Rax.c_str()
         };
     }
 
@@ -117,6 +121,22 @@ public:
 
         m_Stream.raiseException(strcat("Failed to handle token ", &chr));
     }
+
+    auto peek() {
+        if (m_Cur.empty()) {
+            m_Cur = readNextTok();
+            return m_Cur;
+        }
+    }
+
+    auto next() {
+        auto token = m_Cur;
+        m_Cur = {nullptr, nullptr};
+        if (token[0] && token[1] == nullptr)
+            return readNextTok();
+    }
+
+    bool eof() { return m_Stream.eof(); }
 };
 
 #endif
