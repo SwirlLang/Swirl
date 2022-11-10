@@ -34,11 +34,11 @@ public:
     static bool isDigit(char _chr) { return std::string("1234567890").find(std::string(1, _chr)) != std::string::npos; }
     static uint8_t isId(char chr) { return isIdStart(chr) || std::string("\"?!-<>=0123456789").find(chr) != std::string::npos; }
     static bool isIdStart(char _chr) {
-        return std::string("_abcdefghijklmnopqrstuvwxyz").find(std::string(1, _chr)) != std::string::npos;
+        return std::string("_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz").find(std::string(1, _chr)) != std::string::npos;
     }
 
     static bool isPunctuation(char chr) { return std::string("();,{}[]").find(chr) >= 0; }
-    static bool isOpChar(char _chr) { return std::find(DEF.op_chars.begin(), DEF.op_chars.end(), _chr) != DEF.op_chars.end(); }
+    static bool isOpChar(char _chr) { return std::string("!=*&<>-/").find(_chr) != std::string::npos; }
     static bool isWhiteSpace(char _chr) { return std::string(" \t\n").find(_chr) != std::string::npos; }
 
     std::string readWhile(const std::function<bool (char)>& delimiter) {
