@@ -1,4 +1,5 @@
 #include <tokenizer/Tokenizer.h>
+#include <array>
 #include <map>
 
 #ifndef SWIRL_PARSER_H
@@ -6,7 +7,7 @@
 
 struct Node {
     std::string type;
-    std::array<const char*, 2> value;
+    std::string value;
     std::string ident;
     bool append_chl = false;
 
