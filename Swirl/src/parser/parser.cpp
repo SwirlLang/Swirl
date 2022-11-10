@@ -31,9 +31,7 @@ void Parser::dispatch() {
             if (t_type == "IDENT") {
                 tmp_ident = t_val;
                 m_Stream.next();
-                std::cout << std::string(m_Stream.p_CurTk[1]);
                 if (std::string(m_Stream.p_CurTk[1]) == "(" ) {
-                    std::cout << m_Stream.p_CurTk[1] << m_Stream.p_CurTk[0] << std::endl;
                     parseCall(tmp_ident.c_str());
                 }
             }
@@ -82,7 +80,6 @@ void Parser::parseCall(const char* _ident) {
 //            std::cout << "REACHED!" << std::endl;
             arg_node.type = tk_type;
             arg_node.value = tk_val;
-            std::cout << arg_node.value[0] << arg_node.value[1];
             call_node.args.push_back(arg_node);
         }
     }
