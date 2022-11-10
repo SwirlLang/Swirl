@@ -18,12 +18,10 @@ line
 Comment ///
 ```
 
-## Example function definition
+## Functions
 
 ```
-func demo() {
-    print("Hello world!")
-}
+func <ident>([...]): <type> { [...] }
 ```
 
 ## Builtin functions
@@ -45,25 +43,17 @@ func demo() {
 
 ## Data types
 
-```
-string name = "rick"  // Swirl::string(const char*) 
-```
-
-```
-int name = 7  // Max 128 bit
-```
-
-```
-float my_float = 0.1
-```
-
-```
-list my_cool_list = [1, "2", 3.0] 
-```
+| Type   | About                     |
+| ------ | --------------------------|
+| string | Instance of Swirl::String |
+| int    | Primitive type (keyword)  |
+| float  | Primitive type (keyword)  |
+| bool   | Primitive type (keyword)  | 
 
 ## Type Qualifiers
 
 `const` ~ marks the variable as constant
+`var` ~ makes the compiler checks for the type itself
 
 ## Conditional and Loop statements
 
