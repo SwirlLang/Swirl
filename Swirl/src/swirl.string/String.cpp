@@ -14,11 +14,11 @@ public:
     // bool operator!=(Swirl_String comp) { return comp.__to_cstr__() != value; }
     // bool operator==(Swirl_String comp) { return comp.__to_cstr__() == value; }
 
-    Swirl_String operator+(Swirl_String str) { return strcat(value, str.__to_cstr__()); }
-    Swirl_String operator*(int num) { return strncat(value, value, num); }
+    Swirl_String operator+(Swirl_String str) const { return strcat(value, str.__to_cstr__()); }
+    Swirl_String operator*(int num) const { return strncat(value, value, num); }
 
-    bool operator==(Swirl_String comp) { return strcmp(value, comp.__to_cstr__()) == 0; }
-    bool operator!=(Swirl_String comp) { return strcmp(value, comp.__to_cstr__()) != 0; }
+    bool operator==(Swirl_String comp) const { return strcmp(value, comp.__to_cstr__()) == 0; }
+    bool operator!=(Swirl_String comp) const { return strcmp(value, comp.__to_cstr__()) != 0; }
     bool has(Swirl_String str) { return strstr(value, str.__to_cstr__()) != nullptr; }
 
     int length() { return strlen(value); }
@@ -31,13 +31,13 @@ public:
         char *token = strtok(str, chr.__to_cstr__());
         while (token != nullptr)
         {
-            result.push_back(Swirl_String(token));
+            result.emplace_back(token);
             token = strtok(nullptr, chr.__to_cstr__());
         }
         return result;
     }
 
-    Swirl_String erase(Swirl_String str)
+    [[nodiscard]] Swirl_String erase(Swirl_String str) const
     {
         char *result = strstr(value, str.__to_cstr__());
         if (result != nullptr)
@@ -45,9 +45,9 @@ public:
             char *new_str = new char[strlen(value) - strlen(str.__to_cstr__()) + 1];
             strcpy(new_str, value);
             strcpy(new_str + (result - value), result + strlen(str.__to_cstr__()));
-            return Swirl_String(new_str);
+            return {new_str};
         }
-        return Swirl_String(value);
+        return {value};
     }
 
     int find(Swirl_String str)
@@ -65,9 +65,9 @@ public:
             char *new_str = new char[strlen(value) - strlen(before.__to_cstr__()) + strlen(after.__to_cstr__()) + 1];
             strcpy(new_str, value);
             strcpy(new_str + (result - value), after.__to_cstr__());
-            return Swirl_String(new_str);
+            return {new_str};
         }
-        return Swirl_String(value);
+        return {value};
     }
 
     int toInt() { return atoi(value); }
