@@ -4,7 +4,6 @@
 InputStream::InputStream(std::string& _source): m_Source(_source) {
     std::stringstream src_strm(_source);
     for (std::string cr_ln; std::getline(src_strm, cr_ln); m_TotalLns++ ) {}
-    std::cout << m_TotalLns << std::endl;
 }
 
 char InputStream::peek() {
