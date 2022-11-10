@@ -5,8 +5,7 @@
 #define SWIRL_DEFINITIONS_H
 struct defs {
     enum TokenType {
-        Keyword, Id, Integer, String, Float, Bool,
-        Parentheses, Operator, Brace, Punctuation
+        STRING, IDENT, NUMBER, PUNC
     };
 
     std::array<const char *, 20> keywords = {
@@ -16,12 +15,13 @@ struct defs {
             "false", "var"
     };
 
-    std::array<std::string, 5> builtins = {
-            "print", "len", "abs", "hash", "eval"
+    std::array<std::string, 2> builtins = {
+            "print", "len"
     };
 
     std::array<char, 9> op_chars = {'*', '!', '=', '%', '+', '-', '/', '>', '<'};
 
+    std::array<char, 8> puncs = {'(', ')', ';', ',', '{', '}', '[', ']'};
     std::array<char, 6> delimiters = {'(', ')', ' ', '\n', ')', '{',};
 };
 
