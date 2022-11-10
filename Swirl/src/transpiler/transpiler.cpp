@@ -43,7 +43,7 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
     for (auto const& child : _ast.chl) {
         if (child.type == "CALL") {
             compiled_source += child.ident + "(";
-            int args_count;
+            int args_count = 0;
             for (const auto& arg : child.args) {
                 if (arg.type == "STRING")
                     compiled_source += "\"" + arg.value + "\"";
