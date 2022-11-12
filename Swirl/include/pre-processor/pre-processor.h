@@ -6,5 +6,5 @@
 
 #ifndef PRE_PROCESSOR_H_SWIRL
 #define PRE_PROCESSOR_H_SWIRL
-void preProcess(std::string, std::string, uint8_t&);
+void preProcess(const std::string&, std::string);
 #endif
