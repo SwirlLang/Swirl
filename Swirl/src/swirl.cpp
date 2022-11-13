@@ -47,6 +47,7 @@ int main(int argc, const char* argv[]) {
             std::cerr << "File " << swirl_FED_FILE_PATH << " doesn't exists!" << std::endl;
             return 1;
         }
+
         std::ifstream fed_file_src_buf(swirl_FED_FILE_PATH);
         std::string src_current_ln;
         while (std::getline(fed_file_src_buf, src_current_ln)){
@@ -77,7 +78,6 @@ int main(int argc, const char* argv[]) {
         Transpile(*parser.m_AST, cache_dir + file_name + ".cpp");
 
         if (std::find(args.begin(), args.end(), "--run") != args.end()) {
-            std::cout << "found";
             std::string cpp_obj =
                     "g++ " + cache_dir + file_name + ".cpp" + " -o " + out_dir + file_name + " && " + "." + PATH_SEP +
                     out_dir + file_name;
