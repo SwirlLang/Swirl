@@ -39,6 +39,12 @@ int main(int argc, const char *argv[]) {
         std::cout << swirl_help << std::endl;
 
     if (argc > 1) {
+        std::string str_argv(argv[1]);
+        if (str_argv == "-h" || str_argv == "--help") {
+            std::cout << swirl_help << std::endl;
+            return 0;
+        }
+
         swirl_FED_FILE_PATH = argv[1];
         if (!std::filesystem::exists(swirl_FED_FILE_PATH)) {
             std::cerr << "File " << swirl_FED_FILE_PATH << " doesn't exists!" << std::endl;

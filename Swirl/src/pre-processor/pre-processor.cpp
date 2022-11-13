@@ -22,10 +22,8 @@ void preProcess(const std::string& _source, std::string _buildPath) {
         system(cr_dir.c_str());
 
     std::ofstream cache_file(_buildPath + "__swirl_cache__" + PATH_SEP + "__main__.sw");
-//
-//    for ( std::string cr_ln; std::getline(source_strm, cr_ln); ) {
-//        if (cr_ln.find("import") != std::string::npos && cr_ln.find("//") == std::string::npos) {
-//
-//        }
-//    }
+
+    for ( std::string cr_ln; std::getline(source_strm, cr_ln); ) {
+        
+    }
 }
