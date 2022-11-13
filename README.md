@@ -3,10 +3,9 @@
 
 # Swirl programming language
 Swirl is a high level, statically typed, object-oriented and a feature rich programming language.
-<!--
+
 [Website](https://swirl-lang.vercel.app) |
 [Docs](https://swirl-lang.vercel.app/docs) |
--->
 [Contributing](./CONTRIBUTING.md)  
 
 [![vscode extension](https://img.shields.io/visual-studio-marketplace/v/MrinmoyHaloi.swirl-lang-support?color=blue&label=VSCode%20Extension&logo=visualstudiocode&logoColor=blue&style=flat-square)](https://marketplace.visualstudio.com/items?itemName=MrinmoyHaloi.swirl-lang-support)
