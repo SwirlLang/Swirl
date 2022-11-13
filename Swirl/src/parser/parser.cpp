@@ -76,7 +76,6 @@ void Parser::parseCall(const char* _ident) {
         const std::string tk_val(tk_cache[1]);
 
 //        std::cout << m_Stream.p_CurTk[0] << std::endl;
-
         if (tk_type != "PUNC") {  // TODO: scenario not considered: f(<object>.<method>())
 //            std::cout << "REACHED!" << std::endl;
             arg_node.type = tk_type;
