@@ -19,6 +19,7 @@
 const defs DEF{};
 
 class TokenStream {
+    bool m_Debug;
     std::string m_Ret;
     std::string m_Rax;
     InputStream m_Stream;
@@ -27,7 +28,7 @@ class TokenStream {
 public:
     std::array<const char*, 2> p_CurTk = {"", ""};
 
-    explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream) {}
+    explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {}
 
     bool isKeyword(const std::string& _str) { return std::find(DEF.keywords.begin(), DEF.keywords.end(), _str) != DEF.keywords.end(); }
 
@@ -131,6 +132,8 @@ public:
 
     std::array<const char*, 2> next() {
         p_CurTk = readNextTok();
+        if (m_Debug)
+            std::cout << "Token Requested:\t\t" << p_CurTk[0] << "\t\t" << p_CurTk[1] << std::endl;
         return p_CurTk;
     }
 
