@@ -1,0 +1,126 @@
+# **what it does ?**
+# Take the given commit, run unit tests specifically on that sha, build and
+# package it, and then release to GitHub
+
+# **why it does ?**
+# Ensure an automated and tested release process
+
+# **when it does ?**
+# This will only run manually with a given sha and version
+
+name: Release to GitHub
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+       description: 'The last commit sha in the release'
+       required: true
+      version_number:
+       description: 'The release version number (i.e. 1.0.0, 0.0.1-alpha)'
+       required: true
+
+permissions:
+  contents: write # this is the permission that allows creating a new release
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.inputs.sha }}
+
+      - name: Configure CMake
+        run: |
+            if [ "${{ matrix.os }}" == "windows-latest" ]; then
+              cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S Swirl -G "MinGW Makefiles"
+            else
+              cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S Swirl
+            fi
+      
+      - name: Build
+        run: cmake --build build --config ${{env.BUILD_TYPE}}
+
+      - name: rename and run the app
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            mv build/swirl.exe build/swirl-$RUNNER_OS.exe
+            ./build/swirl-$RUNNER_OS.exe
+          else
+            mv build/swirl build/swirl-$RUNNER_OS
+            ./build/swirl-$RUNNER_OS
+          fi
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: binary
+          path: build/swirl-$RUNNER_OS*
+
+  test-build:
+    name: verify app
+
+    needs: [build]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: binary
+          path: .
+
+      - name: run the app
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            ./swirl-$RUNNER_OS.exe
+          else
+            ./swirl-$RUNNER_OS
+          fi
+
+  github-release:
+    name: GitHub Release
+
+    needs: test-build
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: binary
+          path: .
+
+      # Need to set an output variable because env variables can't be taken as input
+      # This is needed for the next step with releasing to GitHub
+      - name: Find release type
+        id: release_type
+        env:
+          IS_PRERELEASE: ${{ contains(github.event.inputs.version_number, 'alpha') ||  contains(github.event.inputs.version_number, 'beta') }}
+        run: |
+          echo "isPrerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+
+      - name: Creating GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: v${{github.event.inputs.version_number}}
+          tag_name: v${{github.event.inputs.version_number}}
+          prerelease: ${{ steps.release_type.outputs.isPrerelease }}
+          target_commitish: ${{github.event.inputs.sha}}
+          body: |
+            Hey this is a test release
+          files: |
+            swirl-Linux
+            swirl-macOS
+            swirl-Windows.exe
