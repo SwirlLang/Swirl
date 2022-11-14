@@ -30,14 +30,14 @@ jobs:
       # cmake -B build -S Swirl -G "MinGW Makefiles"
       run: |
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            cmake -B ${{github.workspace}}/build -S Swirl -G "MinGW Makefiles"
+            cmake -B build -S Swirl -G "MinGW Makefiles"
           else
-            cmake -B ${{github.workspace}}/build -S Swirl
+            cmake -B build -S Swirl
           fi
 
     - name: Build
       # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      run: cmake --build build --config ${{env.BUILD_TYPE}}
       
     - name: Run app
       # Run the app to see if it works
