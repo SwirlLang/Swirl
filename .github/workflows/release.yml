@@ -132,5 +132,5 @@ jobs:
             Hey this is a test release
           files: |
             swirl-Linux
-            swirl-macOS
+            swirl-MacOS
             swirl-Windows.exe
