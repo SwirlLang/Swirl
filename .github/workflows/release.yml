@@ -60,18 +60,21 @@ jobs:
       - name: rename and run the app
         run: |
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            mv build/swirl.exe build/swirl-$RUNNER_OS.exe
-            ./build/swirl-$RUNNER_OS.exe
+            mv build/swirl.exe build/swirl-Windows.exe
+            ./build/swirl-Windows.exe
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            mv build/swirl build/swirl-MacOS
+            ./build/swirl-MacOS
           else
-            mv build/swirl build/swirl-$RUNNER_OS
-            ./build/swirl-$RUNNER_OS
+            mv build/swirl build/swirl-Linux
+            ./build/swirl-Linux
           fi
 
       - name: Upload binary
         uses: actions/upload-artifact@v2
         with:
           name: binary
-          path: build/swirl-$RUNNER_OS*
+          path: build/swirl-*
 
   test-build:
     name: verify app
@@ -89,9 +92,11 @@ jobs:
       - name: run the app
         run: |
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            ./swirl-$RUNNER_OS.exe
+            ./swirl-Windows.exe
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            ./swirl-MacOS
           else
-            ./swirl-$RUNNER_OS
+            ./swirl-Linux
           fi
 
   github-release:
