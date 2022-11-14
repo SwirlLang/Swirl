@@ -77,11 +77,13 @@ jobs:
           path: build/swirl-*
 
   test-build:
+    strategy:
+        matrix:
+          os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     name: verify app
 
     needs: [build]
-
-    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/download-artifact@v2
