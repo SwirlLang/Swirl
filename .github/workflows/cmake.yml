@@ -1,4 +1,4 @@
-name: test CMake application
+name: build app
 
 on: [push, pull_request]
 
