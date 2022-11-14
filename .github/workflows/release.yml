@@ -96,8 +96,10 @@ jobs:
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
             ./swirl-Windows.exe
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            ./swirl-MacOS
+            chmod +x swirl-MacOS
+            ./swirl-MacOS              
           else
+            chmod +x swirl-Linux
             ./swirl-Linux
           fi
 
