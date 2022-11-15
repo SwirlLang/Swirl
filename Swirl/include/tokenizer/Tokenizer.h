@@ -60,8 +60,10 @@ public:
             if (is_escaped) {
                 ret += chr;
                 is_escaped = false;
-            } else if (chr == '\\')
+            } else if (chr == '\\') {
+                ret += '\\';
                 is_escaped = true;
+            }
             else if (chr == _end)
                 break;
             else
