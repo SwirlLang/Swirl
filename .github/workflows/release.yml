@@ -66,7 +66,7 @@ jobs:
             mv build/swirl build/swirl-macos
             ./build/swirl-macos
           else
-            mv build/swirl build/swirl-Linux
+            mv build/swirl build/swirl-linux
             ./build/swirl-linux
           fi
 
