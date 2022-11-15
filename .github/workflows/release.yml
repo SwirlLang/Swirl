@@ -8,7 +8,7 @@
 # **when it does ?**
 # This will only run manually with a given sha and version
 
-name: Release to GitHub
+name: Release new version
 
 on:
   workflow_dispatch:
@@ -21,10 +21,10 @@ on:
        required: true
 
 permissions:
-  contents: write # this is the permission that allows creating a new release
+  contents: write # permission to allow creating a new release
 
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  # Change CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
 
 
@@ -60,14 +60,14 @@ jobs:
       - name: rename and run the app
         run: |
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            mv build/swirl.exe build/swirl-Windows.exe
-            ./build/swirl-Windows.exe
+            mv build/swirl.exe build/swirl-windows.exe
+            ./build/swirl-windows.exe
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            mv build/swirl build/swirl-MacOS
-            ./build/swirl-MacOS
+            mv build/swirl build/swirl-macos
+            ./build/swirl-macos
           else
             mv build/swirl build/swirl-Linux
-            ./build/swirl-Linux
+            ./build/swirl-linux
           fi
 
       - name: Upload binary
@@ -76,37 +76,10 @@ jobs:
           name: binary
           path: build/swirl-*
 
-  test-build:
-    strategy:
-        matrix:
-          os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    name: verify app
-
-    needs: [build]
-
-    steps:
-      - uses: actions/download-artifact@v2
-        with:
-          name: binary
-          path: .
-
-      - name: run the app
-        run: |
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            ./swirl-Windows.exe
-          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            chmod +x swirl-MacOS
-            ./swirl-MacOS              
-          else
-            chmod +x swirl-Linux
-            ./swirl-Linux
-          fi
-
   github-release:
     name: GitHub Release
 
-    needs: test-build
+    needs: build
 
     runs-on: ubuntu-latest
 
@@ -132,9 +105,8 @@ jobs:
           tag_name: v${{github.event.inputs.version_number}}
           prerelease: ${{ steps.release_type.outputs.isPrerelease }}
           target_commitish: ${{github.event.inputs.sha}}
-          body: |
-            Hey this is a test release
+          generate_release_notes: true
           files: |
-            swirl-Linux
-            swirl-MacOS
-            swirl-Windows.exe
+            swirl-linux
+            swirl-macos
+            swirl-windows.exe
