@@ -70,8 +70,8 @@ public:
         return ret;
     }
 
-    std::array<const char*, 2> readString() {
-        m_Ret = readEscaped('"');
+    std::array<const char*, 2> readString(char del = '"') {
+        m_Ret = readEscaped(del);
         return {"STRING", m_Ret.c_str()};
     }
 
@@ -108,6 +108,7 @@ public:
         if (m_Stream.eof()) return {nullptr, nullptr};
         auto chr = m_Stream.peek();
         if (chr == '"') return readString();
+        if (chr == '\'') return readString('\'');
         if (isDigit(chr)) return readNumber();
         if (isIdStart(chr)) return readIdent();
 
