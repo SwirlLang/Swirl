@@ -74,14 +74,19 @@ int main(int argc, const char* argv[]) {
         std::string out_dir = swirl_FED_FILE_PATH.replace(swirl_FED_FILE_PATH.find(file_name),file_name.length(),"");
         file_name = file_name.substr(0, file_name.find_last_of("."));
 
-//        if (swirl_OUTPUT.empty()) swirl_OUTPUT = file_name;
-        Transpile(*parser.m_AST, cache_dir + file_name + ".cpp");
+        int o_loc = 0;
+        for (int i = 0; i < args.size(); ++i)
+            if (args[i] == "-o")
+                o_loc = i + 1;
+
+        if (o_loc != 0)  swirl_OUTPUT = args[o_loc];
+        if (swirl_OUTPUT.empty()) swirl_OUTPUT = file_name;
+        Transpile(*parser.m_AST, cache_dir + swirl_OUTPUT + ".cpp");
 
         if (std::find(args.begin(), args.end(), "--run") != args.end()) {
             std::string cpp_obj =
-                    "g++ " + cache_dir + file_name + ".cpp" + " -o " + out_dir + file_name + " && " + "." + PATH_SEP +
-                    out_dir + file_name;
-
+                    "g++ " + cache_dir + swirl_OUTPUT + ".cpp" + " -o " + out_dir + swirl_OUTPUT + " && " + "." + PATH_SEP +
+                    out_dir + swirl_OUTPUT;
             system(cpp_obj.c_str());
         }
     }
