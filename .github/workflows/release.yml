@@ -1,0 +1,112 @@
+# **what it does ?**
+# Take the given commit, run unit tests specifically on that sha, build and
+# package it, and then release to GitHub
+
+# **why it does ?**
+# Ensure an automated and tested release process
+
+# **when it does ?**
+# This will only run manually with a given sha and version
+
+name: Release new version
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+       description: 'The last commit sha in the release'
+       required: true
+      version_number:
+       description: 'The release version number (i.e. 1.0.0, 0.0.1-alpha)'
+       required: true
+
+permissions:
+  contents: write # permission to allow creating a new release
+
+env:
+  # Change CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
+
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.inputs.sha }}
+
+      - name: Configure CMake
+        run: |
+            if [ "${{ matrix.os }}" == "windows-latest" ]; then
+              cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S Swirl -G "MinGW Makefiles"
+            else
+              cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S Swirl
+            fi
+      
+      - name: Build
+        run: cmake --build build --config ${{env.BUILD_TYPE}}
+
+      - name: rename and run the app
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            mv build/swirl.exe build/swirl-windows.exe
+            ./build/swirl-windows.exe
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            mv build/swirl build/swirl-macos
+            ./build/swirl-macos
+          else
+            mv build/swirl build/swirl-linux
+            ./build/swirl-linux
+          fi
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: binary
+          path: build/swirl-*
+
+  github-release:
+    name: GitHub Release
+
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: binary
+          path: .
+
+      # Need to set an output variable because env variables can't be taken as input
+      # This is needed for the next step with releasing to GitHub
+      - name: Find release type
+        id: release_type
+        env:
+          IS_PRERELEASE: ${{ contains(github.event.inputs.version_number, 'alpha') ||  contains(github.event.inputs.version_number, 'beta') }}
+        run: |
+          echo "isPrerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+
+      - name: Creating GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: v${{github.event.inputs.version_number}}
+          tag_name: v${{github.event.inputs.version_number}}
+          prerelease: ${{ steps.release_type.outputs.isPrerelease }}
+          target_commitish: ${{github.event.inputs.sha}}
+          generate_release_notes: true
+          files: |
+            swirl-linux
+            swirl-macos
+            swirl-windows.exe
