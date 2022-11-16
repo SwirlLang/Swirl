@@ -137,6 +137,8 @@ public:
         p_CurTk = readNextTok();
         if (strcmp(p_CurTk[0], "PUNC") == 0 && strcmp(p_CurTk[1], " ") == 0)
             p_CurTk = readNextTok();
+        if (strcmp(p_CurTk[0], "PUNC") == 0 && strcmp(p_CurTk[1], "\n") == 0)
+            p_CurTk = readNextTok();
         if (m_Debug)
             std::cout << "Token Requested:\t\t" << p_CurTk[0] << "\t\t" << p_CurTk[1] << std::endl;
         return p_CurTk;
