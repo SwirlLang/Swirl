@@ -21,25 +21,27 @@ Comment ///
 ## Functions
 
 ```
-func <ident>([...]): <type> { [...] }
+func <name>([...]): <type> {
+    // code
+}
 ```
 
 ## Builtin functions
 
 | Function | Description                                                                              |
 | -------- | ---------------------------------------------------------------------------------------- |
-| print    | Outputs the string provided to the standard output.                                      |
-| input    | Reads a string from the standard input.                                                  |
-| range    | Returns a list of integers from start to end, with step.                                 |
-| find     | Returns the index of the first occurrence of the substring provided in a string.         |
-| count    | Returns the number of non-overlapping occurrences of the substring provided in a string. |
-| findall  | Returns a list of all occurrences of the substring provided in a string.                 |
-| string   | Returns a string consisting of the characters in the specified sequence.                 |
-| int      | Converts the argument to an integer.                                                     |
-| float    | Converts the argument to a floating-point number.                                        |
-| bool     | Converts the argument to a Boolean value.                                                |
-| len      | Returns the length of the string argument.                                               |
-| exit     | Exits the program with the exit code provided.                                           |
+| print    | Output the string provided.                                                              |
+| input    | Read a string from the standard input.                                                   |
+| range    | Return a list of integers from start to end, with step.                                  |
+| find     | Return the index of the first occurrence of a substring provided in a string.            |
+| count    | Return the number of non-overlapping occurrences of a substring provided in a string.    |
+| findall  | Return a list of all occurrences of a substring provided in a string.                    |
+| string   | Return a string consisting of the characters in the specified sequence.                  |
+| int      | Convert the argument to an integer.                                                      |
+| float    | Convert the argument to a floating-point number.                                         |
+| bool     | Convert the argument to a Boolean value.                                                 |
+| len      | Return the length of the string argument.                                                |
+| exit     | Exit the program with the provided exit code.                                            |
 
 ## Data types
 
@@ -52,26 +54,26 @@ func <ident>([...]): <type> { [...] }
 
 ## Type Qualifiers
 
-`const` ~ marks the variable as constant
+`const` ~ marks the variable as constant  
 `var` ~ makes the compiler checks for the type itself
 
 ## Conditional and Loop statements
 
 ```
-if code == code2 {
-    print("Hello World")
+if <condition> {
+    // code
 }
 ```
 
 ```
-elif code == code2 {
-    print("Hello World")
+elif <condition> {
+    // code
 }
 ```
 
 ```
 else {
-    print("Hello World")
+    // code
 }
 ```
 
