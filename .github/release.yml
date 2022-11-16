@@ -1,10 +1,7 @@
 # .github/release.yml
 
 changelog:
-  exclude:
-    labels:
-      - ignore-for-release
   categories:
-    - title: Notable changes
-    - title: bug fixes
-    - title: Other Changes
+    - title: changes
+      labels:
+        - "*"
