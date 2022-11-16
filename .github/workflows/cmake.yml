@@ -1,6 +1,14 @@
 name: build app
 
-on: [push, pull_request]
+on:
+    push:
+        paths:
+            - "**.cpp"
+            - "**.h"
+    pull_request:
+        paths:
+            - "**.cpp"
+            - "**.h"
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
