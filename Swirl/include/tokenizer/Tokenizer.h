@@ -5,11 +5,11 @@
 #include <functional>
 #include <cstring>
 #include <sstream>
+#include <map>
 
 #include <definitions/definitions.h>
 #include <tokenizer/InputStream.h>
 #include <utils/utils.h>
-#include <map>
 
 #ifndef SWIRL_TokenStream_H
 #define SWIRL_TokenStream_H
@@ -23,8 +23,11 @@ class TokenStream {
     std::string m_Ret;
     std::string m_Rax;
     InputStream m_Stream;
+
     std::array<const char*, 2> m_PeekTk{};
     std::array<const char*, 2> m_Cur = {};
+    std::vector<std::array<const char*, 2>> m_Tokens{};
+
 public:
     std::array<const char*, 2> p_CurTk = {"", ""};
 
@@ -32,7 +35,7 @@ public:
 
     bool isKeyword(const std::string& _str) { return std::find(DEF.keywords.begin(), DEF.keywords.end(), _str) != DEF.keywords.end(); }
 
-    static bool isDigit(char _chr) { return std::string("1234567890").find(std::string(1, _chr)) != std::string::npos; }
+    static bool isDigit(char _chr) { return std::string("1234567890xeabcdf").find(std::string(1, _chr)) != std::string::npos; }
     static uint8_t isId(char chr) { return isIdStart(chr) || std::string("\"?!-<>=0123456789").find(chr) != std::string::npos; }
     static bool isIdStart(char _chr) {
         return std::string("_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz").find(std::string(1, _chr)) != std::string::npos;
@@ -106,7 +109,7 @@ public:
         return {"NUMBER", m_Ret.c_str()};
     }
 
-    std::array<const char*, 2> readNextTok() {
+    std::array<const char*, 2> readNextTok(bool _updateCurTk = true) {
         if (m_Stream.eof()) return {nullptr, nullptr};
         auto chr = m_Stream.peek();
         if (chr == '"') return readString();
@@ -115,14 +118,8 @@ public:
         if (isIdStart(chr)) return readIdent();
 
         m_Ret = std::string(1, m_Stream.next());
-        if (isPunctuation(chr) ) return {
-                    "PUNC",
-                    m_Ret.c_str()
-            };
 
-        std::cout << chr;
         if (isOpChar(chr)) {
-            std::cout << "Is op char! " << chr << "\n";
             m_Rax = readWhile(isOpChar);
             return {
                     "OPERATOR",
@@ -130,18 +127,34 @@ public:
             };
         }
 
+        if (isPunctuation(chr) ) return {
+                    "PUNC",
+                    m_Ret.c_str()
+            };
+
         m_Stream.raiseException(strcat((char*)"Failed to handle token ", &chr));
     }
 
-    std::array<const char*, 2> next() {
+    std::array<const char*, 2> next(uint8_t _showTNw = false, uint8_t _showTWs = false) {
         p_CurTk = readNextTok();
-        if (strcmp(p_CurTk[0], "PUNC") == 0 && strcmp(p_CurTk[1], " ") == 0)
-            p_CurTk = readNextTok();
-        if (strcmp(p_CurTk[0], "PUNC") == 0 && strcmp(p_CurTk[1], "\n") == 0)
-            p_CurTk = readNextTok();
+        if (!_showTWs)
+            if (strcmp(p_CurTk[0], "PUNC") == 0 && strcmp(p_CurTk[1], " ") == 0)
+                p_CurTk = readNextTok();
+
+        if (!_showTNw)
+            if (strcmp(p_CurTk[0], "PUNC") == 0 && strcmp(p_CurTk[1], "\n") == 0)
+                p_CurTk = readNextTok();
+
         if (m_Debug)
             std::cout << "Token Requested:\t" << p_CurTk[0] << "\t  " << p_CurTk[1] << std::endl;
+
+        m_PeekTk = readNextTok();
+        std::cout << m_PeekTk[1] << std::endl;
         return p_CurTk;
+    }
+
+    std::array<const char*, 2> peek() const {
+        return m_PeekTk;
     }
 
     bool eof() { return m_Stream.eof(); }
