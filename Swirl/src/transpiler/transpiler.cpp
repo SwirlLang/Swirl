@@ -10,35 +10,16 @@
 #define _debug true
 
 void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
+    std::string compiled_source;
+    std::ifstream bt_buf;
+    bt_buf.open("Swirl/src/transpiler/builtins.cpp");
+    if (bt_buf.is_open()) {
+        std::string bt_cr_ln;
+        while (std::getline(bt_buf, bt_cr_ln))
+            compiled_source += bt_cr_ln + "\n";
+    }
 
-//    defs definitions{};
-//    try {
-//        while (!_tokenStream.eof()) {
-//            auto tok = _tokenStream.next();
-//            const char* type = tok[0];
-//            const char* v_str = tok[1];
-//
-//            std::cout << "TYPE: " << type << "\t" << "VAL: " << v_str << "\n";
-//
-//        }
-//    } catch ( std::exception& e ) {}
-    // TODO: write directly to the file
-    std::string compiled_source = "#include <iostream>\n"
-                                  "\n"
-                                  "template < typename Const >\n"
-                                  "void print(Const __Obj, const std::string& __End = \"\\n\", bool __Flush = true) {\n"
-                                  "    if (__Flush) std::cout << __Obj << __End << std::flush;\n"
-                                  "    else std::cout << __Obj << __End;\n"
-                                  "}\n"
-                                  "\n"
-                                  "int main() {\n";
-//    std::ifstream bt_buf;
-//    bt_buf.open("Swirl/src/cppranspiler/builtins.cpp");
-//    if (bt_buf.is_open()) {
-//        std::string bt_cr_ln;
-//        while (std::getline(bt_buf, bt_cr_ln))
-//            compiled_source += bt_cr_ln + "\n";
-//    }
+    compiled_source += "int main() {\n";
 
     for (auto const& child : _ast.chl) {
         if (child.type == "CALL") {
