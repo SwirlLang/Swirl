@@ -58,7 +58,7 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
                 if (args_count != child.args.size()) tmp_str_cnst += ",";
             }
 
-            tmp_str_cnst += ");";
+            tmp_str_cnst += ")";
             compiled_source += tmp_str_cnst + ";";
             tmp_str_cnst.clear();
         }
