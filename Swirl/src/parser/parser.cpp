@@ -17,17 +17,6 @@ Parser::~Parser() {
     delete m_AST;
 }
 
-Node& Parser::getNodeById(std::size_t _id) {
-    for (auto& chl : std::views::reverse(m_AST->chl))
-        if (chl.scope_order == _id)
-            return const_cast<Node &>(chl);
-}
-
-void Parser::appendAST(Node& _node) {
-    if (_node.scope_order > 1)
-        getNodeById(_node.scope_order - 1).chl.push_back(_node);
-}
-
 void Parser::dispatch() {
     const char* tmp_ident = "";
     const char* tmp_type = "";
