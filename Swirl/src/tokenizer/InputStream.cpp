@@ -3,14 +3,18 @@
 
 InputStream::InputStream(std::string& _source): m_Source(_source) {
     std::stringstream src_strm(_source);
-    for (std::string cr_ln; std::getline(src_strm, cr_ln); m_TotalLns++ ) {}
 }
 
 char InputStream::peek() {
     return m_Source.at(m_Pos);
 }
 
-char InputStream::next() {
+char InputStream::next(bool _noIncrement) {
+    if (_noIncrement) {
+        char chr = m_Source.at(m_Pos);
+        return chr;
+    }
+
     char chr = m_Source.at(m_Pos++);
     return chr;
 }

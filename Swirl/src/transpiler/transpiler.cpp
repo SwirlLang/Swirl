@@ -9,36 +9,64 @@
 
 #define _debug true
 
+
 void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
-    std::string compiled_source;
-    std::ifstream bt_buf;
-    bt_buf.open("Swirl/src/transpiler/builtins.cpp");
-    if (bt_buf.is_open()) {
+
+    bool                       is_scp;
+    std::ifstream              bt_fstream;
+    std::string                tmp_str_cnst;
+    std::size_t                last_scp_order;
+    std::string                compiled_source;
+    std::array<const char*, 3> vld_scopes = {"CONDITION", "FUNC", "CLASS"};
+
+    bt_fstream.open("Swirl/src/transpiler/builtins.cpp");
+    if (bt_fstream.is_open()) {
         std::string bt_cr_ln;
-        while (std::getline(bt_buf, bt_cr_ln))
+        while (std::getline(bt_fstream, bt_cr_ln))
             compiled_source += bt_cr_ln + "\n";
     }
 
     compiled_source += "int main() {\n";
 
     for (auto const& child : _ast.chl) {
-        if (child.type == "CALL") {
-            compiled_source += child.ident + "(";
+        if (child.type == "BR_OPEN") {
+            compiled_source += "{";
+            continue;
+        }
+        if (child.type == "BR_CLOSE") {
+            compiled_source += "}";
+            continue;
+        }
+
+        std::cout << child.scope_order << std::endl;
+        if (child.type == "CONDITION") {
+            tmp_str_cnst += "if (" + child.condition + ")";
+            compiled_source += tmp_str_cnst;
+            tmp_str_cnst.clear();
+            continue;
+        }
+
+        else if (child.type == "CALL") {
+            tmp_str_cnst += child.ident + "(";
             int args_count = 0;
+
             for (const auto& arg : child.args) {
                 if (arg.type == "STRING")
-                    compiled_source += "\"" + arg.value + "\"";
+                    tmp_str_cnst += "\"" + arg.value + "\"";
                 else
-                    compiled_source += arg.value;
+                    tmp_str_cnst += arg.value;
+
                 args_count++;
-                if (args_count != child.args.size()) compiled_source += ",";
+                if (args_count != child.args.size()) tmp_str_cnst += ",";
             }
-            compiled_source += ");";
-            compiled_source += "\n";
+
+            tmp_str_cnst += ");";
+            compiled_source += tmp_str_cnst + ";";
+            tmp_str_cnst.clear();
         }
     }
 
     std::ofstream o_file_buf(_buildFile);
-    compiled_source += "\n}";
+    compiled_source += "}";
     o_file_buf << compiled_source;
 }

@@ -19,31 +19,48 @@
 const defs DEF{};
 
 class TokenStream {
-    bool m_Debug;
-    std::string m_Ret;
-    std::string m_Rax;
-    InputStream m_Stream;
-
-    std::array<const char*, 2> m_PeekTk{};
-    std::array<const char*, 2> m_Cur = {};
-    std::vector<std::array<const char*, 2>> m_Tokens{};
+    bool                                            m_Debug;
+    std::string                                     m_Ret;
+    std::string                                     m_Rax;
+    InputStream                                     m_Stream;
+    std::array<const char*, 2>                      m_PeekTk{};
+    std::array<const char*, 2>                      m_Cur{};
+    std::array<std::array<const char*, 2>, 5>       m_TokReserve{};
 
 public:
-    std::array<const char*, 2> p_CurTk = {"", ""};
+    std::array<const char*, 2> p_CurTk{"", ""};
 
     explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {}
 
-    bool isKeyword(const std::string& _str) { return std::find(DEF.keywords.begin(), DEF.keywords.end(), _str) != DEF.keywords.end(); }
-
-    static bool isDigit(char _chr) { return std::string("1234567890xeabcdf").find(std::string(1, _chr)) != std::string::npos; }
-    static uint8_t isId(char chr) { return isIdStart(chr) || std::string("\"?!-<>=0123456789").find(chr) != std::string::npos; }
-    static bool isIdStart(char _chr) {
-        return std::string("_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz").find(std::string(1, _chr)) != std::string::npos;
+    bool isKeyword(const std::string& _str) {
+        return std::find(DEF.keywords.begin(), DEF.keywords.end(), _str) != DEF.keywords.end();
     }
 
-    static bool isPunctuation(char chr) { return std::string("();,{}[]").find(chr) >= 0; }
-    static bool isOpChar(char _chr) { return std::string("!=*&<>-/").find(_chr) != std::string::npos; }
-    static bool isWhiteSpace(char _chr) { return std::string(" \t\n").find(_chr) != std::string::npos; }
+    static bool isDigit(char _chr) {
+        return std::string("1234567890").find(std::string(1, _chr)) != std::string::npos;
+    }
+
+    static uint8_t isId(char chr) {
+        return isIdStart(chr) || std::string("\"?!-<>=0123456789").find(chr) != std::string::npos;
+    }
+
+    static bool isIdStart(char _chr) {
+        return std::string("_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz").find(
+                std::string(1, _chr)
+                ) != std::string::npos;
+    }
+
+    static bool isPunctuation(char chr) {
+        return std::string("();,{}[]").find(chr) >= 0;
+    }
+
+    static bool isOpChar(char _chr) {
+        return std::string("!=*&<>-/").find(_chr) != std::string::npos;
+    }
+
+    static bool isWhiteSpace(char _chr) {
+        return std::string(" \t\n").find(_chr) != std::string::npos;
+    }
 
     std::string readWhile(const std::function<bool (char)>& delimiter) {
         std::string ret;
@@ -109,7 +126,7 @@ public:
         return {"NUMBER", m_Ret.c_str()};
     }
 
-    std::array<const char*, 2> readNextTok(bool _updateCurTk = true) {
+    std::array<const char*, 2> readNextTok(bool _noIncrement = false) {
         if (m_Stream.eof()) return {nullptr, nullptr};
         auto chr = m_Stream.peek();
         if (chr == '"') return readString();
@@ -120,9 +137,9 @@ public:
         m_Ret = std::string(1, m_Stream.next());
 
         if (isOpChar(chr)) {
-            m_Rax = readWhile(isOpChar);
+            m_Rax = chr + readWhile(isOpChar);
             return {
-                    "OPERATOR",
+                    "OP",
                     m_Rax.c_str()
             };
         }
@@ -140,16 +157,13 @@ public:
         if (!_showTWs)
             if (strcmp(p_CurTk[0], "PUNC") == 0 && strcmp(p_CurTk[1], " ") == 0)
                 p_CurTk = readNextTok();
-
         if (!_showTNw)
             if (strcmp(p_CurTk[0], "PUNC") == 0 && strcmp(p_CurTk[1], "\n") == 0)
                 p_CurTk = readNextTok();
-
         if (m_Debug)
             std::cout << "Token Requested:\t" << p_CurTk[0] << "\t  " << p_CurTk[1] << std::endl;
 
-        m_PeekTk = readNextTok();
-        std::cout << m_PeekTk[1] << std::endl;
+//        std::cout << m_PeekTk[1] << std::endl;
         return p_CurTk;
     }
 
@@ -157,7 +171,9 @@ public:
         return m_PeekTk;
     }
 
-    bool eof() { return m_Stream.eof(); }
+    bool eof() {
+        return m_Stream.eof();
+    }
 
     std::map<const char*, std::size_t> getStreamState() {
         std::map<const char*, std::size_t> stream_state;
