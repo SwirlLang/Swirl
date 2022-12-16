@@ -12,56 +12,60 @@
 #include <transpiler/transpiler.h>
 #include <parser/parser.h>
 
-bool swirl_DEBUG = false;
-std::string swirl_FED_FILE_PATH;
-std::string swirl_OUTPUT;
-std::string swirl_FED_FILE_SOURCE;
+bool SW_DEBUG = false;
+std::string SW_FED_FILE_PATH;
+std::string SW_OUTPUT;
+std::string SW_FED_FILE_SOURCE;
 
-const char* swirl_help = R"(The Swirl compiler
+const char* SW_help = R"(The Swirl compiler
 
-Usage: swirl <file-path> [-o] <output> [--debug]
-
-Commands:
-    run     compile and run the executable
+Usage: Swirl <file-path> [-o] <output> [--debug]
 
 Flags:
     -d, --debug     log out steps of the compilation
     -o, --output    Output file name
+    -r, --run       Run the compiled file
     -h, --help      Show this help message
 
 Use swirl [command] --help for more information about the command)";
 
 
 int main(int argc, const char* argv[]) {
+    SW_FED_FILE_PATH = argv[1];
+    std::string cache_dir = getWorkingDirectory(SW_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP;
+    std::ifstream fed_file_src_buf(SW_FED_FILE_PATH);
+    std::string src_current_ln;
+    std::string file_name = SW_FED_FILE_PATH.substr(SW_FED_FILE_PATH.find_last_of("/\\") + 1);
+    std::string out_dir = SW_FED_FILE_PATH.replace(SW_FED_FILE_PATH.find(file_name),file_name.length(),"");
+    file_name = file_name.substr(0, file_name.find_last_of("."));
+    std::string cxx = "g++";
+    bool _debug;
+    int o_loc = 0;
     defs defs{};
     std::vector<std::string> args(argv, argv + argc);
-    if (argc <= 1) { std::cout << swirl_help << std::endl;}
+
+    if (argc <= 1) { std::cout << SW_help << std::endl;}
     if (argc > 1) {
         if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
-            std::cout << swirl_help << std::endl;
+            std::cout << SW_help << std::endl;
             return 0;
         }
 
-        swirl_FED_FILE_PATH = argv[1];
-        if (!std::filesystem::exists(swirl_FED_FILE_PATH)) {
-            std::cerr << "File " << swirl_FED_FILE_PATH << " doesn't exists!" << std::endl;
+        if (!std::filesystem::exists(SW_FED_FILE_PATH)) {
+            std::cerr << "File " << SW_FED_FILE_PATH << " doesn't exists!" << std::endl;
             return 1;
         }
 
-        std::ifstream fed_file_src_buf(swirl_FED_FILE_PATH);
-        std::string src_current_ln;
-        while (std::getline(fed_file_src_buf, src_current_ln)){
-            swirl_FED_FILE_SOURCE += src_current_ln + "\n";
+        while (std::getline(fed_file_src_buf, src_current_ln)) {
+            SW_FED_FILE_SOURCE += src_current_ln + "\n";
         }
 
-        std::string cache_dir = getWorkingDirectory(swirl_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP;
-        bool _debug;
         if (std::find(args.begin(), args.end(), "-d") != args.end() ||
             std::find(args.begin(), args.end(), "--debug") != args.end())
             _debug = true;
 
-        preProcess(swirl_FED_FILE_SOURCE, cache_dir);
-        InputStream is(swirl_FED_FILE_SOURCE);
+        preProcess(SW_FED_FILE_SOURCE, cache_dir);
+        InputStream is(SW_FED_FILE_SOURCE);
         TokenStream tk(is, _debug);
 
         Parser parser(tk);
@@ -70,23 +74,18 @@ int main(int argc, const char* argv[]) {
 //            std::cout << chl.type << std::endl;
 //        }
 
-        std::string file_name = swirl_FED_FILE_PATH.substr(swirl_FED_FILE_PATH.find_last_of("/\\") + 1);
-        std::string out_dir = swirl_FED_FILE_PATH.replace(swirl_FED_FILE_PATH.find(file_name),file_name.length(),"");
-        file_name = file_name.substr(0, file_name.find_last_of("."));
-
-        int o_loc = 0;
         for (int i = 0; i < args.size(); ++i)
             if (args[i] == "-o")
                 o_loc = i + 1;
 
-        if (o_loc != 0)  swirl_OUTPUT = args[o_loc];
-        if (swirl_OUTPUT.empty()) swirl_OUTPUT = file_name;
-        Transpile(*parser.m_AST, cache_dir + swirl_OUTPUT + ".cpp");
+        if (o_loc != 0)  SW_OUTPUT = args[o_loc];
+        if (SW_OUTPUT.empty()) SW_OUTPUT = file_name;
+        Transpile(*parser.m_AST, cache_dir + SW_OUTPUT + ".cpp");
 
         if (std::find(args.begin(), args.end(), "--run") != args.end()) {
             std::string cpp_obj =
-                    "g++ " + cache_dir + swirl_OUTPUT + ".cpp" + " -o " + out_dir + swirl_OUTPUT + " && " + "." + PATH_SEP +
-                    out_dir + swirl_OUTPUT;
+                    cxx + " " + cache_dir + SW_OUTPUT + ".cpp" + " -o " + out_dir + SW_OUTPUT + " && " + "." + PATH_SEP +
+                    out_dir + SW_OUTPUT;
             system(cpp_obj.c_str());
         }
     }
