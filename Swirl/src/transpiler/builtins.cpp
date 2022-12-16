@@ -1,8 +1,5 @@
 #include <iostream>
 
-#define and &&
-#define not !
-#define or ||
 
 template < typename Const >
 void print(Const __Obj, const std::string& __End = "\n", bool __Flush = true) {
