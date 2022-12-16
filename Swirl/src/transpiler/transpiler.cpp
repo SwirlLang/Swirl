@@ -11,7 +11,6 @@
 
 
 void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
-
     bool                       is_scp;
     std::ifstream              bt_fstream;
     std::string                tmp_str_cnst;
@@ -38,7 +37,6 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             continue;
         }
 
-        std::cout << child.scope_order << std::endl;
         if (child.type == "CONDITION") {
             tmp_str_cnst += "if (" + child.condition + ")";
             compiled_source += tmp_str_cnst;
