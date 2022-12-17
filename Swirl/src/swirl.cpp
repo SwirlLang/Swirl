@@ -25,22 +25,14 @@ Flags:
     -d, --debug     log out steps of the compilation
     -o, --output    Output file name
     -r, --run       Run the compiled file
+    -c, --compiler  C++ compiler to use
     -h, --help      Show this help message
 
 Use swirl [command] --help for more information about the command)";
 
 
 int main(int argc, const char* argv[]) {
-    SW_FED_FILE_PATH = argv[1];
-    std::string cache_dir = getWorkingDirectory(SW_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP;
-    std::ifstream fed_file_src_buf(SW_FED_FILE_PATH);
-    std::string src_current_ln;
-    std::string file_name = SW_FED_FILE_PATH.substr(SW_FED_FILE_PATH.find_last_of("/\\") + 1);
-    std::string out_dir = SW_FED_FILE_PATH.replace(SW_FED_FILE_PATH.find(file_name),file_name.length(),"");
-    file_name = file_name.substr(0, file_name.find_last_of("."));
     std::string cxx = "g++";
-    bool _debug;
-    int o_loc = 0;
     defs defs{};
     std::vector<std::string> args(argv, argv + argc);
 
@@ -51,18 +43,31 @@ int main(int argc, const char* argv[]) {
             return 0;
         }
 
+        SW_FED_FILE_PATH = argv[1];
         if (!std::filesystem::exists(SW_FED_FILE_PATH)) {
             std::cerr << "File " << SW_FED_FILE_PATH << " doesn't exists!" << std::endl;
             return 1;
         }
 
+        std::ifstream fed_file_src_buf(SW_FED_FILE_PATH);
+        std::string src_current_ln;
         while (std::getline(fed_file_src_buf, src_current_ln)) {
             SW_FED_FILE_SOURCE += src_current_ln + "\n";
         }
 
+        std::string cache_dir = getWorkingDirectory(SW_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP;
+        bool _debug;
         if (std::find(args.begin(), args.end(), "-d") != args.end() ||
             std::find(args.begin(), args.end(), "--debug") != args.end())
             _debug = true;
+        
+        if (std::find(args.begin(), args.end(), "-c") != args.end()) {
+            cxx = args[std::find(args.begin(), args.end(), "-c") - args.begin() + 1];
+        }
+
+        if (std::find(args.begin(), args.end(), "--compiler") != args.end()) {
+            cxx = args[std::find(args.begin(), args.end(), "--compiler") - args.begin() + 1];
+        }
 
         preProcess(SW_FED_FILE_SOURCE, cache_dir);
         InputStream is(SW_FED_FILE_SOURCE);
@@ -74,6 +79,11 @@ int main(int argc, const char* argv[]) {
 //            std::cout << chl.type << std::endl;
 //        }
 
+        std::string file_name = SW_FED_FILE_PATH.substr(SW_FED_FILE_PATH.find_last_of("/\\") + 1);
+        std::string out_dir = SW_FED_FILE_PATH.replace(SW_FED_FILE_PATH.find(file_name),file_name.length(),"");
+        file_name = file_name.substr(0, file_name.find_last_of("."));
+
+        int o_loc = 0;
         for (int i = 0; i < args.size(); ++i)
             if (args[i] == "-o")
                 o_loc = i + 1;
