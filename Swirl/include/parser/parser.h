@@ -33,11 +33,12 @@ public:
 
     explicit Parser(TokenStream&);
 
-    void parseCondition();
+    void parseCondition(const char*);
     void parseCall(const char*);
     void dispatch();
     void appendAST(Node&);
     void parseDecl(const char*, const char*);
+    void parseLoop(const char*);
 
     Node& getNodeById(std::size_t);
     std::array<const char*, 2> next(std::array<const char*, 2>& _lvalue);

@@ -1,5 +1,6 @@
 #include <iostream>
 
+#define elif else if
 
 template < typename Const >
 void print(Const __Obj, const std::string& __End = "\n", bool __Flush = true) {

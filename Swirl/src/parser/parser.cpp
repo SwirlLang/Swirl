@@ -49,8 +49,8 @@ void Parser::dispatch() {
                 tmp_ident = "";
             }
 
-            if (t_type == "KEYWORD" && t_val == "if") {
-                parseCondition();
+            if (t_type == "KEYWORD" && t_val == "if" || t_val == "elif" || t_val == "else") {
+                parseCondition(t_val.c_str());
                 continue;
             }
 
@@ -60,6 +60,11 @@ void Parser::dispatch() {
                 if (std::string(m_Stream.p_CurTk[1]) == "(" ) {
                     parseCall(tmp_ident);
                 }
+            }
+
+            if (t_type == "KEYWORD" && t_val == "while" || t_val == "for") {
+                parseLoop(t_val.c_str());
+                continue;
             }
 
             if (t_type == "KEYWORD" || t_type == "IDENT")
@@ -91,8 +96,8 @@ void Parser::parseCall(const char* _ident) {
 
     while (strcmp(m_Stream.next()[1], ")") != 0) {
         const auto tk_cache = m_Stream.p_CurTk;
-        const std::string tk_type(tk_cache[0]);
-        const std::string tk_val(tk_cache[1]);
+        std::string tk_type(tk_cache[0]);
+        std::string tk_val(tk_cache[1]);
         std::string tmp_ident;
 
         if (tk_type == "IDENT") {
@@ -110,9 +115,21 @@ void Parser::parseCall(const char* _ident) {
     if (!m_AppendToScope) m_AST->chl.push_back(call_node);
 }
 
-void Parser::parseCondition() {
+void Parser::parseLoop(const char* _type) {
+    Node loop_node{};
+    loop_node.type = _type;
+
+    m_Stream.next();
+    while (strcmp(m_Stream.p_CurTk[0], "PUNC") != 0 && strcmp(m_Stream.p_CurTk[1], "{") != 0)
+        loop_node.condition += m_Stream.p_CurTk[1];
+
+    m_AST->chl.push_back(loop_node);
+    std::cout << loop_node.condition << std::endl;
+}
+
+void Parser::parseCondition(const char* _type) {
     Node cnd_node{};
-    cnd_node.type = "CONDITION";
+    cnd_node.type = _type;
 
     try {
         m_Stream.next();

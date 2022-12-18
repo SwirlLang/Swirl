@@ -37,8 +37,11 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             continue;
         }
 
-        if (child.type == "CONDITION") {
-            tmp_str_cnst += "if (" + child.condition + ")";
+        if (child.type == "if" || child.type == "elif" || child.type == "else") {
+            if (child.type == "else")
+                tmp_str_cnst += "else";
+            else
+                tmp_str_cnst += child.type + " (" + child.condition + ")";
             compiled_source += tmp_str_cnst;
             tmp_str_cnst.clear();
             continue;
