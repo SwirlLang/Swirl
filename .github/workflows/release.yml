@@ -91,19 +91,19 @@ jobs:
 
       # Need to set an output variable because env variables can't be taken as input
       # This is needed for the next step with releasing to GitHub
-      - name: Find release type
-        id: release_type
-        env:
-          IS_PRERELEASE: ${{ contains(github.event.inputs.version_number, 'alpha') ||  contains(github.event.inputs.version_number, 'beta') }}
-        run: |
-          echo "isPrerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+      #- name: Find release type
+      #  id: release_type
+      #  env:
+      #    IS_PRERELEASE: ${{ contains(github.event.inputs.version_number, 'alpha') ||  contains(github.event.inputs.version_number, 'beta') }}
+      #  run: |
+      #    echo "isPrerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
 
       - name: Creating GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           name: v${{github.event.inputs.version_number}}
           tag_name: v${{github.event.inputs.version_number}}
-          prerelease: ${{ steps.release_type.outputs.isPrerelease }}
+          #prerelease: ${{ steps.release_type.outputs.isPrerelease }}
           target_commitish: ${{github.event.inputs.sha}}
           generate_release_notes: true
           files: |
