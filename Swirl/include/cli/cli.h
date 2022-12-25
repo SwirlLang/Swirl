@@ -23,7 +23,6 @@ Usage: Swirl <file-path> [-o] <output> [--debug]
 
 Flags:
 	-h, --help      Show this help message
-
 	-d, --debug     log out steps of the compilation
 	-o, --output    Output file name
 	-r, --run       Run the compiled file
