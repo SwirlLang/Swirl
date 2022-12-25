@@ -19,16 +19,16 @@ namespace cli {
 	#pragma region HELP MESSAGE
 	constexpr std::string_view HELP_MESSAGE = R"(The Swirl compiler
 
-	Usage: Swirl <file-path> [-o] <output> [--debug]
+Usage: Swirl <file-path> [-o] <output> [--debug]
 
-	Flags:
-		-h, --help      Show this help message
+Flags:
+	-h, --help      Show this help message
 
-		-d, --debug     log out steps of the compilation
-		-o, --output    Output file name
-		-r, --run       Run the compiled file
-		-c, --compiler  C++ compiler to use
-	)";
+	-d, --debug     log out steps of the compilation
+	-o, --output    Output file name
+	-r, --run       Run the compiled file
+	-c, --compiler  C++ compiler to use
+)";
 	//Use swirl [command] --help for more information about the command
 	#pragma endregion
 
