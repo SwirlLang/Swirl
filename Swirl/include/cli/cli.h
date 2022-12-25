@@ -16,7 +16,7 @@ namespace cli {
         std::string value;
     };	
 
-	#pragma region HELP MESSAGE
+	
 	constexpr std::string_view HELP_MESSAGE = R"(The Swirl compiler
 
 Usage: Swirl <file-path> [-o] <output> [--debug]
@@ -30,7 +30,6 @@ Flags:
 	-c, --compiler  C++ compiler to use
 )";
 	//Use swirl [command] --help for more information about the command
-	#pragma endregion
 
 	std::vector<Argument> parse(int argc, const char** argv, const std::vector<Argument>& flags);
     std::variant</* The flag value */ std::string, /* The flag is supplied or not */ bool>
