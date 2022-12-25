@@ -18,12 +18,24 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
     std::string                compiled_source;
     std::array<const char*, 3> vld_scopes = {"CONDITION", "FUNC", "CLASS"};
 
-    bt_fstream.open("Swirl/src/transpiler/builtins.cpp");
-    compiled_source = {
-        std::istreambuf_iterator<char>(bt_fstream),
-        {}
-    };
-    bt_fstream.close();
+    compiled_source = R"(#include <iostream>
+
+#define elif else if
+
+template <typename Const>
+void print(Const __Obj, const std::string& __End = "\n", bool __Flush = true) {
+    if (__Flush) std::cout << __Obj << __End << std::flush;
+    else std::cout << __Obj << __End;
+}
+
+std::string input(std::string __Prompt) {
+    std::string ret;
+    std::cout << __Prompt << std::flush;
+    std::getline(std::cin, ret);
+
+    return ret;
+}
+)";
 
     compiled_source += "int main() {\n";
 
@@ -62,7 +74,7 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             }
 
             tmp_str_cnst += ")";
-            compiled_source += tmp_str_cnst + ";";
+            compiled_source += tmp_str_cnst + ";\n";
             tmp_str_cnst.clear();
         }
     }
