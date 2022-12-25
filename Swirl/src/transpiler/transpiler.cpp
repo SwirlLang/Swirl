@@ -9,16 +9,8 @@
 
 #define _debug true
 
-
-void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
-    bool                       is_scp;
-    std::ifstream              bt_fstream;
-    std::string                tmp_str_cnst;
-    std::size_t                last_scp_order;
-    std::string                compiled_source;
-    std::array<const char*, 3> vld_scopes = {"CONDITION", "FUNC", "CLASS"};
-
-    compiled_source = R"(#include <iostream>
+compiled_source = R"(
+#include <iostream>
 
 #define elif else if
 
@@ -36,6 +28,14 @@ std::string input(std::string __Prompt) {
     return ret;
 }
 )";
+
+void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
+    bool                       is_scp;
+    std::ifstream              bt_fstream;
+    std::string                tmp_str_cnst;
+    std::size_t                last_scp_order;
+    std::string                compiled_source;
+    std::array<const char*, 3> vld_scopes = {"CONDITION", "FUNC", "CLASS"};
 
     compiled_source += "int main() {\n";
 
