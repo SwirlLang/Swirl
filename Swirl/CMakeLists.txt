@@ -4,12 +4,15 @@ add_compile_options(-lstdc++)
 # specify the C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+
 if (WIN32)
     set(CMAKE_CXX_STANDARD_LIBRARIES "-static-libgcc -static-libstdc++ ${CMAKE_CXX_STANDARD_LIBRARIES}")
 endif (WIN32)
 option(BUILD_STDLIB "Build the standard library" OFF)
 include_directories("include")
-add_executable(swirl src/swirl.cpp)
+add_executable(swirl src/swirl.cpp "include/cli/cli.h" "src/cli/cli.cpp")
 
 add_subdirectory(src)
 if(BUILD_STDLIB)
