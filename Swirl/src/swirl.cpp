@@ -20,7 +20,7 @@ std::string SW_FED_FILE_SOURCE;
 
 const char* SW_help = R"(The Swirl compiler
 
-Usage: Swirl <file-path> [-o] <output> [--debug]
+Usage: Swirl <input-file> [-o] <output> [--debug]
 
 Flags:
     -d, --debug     log out steps of the compilation
@@ -31,8 +31,26 @@ Flags:
 
 Use swirl [command] --help for more information about the command)";
 
+std::vector<arg> args_list = {
+    {"help", "Show help message", no_value, false, {"-h", "--help"}},
+    {"debug", "Log out the compilation steps", no_value, false, {"-d", "--debug"}},
+    {"output", "Output file name", has_value, false, {"-o", "--output"}},
+    {"run", "Run the compiled file", no_value, false, {"-r", "--run"}},
+    {"compiler", "C++ compiler to use", has_value, false, {"-c", "--compiler"}},
+};
+
+std::vector<pos_arg> pos_args_list = {
+    {"input file", "Path to the file to compile", "0"},
+};
+
 int main(int argc, char* argv[]) {
-    parse(argc, argv);
+    parse(argc, argv, args_list, pos_args_list);
+    for (int i = 0; i < args_list.size(); i++) {
+        std::cout<<args_list[i].name<<": "<<args_list[i].val<<std::endl;
+    }
+    for (int i = 0; i < pos_args_list.size(); i++) {
+        std::cout<<pos_args_list[i].name<<": "<<pos_args_list[i].val<<std::endl;
+    }
 }
 
 

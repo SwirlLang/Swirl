@@ -13,24 +13,48 @@ struct arg {
     std::vector<const char*> flags;
 };
 
-std::vector<arg> args_list = {
-    {"help", "Show help message", no_value, false, {"-h", "--help"}},
-    {"debug", "Log out the compilation steps", no_value, false, {"-d", "--debug"}},
-    {"output", "Output file name", has_value, false, {"-o", "--output"}},
-    {"run", "Run the compiled file", no_value, false, {"-r", "--run"}},
-    {"compiler", "C++ compiler to use", has_value, false, {"-c", "--compiler"}},
+struct pos_arg {
+    const char* name;
+    const char* description;
+    const char* val;
 };
 
-static struct option *long_options = new struct option[args_list.size()];
-std::string optstring = ":";
-
-// static struct option long_options2[] = {
-//         {"output", required_argument, 0, 'o'},
-//         {"verbose", no_argument, 0, 'v'},
+// std::vector<arg> args_list = {
+//     {"help", "Show help message", no_value, false, {"-h", "--help"}},
+//     {"debug", "Log out the compilation steps", no_value, false, {"-d", "--debug"}},
+//     {"output", "Output file name", has_value, false, {"-o", "--output"}},
+//     {"run", "Run the compiled file", no_value, false, {"-r", "--run"}},
+//     {"compiler", "C++ compiler to use", has_value, false, {"-c", "--compiler"}},
 // };
 
+// std::vector<pos_arg> pos_args_list = {
+//     {"input file", "Path to the file to compile", "0"},
+// };
 
-void parse(int argc, char* argv[]) {
+std::string generate_help(std::vector<arg> args_list) {
+    std::string help = "The Swirl compiler\n\nUsage: Swirl [flags] file";
+
+    help += "\n\nFlags:\n";
+    // generate the flags
+    for (auto& arg : args_list) {
+        help+="\t";
+        for (auto& flag : arg.flags) {
+            // check if it isn't the last flag
+            if (flag != arg.flags.back()) {
+                help += std::string(flag) + ", ";
+            } else {
+                help += std::string(flag);
+            }
+        }
+        help += "\t" + std::string(arg.description) + "\n";
+    }
+    return help;
+}
+
+std::string optstring = ":";
+
+void parse(int argc, char* argv[], std::vector<arg>& args_list, std::vector<pos_arg>& pos_args_list) {
+    static struct option *long_options = new struct option[args_list.size()];
     for (int i = 0; i < args_list.size(); i++) {
         long_options[i].name = args_list[i].name;
         long_options[i].has_arg = (args_list[i].val != "1") ? no_argument : required_argument;
@@ -49,20 +73,26 @@ void parse(int argc, char* argv[]) {
     while ((opt = getopt_long(argc, argv, optstring.c_str(), long_options, NULL)) != -1) {
         switch (opt) {
             case ':':
-                std::cout << "Option: " << (char)optopt << " requires an argument" << std::endl;
+                // get the name of the flag
+                for (auto& arg : args_list) {
+                    for (auto& flag : arg.flags) {
+                        if (flag[1] == optopt) {
+                            std::cerr << "Error: " << arg.name << " flag requires a value \n";
+                        }
+                    }
+                }
                 break;
             case '?':
-                std::cerr << "Usage: " << argv[0] << " [-o value -v] file" << std::endl;
+                std::cerr << "Usage: "<< argv[0] << " [flags] file" << std::endl;
                 break;
             default:
                 for (int i = 0; i < args_list.size(); i++) {
                     if (args_list[i].flags[0][1] == opt) {
                         // check if the option requires a value
                         if (args_list[i].val == has_value) {
-                            std::cout << args_list[i].name << ": " << optarg << std::endl;
                             args_list[i].val = optarg;
                         } else {
-                            std::cout << args_list[i].name << ": " << "true" << std::endl;
+                            args_list[i].val = "true";
                         }
                         break;
                     }
@@ -71,7 +101,28 @@ void parse(int argc, char* argv[]) {
         }
     }
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " [-o value -v] file" << std::endl;
+        std::cerr << "Usage: "<< argv[0] << " [flags] file" << std::endl;
+        exit(1);
+    }
+
+    // assign the positional arguments
+    int pos_arg_index = 0;
+    for (int i = optind; i < argc; i++) {
+        pos_args_list[pos_arg_index].val = argv[i];
+        pos_arg_index++;
+    }
+
+    // check if -h or --help is passed
+    if (args_list[0].val == "true") {
+        std::cout << generate_help(args_list) << std::endl;
+        exit(0);
+    }
+
+    // print the positional args
+    for (int i = 0; i < pos_args_list.size(); i++) {
+        if (pos_args_list[i].val == "0") {
+            std::cerr << "Usage: "<< argv[0] << " [flags] file" << std::endl;
+        }
     }
     delete[] long_options;
 }
