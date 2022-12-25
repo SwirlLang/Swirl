@@ -19,18 +19,6 @@ struct pos_arg {
     const char* val;
 };
 
-// std::vector<arg> args_list = {
-//     {"help", "Show help message", no_value, false, {"-h", "--help"}},
-//     {"debug", "Log out the compilation steps", no_value, false, {"-d", "--debug"}},
-//     {"output", "Output file name", has_value, false, {"-o", "--output"}},
-//     {"run", "Run the compiled file", no_value, false, {"-r", "--run"}},
-//     {"compiler", "C++ compiler to use", has_value, false, {"-c", "--compiler"}},
-// };
-
-// std::vector<pos_arg> pos_args_list = {
-//     {"input file", "Path to the file to compile", "0"},
-// };
-
 std::string generate_help(std::vector<arg> args_list) {
     std::string help = "The Swirl compiler\n\nUsage: Swirl [flags] file";
 
