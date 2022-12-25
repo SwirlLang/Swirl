@@ -42,7 +42,21 @@ int main(int argc, const char** argv) {
     if (std::get_if<bool>(&comp_flg) == nullptr) /* The flag is supplied */
         cxx = std::get<std::string>(comp_flg);
 
-	SW_FED_FILE_PATH = argv[1];
+	for (int c = 1; c < argc; c++) {
+		if (
+			argv[c][0] != '-' &&
+			(argv[c - 1][0] != '-' ||
+			std::find_if(application_flags.begin(), application_flags.end(), [&](const cli::Argument& _arg) {
+				if (_arg.value_required) return false;
+				auto &[v1, v2] = _arg.flags;
+				return v1 == argv[c - 1] || v2 == argv[c - 1];
+			}) != application_flags.end()
+		)) {
+			SW_FED_FILE_PATH = argv[c];
+			break;
+		}
+	}
+
 	if (!std::filesystem::exists(SW_FED_FILE_PATH)) {
 		std::cerr << "File " << SW_FED_FILE_PATH << " doesn't exists!" << std::endl;
 		return 1;
