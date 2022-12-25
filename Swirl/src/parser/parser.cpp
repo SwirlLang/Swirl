@@ -1,7 +1,6 @@
 #include <iostream>
 #include <cstring>
 #include <array>
-#include <ranges>
 
 #include <parser/parser.h>
 #include <exception/exception.h>
