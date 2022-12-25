@@ -102,7 +102,7 @@ void parse(int argc, char* argv[], std::vector<arg>& args_list, std::vector<pos_
     }
     if (argc < 2) {
         std::cerr << "Usage: "<< argv[0] << " [flags] file" << std::endl;
-        exit(1);
+        exit(0);
     }
 
     // assign the positional arguments
