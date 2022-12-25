@@ -19,11 +19,11 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
     std::array<const char*, 3> vld_scopes = {"CONDITION", "FUNC", "CLASS"};
 
     bt_fstream.open("Swirl/src/transpiler/builtins.cpp");
-    if (bt_fstream.is_open()) {
-        std::string bt_cr_ln;
-        while (std::getline(bt_fstream, bt_cr_ln))
-            compiled_source += bt_cr_ln + "\n";
-    }
+    compiled_source = {
+        std::istreambuf_iterator<char>(bt_fstream),
+        {}
+    };
+    bt_fstream.close();
 
     compiled_source += "int main() {\n";
 
@@ -70,4 +70,5 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
     std::ofstream o_file_buf(_buildFile);
     compiled_source += "}";
     o_file_buf << compiled_source;
+    o_file_buf.close();
 }

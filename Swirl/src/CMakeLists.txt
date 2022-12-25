@@ -1,4 +1,5 @@
 file(GLOB src
+    cli/cli.cpp
         transpiler/builtins.txt
     exception_handler/ExceptionHandler.cpp
         parser/class/ClassParser.cpp
