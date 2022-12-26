@@ -28,10 +28,19 @@ Flags:
 	-r, --run       Run the compiled file
 	-c, --compiler  C++ compiler to use
 )";
-	//Use swirl [command] --help for more information about the command
 
 	std::vector<Argument> parse(int argc, const char** argv, const std::vector<Argument>& flags);
-    std::variant</* The flag value */ std::string, /* The flag is supplied or not */ bool>
+    /**
+     * This function returns the value of the flag requested from the provided args vector.
+     * If the flag is not supplied, it returns false.
+     * If the flag is supplied, it returns the value of the flag.
+     * If the flag is not required to have a value, it returns true.
+     *
+     * @param flag Requested flag
+     * @param args Vector of arguments
+     * @return The value of the flag
+     */
+    std::variant<std::string, bool>
         get_flag(std::string_view flag, const std::vector<Argument>& args);
 }
 

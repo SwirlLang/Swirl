@@ -33,8 +33,8 @@ namespace cli {
 
 		return supplied;
 	}
-
-    std::variant</* The flag value */ std::string, /* The flag is supplied or not */ bool>
+    
+    std::variant<std::string, bool>
 		get_flag(std::string_view flag, const std::vector<Argument>& args) {
 		auto it = std::find_if(args.cbegin(), args.cend(), [&](const Argument& a) {
 			auto& [v1, v2] = a.flags;
