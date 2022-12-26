@@ -1,6 +1,3 @@
-#ifndef SWIRL_CLI_H
-#define SWIRL_CLI_H
-
 #include <vector>
 #include <algorithm>
 #include <iostream>
@@ -8,6 +5,9 @@
 #include <tuple>
 #include <sstream>
 #include <variant>
+
+#ifndef CLI_H_Swirl
+#define CLI_H_Swirl
 
 namespace cli {
     struct Argument {
@@ -42,4 +42,4 @@ Flags:
         get_flag(std::string_view flag, const std::vector<Argument>& args);
 }
 
-#endif // !SWIRL_CLI_H
+#endif
