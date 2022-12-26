@@ -4,7 +4,9 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#include <iomanip>
 #include <tuple>
+#include <sstream>
 #include <variant>
 
 namespace cli {
@@ -16,30 +18,26 @@ namespace cli {
         std::string value;
     };	
 
-	
-	constexpr std::string_view HELP_MESSAGE = R"(The Swirl compiler
-
-Usage: Swirl <file-path> [-o] <output> [--debug]
+	const std::string USAGE = R"(The Swirl compiler
+Usage: Swirl <input-file> [flags]
 
 Flags:
-	-h, --help      Show this help message
-	-d, --debug     log out steps of the compilation
-	-o, --output    Output file name
-	-r, --run       Run the compiled file
-	-c, --compiler  C++ compiler to use
 )";
 
+    std::string generate_help(const std::vector<Argument> &flags);
+
 	std::vector<Argument> parse(int argc, const char** argv, const std::vector<Argument>& flags);
+
     /**
-     * This function returns the value of the flag requested from the provided args vector.
-     * If the flag is not supplied, it returns false.
-     * If the flag is supplied, it returns the value of the flag.
-     * If the flag is not required to have a value, it returns true.
-     *
-     * @param flag Requested flag
-     * @param args Vector of arguments
-     * @return The value of the flag
-     */
+    * This function returns the value of the flag requested from the provided args vector.
+    * If the flag is not supplied, it returns false.
+    * If the flag is supplied, it returns the value of the flag.
+    * If the flag is not required to have a value, it returns true.
+    *
+    * @param flag Requested flag
+    * @param args Vector of arguments
+    * @return The value of the flag
+    */
     std::variant<std::string, bool>
         get_flag(std::string_view flag, const std::vector<Argument>& args);
 }
