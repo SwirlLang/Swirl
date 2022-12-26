@@ -33,7 +33,7 @@ int main(int argc, const char** argv) {
     std::vector<cli::Argument> args =cli::parse(argc, argv, application_flags);
 
     if (std::get<bool>(cli::get_flag("-h", args))) { 
-        std::cout << cli::HELP_MESSAGE << '\n';
+        std::cout << cli::generate_help(application_flags) << '\n';
         return 0;
     }
 
