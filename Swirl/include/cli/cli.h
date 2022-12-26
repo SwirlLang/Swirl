@@ -38,7 +38,7 @@ Flags:
     * @param args Vector of arguments
     * @return The value of the flag
     */
-    std::variant</* The flag value */ std::string, /* The flag is supplied or not */ bool>
+    std::variant<std::string, bool>
         get_flag(std::string_view flag, const std::vector<Argument>& args);
 }
 
