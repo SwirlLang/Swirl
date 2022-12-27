@@ -91,7 +91,7 @@ Here are the guidelines for writing effective commit messages:
 
 **Use bullet points to list specific changes**: If the commit includes multiple changes, it can be helpful to use bullet points to list them out. This helps to make the commit message more organized and easier to read.
 
-**Use tags to highlight important information**: The tags should be used to reflect the name of the file or component updated. Like cli, parser, transpiler. Tags should be written in uppercase. Like CLI.
+**Use tags to highlight important information**: The tags should be used to reflect the name of the file or component updated. Like cli, parser, transpiler.
 
 **Use proper spelling and grammar**: Make sure to use proper spelling and grammar in your commit messages. This helps to ensure that the messages are clear and easy to understand.
 
