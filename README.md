@@ -19,12 +19,11 @@ Welcome to Swirl, a feature-rich programming language that is easy to learn and 
 
 Some of the key features of Swirl include: 
 * Intuitive, easy-to-learn syntax
-* Statically typed variables for improved type safety and performance
-* Rich standard library with functions useful for a wide range of tasks
+* Statically typed for improved type safety and performance
+* Rich standard library useful for a wide range of tasks
 * Support for object-oriented programming
 * Cross-platform compatibility
 * Advanced package management system for accessing a wide range of libraries and frameworks
-* Efficient runtime for fast and smooth app performance
 
 ## Getting Started
 To get started with Swirl, you'll need to install the Swirl. You can find installation instructions in the [docs](https://swirl-lang.vercel.app/docs/getting-started/installation).
