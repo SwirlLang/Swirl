@@ -1,8 +1,27 @@
 #include "cli/cli.h"
 
 namespace cli {
+	std::string generate_help(const std::vector<Argument>& flags) {
+		int max_width = 0;
+		std::for_each(flags.cbegin(), flags.cend(), [&](const Argument& arg) {
+			auto& [v1, v2] = arg.flags;
+			if (v1.size() + v2.size() + 2 > max_width) max_width = v1.size() + v2.size() + 3;
+		});
+
+		std::string msg;
+		for (const Argument& arg : flags) {
+			auto& [v1, v2] = arg.flags;
+			msg += "\t" + v1 + ", " + v2;
+			for (int c = 0; c < max_width - v1.size() - v2.size() - 2; c++) msg += ' ';
+			msg += "     " + arg.desc + '\n';
+		} return msg;
+	}
+
 	std::vector<Argument> parse(int argc, const char** argv, const std::vector<Argument>& flags) {
-		if (argc <= 1) { std::cout << HELP_MESSAGE; exit(0); }
+		if (argc <= 1) { 
+			std::cout << USAGE << generate_help(flags) << '\n';
+			exit(0); 
+		}
 
 		std::vector<std::string_view> args(argv, argv + argc);
 		std::vector<Argument> supplied;

@@ -65,6 +65,8 @@ By contributing, you agree that your contributions will be licensed under GPL v3
 
 # Conventions
 
+## Naming
+
 The following conventions are being used while authoring Swirl, we request contributors to follow them too while contributing towards Swirl.
 
 <li> PascalCase for Classes and Structures.
@@ -74,4 +76,29 @@ The following conventions are being used while authoring Swirl, we request contr
 <li> Identifier of top level constants must be in UPPER CASE.
 <br>
 <br>
+
+## Commit messages guideline
+
+Here are the guidelines for writing effective commit messages:
+
+**Keep the subject line short and concise**: The subject line should be a brief summary of the changes made in the commit. It should be no more than 50 characters long, and it should not end with a period.
+
+**Use the imperative mood in the subject line**: The subject line should describe what the commit does, rather than what has been done. For example, "Add feature X" is better than "Added feature X."
+
+**Use the body to provide context and details**: The body of the commit message should provide more detailed information about the changes made in the commit. It should explain the motivations behind the changes, and it should provide any relevant context or background information.
+
+**Separate the subject line and body with a blank line**: Use a blank line to separate the subject line from the body of the commit message. This helps to visually distinguish between the two sections of the message.
+
+**Use bullet points to list specific changes**: If the commit includes multiple changes, it can be helpful to use bullet points to list them out. This helps to make the commit message more organized and easier to read.
+
+**Use tags to highlight important information**: The tags should be used to reflect the name of the file or component updated. Like cli, parser, transpiler.
+
+**Use proper spelling and grammar**: Make sure to use proper spelling and grammar in your commit messages. This helps to ensure that the messages are clear and easy to understand.
+
+A example commit message: 
+```
+CLI: Update include guard
+
+Shifted include guard location after the include statements. And changed include guard format from SWIRL_CLI_H to CLI_H_Swirl.
+```
 That's all, Thank you for having a look!

@@ -2,7 +2,7 @@
 <img width=500 src="https://raw.githubusercontent.com/SwirlLang/branding/main/logos/Swirl-wordmark-logo(transparent).png">
 
 # Swirl programming language
-Swirl is a high level, statically typed, object-oriented and a feature rich programming language.
+A high level, statically typed, object-oriented programming language.
 
 [Website](https://swirl-lang.vercel.app) |
 [Docs](https://swirl-lang.vercel.app/docs) |
@@ -14,24 +14,34 @@ Swirl is a high level, statically typed, object-oriented and a feature rich prog
 [![Discord](https://img.shields.io/discord/894989427628179477?color=blue&label=Discord&logo=Discord&logoColor=white&style=flat-square)](https://discord.gg/RSJ5TUDdqx)
 </div>  
 
-### Hello World!
+Welcome to Swirl, a feature-rich programming language that is easy to learn and use, making it a great choice for beginners and experienced programmers alike. With a clean and concise syntax, Swirl allows you to write code that is easy to read and understand. Additionally, Swirl is designed for efficiency, ensuring that your apps run smoothly and perform well across all platforms.
 
+
+Some of the key features of Swirl include: 
+* Intuitive, easy-to-learn syntax
+* Statically typed for improved type safety and performance
+* Rich standard library useful for a wide range of tasks
+* Support for object-oriented programming
+* Cross-platform compatibility
+* Advanced package management system for accessing a wide range of libraries and frameworks
+
+## Getting Started
+To get started with Swirl, you'll need to install the Swirl. You can find installation instructions in the [docs](https://swirl-lang.vercel.app/docs/getting-started/installation).
+
+Once you have Swirl installed, you can start using it right away. Simply open a terminal and create a file named hello.sw with a simple hello world program: 
 ```
-print("Hello world!")
+print("Hello World")
 ```
 
-check the [specification](specification.md) for more details
+To run the program, save your code and use the swirl compiler to compile and run the program. For example:
+```bash
+swirl hello.sw --run
+```
+Here the --run flag compiles and runs the app in a single command.
 
-<br>
-
-The language will have its own gui library for making cross-platform desktop apps, a web framework for making websites etc.
-
-The language is still in development. There are lots of work that needs to be done. We are expecting to release the first alpha version this year.
-
-## Contributing
-
-Contributions to the language are appreciated. We want to work in a open source community. If you want to contribute to the language or want to build the project check the [CONTRIBUTING](https://github.com/SwirlLang/Swirl/blob/main/CONTRIBUTING.md) guidelines.
+## Contributing to Swirl
+We welcome contributions to Swirl! If you have an idea for a new feature or have found a bug, please open an issue in the project repository. To contribute code to Swirl, fork the repository, create a new branch, and submit a pull request. Read the [Docs](https://swirl-lang.vercel.app/docs/) for more info.
 
 ## Issues and feature request
 
-If you want to request any new feature or want to tell us about any sorts of bug you can use github issues for it. We will try to reply as fast as we can.
+If you want to request a new feature or report a bug, you can use the GitHub issues tracker. We will do our best to respond as quickly.

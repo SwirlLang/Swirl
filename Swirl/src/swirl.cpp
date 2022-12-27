@@ -30,10 +30,10 @@ const std::vector<cli::Argument> application_flags = {
 };
 
 int main(int argc, const char** argv) {
-    std::vector<cli::Argument> args =cli::parse(argc, argv, application_flags);
+    std::vector<cli::Argument> args = cli::parse(argc, argv, application_flags);
 
     if (std::get<bool>(cli::get_flag("-h", args))) { 
-        std::cout << cli::HELP_MESSAGE << '\n';
+        std::cout << cli::generate_help(application_flags) << '\n';
         return 0;
     }
 
@@ -42,17 +42,17 @@ int main(int argc, const char** argv) {
     if (std::get_if<bool>(&comp_flg) == nullptr) /* The flag is supplied */
         cxx = std::get<std::string>(comp_flg);
 
-	for (int c = 1; c < argc; c++) {
+	for (int i = 1; i < argc; i++) {
 		if (
-			argv[c][0] != '-' &&
-			(argv[c - 1][0] != '-' ||
+			argv[i][0] != '-' &&
+			(argv[i - 1][0] != '-' ||
 			std::find_if(application_flags.begin(), application_flags.end(), [&](const cli::Argument& _arg) {
 				if (_arg.value_required) return false;
 				auto &[v1, v2] = _arg.flags;
-				return v1 == argv[c - 1] || v2 == argv[c - 1];
+				return v1 == argv[i - 1] || v2 == argv[i - 1];
 			}) != application_flags.end()
 		)) {
-			SW_FED_FILE_PATH = argv[c];
+			SW_FED_FILE_PATH = argv[i];
 			break;
 		}
 	}
