@@ -6,12 +6,14 @@
 #define SWIRL_PARSER_H
 
 struct Node {
+    short scope_order = 0;
+    bool initialized  = false;
+
     std::string type;
     std::string value;
     std::string ident;
-    std::size_t scope_order;
+    std::string var_type;
 
-    bool initialized = true;
     std::string condition;
     std::vector<Node> chl;
     std::vector<Node> args;

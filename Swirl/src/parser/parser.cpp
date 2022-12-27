@@ -6,7 +6,7 @@
 #include <exception/exception.h>
 
 
-#define _debug true;
+#define _debug true
 
 Parser::Parser(TokenStream& _stream) : m_Stream(_stream) {
     m_AST = new AbstractSyntaxTree{};
@@ -19,7 +19,7 @@ Parser::~Parser() {
 void Parser::dispatch() {
     const char* tmp_ident = "";
     const char* tmp_type = "";
-    Node brace_node_instance{};
+    Node tmp_node{};
 
     try {
         while (!m_Stream.eof()) {
@@ -29,16 +29,18 @@ void Parser::dispatch() {
             if (strcmp(m_Stream.p_CurTk[0], "PUNC") == 0 && strcmp(m_Stream.p_CurTk[1], "{") == 0) {
                 m_ScopeId++;
                 m_AST->chl.back().scope_order = m_ScopeId ;
-                brace_node_instance.type = "BR_OPEN";
-                m_AST->chl.push_back(brace_node_instance);
-                brace_node_instance.type = "";
+                tmp_node.type = "BR_OPEN";
+                m_AST->chl.push_back(tmp_node);
+                tmp_node.type = "";
+                continue;
             }
 
             if (strcmp(m_Stream.p_CurTk[0], "PUNC") == 0 && strcmp(m_Stream.p_CurTk[1], "}") == 0) {
                 m_ScopeId--;
-                brace_node_instance.type = "BR_CLOSE";
-                m_AST->chl.push_back(brace_node_instance);
-                brace_node_instance.type = "";
+                tmp_node.type = "BR_CLOSE";
+                m_AST->chl.push_back(tmp_node);
+                tmp_node.type = "";
+                continue;
             }
 
             if (t_type == "IDENT" && strcmp(tmp_type, "") != 0) {
@@ -46,6 +48,7 @@ void Parser::dispatch() {
                 parseDecl(tmp_type, tmp_ident);
                 tmp_type = "";
                 tmp_ident = "";
+                continue;
             }
 
             if (t_type == "KEYWORD" && t_val == "if" || t_val == "elif" || t_val == "else") {
@@ -55,14 +58,55 @@ void Parser::dispatch() {
 
             if (t_type == "IDENT") {
                 tmp_ident = t_val.c_str();
+
                 m_Stream.next();
-                if (std::string(m_Stream.p_CurTk[1]) == "(" ) {
+                if (strcmp(m_Stream.p_CurTk[1], "(") == 0) {
                     parseCall(tmp_ident);
+                    continue;
                 }
+
+                tmp_node.type = "IDENT";
+                tmp_node.value = tmp_ident;
+                m_AST->chl.push_back(tmp_node);
+                tmp_node.type = "";
+                tmp_node.value = "";
+                continue;
             }
 
             if (t_type == "KEYWORD" && t_val == "while" || t_val == "for") {
                 parseLoop(t_val.c_str());
+                continue;
+            }
+
+            if (t_type == "NUMBER" || t_type == "STRING") {
+                tmp_node.type = t_type;
+                tmp_node.value = t_val;
+                m_AST->chl.push_back(tmp_node);
+                tmp_node.type = "";
+                tmp_node.value = "";
+            }
+
+            if (t_type == "OP") {
+                tmp_node.type = t_type;
+                tmp_node.value = t_val;
+                m_AST->chl.push_back(tmp_node);
+                tmp_node.type = "";
+                tmp_node.value = "";
+            }
+
+            if (strcmp(m_Stream.p_CurTk[0], "PUNC") == 0 && strcmp(m_Stream.p_CurTk[1], "(") == 0) {
+                tmp_node.type = "PRN_OPEN";
+                m_AST->chl.push_back(tmp_node);
+                tmp_node.type = "";
+                m_Stream.next();
+                continue;
+            }
+
+            if (strcmp(m_Stream.p_CurTk[0], "PUNC") == 0 && strcmp(m_Stream.p_CurTk[1], ")") == 0) {
+                tmp_node.type = "PRN_CLOSE";
+                m_AST->chl.push_back(tmp_node);
+                tmp_node.type = "";
+                m_Stream.next();
                 continue;
             }
 
@@ -73,17 +117,22 @@ void Parser::dispatch() {
 
             m_Stream.next();
         }
-    } catch ( std::exception& _sigabrt ) {}
+    } catch ( std::exception& _ ) {}
 }
 
 void Parser::parseDecl(const char* _type, const char* _ident) {
     Node decl_node{};
     decl_node.type = "VAR";
-    decl_node.type = _type;
+    decl_node.var_type = _type;
     decl_node.ident = _ident;
 
-    std::cout << "TYPE: " << _type << " IDENT: " << _ident << std::endl;
+    try {
+        m_Stream.next();
+        if (strcmp(m_Stream.p_CurTk[0], "OP") == 0 && strcmp(m_Stream.p_CurTk[1], "=") == 0)
+            decl_node.initialized = true;
+    } catch ( std::exception& _ ) {}
 
+    m_AST->chl.push_back(decl_node);
 }
 
 void Parser::parseCall(const char* _ident) {
@@ -102,9 +151,8 @@ void Parser::parseCall(const char* _ident) {
         if (tk_type == "IDENT") {
             tmp_ident = tk_val;
         }
-//        std::cout << m_Stream.p_CurTk[0] << std::endl;
+
         if (tk_type != "PUNC") {  // TODO: recursive checks for calls
-//            std::cout << "REACHED!" << std::endl;
             arg_node.type = tk_type;
             arg_node.value = tk_val;
             call_node.args.push_back(arg_node);
@@ -142,4 +190,3 @@ void Parser::parseCondition(const char* _type) {
 
     m_AST->chl.push_back(cnd_node);
 }
-
