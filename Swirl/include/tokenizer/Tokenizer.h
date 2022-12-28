@@ -1,5 +1,7 @@
 #include <iostream>
 #include <vector>
+#include <string>
+#include <string_view>
 #include <limits>
 #include <array>
 #include <functional>
@@ -15,6 +17,8 @@
 #define SWIRL_TokenStream_H
 
 #define SWIRL_TokenStream_H
+
+using namespace std::string_view_literals; // ""sv
 
 const defs DEF{};
 
@@ -37,7 +41,7 @@ public:
     }
 
     static bool isDigit(char _chr) {
-        return std::string("1234567890").find(std::string(1, _chr)) != std::string::npos;
+        return "1234567890"sv.find(std::to_string(_chr)) != std::string::npos;
     }
 
     static uint8_t isId(char chr) {
@@ -45,21 +49,21 @@ public:
     }
 
     static bool isIdStart(char _chr) {
-        return std::string("_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz").find(
-                std::string(1, _chr)
-                ) != std::string::npos;
+        return "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"sv.find(
+			std::to_string(_chr)
+		) != std::string::npos;
     }
 
     static bool isPunctuation(char chr) {
-        return std::string("();,{}[]").find(chr) >= 0;
+        return "();,{}[]"sv.find(chr) >= 0;
     }
 
     static bool isOpChar(char _chr) {
-        return std::string("!=*&<>-/").find(_chr) != std::string::npos;
+        return "!=*&<>-/"sv.find(_chr) != std::string::npos;
     }
 
     static bool isWhiteSpace(char _chr) {
-        return std::string(" \t\n").find(_chr) != std::string::npos;
+        return " \t\n"sv.find(_chr) != std::string::npos;
     }
 
     std::string readWhile(const std::function<bool (char)>& delimiter) {
