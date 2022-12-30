@@ -3,6 +3,8 @@
 
 #include <parser/parser.h>
 
+#define SC_IF_IN_PRNS if (!prn_ind) compiled_source += ";"
+
 std::string compiled_source = R"(
 #include <iostream>
 
@@ -15,7 +17,7 @@ void print(Const __Obj, const std::string& __End = "\n", bool __Flush = true) {
     else std::cout << std::boolalpha << __Obj << __End;
 }
 
-std::string input(std::string __Prompt) {
+std::string input(const std::string& __Prompt) {
     std::string ret;
     std::cout << __Prompt << std::flush;
     std::getline(std::cin, ret);
@@ -25,6 +27,7 @@ std::string input(std::string __Prompt) {
 )";
 
 void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
+    int                        prn_ind = 0;
     bool                       is_scp;
     bool                       apnd_chl;
     std::ifstream              bt_fstream;
@@ -43,18 +46,35 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             continue;
         }
 
+        if (child.type == "PRN_OPEN") {
+            compiled_source += "(";
+            prn_ind += 1;
+            continue;
+        }
+
+        if (child.type == "PRN_CLOSE") {
+            compiled_source += ")";
+            prn_ind -= 1;
+
+            SC_IF_IN_PRNS;
+            continue;
+        }
+
         if (child.type == "STRING") {
-            compiled_source += '"' + child.value + "\";";
+            compiled_source += '"' + child.value + "\"";
+            SC_IF_IN_PRNS;
             continue;
         }
 
         if (child.type == "NUMBER") {
-            compiled_source += child.value + ";";
+            compiled_source += child.value;
+            SC_IF_IN_PRNS;
             continue;
         }
 
         if (child.type == "IDENT") {
-            compiled_source += child.value + ";";
+            compiled_source += child.value;
+            SC_IF_IN_PRNS;
             continue;
         }
 
@@ -90,22 +110,8 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
         }
 
         if (child.type == "CALL") {
-            tmp_str_cnst += child.ident + "(";
-            int args_count = 0;
-
-            for (const auto& arg : child.args) {
-                if (arg.type == "STRING")
-                    tmp_str_cnst += "\"" + arg.value + "\"";
-                else
-                    tmp_str_cnst += arg.value;
-
-                args_count++;
-                if (args_count != child.args.size()) tmp_str_cnst += ",";
-            }
-
-            tmp_str_cnst += ")";
-            compiled_source += tmp_str_cnst + ";";
-            tmp_str_cnst.clear();
+            compiled_source += child.ident + "(";
+            prn_ind += 1;
         }
     }
 
