@@ -16,7 +16,6 @@ struct Node {
 
     std::string condition;
     std::vector<Node> chl;
-    std::vector<Node> args;
 };
 
 
