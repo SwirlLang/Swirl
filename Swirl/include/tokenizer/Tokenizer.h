@@ -5,6 +5,7 @@
 #include <array>
 #include <functional>
 #include <cstring>
+#include <string_view>
 #include <sstream>
 #include <map>
 
@@ -20,7 +21,7 @@
 using namespace std::string_view_literals;
 
 const defs DEF{};
-
+using namespace std::string_view_literals;
 class TokenStream {
     bool                                            m_Debug;
     std::string                                     m_Ret;
@@ -165,8 +166,6 @@ public:
                 p_CurTk = readNextTok();
         if (m_Debug)
             std::cout << "Token Requested:\t" << p_CurTk[0] << "\t  " << p_CurTk[1] << std::endl;
-
-//        std::cout << m_PeekTk[1] << std::endl;
         return p_CurTk;
     }
 
@@ -175,7 +174,7 @@ public:
     }
 
     bool eof() {
-        return m_Stream.eof();
+        return false;
     }
 
     std::map<const char*, std::size_t> getStreamState() {
