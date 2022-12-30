@@ -38,7 +38,9 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
 
     for (auto const& child : _ast.chl) {
         if (child.type == "OP") {
-            compiled_source.erase(compiled_source.size() - 1);
+            if (!prn_ind)
+                compiled_source.erase(compiled_source.size() - 1);
+
             compiled_source += child.value;
 
             if (child.value == "++" || child.value == "--")
