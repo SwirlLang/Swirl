@@ -15,7 +15,6 @@ struct Node {
     std::string var_type;
 
     std::string condition;
-    std::vector<Node> chl;
 };
 
 
