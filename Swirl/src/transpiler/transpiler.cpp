@@ -66,6 +66,11 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             continue;
         }
 
+        if (child.type == "COMMA") {
+            compiled_source += ",";
+            continue;
+        }
+
         if (child.type == "NUMBER") {
             compiled_source += child.value;
             SC_IF_IN_PRNS;

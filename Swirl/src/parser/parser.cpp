@@ -30,12 +30,24 @@ void Parser::dispatch() {
                 tmp_node.type = "PRN_OPEN";
                 m_AST->chl.push_back(tmp_node);
                 tmp_node.type = "";
+                m_Stream.next();
+                continue;
             }
 
             if (t_type == "PUNC" && t_val == ")") {
                 tmp_node.type = "PRN_CLOSE";
                 m_AST->chl.push_back(tmp_node);
                 tmp_node.type = "";
+                m_Stream.next();
+                continue;
+            }
+
+            if (t_type == "PUNC" && t_val == ",") {
+                tmp_node.type = "COMMA";
+                m_AST->chl.push_back(tmp_node);
+                tmp_node.type = "";
+                m_Stream.next();
+                continue;
             }
 
             if (t_type == "KEYWORD" && t_val == "if" || t_val == "elif" || t_val == "else") {
