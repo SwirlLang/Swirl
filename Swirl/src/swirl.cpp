@@ -19,7 +19,7 @@ std::string SW_FED_FILE_PATH;
 std::string SW_OUTPUT;
 std::string SW_FED_FILE_SOURCE;
 
-const std::vector<cli::Argument> application_flags = {
+const std::vector<Argument> application_flags = {
     {{"-h","--help"}, "Shows this help message", false, {}},
     {{"-r", "--run"}, "Run the compiled file", false, {}},
     {{"-o", "--output"}, "Output file name", true, {}},
@@ -27,36 +27,24 @@ const std::vector<cli::Argument> application_flags = {
     {{"-d", "--debug"}, "Log the steps of compilation", false, {}}
 };
 
-int main(int argc, const char** argv) {
-    std::vector<cli::Argument> args = cli::parse(argc, argv, application_flags);
+int main(int argc, const char ** const argv) {
+	cli app(argc, argv, application_flags);
 
-    if (std::get<bool>(cli::get_flag("-h", args))) { 
-        std::cout << cli::generate_help(application_flags) << '\n';
+    if (app.contains_flag("-h")) {
+        std::cout << USAGE << app.generate_help() << '\n';
         return 0;
     }
 
-    std::string cxx = "g++";
-    auto comp_flg = cli::get_flag("-c", args);
-    if (std::get_if<bool>(&comp_flg) == nullptr) /* The flag is supplied */
-        cxx = std::get<std::string>(comp_flg);
+	std::string cxx;
 
-	for (int i = 1; i < argc; i++) {
-		if (
-			argv[i][0] != '-' &&
-			(argv[i - 1][0] != '-' ||
-			std::find_if(application_flags.begin(), application_flags.end(), [&](const cli::Argument& _arg) {
-				if (_arg.value_required) return false;
-				auto &[v1, v2] = _arg.flags;
-				return v1 == argv[i - 1] || v2 == argv[i - 1];
-			}) != application_flags.end()
-		)) {
-			SW_FED_FILE_PATH = argv[i];
-			break;
-		}
-	}
+	if (app.contains_flag("-c"))
+		cxx = app.get_flag_value("-c");
+	else cxx = "g++";
+
+	SW_FED_FILE_PATH = app.get_file();
 
 	if (!std::filesystem::exists(SW_FED_FILE_PATH)) {
-		std::cerr << "File " << SW_FED_FILE_PATH << " doesn't exists!" << std::endl;
+		std::cerr << "File '" << SW_FED_FILE_PATH << "' doesn't exists!" << std::endl;
 		return 1;
 	}
 
@@ -68,7 +56,7 @@ int main(int argc, const char** argv) {
     fed_file_src_buf.close();
 
 	std::string cache_dir = getWorkingDirectory(SW_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP;
-    bool _debug = std::get<bool>(cli::get_flag("-d", args));
+    bool _debug = app.contains_flag("-d");
 
 	preProcess(SW_FED_FILE_SOURCE, cache_dir);
 	InputStream is(SW_FED_FILE_SOURCE);
@@ -83,13 +71,12 @@ int main(int argc, const char** argv) {
 
 	SW_OUTPUT = file_name;
 
-    auto output_flg = cli::get_flag("-o", args);
-    if (std::get_if<bool>(&output_flg) == nullptr)
-        SW_OUTPUT = std::get<std::string>(output_flg);
+	if (app.contains_flag("-o"))
+		SW_OUTPUT = app.get_flag_value("-o");
 
 	Transpile(*parser.m_AST, cache_dir + SW_OUTPUT + ".cpp");
 
-	if (std::get<bool>(cli::get_flag("-r", args))) {
+	if (app.contains_flag("-r")) {
 		std::string cpp_obj =
 				cxx + " " + cache_dir + SW_OUTPUT + ".cpp" + " -o " + out_dir + SW_OUTPUT + " && " + "." + PATH_SEP +
 				out_dir + SW_OUTPUT;
