@@ -1,5 +1,4 @@
 #include <iostream>
-#include <exception>
 
 #include <parser/parser.h>
 
@@ -28,11 +27,8 @@ std::string input(const std::string& __Prompt) {
 
 void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
     int                        prn_ind = 0;
-    bool                       is_scp;
-    bool                       apnd_chl;
     std::ifstream              bt_fstream;
     std::string                tmp_str_cnst;
-    std::size_t                last_scp_order;
 
     compiled_source += "int main() {\n";
 
@@ -40,7 +36,6 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
         if (child.type == "OP") {
             if (!prn_ind)
                 compiled_source.erase(compiled_source.size() - 1);
-
             compiled_source += child.value;
 
             if (child.value == "++" || child.value == "--")
@@ -57,7 +52,6 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
         if (child.type == "PRN_CLOSE") {
             compiled_source += ")";
             prn_ind -= 1;
-
             SC_IF_IN_PRNS;
             continue;
         }
@@ -75,6 +69,10 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
 
         if (child.type == "NUMBER") {
             compiled_source += child.value;
+//            if (!prn_ind) {
+//                compiled_source += ")";
+//                compiled_source += ";";
+//            }
             SC_IF_IN_PRNS;
             continue;
         }
@@ -110,16 +108,13 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             if (!child.initialized)
                 compiled_source += ";";
             else {
-                apnd_chl = true;
                 compiled_source += "=";
             }
             continue;
         }
 
-        if (child.type == "CALL") {
-            compiled_source += child.ident + "(";
-            prn_ind += 1;
-        }
+        if (child.type == "CALL")
+            compiled_source += child.ident;
     }
 
     std::ofstream o_file_buf(_buildFile);

@@ -22,15 +22,17 @@ void Parser::dispatch() {
     Node tmp_node{};
 
     try {
+        std::array<const char*, 2> cur_rd_tok = m_Stream.next();
+
         while (!m_Stream.eof()) {
-            std::string t_val(m_Stream.p_CurTk[1]);
-            std::string t_type(m_Stream.p_CurTk[0]);
+            std::string t_type(cur_rd_tok[0]);
+            std::string t_val(cur_rd_tok[1]);
 
             if (t_type == "PUNC" && t_val == "(") {
                 tmp_node.type = "PRN_OPEN";
                 m_AST->chl.push_back(tmp_node);
                 tmp_node.type = "";
-                m_Stream.next();
+                cur_rd_tok = m_Stream.next();
                 continue;
             }
 
@@ -38,7 +40,7 @@ void Parser::dispatch() {
                 tmp_node.type = "PRN_CLOSE";
                 m_AST->chl.push_back(tmp_node);
                 tmp_node.type = "";
-                m_Stream.next();
+                cur_rd_tok = m_Stream.next();
                 continue;
             }
 
@@ -46,7 +48,7 @@ void Parser::dispatch() {
                 tmp_node.type = "COMMA";
                 m_AST->chl.push_back(tmp_node);
                 tmp_node.type = "";
-                m_Stream.next();
+                cur_rd_tok = m_Stream.next();
                 continue;
             }
 
@@ -60,14 +62,14 @@ void Parser::dispatch() {
                 parseDecl(tmp_type, tmp_ident);
                 tmp_type = "";
                 tmp_ident = "";
-                m_Stream.next();
+                cur_rd_tok = m_Stream.next();
                 continue;
             }
 
             if (t_type == "IDENT") {
                 tmp_ident = t_val.c_str();
 
-                m_Stream.next();
+                cur_rd_tok = m_Stream.next();
                 if (strcmp(m_Stream.p_CurTk[1], "(") == 0) {
                     parseCall(tmp_ident);
                     continue;
@@ -78,7 +80,6 @@ void Parser::dispatch() {
                 m_AST->chl.push_back(tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
-                m_Stream.next();
                 continue;
             }
 
@@ -93,7 +94,7 @@ void Parser::dispatch() {
                 m_AST->chl.push_back(tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
-                m_Stream.next();
+                cur_rd_tok = m_Stream.next();
                 continue;
             }
 
@@ -112,7 +113,7 @@ void Parser::dispatch() {
                     if (tp == t_val)
                         tmp_type = tp.c_str();
 
-            m_Stream.next();
+            cur_rd_tok = m_Stream.next();
         }
     } catch ( std::exception& _ ) {}
 }
@@ -139,7 +140,7 @@ void Parser::parseCall(const char* _ident) {
     call_node.ident = _ident;
     call_node.scope_order = m_ScopeId;
 
-    m_Stream.next();
+//    m_Stream.next();
     if (!m_AppendToScope) m_AST->chl.push_back(call_node);
 }
 
