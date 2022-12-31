@@ -68,8 +68,10 @@ public:
 
     std::string readWhile(const std::function<bool (char)>& delimiter) {
         std::string ret;
-        while (!m_Stream.eof() && delimiter(m_Stream.peek())) {
-            ret += m_Stream.next();
+        while (!m_Stream.eof()) {
+            if (delimiter(m_Stream.peek())) {
+                ret += m_Stream.next();
+            } else {break;}
         }
         return ret;
     }
@@ -115,23 +117,23 @@ public:
                 m_Rax.c_str()
         };
     }
-
+    
     std::array<const char*, 2> readNumber() {
         static uint8_t has_decim = false;
-        auto number = readWhile([](char ch) -> uint8_t {
+        std::string number = readWhile([](char ch) {
             if (ch == '.') {
                 if (has_decim) return false;
                 has_decim = true;
                 return true;
             } return isDigit(ch);
         });
-
+        has_decim = false;
         m_Ret = std::to_string(parseDouble(number));
         return {"NUMBER", m_Ret.c_str()};
     }
 
     std::array<const char*, 2> readNextTok(bool _noIncrement = false) {
-        if (m_Stream.eof()) return {nullptr, nullptr};
+        if (m_Stream.eof()) {return {"null", "null"};}
         auto chr = m_Stream.peek();
         if (chr == '"') return readString();
         if (chr == '\'') return readString('\'');

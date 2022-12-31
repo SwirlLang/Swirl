@@ -24,7 +24,7 @@ void Parser::dispatch() {
     try {
         std::array<const char*, 2> cur_rd_tok = m_Stream.next();
 
-        while (!m_Stream.eof()) {
+        while (cur_rd_tok[0] != "null" && cur_rd_tok[1] != "null") {
             std::string t_type(cur_rd_tok[0]);
             std::string t_val(cur_rd_tok[1]);
 
@@ -104,7 +104,7 @@ void Parser::dispatch() {
                 m_AST->chl.push_back(tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
-                m_Stream.next();
+                cur_rd_tok = m_Stream.next();
                 continue;
             }
 

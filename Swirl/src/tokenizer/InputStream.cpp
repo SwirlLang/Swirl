@@ -20,7 +20,7 @@ char InputStream::next(bool _noIncrement) {
 }
 
 bool InputStream::eof() {
-    return peek() == '\0';
+    return m_Pos == m_Source.size();
 }
 
 void InputStream::raiseException(const char* message) {
