@@ -17,14 +17,13 @@ Parser::~Parser() {
 void Parser::dispatch() {
     const char* tmp_ident = "";
     const char* tmp_type = "";
-    auto _debug = 1;
 
     Node tmp_node{};
 
     try {
-        std::array<const char*, 2> cur_rd_tok = m_Stream.next();
+        cur_rd_tok = m_Stream.next();
 
-        while (cur_rd_tok[0] != "null" && cur_rd_tok[1] != "null") {
+        while (strcmp(cur_rd_tok[0], "null") != 0) {
             std::string t_type(cur_rd_tok[0]);
             std::string t_val(cur_rd_tok[1]);
 

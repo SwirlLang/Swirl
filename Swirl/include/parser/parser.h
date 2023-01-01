@@ -17,13 +17,13 @@ struct Node {
     std::string condition;
 };
 
-
 struct AbstractSyntaxTree {
     std::vector<Node> chl;
 };
 
 class Parser {
     std::size_t m_ScopeId = 0;
+    std::array<const char*, 2> cur_rd_tok{};
 public:
     TokenStream m_Stream;
     AbstractSyntaxTree* m_AST;
