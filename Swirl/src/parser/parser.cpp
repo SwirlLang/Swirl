@@ -28,53 +28,36 @@ void Parser::dispatch() {
             std::string t_type(cur_rd_tok[0]);
             std::string t_val(cur_rd_tok[1]);
 
-            if (t_type == "PUNC" && t_val == "(") {
-                tmp_node.type = "PRN_OPEN";
+            if (t_type == "PUNC") {
+                if (t_val == "(") {tmp_node.type = "PRN_OPEN";}
+                else if (t_val == ")") {tmp_node.type = "PRN_CLOSE";}
+                else if (t_val == ",") {tmp_node.type = "COMMA";}
+                else {continue;}
                 m_AST->chl.push_back(tmp_node);
                 tmp_node.type = "";
                 cur_rd_tok = m_Stream.next();
                 continue;
             }
 
-            if (t_type == "PUNC" && t_val == ")") {
-                tmp_node.type = "PRN_CLOSE";
-                m_AST->chl.push_back(tmp_node);
-                tmp_node.type = "";
-                cur_rd_tok = m_Stream.next();
-                continue;
-            }
-
-            if (t_type == "PUNC" && t_val == ",") {
-                tmp_node.type = "COMMA";
-                m_AST->chl.push_back(tmp_node);
-                tmp_node.type = "";
-                cur_rd_tok = m_Stream.next();
-                continue;
-            }
-
-            if (t_type == "KEYWORD" && t_val == "if" || t_val == "elif" || t_val == "else") {
-                parseCondition(t_val.c_str());
-                continue;
-            }
-
-            if (t_type == "IDENT" && strcmp(tmp_type, "") != 0) {
-                tmp_ident = t_val.c_str();
-                parseDecl(tmp_type, tmp_ident);
-                tmp_type = "";
-                tmp_ident = "";
-                cur_rd_tok = m_Stream.next();
-                continue;
+            if (t_type == "KEYWORD") {
+                if (t_val == "if" || t_val == "elif" || t_val == "else") {parseCondition(t_val.c_str()); continue;}
+                else if (t_val == "while" || t_val == "for") {parseLoop(t_val.c_str()); continue;}
             }
 
             if (t_type == "IDENT") {
                 tmp_ident = t_val.c_str();
-
+                if (strcmp(tmp_type, "") != 0) {
+                    parseDecl(tmp_type, tmp_ident);
+                    tmp_type = "";
+                    tmp_ident = "";
+                    cur_rd_tok = m_Stream.next();
+                    continue;
+                }
                 cur_rd_tok = m_Stream.next();
                 if (strcmp(m_Stream.p_CurTk[1], "(") == 0) {
                     parseCall(tmp_ident);
                     continue;
                 }
-
                 tmp_node.type = "IDENT";
                 tmp_node.value = tmp_ident;
                 m_AST->chl.push_back(tmp_node);
@@ -83,12 +66,7 @@ void Parser::dispatch() {
                 continue;
             }
 
-            if (t_type == "KEYWORD" && t_val == "while" || t_val == "for") {
-                parseLoop(t_val.c_str());
-                continue;
-            }
-
-            if (t_type == "NUMBER" || t_type == "STRING") {
+            if (t_type == "NUMBER" || t_type == "STRING" || t_type == "OP") {
                 tmp_node.type = t_type;
                 tmp_node.value = t_val;
                 m_AST->chl.push_back(tmp_node);
@@ -98,20 +76,9 @@ void Parser::dispatch() {
                 continue;
             }
 
-            if (t_type == "OP") {
-                tmp_node.type = t_type;
-                tmp_node.value = t_val;
-                m_AST->chl.push_back(tmp_node);
-                tmp_node.type = "";
-                tmp_node.value = "";
-                cur_rd_tok = m_Stream.next();
-                continue;
-            }
-
-            if (t_type == "KEYWORD" || t_type == "IDENT")
-                for (const std::string& tp : registered_types)
-                    if (tp == t_val)
-                        tmp_type = tp.c_str();
+            for (const std::string& tp : registered_types)
+                if (tp == t_val)
+                    tmp_type = tp.c_str();
 
             cur_rd_tok = m_Stream.next();
         }
