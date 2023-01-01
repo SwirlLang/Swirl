@@ -67,10 +67,10 @@ int main(int argc, const char ** const argv) {
     if (app.contains_flag("-o"))
         SW_OUTPUT = app.get_flag_value("-o");
 
-    if ( !SW_FED_FILE_SOURCE.empty() ) {
-        SW_FED_FILE_SOURCE += "\n";
-        preProcess(SW_FED_FILE_SOURCE, cache_dir);
+    SW_FED_FILE_SOURCE += "\n";
+    preProcess(SW_FED_FILE_SOURCE, cache_dir);
 
+    if ( !SW_FED_FILE_SOURCE.empty() ) {
         InputStream is(SW_FED_FILE_SOURCE);
         TokenStream tk(is, _debug);
 
