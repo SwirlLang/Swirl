@@ -4,7 +4,7 @@
 #include <fstream>
 #include <vector>
 #include <filesystem>
- 
+
 #include <cli/cli.h>
 #include <pre-processor/pre-processor.h>
 #include <swirl.typedefs/swirl_t.h>
@@ -20,66 +20,70 @@ std::string SW_OUTPUT;
 std::string SW_FED_FILE_SOURCE;
 
 const std::vector<Argument> application_flags = {
-    {{"-h","--help"}, "Shows this help message", false, {}},
-    {{"-r", "--run"}, "Run the compiled file", false, {}},
-    {{"-o", "--output"}, "Output file name", true, {}},
-    {{"-c", "--compiler"}, "C++ compiler to use", true, {}},
-    {{"-d", "--debug"}, "Log the steps of compilation", false, {}}
+        {{"-h","--help"}, "Shows this help message", false, {}},
+        {{"-r", "--run"}, "Run the compiled file", false, {}},
+        {{"-o", "--output"}, "Output file name", true, {}},
+        {{"-c", "--compiler"}, "C++ compiler to use", true, {}},
+        {{"-d", "--debug"}, "Log the steps of compilation", false, {}}
 };
 
 int main(int argc, const char ** const argv) {
-	cli app(argc, argv, application_flags);
+    cli app(argc, argv, application_flags);
 
     if (app.contains_flag("-h")) {
         std::cout << USAGE << app.generate_help() << '\n';
         return 0;
     }
 
-	std::string cxx;
+    std::string cxx;
 
-	if (app.contains_flag("-c"))
-		cxx = app.get_flag_value("-c");
-	else cxx = "g++";
+    if (app.contains_flag("-c"))
+        cxx = app.get_flag_value("-c");
+    else cxx = "g++";
 
-	SW_FED_FILE_PATH = app.get_file();
+    SW_FED_FILE_PATH = app.get_file();
 
-	if (!std::filesystem::exists(SW_FED_FILE_PATH)) {
-		std::cerr << "File '" << SW_FED_FILE_PATH << "' doesn't exists!" << std::endl;
-		return 1;
-	}
+    if (!std::filesystem::exists(SW_FED_FILE_PATH)) {
+        std::cerr << "File '" << SW_FED_FILE_PATH << "' doesn't exists!" << std::endl;
+        return 1;
+    }
 
-	std::ifstream fed_file_src_buf(SW_FED_FILE_PATH);
+    std::ifstream fed_file_src_buf(SW_FED_FILE_PATH);
     SW_FED_FILE_SOURCE = {
-        std::istreambuf_iterator<char>(fed_file_src_buf),
-        {}
+            std::istreambuf_iterator<char>(fed_file_src_buf),
+            {}
     };
     fed_file_src_buf.close();
 
-	std::string cache_dir = getWorkingDirectory(SW_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP;
+    std::string cache_dir = getWorkingDirectory(SW_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP;
     bool _debug = app.contains_flag("-d");
 
-	preProcess(SW_FED_FILE_SOURCE, cache_dir);
-	InputStream is(SW_FED_FILE_SOURCE);
-	TokenStream tk(is, _debug);
+    std::string file_name = SW_FED_FILE_PATH.substr(SW_FED_FILE_PATH.find_last_of("/\\") + 1);
+    std::string out_dir = SW_FED_FILE_PATH.replace(SW_FED_FILE_PATH.find(file_name),file_name.length(),"");
+    file_name = file_name.substr(0, file_name.find_last_of("."));
 
-	Parser parser(tk);
-	parser.dispatch();
+    SW_OUTPUT = file_name;
 
-	std::string file_name = SW_FED_FILE_PATH.substr(SW_FED_FILE_PATH.find_last_of("/\\") + 1);
-	std::string out_dir = SW_FED_FILE_PATH.replace(SW_FED_FILE_PATH.find(file_name),file_name.length(),"");
-	file_name = file_name.substr(0, file_name.find_last_of("."));
+    if (app.contains_flag("-o"))
+        SW_OUTPUT = app.get_flag_value("-o");
 
-	SW_OUTPUT = file_name;
+    if ( !SW_FED_FILE_SOURCE.empty() ) {
+        SW_FED_FILE_SOURCE += "\n";
+        preProcess(SW_FED_FILE_SOURCE, cache_dir);
 
-	if (app.contains_flag("-o"))
-		SW_OUTPUT = app.get_flag_value("-o");
+        InputStream is(SW_FED_FILE_SOURCE);
+        TokenStream tk(is, _debug);
 
-	Transpile(*parser.m_AST, cache_dir + SW_OUTPUT + ".cpp");
+        Parser parser(tk);
+        parser.dispatch();
 
-	if (app.contains_flag("-r")) {
-		std::string cpp_obj =
-				cxx + " " + cache_dir + SW_OUTPUT + ".cpp" + " -o " + out_dir + SW_OUTPUT + " && " + "." + PATH_SEP +
-				out_dir + SW_OUTPUT;
-		system(cpp_obj.c_str());
-	}
+        Transpile(*parser.m_AST, cache_dir + SW_OUTPUT + ".cpp");
+    }
+
+    if (app.contains_flag("-r")) {
+        std::string cpp_obj =
+                cxx + " " + cache_dir + SW_OUTPUT + ".cpp" + " -o " + out_dir + SW_OUTPUT + " && " + "." + PATH_SEP +
+                out_dir + SW_OUTPUT;
+        system(cpp_obj.c_str());
+    }
 }
