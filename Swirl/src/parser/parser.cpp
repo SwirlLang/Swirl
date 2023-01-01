@@ -32,6 +32,8 @@ void Parser::dispatch() {
                 if (t_val == "(") {tmp_node.type = "PRN_OPEN";}
                 else if (t_val == ")") {tmp_node.type = "PRN_CLOSE";}
                 else if (t_val == ",") {tmp_node.type = "COMMA";}
+                else if (t_val == "{") {tmp_node.type = "BR_OPEN";}
+                else if (t_val == "}") {tmp_node.type = "BR_CLOSE";}
                 else {cur_rd_tok = m_Stream.next(); continue;}
                 m_AST->chl.push_back(tmp_node);
                 tmp_node.type = "";
@@ -40,8 +42,15 @@ void Parser::dispatch() {
             }
 
             if (t_type == "KEYWORD") {
-                if (t_val == "if" || t_val == "elif" || t_val == "else") {parseCondition(t_val.c_str()); continue;}
-                else if (t_val == "while" || t_val == "for") {parseLoop(t_val.c_str()); continue;}
+                if (t_val == "if" || t_val == "elif" || t_val == "else") {
+                    parseCondition(t_val.c_str()); 
+                    cur_rd_tok = m_Stream.p_CurTk;
+                    continue;
+                } else if (t_val == "while" || t_val == "for") {
+                    parseLoop(t_val.c_str()); 
+                    cur_rd_tok = m_Stream.p_CurTk;
+                    continue;
+                }
             }
 
             if (t_type == "IDENT") {
@@ -116,7 +125,7 @@ void Parser::parseLoop(const char* _type) {
     loop_node.type = _type;
 
     m_Stream.next();
-    while (strcmp(m_Stream.p_CurTk[0], "PUNC") != 0 && strcmp(m_Stream.p_CurTk[1], "{") != 0)
+    while (strcmp(m_Stream.p_CurTk[0], "PUNC") != 0 && strcmp(m_Stream.p_CurTk[1], "{") != 0 && m_Stream.p_CurTk[0] != "null")
         loop_node.condition += m_Stream.p_CurTk[1];
 
     m_AST->chl.push_back(loop_node);
@@ -129,7 +138,7 @@ void Parser::parseCondition(const char* _type) {
 
     try {
         m_Stream.next();
-        while (!m_Stream.eof()) {
+        while (m_Stream.p_CurTk[0] != "null") {
             if (strcmp(m_Stream.p_CurTk[0], "PUNC") == 0 && strcmp(m_Stream.p_CurTk[1], "{") == 0)
                 break;
 
