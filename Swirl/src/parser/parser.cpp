@@ -32,7 +32,7 @@ void Parser::dispatch() {
                 if (t_val == "(") {tmp_node.type = "PRN_OPEN";}
                 else if (t_val == ")") {tmp_node.type = "PRN_CLOSE";}
                 else if (t_val == ",") {tmp_node.type = "COMMA";}
-                else {continue;}
+                else {cur_rd_tok = m_Stream.next(); continue;}
                 m_AST->chl.push_back(tmp_node);
                 tmp_node.type = "";
                 cur_rd_tok = m_Stream.next();
