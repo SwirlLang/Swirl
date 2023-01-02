@@ -50,8 +50,8 @@ public:
 
     static bool isIdStart(char _chr) {
         return "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"sv.find(
-            _chr
-		) != std::string::npos;
+                _chr
+        ) != std::string::npos;
     }
 
     static bool isPunctuation(char chr) {
@@ -59,7 +59,7 @@ public:
     }
 
     static bool isOpChar(char _chr) {
-        return "!=*&<>-/"sv.find(_chr) != std::string::npos;
+        return "!=*&<>-/+"sv.find(_chr) != std::string::npos;
     }
 
     static bool isWhiteSpace(char _chr) {
@@ -117,7 +117,7 @@ public:
                 m_Rax.c_str()
         };
     }
-    
+
     std::array<const char*, 2> readNumber() {
         static uint8_t has_decim = false;
         std::string number = readWhile([](char ch) {
