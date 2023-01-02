@@ -1,4 +1,5 @@
 #include <iostream>
+#include <set>
 
 #include <parser/parser.h>
 
@@ -27,12 +28,14 @@ std::string input(const std::string& __Prompt) {
 
 void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
     int                        prn_ind = 0;
-    std::ifstream              bt_fstream;
-    std::string                tmp_str_cnst;
+    std::ifstream              bt_fstream{};
+    std::string                tmp_str_cnst{};
+    std::string                last_node_type{};
 
     compiled_source += "int main() {\n";
 
     for (auto const& child : _ast.chl) {
+
         if (child.type == "OP") {
             if (!prn_ind)
                 compiled_source.erase(compiled_source.size() - 1);
@@ -41,6 +44,12 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             if (child.value == "++" || child.value == "--")
                 compiled_source += ";";
             continue;
+        }
+
+        if (child.type == "KEYWORD") {
+            if   (child.value == "break" || child.value == "continue")
+                 { compiled_source += child.value + ";"; continue; }
+            else { compiled_source += child.value + " "; continue; }
         }
 
         if (child.type == "PRN_OPEN") {
@@ -69,10 +78,6 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
 
         if (child.type == "NUMBER") {
             compiled_source += child.value;
-//            if (!prn_ind) {
-//                compiled_source += ")";
-//                compiled_source += ";";
-//            }
             SC_IF_IN_PRNS;
             continue;
         }
@@ -115,6 +120,8 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
 
         if (child.type == "CALL")
             compiled_source += child.ident;
+
+        last_node_type = child.type;
     }
 
     std::ofstream o_file_buf(_buildFile);

@@ -5,6 +5,7 @@
 #include <parser/parser.h>
 #include <exception/exception.h>
 
+#define _debug 1
 
 Parser::Parser(TokenStream& _stream) : m_Stream(_stream) {
     m_AST = new AbstractSyntaxTree{};
@@ -26,6 +27,7 @@ void Parser::dispatch() {
         while (strcmp(cur_rd_tok[0], "null") != 0) {
             std::string t_type(cur_rd_tok[0]);
             std::string t_val(cur_rd_tok[1]);
+            LOG(t_val)
 
             if (t_type == "PUNC") {
                 if (t_val == "(") {tmp_node.type = "PRN_OPEN";}
@@ -50,6 +52,14 @@ void Parser::dispatch() {
                     cur_rd_tok = m_Stream.p_CurTk;
                     continue;
                 }
+
+                tmp_node.type = "KEYWORD";
+                tmp_node.value = t_val;
+                m_AST->chl.push_back(tmp_node);
+                tmp_node.type = "";
+                tmp_node.value = "";
+                cur_rd_tok = m_Stream.next();
+                continue;
             }
 
             if (t_type == "IDENT") {
@@ -61,6 +71,7 @@ void Parser::dispatch() {
                     cur_rd_tok = m_Stream.next();
                     continue;
                 }
+
                 cur_rd_tok = m_Stream.next();
                 if (strcmp(m_Stream.p_CurTk[1], "(") == 0) {
                     parseCall(tmp_ident);
@@ -74,7 +85,7 @@ void Parser::dispatch() {
                 continue;
             }
 
-            if (t_type == "NUMBER" || t_type == "STRING" || t_type == "OP") {
+            if (t_type == "OP" || t_type == "NUMBER" || t_type == "STRING") {
                 tmp_node.type = t_type;
                 tmp_node.value = t_val;
                 m_AST->chl.push_back(tmp_node);
@@ -84,9 +95,9 @@ void Parser::dispatch() {
                 continue;
             }
 
-            for (const std::string& tp : registered_types)
-                if (tp == t_val)
-                    tmp_type = tp.c_str();
+//            for (const std::string& tp : registered_types)
+//                if (tp == t_val)
+//                    tmp_type = tp.c_str();
 
             cur_rd_tok = m_Stream.next();
         }
@@ -128,7 +139,6 @@ void Parser::parseLoop(const char* _type) {
         loop_node.condition += m_Stream.p_CurTk[1];
 
     m_AST->chl.push_back(loop_node);
-    std::cout << loop_node.condition << std::endl;
 }
 
 void Parser::parseCondition(const char* _type) {
