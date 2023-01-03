@@ -34,6 +34,7 @@ void Parser::dispatch() {
                 else if (t_val == "{") {tmp_node.type = "BR_OPEN";}
                 else if (t_val == "}") {tmp_node.type = "BR_CLOSE";}
                 else if (t_val == ":") {tmp_node.type = "COLON";}
+                else if (t_val == ".") {tmp_node.type = "DOT"; }
                 else {cur_rd_tok = m_Stream.next(); continue;}
                 m_AST->chl.push_back(tmp_node);
                 tmp_node.type = "";
@@ -88,6 +89,16 @@ void Parser::dispatch() {
             }
 
             if (t_type == "OP" || t_type == "NUMBER" || t_type == "STRING") {
+                tmp_node.type = t_type;
+                tmp_node.value = t_val;
+                m_AST->chl.push_back(tmp_node);
+                tmp_node.type = "";
+                tmp_node.value = "";
+                cur_rd_tok = m_Stream.next();
+                continue;
+            }
+
+            if (t_type == "MACRO") {
                 tmp_node.type = t_type;
                 tmp_node.value = t_val;
                 m_AST->chl.push_back(tmp_node);

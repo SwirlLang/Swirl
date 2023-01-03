@@ -36,6 +36,7 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
     std::ifstream              bt_fstream{};
     std::string                tmp_str_cnst{};
     std::string                last_node_type{};
+    std::string                macros{};
 
     std::size_t bt_size = compiled_source.size();
     compiled_source += "int main() {\n";
@@ -67,6 +68,11 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             if   (child.value == "break" || child.value == "continue")
                  { compiled_source += child.value + ";"; continue; }
             else { compiled_source += child.value + " "; continue; }
+        }
+
+        if (child.type == "MACRO") {
+            macros += "#" + child.value + "\n";
+            continue;
         }
 
         if (child.type == "PRN_OPEN") {
@@ -131,6 +137,13 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             continue;
         }
 
+        if (child.type == "DOT") {
+            if (compiled_source.ends_with(';'))
+                compiled_source.erase(compiled_source.size() - 1);
+            compiled_source += ".";
+            continue;
+        }
+
         if (child.type == "VAR") {
             compiled_source += child.ctx_type + " " + child.ident;
             if (!child.initialized)
@@ -146,6 +159,7 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
         last_node_type = child.type;
     }
 
+    compiled_source.insert(bt_size, macros);
     std::ofstream o_file_buf(_buildFile);
     compiled_source += "}";
     o_file_buf << compiled_source;
