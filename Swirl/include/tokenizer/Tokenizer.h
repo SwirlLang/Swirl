@@ -59,7 +59,7 @@ public:
     }
 
     static bool isOpChar(char _chr) {
-        return "!=*&<>-/+"sv.find(_chr) != std::string::npos;
+        return "!=*&<>-/+^%"sv.find(_chr) != std::string::npos;
     }
 
     static bool isWhiteSpace(char _chr) {
@@ -103,13 +103,6 @@ public:
         return {"STRING", m_Ret.c_str()};
     }
 
-    static double parseDouble( const std::string& s ) {
-        std::istringstream i(s);
-        double x;
-        if (!(i >> x)) { return std::numeric_limits<double>::quiet_NaN(); }
-        return x;
-    }
-
     std::array<const char*, 2> readIdent() {
         m_Rax = readWhile(isId);
         return {
@@ -128,7 +121,7 @@ public:
             } return isDigit(ch);
         });
         has_decim = false;
-        m_Ret = std::to_string(parseDouble(number));
+        m_Ret = number;
         return {"NUMBER", m_Ret.c_str()};
     }
 
