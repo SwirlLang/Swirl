@@ -8,8 +8,10 @@
 std::string compiled_source = R"(
 #include <iostream>
 
+#define float double
 #define elif else if
 #define var auto
+#define __COLON__ ->
 
 template < typename Const >
 void print(Const __Obj, const std::string& __End = "\n", bool __Flush = true) {
@@ -28,10 +30,14 @@ std::string input(const std::string& __Prompt) {
 
 void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
     int                        prn_ind = 0;
+    int                        fn_br_ind = 0;
+    bool                       rd_function = false;
+
     std::ifstream              bt_fstream{};
     std::string                tmp_str_cnst{};
     std::string                last_node_type{};
 
+    std::size_t bt_size = compiled_source.size();
     compiled_source += "int main() {\n";
 
     for (auto const& child : _ast.chl) {
@@ -43,6 +49,17 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
 
             if (child.value == "++" || child.value == "--")
                 compiled_source += ";";
+            continue;
+        }
+
+        if (child.type == "FUNCTION") {
+            rd_function = true;
+            compiled_source += "auto " + child.ident + " = " + "[]";
+            continue;
+        }
+
+        if (child.type == "COLON") {
+            compiled_source += " __COLON__ ";
             continue;
         }
 
@@ -61,7 +78,8 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
         if (child.type == "PRN_CLOSE") {
             compiled_source += ")";
             prn_ind -= 1;
-            SC_IF_IN_PRNS;
+
+            if (!rd_function) compiled_source += ";";
             continue;
         }
 
@@ -89,12 +107,17 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
         }
 
         if (child.type == "BR_OPEN") {
+            fn_br_ind += 1;
             compiled_source += "{";
+
+            if (fn_br_ind == 1 && rd_function)
+                rd_function = false;
             continue;
         }
 
         if (child.type == "BR_CLOSE") {
-            compiled_source += "}";
+            fn_br_ind -= 1;
+            compiled_source += "};";
             continue;
         }
 
@@ -109,7 +132,7 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
         }
 
         if (child.type == "VAR") {
-            compiled_source += child.var_type + " " + child.ident;
+            compiled_source += child.ctx_type + " " + child.ident;
             if (!child.initialized)
                 compiled_source += ";";
             else {
@@ -120,7 +143,6 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
 
         if (child.type == "CALL")
             compiled_source += child.ident;
-
         last_node_type = child.type;
     }
 
