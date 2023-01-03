@@ -6,13 +6,12 @@
 #define SWIRL_PARSER_H
 
 struct Node {
-    short scope_order = 0;
     bool initialized  = false;
 
     std::string type;
     std::string value;
     std::string ident;
-    std::string var_type;
+    std::string ctx_type;
 
     std::string condition;
 };
@@ -22,7 +21,6 @@ struct AbstractSyntaxTree {
 };
 
 class Parser {
-    std::size_t m_ScopeId = 0;
     std::array<const char*, 2> cur_rd_tok{};
 public:
     TokenStream m_Stream;
@@ -36,6 +34,7 @@ public:
     void parseCondition(const char*);
     void parseCall(const char*);
     void dispatch();
+    void parseFunction();
     void parseDecl(const char*, const char*);
     void parseLoop(const char*);
 
