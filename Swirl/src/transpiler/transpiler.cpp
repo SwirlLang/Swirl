@@ -79,7 +79,7 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             compiled_source += ")";
             prn_ind -= 1;
 
-            if (!rd_function) compiled_source += ";";
+            if (!rd_function && !prn_ind) compiled_source += ";";
             continue;
         }
 
