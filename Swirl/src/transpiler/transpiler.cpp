@@ -42,7 +42,6 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
     compiled_source += "int main() {\n";
 
     for (auto const& child : _ast.chl) {
-
         if (child.type == "OP") {
             if (!prn_ind)
                 compiled_source.erase(compiled_source.size() - 1);
@@ -113,27 +112,24 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
         }
 
         if (child.type == "BR_OPEN") {
-            fn_br_ind += 1;
+            rd_function ? fn_br_ind -= 1 : fn_br_ind;
             compiled_source += "{";
-
-            if (fn_br_ind == 1 && rd_function)
-                rd_function = false;
             continue;
         }
 
         if (child.type == "BR_CLOSE") {
-            fn_br_ind -= 1;
-            compiled_source += "};";
+            rd_function ? fn_br_ind -= 1 : fn_br_ind;
+            compiled_source += "}";
+
+            if (!fn_br_ind ) { }
             continue;
         }
 
         if (child.type == "if" || child.type == "elif" || child.type == "else") {
             if (child.type == "else")
-                tmp_str_cnst += "else";
+                compiled_source += "else";
             else
-                tmp_str_cnst += child.type + " (" + child.condition + ")";
-            compiled_source += tmp_str_cnst;
-            tmp_str_cnst.clear();
+                compiled_source += child.type + " (" + child.condition + ")";
             continue;
         }
 
