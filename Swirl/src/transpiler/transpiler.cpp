@@ -31,7 +31,7 @@ std::string input(const std::string& __Prompt) {
 void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
     int                        prn_ind = 0;
     int                        fn_br_ind = 0;
-    bool                       rd_function = false;
+    int8_t                     rd_function = false;
 
     std::ifstream              bt_fstream{};
     std::string                tmp_str_cnst{};
@@ -84,7 +84,11 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             compiled_source += ")";
             prn_ind -= 1;
 
-            if (!rd_function && !prn_ind) compiled_source += ";";
+            if (rd_function && !prn_ind) rd_function = -1;
+            if (!prn_ind) {
+                if (rd_function != -1) { compiled_source += ";"; continue; }
+                else rd_function = 0;
+            }
             continue;
         }
 
@@ -112,15 +116,16 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
         }
 
         if (child.type == "BR_OPEN") {
-            rd_function ? fn_br_ind -= 1 : fn_br_ind;
+            fn_br_ind += 1;
             compiled_source += "{";
             continue;
         }
 
         if (child.type == "BR_CLOSE") {
-            rd_function ? fn_br_ind -= 1 : fn_br_ind;
+            fn_br_ind -= 1;
             compiled_source += "}";
 
+            if (!fn_br_ind) compiled_source += ';';
             if (!fn_br_ind ) { }
             continue;
         }
@@ -144,9 +149,8 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             compiled_source += child.ctx_type + " " + child.ident;
             if (!child.initialized)
                 compiled_source += ";";
-            else {
+            else
                 compiled_source += "=";
-            }
             continue;
         }
 
