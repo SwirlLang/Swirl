@@ -6,14 +6,12 @@
 #define SWIRL_PARSER_H
 
 struct Node {
-    bool initialized  = false;
+    bool initialized = false;
 
     std::string type;
     std::string value;
     std::string ident;
     std::string ctx_type;
-
-    std::string condition;
 };
 
 struct AbstractSyntaxTree {

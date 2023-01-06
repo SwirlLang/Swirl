@@ -44,11 +44,11 @@ void Parser::dispatch() {
 
             if (t_type == "KEYWORD") {
                 if (t_val == "if" || t_val == "elif" || t_val == "else") {
-                    parseCondition(t_val.c_str()); 
+                    parseCondition(t_val.c_str());
                     cur_rd_tok = m_Stream.p_CurTk;
                     continue;
                 } else if (t_val == "while" || t_val == "for") {
-                    parseLoop(t_val.c_str()); 
+                    parseLoop(t_val.c_str());
                     cur_rd_tok = m_Stream.p_CurTk;
                     continue;
                 } else if (t_val == "func") {
@@ -158,10 +158,15 @@ void Parser::parseLoop(const char* _type) {
     Node loop_node{};
     loop_node.type = _type;
 
-    m_Stream.next();
-    while (strcmp(m_Stream.p_CurTk[0], "PUNC") != 0 && strcmp(m_Stream.p_CurTk[1], "{") != 0 && m_Stream.p_CurTk[0] != "null")
-        loop_node.condition += m_Stream.p_CurTk[1];
-
+    try {
+        cur_rd_tok = m_Stream.next();
+        while (strcmp(m_Stream.p_CurTk[0], "null") != 0) {
+            if (strcmp(m_Stream.p_CurTk[0], "PUNC") == 0 && strcmp(m_Stream.p_CurTk[1], "{") == 0)
+                break;
+            loop_node.value += strcat((char*)m_Stream.p_CurTk[1], " ");
+            cur_rd_tok = m_Stream.next();
+        }
+    } catch ( std::exception& _sigabrt ) { }
     m_AST->chl.push_back(loop_node);
 }
 
@@ -170,13 +175,13 @@ void Parser::parseCondition(const char* _type) {
     cnd_node.type = _type;
 
     try {
-        m_Stream.next();
+        cur_rd_tok = m_Stream.next();
         while (::strcmp(m_Stream.p_CurTk[0], "null") != 0) {
             if (strcmp(m_Stream.p_CurTk[0], "PUNC") == 0 && strcmp(m_Stream.p_CurTk[1], "{") == 0)
                 break;
 
-            cnd_node.condition += strcat((char*)m_Stream.p_CurTk[1], " ");
-            m_Stream.next();
+            cnd_node.value += strcat((char*)m_Stream.p_CurTk[1], " ");
+            cur_rd_tok = m_Stream.next();
         }
     } catch ( std::exception& _sigabrt ) { }
 

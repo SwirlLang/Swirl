@@ -1,5 +1,4 @@
 #include <iostream>
-#include <set>
 
 #include <parser/parser.h>
 
@@ -7,14 +6,16 @@
 
 std::string compiled_source = R"(
 #include <iostream>
+#include <vector>
 
 #define float double
 #define elif else if
 #define var auto
 #define __COLON__ ->
+#define in :
 
-template < typename Const >
-void print(Const __Obj, const std::string& __End = "\n", bool __Flush = true) {
+template < typename Obj >
+void print(Obj __Obj, const std::string& __End = "\n", bool __Flush = true) {
     if (__Flush) std::cout << std::boolalpha << __Obj << __End << std::flush;
     else std::cout << std::boolalpha << __Obj << __End;
 }
@@ -24,6 +25,15 @@ std::string input(const std::string& __Prompt) {
     std::cout << __Prompt << std::flush;
     std::getline(std::cin, ret);
 
+    return ret;
+}
+
+std::vector<int> range(int __begin, int __end = 0) {
+    // TODO: use an input iterator
+    std::vector<int> ret{};
+    if (!__end) { __end = __begin; __begin = 0; }
+    for (int i = __begin; i < __end; i++)
+        ret.emplace_back(i);
     return ret;
 }
 )";
@@ -55,6 +65,11 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
         if (child.type == "FUNCTION") {
             rd_function = true;
             compiled_source += "auto " + child.ident + " = " + "[]";
+            continue;
+        }
+
+        if (child.type == "for" || child.type == "while") {
+            compiled_source += child.type + " (" + child.value + ")";
             continue;
         }
 
@@ -117,6 +132,8 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
 
         if (child.type == "BR_OPEN") {
             fn_br_ind += 1;
+            if (compiled_source[compiled_source.size() - 2] == ')')
+                compiled_source.erase(compiled_source.size() - 1);
             compiled_source += "{";
             continue;
         }
@@ -134,7 +151,7 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
             if (child.type == "else")
                 compiled_source += "else";
             else
-                compiled_source += child.type + " (" + child.condition + ")";
+                compiled_source += child.type + " (" + child.value + ")";
             continue;
         }
 
