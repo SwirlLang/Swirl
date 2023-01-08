@@ -1,84 +1,87 @@
 # Specification of Swirl
 
-## using an external namespace
+## External namespaces
 
 ```
-import package.dir.module  // injects the entire namespace
-import package.dir.module.Scope  // only injects the scope being referenced
+// module = namespace
+import package.dir.module
+import package.dir.module.Scope 
 ```
 
-## comments
+## Comments
 
 ```
-// single line comment
+// Comment
 
+/// Multi-
+    line
 ///
-multi
-line
-Comment ///
 ```
 
 ## Functions
 
 ```
-func <name>([...]): <type> {
-    // code
+func sum(int a, int b) {  // specifying return type is optional
+    return a + b
+}
+
+
+// with return type
+func sumWithRetType(int a, int b): int {
+    return a + b
+}
+
+// with generics
+func genericFunc<T>(T a, T b) {
+    ...
 }
 ```
 
 ## Builtin functions
 
-| Function | Description                                                                              |
-| -------- | ---------------------------------------------------------------------------------------- |
-| print    | Output the string provided.                                                              |
-| input    | Read a string from the standard input.                                                   |
-| range    | Return a list of integers from start to end, with step.                                  |
-| find     | Return the index of the first occurrence of a substring provided in a string.            |
-| count    | Return the number of non-overlapping occurrences of a substring provided in a string.    |
-| findall  | Return a list of all occurrences of a substring provided in a string.                    |
-| string   | Return a string consisting of the characters in the specified sequence.                  |
-| int      | Convert the argument to an integer.                                                      |
-| float    | Convert the argument to a floating-point number.                                         |
-| bool     | Convert the argument to a Boolean value.                                                 |
-| len      | Return the length of the string argument.                                                |
-| exit     | Exit the program with the provided exit code.                                            |
+| Function | Description                                                                         |
+| -------- |-------------------------------------------------------------------------------------|
+| print    | Output the string provided.                                                         |
+| input    | Read a string from the standard input.                                              |
+| range    | Return a list of integers from start to end, with step.                             |
+| find     | Return the index of the first occurrence of a substring provided in a string.       |
+| count    | Return the number of non-overlapping occurrences of a substring provided in a string. |
+| findall  | Return a list of all occurrences of a substring provided in a string.               |
+| string   | Return a string consisting of the characters in the specified sequence.             |
+| int      | Convert the argument to an integer.                                                 |
+| float    | Convert the argument to a floating-point number.                                    |
+| bool     | Convert the argument to a Boolean value.                                            |
+| len      | Return the length of the iterable.                                          |
+| exit     | Exit the program with the provided exit code.                                       |
 
 ## Data types
 
-| Type   | About                     |
-| ------ | --------------------------|
-| string | Instance of Swirl::String |
-| int    | Primitive type (keyword)  |
-| float  | Primitive type (keyword)  |
-| bool   | Primitive type (keyword)  | 
+| Type   | About                    |
+|--------|--------------------------|
+| string | Instance of Swirl::String|
+| int    | 64 bit Int               |
+| float  | double                   |
+| bool   | unsigned 8 bit int       | 
 
 ## Type Qualifiers
 
 `const` ~ marks the variable as constant  
 `var` ~ makes the compiler checks for the type itself
 
-## Conditional and Loop statements
+## Conditions and Loops
 
 ```
-if <condition> {
-    // code
+if not a {
+    ...
+} elif not b or not c {
+    ...
+} else {
+    ...
 }
 ```
 
 ```
-elif <condition> {
-    // code
-}
-```
-
-```
-else {
-    // code
-}
-```
-
-```
-for i in range(10, 50) {
+for int i in range(10, 50) {
     print(i)
 }
 ```
