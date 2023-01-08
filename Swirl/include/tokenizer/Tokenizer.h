@@ -103,6 +103,11 @@ public:
         return {"STRING", m_Ret.c_str()};
     }
 
+    std::array<const char*, 2> readMacro() {
+        m_Ret = readEscaped('\n');
+        return {"MACRO", m_Ret.c_str()};
+    }
+
     std::array<const char*, 2> readIdent() {
         m_Rax = readWhile(isId);
         return {
@@ -130,6 +135,7 @@ public:
         auto chr = m_Stream.peek();
         if (chr == '"') return readString();
         if (chr == '\'') return readString('\'');
+        if (chr == '#') return readMacro();
         if (isDigit(chr)) return readNumber();
         if (isIdStart(chr)) return readIdent();
 
