@@ -12,6 +12,8 @@ struct Node {
     std::string value;
     std::string ident;
     std::string ctx_type;
+    std::vector<Node> arg_nodes;
+    std::vector<Node> body;
 };
 
 struct AbstractSyntaxTree {
@@ -30,7 +32,7 @@ public:
     explicit Parser(TokenStream&);
 
     void parseCondition(const char*);
-    void parseCall(const char*);
+    void parseCall(const char*) const;
     void dispatch();
     void parseFunction();
     void parseDecl(const char*, const char*);

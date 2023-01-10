@@ -5,6 +5,16 @@
 #include <parser/parser.h>
 #include <exception/exception.h>
 
+bool    rd_param     = false;
+bool    rd_func      = false;
+uint8_t rd_param_cnt = 0;
+
+
+void appendAST(AbstractSyntaxTree* _tree, Node& node) {
+    if (rd_param) _tree->chl.back().arg_nodes.push_back(node);
+    else if (!rd_param && rd_func)  _tree->chl.back().body.push_back(node);
+    else  _tree->chl.push_back(node);
+}
 
 Parser::Parser(TokenStream& _stream) : m_Stream(_stream) {
     m_AST = new AbstractSyntaxTree{};
@@ -15,8 +25,10 @@ Parser::~Parser() {
 }
 
 void Parser::dispatch() {
+    int         br_ind    = 0;
+    int         prn_ind   = 0;
     const char* tmp_ident = "";
-    const char* tmp_type = "";
+    const char* tmp_type  = "";
 
     Node tmp_node{};
 
@@ -27,6 +39,24 @@ void Parser::dispatch() {
             std::string t_type(cur_rd_tok[0]);
             std::string t_val(cur_rd_tok[1]);
 
+            if (rd_func && t_type == "PUNC") {
+                if (t_val == "(" && !rd_param_cnt) { ++prn_ind; rd_param = true;}
+                if (t_val == ")" && !rd_param_cnt) { --prn_ind;
+                    if (!prn_ind) {
+                        tmp_node.type = "PRN_CLOSE";
+                        appendAST(m_AST, tmp_node);
+                        rd_param = false;
+                        rd_param_cnt++;
+                        cur_rd_tok = m_Stream.next();
+                        continue;
+                    }
+                }
+//                if (!rd_param) {
+//                    if (t_val == "{") ++br_ind;
+//                    if (t_val == "}") { --br_ind; if (!br_ind) rd_func = false; }
+//                }
+            }
+
             if (t_type == "PUNC") {
                 if (t_val == "(") {tmp_node.type = "PRN_OPEN";}
                 else if (t_val == ")") {tmp_node.type = "PRN_CLOSE";}
@@ -36,7 +66,7 @@ void Parser::dispatch() {
                 else if (t_val == ":") {tmp_node.type = "COLON";}
                 else if (t_val == ".") {tmp_node.type = "DOT"; }
                 else {cur_rd_tok = m_Stream.next(); continue;}
-                m_AST->chl.push_back(tmp_node);
+                appendAST(m_AST, tmp_node);
                 tmp_node.type = "";
                 cur_rd_tok = m_Stream.next();
                 continue;
@@ -53,12 +83,13 @@ void Parser::dispatch() {
                     continue;
                 } else if (t_val == "func") {
                     parseFunction();
+                    rd_func = true;
                     continue;
                 }
 
                 tmp_node.type = "KEYWORD";
                 tmp_node.value = t_val;
-                m_AST->chl.push_back(tmp_node);
+                appendAST(m_AST, tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
                 cur_rd_tok = m_Stream.next();
@@ -82,7 +113,7 @@ void Parser::dispatch() {
                 }
                 tmp_node.type = "IDENT";
                 tmp_node.value = tmp_ident;
-                m_AST->chl.push_back(tmp_node);
+                appendAST(m_AST, tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
                 continue;
@@ -91,7 +122,7 @@ void Parser::dispatch() {
             if (t_type == "OP" || t_type == "NUMBER" || t_type == "STRING") {
                 tmp_node.type = t_type;
                 tmp_node.value = t_val;
-                m_AST->chl.push_back(tmp_node);
+                appendAST(m_AST, tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
                 cur_rd_tok = m_Stream.next();
@@ -101,7 +132,7 @@ void Parser::dispatch() {
             if (t_type == "MACRO") {
                 tmp_node.type = t_type;
                 tmp_node.value = t_val;
-                m_AST->chl.push_back(tmp_node);
+                appendAST(m_AST, tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
                 cur_rd_tok = m_Stream.next();
@@ -126,7 +157,7 @@ void Parser::parseFunction() {
     func_node.ident = cur_rd_tok[1];
 
     cur_rd_tok = m_Stream.next();
-    m_AST->chl.push_back(func_node);
+    appendAST(m_AST, func_node);
 }
 
 void Parser::parseDecl(const char* _type, const char* _ident) {
@@ -136,22 +167,24 @@ void Parser::parseDecl(const char* _type, const char* _ident) {
     decl_node.ident = _ident;
 
     try {
-        m_Stream.next();
-        if (strcmp(m_Stream.p_CurTk[0], "OP") == 0 && strcmp(m_Stream.p_CurTk[1], "=") == 0)
+        cur_rd_tok = m_Stream.next();
+        if (strcmp(cur_rd_tok[0], "OP") == 0 && strcmp(cur_rd_tok[1], "=") == 0)
             decl_node.initialized = true;
     } catch ( std::exception& _ ) {}
 
-    m_AST->chl.push_back(decl_node);
+    appendAST(m_AST, decl_node);
 }
 
-void Parser::parseCall(const char* _ident) {
+void Parser::parseCall(const char* _ident) const {
     Node call_node{};
     Node arg_node{};
     call_node.type = "CALL";
     call_node.ident = _ident;
 
 //    m_Stream.next();
-    if (!m_AppendToScope) m_AST->chl.push_back(call_node);
+//    if (m_AST->chl[-1].type == "FUNCTION" && m_AST->chl[-1].body[-1].ident == _ident)
+//        m_AST->chl[-1].body.pop_back();
+    appendAST(m_AST, call_node);
 }
 
 void Parser::parseLoop(const char* _type) {
@@ -167,7 +200,7 @@ void Parser::parseLoop(const char* _type) {
             cur_rd_tok = m_Stream.next();
         }
     } catch ( std::exception& _sigabrt ) { }
-    m_AST->chl.push_back(loop_node);
+    appendAST(m_AST, loop_node);
 }
 
 void Parser::parseCondition(const char* _type) {
@@ -185,5 +218,5 @@ void Parser::parseCondition(const char* _type) {
         }
     } catch ( std::exception& _sigabrt ) { }
 
-    m_AST->chl.push_back(cnd_node);
+    appendAST(m_AST, cnd_node);
 }

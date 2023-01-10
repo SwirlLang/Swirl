@@ -1,9 +1,11 @@
 #include <iostream>
-
+#include <variant>
+#include <random>
 #include <parser/parser.h>
 
-#define SC_IF_IN_PRNS if (!prn_ind) compiled_source += ";"
+#define SC_IF_IN_PRNS if (!prn_ind) _dest += ";"
 
+std::string compiled_funcs;
 std::string compiled_source = R"(
 #include <iostream>
 #include <vector>
@@ -38,50 +40,75 @@ std::vector<int> range(int __begin, int __end = 0) {
 }
 )";
 
-void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
-    int                        prn_ind = 0;
-    int                        fn_br_ind = 0;
-    int8_t                     rd_function = false;
+void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
+               std::string& _dest = compiled_source, bool onlyAppend = false) {
+    unsigned int     prn_ind       = 0;
+    int              fn_br_ind     = 0;
+    int              rd_function   = 0;
+    bool             read_ret_type = false;
 
-    std::ifstream              bt_fstream{};
-    std::string                tmp_str_cnst{};
-    std::string                last_node_type{};
-    std::string                macros{};
+    std::ifstream    bt_fstream{};
+    std::string      tmp_str_cnst{};
+    std::string      last_node_type{};
+    std::string      last_func_ident{};
+    std::string      macros{};
 
-    std::size_t bt_size = compiled_source.size();
-    compiled_source += "int main() {\n";
+    std::size_t bt_size = _dest.size();
+    
+    if (_dest == compiled_source)
+        _dest += "int main() {\n";
 
-    for (auto const& child : _ast.chl) {
+    for (Node& child : _nodes) {
         if (child.type == "OP") {
             if (!prn_ind)
-                compiled_source.erase(compiled_source.size() - 1);
-            compiled_source += child.value;
+                _dest.erase(_dest.size() - 1);
+            _dest += child.value;
 
             if (child.value == "++" || child.value == "--")
-                compiled_source += ";";
+                _dest += ";";
+            continue;
+        }
+
+        if (child.type == "STRING") {
+            _dest += '"' + child.value + "\"";
+            SC_IF_IN_PRNS;
             continue;
         }
 
         if (child.type == "FUNCTION") {
             rd_function = true;
-            compiled_source += "auto " + child.ident + " = " + "[]";
+            last_func_ident = child.ident;
+            compiled_funcs += "auto " + child.ident;
+            for (auto const& arg : child.arg_nodes) {
+//                std::cout << arg.type << std::endl;
+            }
+            Transpile(child.arg_nodes, _buildFile, compiled_funcs, true);
+            Transpile(child.body, _buildFile, compiled_funcs, true);
             continue;
         }
 
         if (child.type == "for" || child.type == "while") {
-            compiled_source += child.type + " (" + child.value + ")";
+            _dest += child.type + " (" + child.value + ")";
             continue;
         }
 
         if (child.type == "COLON") {
-            compiled_source += " __COLON__ ";
+            _dest += " __COLON__ ";
+            read_ret_type = true;
             continue;
         }
 
         if (child.type == "KEYWORD") {
             if   (child.value == "break" || child.value == "continue")
-                 { compiled_source += child.value + ";"; continue; }
-            else { compiled_source += child.value + " "; continue; }
+             { _dest += child.value + ";"; continue; }
+            else {
+                _dest += child.value + " ";
+                if (read_ret_type) {
+                    read_ret_type = false;
+                    _dest.replace(_dest.find(last_func_ident) - 5, 4, child.value);
+                }
+                continue;
+            }
         }
 
         if (child.type == "MACRO") {
@@ -90,95 +117,98 @@ void Transpile(AbstractSyntaxTree& _ast, const std::string& _buildFile) {
         }
 
         if (child.type == "PRN_OPEN") {
-            compiled_source += "(";
+            _dest += "(";
             prn_ind += 1;
             continue;
         }
 
         if (child.type == "PRN_CLOSE") {
-            compiled_source += ")";
-            prn_ind -= 1;
+            _dest += ")";
+            prn_ind--;
 
             if (rd_function && !prn_ind) rd_function = -1;
             if (!prn_ind) {
-                if (rd_function != -1) { compiled_source += ";"; continue; }
+                if (rd_function != -1) { _dest += ";"; continue; }
                 else rd_function = 0;
             }
             continue;
         }
 
-        if (child.type == "STRING") {
-            compiled_source += '"' + child.value + "\"";
-            SC_IF_IN_PRNS;
-            continue;
-        }
-
         if (child.type == "COMMA") {
-            compiled_source += ",";
+            _dest += ",";
             continue;
         }
 
         if (child.type == "NUMBER") {
-            compiled_source += child.value;
+            _dest += child.value;
             SC_IF_IN_PRNS;
             continue;
         }
 
         if (child.type == "IDENT") {
-            compiled_source += child.value;
+            if (read_ret_type) {
+                read_ret_type = false;
+                _dest.replace(_dest.find(last_func_ident) - 5, 4, child.value);
+            }
+            _dest += child.value;
             SC_IF_IN_PRNS;
             continue;
         }
 
         if (child.type == "BR_OPEN") {
-            fn_br_ind += 1;
-            if (compiled_source[compiled_source.size() - 2] == ')')
-                compiled_source.erase(compiled_source.size() - 1);
-            compiled_source += "{";
+            fn_br_ind ++;
+            if (_dest[_dest.size() - 2] == ')')
+                _dest.erase(_dest.size() - 1);
+            _dest += "{";
             continue;
         }
 
         if (child.type == "BR_CLOSE") {
-            fn_br_ind -= 1;
-            compiled_source += "}";
+            fn_br_ind --;
+            _dest += "}";
 
-            if (!fn_br_ind) compiled_source += ';';
+            if (!fn_br_ind) _dest += ';';
             if (!fn_br_ind ) { }
             continue;
         }
 
         if (child.type == "if" || child.type == "elif" || child.type == "else") {
             if (child.type == "else")
-                compiled_source += "else";
+                { if (_dest[_dest.size() - 1] == ';') _dest.erase(_dest.size() - 1); _dest += "else"; }
             else
-                compiled_source += child.type + " (" + child.value + ")";
+                _dest += child.type + " (" + child.value + ")";
             continue;
         }
 
         if (child.type == "DOT") {
-            if (compiled_source.ends_with(';'))
-                compiled_source.erase(compiled_source.size() - 1);
-            compiled_source += ".";
+            if (_dest.ends_with(';'))
+                _dest.erase(_dest.size() - 1);
+            _dest += ".";
             continue;
         }
 
         if (child.type == "VAR") {
-            compiled_source += child.ctx_type + " " + child.ident;
-            if (!child.initialized)
-                compiled_source += ";";
+            _dest += child.ctx_type + " " + child.ident;
+            if (!child.initialized && !rd_function)
+                _dest += ";";
             else
-                compiled_source += "=";
+                _dest += "=";
             continue;
         }
 
         if (child.type == "CALL")
-            compiled_source += child.ident;
+            _dest += child.ident;
         last_node_type = child.type;
     }
 
-    compiled_source.insert(bt_size, macros);
-    std::ofstream o_file_buf(_buildFile);
-    compiled_source += "}";
-    o_file_buf << compiled_source;
-    o_file_buf.close();
+    _dest.insert(bt_size, macros);
+
+    if (!onlyAppend) {
+        _dest.insert(bt_size, compiled_funcs);
+
+        std::ofstream o_file_buf(_buildFile);
+        _dest += "}";
+        o_file_buf << _dest;
+        o_file_buf.close();
+    }
 }

@@ -3,6 +3,7 @@
 #ifndef SWIRL_TRANSPILER_H
 #define SWIRL_TRANSPILER_H
 
-void Transpile(AbstractSyntaxTree&, const std::string&);
+extern std::string compiled_source;
+void Transpile(std::vector<Node>&, const std::string&, std::string& _dest = compiled_source, bool onlyAppend = false);
 
 #endif
