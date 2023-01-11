@@ -77,12 +77,12 @@ int main(int argc, const char ** const argv) {
         Parser parser(tk);
         parser.dispatch();
 
-        Transpile(*parser.m_AST, cache_dir + SW_OUTPUT + ".cpp");
+        Transpile(parser.m_AST->chl, cache_dir + SW_OUTPUT + ".cpp");
     }
 
     if (app.contains_flag("-r")) {
         std::string cpp_obj =
-                cxx + " " + cache_dir + SW_OUTPUT + ".cpp" + " -o " + out_dir + SW_OUTPUT + " && " + "." + PATH_SEP +
+                cxx + " " + cache_dir + SW_OUTPUT + ".cpp" + " -o " + out_dir + SW_OUTPUT + " && " + PATH_SEP +
                 out_dir + SW_OUTPUT;
         system(cpp_obj.c_str());
     }
