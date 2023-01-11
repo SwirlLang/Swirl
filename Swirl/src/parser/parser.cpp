@@ -42,8 +42,9 @@ void Parser::dispatch() {
 
             if (t_type == "PUNC") {
                 if (rd_func) {
-                    if (t_val == "(" && !rd_param_cnt) { ++prn_ind; rd_param = true;}
+                    if (t_val == "(" && !rd_param_cnt) { ++prn_ind; rd_param = true; std::cout << "incr\n"; }
                     if (t_val == ")" && !rd_param_cnt) {
+                        std::cout << "decr\n";
                         prn_ind--;
                         if (!prn_ind) {
                             tmp_node.type = "PRN_CLOSE";
@@ -52,7 +53,12 @@ void Parser::dispatch() {
                             rd_param = false;
                             rd_param_cnt++;
                             cur_rd_tok = m_Stream.next();
-                            continue;
+                            if (strcmp(cur_rd_tok[0], "PUNC") == 0 && strcmp(cur_rd_tok[1], ":") == 0) {
+                                cur_rd_tok = m_Stream.next();
+                                m_AST->chl.back().ctx_type = cur_rd_tok[1];
+                                cur_rd_tok = m_Stream.next();
+                                continue;
+                            } continue;
                         }
                     }
 
@@ -65,7 +71,7 @@ void Parser::dispatch() {
                             m_AST->chl.back().body.push_back(tmp_node);
                             tmp_node.type = "";
                             rd_param = false;
-                            rd_param_cnt++;
+                            rd_param_cnt = 0;
                             cur_rd_tok = m_Stream.next();
                             continue;
                         }
@@ -166,7 +172,7 @@ void Parser::parseFunction() {
     int br_ind;
     Node func_node{};
     func_node.type = "FUNCTION";
-    func_node.ctx_type = "void";
+    func_node.ctx_type = "auto";
     cur_rd_tok = m_Stream.next();
     func_node.ident = cur_rd_tok[1];
 

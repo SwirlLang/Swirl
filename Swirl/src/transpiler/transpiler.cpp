@@ -78,7 +78,7 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         if (child.type == "FUNCTION") {
             rd_function = true;
             last_func_ident = child.ident;
-            compiled_funcs += "auto " + child.ident;
+            compiled_funcs += child.ctx_type + " " + child.ident;
             for (auto const& arg : child.body) { }
             Transpile(child.arg_nodes, _buildFile, compiled_funcs, true);
             Transpile(child.body, _buildFile, compiled_funcs, true);
@@ -103,10 +103,6 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
              { _dest += child.value; SC_IF_IN_PRNS; continue;}
             else {
                 _dest += child.value + " ";
-                if (read_ret_type) {
-                    read_ret_type = false;
-                    _dest.replace(_dest.find(last_func_ident) - 5, 4, child.value);
-                }
                 continue;
             }
         }
