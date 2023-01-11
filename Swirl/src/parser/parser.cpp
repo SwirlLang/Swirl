@@ -5,15 +5,16 @@
 #include <parser/parser.h>
 #include <exception/exception.h>
 
-bool    rd_param     = false;
-bool    rd_func      = false;
-uint8_t rd_param_cnt = 0;
+uint8_t    rd_param     = 0;
+uint8_t    rd_func      = 0;
+uint8_t    rd_param_cnt = 0;
 
 
 void appendAST(AbstractSyntaxTree* _tree, Node& node) {
     if (rd_param) _tree->chl.back().arg_nodes.push_back(node);
     else if (!rd_param && rd_func)  _tree->chl.back().body.push_back(node);
-    else  _tree->chl.push_back(node);
+    else { _tree->chl.push_back(node); /*std::cout << node.type << std::endl;*/}
+
 }
 
 Parser::Parser(TokenStream& _stream) : m_Stream(_stream) {
@@ -39,25 +40,38 @@ void Parser::dispatch() {
             std::string t_type(cur_rd_tok[0]);
             std::string t_val(cur_rd_tok[1]);
 
-            if (rd_func && t_type == "PUNC") {
-                if (t_val == "(" && !rd_param_cnt) { ++prn_ind; rd_param = true;}
-                if (t_val == ")" && !rd_param_cnt) { --prn_ind;
-                    if (!prn_ind) {
-                        tmp_node.type = "PRN_CLOSE";
-                        appendAST(m_AST, tmp_node);
-                        rd_param = false;
-                        rd_param_cnt++;
-                        cur_rd_tok = m_Stream.next();
-                        continue;
+            if (t_type == "PUNC") {
+                if (rd_func) {
+                    if (t_val == "(" && !rd_param_cnt) { ++prn_ind; rd_param = true;}
+                    if (t_val == ")" && !rd_param_cnt) {
+                        prn_ind--;
+                        if (!prn_ind) {
+                            tmp_node.type = "PRN_CLOSE";
+                            appendAST(m_AST, tmp_node);
+                            tmp_node.type = "";
+                            rd_param = false;
+                            rd_param_cnt++;
+                            cur_rd_tok = m_Stream.next();
+                            continue;
+                        }
+                    }
+
+                    if (t_val == "{") { br_ind++; }
+                    else if (t_val == "}") {
+                        br_ind--;
+                        if (br_ind == 0) {
+                            rd_func = false;
+                            tmp_node.type = "BR_CLOSE";
+                            m_AST->chl.back().body.push_back(tmp_node);
+                            tmp_node.type = "";
+                            rd_param = false;
+                            rd_param_cnt++;
+                            cur_rd_tok = m_Stream.next();
+                            continue;
+                        }
                     }
                 }
-//                if (!rd_param) {
-//                    if (t_val == "{") ++br_ind;
-//                    if (t_val == "}") { --br_ind; if (!br_ind) rd_func = false; }
-//                }
-            }
 
-            if (t_type == "PUNC") {
                 if (t_val == "(") {tmp_node.type = "PRN_OPEN";}
                 else if (t_val == ")") {tmp_node.type = "PRN_CLOSE";}
                 else if (t_val == ",") {tmp_node.type = "COMMA";}

@@ -3,6 +3,7 @@
 
 #ifndef SWIRL_DEFINITIONS_H
 #define SWIRL_DEFINITIONS_H
+
 struct defs {
     enum TokenType {
         STRING, IDENT, NUMBER, PUNC

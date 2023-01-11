@@ -79,9 +79,7 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
             rd_function = true;
             last_func_ident = child.ident;
             compiled_funcs += "auto " + child.ident;
-            for (auto const& arg : child.arg_nodes) {
-//                std::cout << arg.type << std::endl;
-            }
+            for (auto const& arg : child.body) { }
             Transpile(child.arg_nodes, _buildFile, compiled_funcs, true);
             Transpile(child.body, _buildFile, compiled_funcs, true);
             continue;
@@ -118,7 +116,8 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
 
         if (child.type == "PRN_OPEN") {
             _dest += "(";
-            prn_ind += 1;
+            prn_ind++;
+            std::cout << prn_ind << std::endl;
             continue;
         }
 
@@ -131,6 +130,7 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
                 if (rd_function != -1) { _dest += ";"; continue; }
                 else rd_function = 0;
             }
+//            std::cout << prn_ind << std::endl;
             continue;
         }
 
