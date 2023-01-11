@@ -99,6 +99,8 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         if (child.type == "KEYWORD") {
             if   (child.value == "break" || child.value == "continue")
              { _dest += child.value + ";"; continue; }
+            else if (child.value == "true" || child.value == "false")
+             { _dest += child.value; SC_IF_IN_PRNS; continue;}
             else {
                 _dest += child.value + " ";
                 if (read_ret_type) {
@@ -117,7 +119,6 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         if (child.type == "PRN_OPEN") {
             _dest += "(";
             prn_ind++;
-            std::cout << prn_ind << std::endl;
             continue;
         }
 
@@ -130,7 +131,8 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
                 if (rd_function != -1) { _dest += ";"; continue; }
                 else rd_function = 0;
             }
-//            std::cout << prn_ind << std::endl;
+
+            SC_IF_IN_PRNS;
             continue;
         }
 

@@ -13,7 +13,7 @@ uint8_t    rd_param_cnt = 0;
 void appendAST(AbstractSyntaxTree* _tree, Node& node) {
     if (rd_param) _tree->chl.back().arg_nodes.push_back(node);
     else if (!rd_param && rd_func)  _tree->chl.back().body.push_back(node);
-    else { _tree->chl.push_back(node); /*std::cout << node.type << std::endl;*/}
+    else { _tree->chl.push_back(node); }
 
 }
 
