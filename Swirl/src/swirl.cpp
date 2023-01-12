@@ -81,9 +81,14 @@ int main(int argc, const char ** const argv) {
     }
 
     if (app.contains_flag("-r")) {
-        std::string cpp_obj =
-                cxx + " " + cache_dir + SW_OUTPUT + ".cpp" + " -o " + out_dir + SW_OUTPUT + " && " + PATH_SEP +
-                out_dir + SW_OUTPUT;
+        std::string cpp_obj = cxx + " " + cache_dir + SW_OUTPUT + ".cpp" + " -o " + out_dir + SW_OUTPUT + " && ";
+        
+        if (out_dir[0] != '/'){
+            cpp_obj += "./" + out_dir + SW_OUTPUT;
+        } else {
+            cpp_obj += out_dir + SW_OUTPUT;
+        }
+        
         system(cpp_obj.c_str());
     }
 }
