@@ -5,20 +5,12 @@
 #define SWIRL_DEFINITIONS_H
 
 struct defs {
-    enum TokenType {
-        STRING, IDENT, NUMBER, PUNC
-    };
-
-    std::array<const char *, 25> keywords = {
+    std::array<const char *, 27> keywords = {
             "func", "return", "if", "else", "for", "while",
             "is", "in", "or", "and", "class", "public",
             "private", "int", "string", "float", "bool",
             "true", "false", "var", "const", "static", "break",
-            "continue", "elif"
-    };
-
-    std::array<std::string, 2> built_ins = {
-            "print", "len"
+            "continue", "elif", "global", "importc"
     };
 
     std::array<char, 9> op_chars = {'*', '!', '=', '%', '+', '-', '/', '>', '<'};

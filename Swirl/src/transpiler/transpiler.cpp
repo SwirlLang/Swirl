@@ -10,7 +10,6 @@ std::string compiled_source = R"(
 #include <iostream>
 #include <vector>
 
-#define float double
 #define elif else if
 #define var auto
 #define __COLON__ ->
@@ -46,11 +45,13 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
     int              fn_br_ind     = 0;
     int              rd_function   = 0;
     bool             read_ret_type = false;
+    bool             is_include    = false;
 
     std::ifstream    bt_fstream{};
     std::string      tmp_str_cnst{};
     std::string      last_node_type{};
     std::string      last_func_ident{};
+    std::string      cimports{};
     std::string      macros{};
 
     std::size_t bt_size = _dest.size();
@@ -63,13 +64,13 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
             if (!prn_ind)
                 _dest.erase(_dest.size() - 1);
             _dest += child.value;
-
             if (child.value == "++" || child.value == "--")
                 _dest += ";";
             continue;
         }
 
         if (child.type == "STRING") {
+            if (is_include) { cimports += child.value + "\n"; is_include = false; continue; }
             _dest += child.value;
             SC_IF_IN_PRNS;
             continue;
@@ -98,13 +99,12 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
 
         if (child.type == "KEYWORD") {
             if   (child.value == "break" || child.value == "continue")
-             { _dest += child.value + ";"; continue; }
+                { _dest += child.value + ";"; continue; }
             else if (child.value == "true" || child.value == "false")
-             { _dest += child.value; SC_IF_IN_PRNS; continue;}
-            else {
-                _dest += child.value + " ";
-                continue;
-            }
+                { _dest += child.value; SC_IF_IN_PRNS; continue;}
+            else if (child.value == "importc")
+                { cimports += "#include "; is_include = true; continue;}
+            else{ _dest += child.value + " "; continue; }
         }
 
         if (child.type == "MACRO") {
@@ -199,6 +199,7 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
 
     if (!onlyAppend) {
         _dest.insert(bt_size, compiled_funcs);
+        _dest.insert(0, cimports);
         std::ofstream o_file_buf(_buildFile);
         _dest += "}";
         o_file_buf << _dest;
