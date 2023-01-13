@@ -14,7 +14,6 @@ void appendAST(AbstractSyntaxTree* _tree, Node& node) {
     if (rd_param) _tree->chl.back().arg_nodes.push_back(node);
     else if (!rd_param && rd_func)  _tree->chl.back().body.push_back(node);
     else { _tree->chl.push_back(node); }
-
 }
 
 Parser::Parser(TokenStream& _stream) : m_Stream(_stream) {
@@ -42,9 +41,8 @@ void Parser::dispatch() {
 
             if (t_type == "PUNC") {
                 if (rd_func) {
-                    if (t_val == "(" && !rd_param_cnt) { ++prn_ind; rd_param = true; std::cout << "incr\n"; }
+                    if (t_val == "(" && !rd_param_cnt) { ++prn_ind; rd_param = true;}
                     if (t_val == ")" && !rd_param_cnt) {
-                        std::cout << "decr\n";
                         prn_ind--;
                         if (!prn_ind) {
                             tmp_node.type = "PRN_CLOSE";
@@ -158,11 +156,6 @@ void Parser::dispatch() {
                 cur_rd_tok = m_Stream.next();
                 continue;
             }
-
-            for (const std::string& tp : registered_types)
-                if (tp == t_val)
-                    tmp_type = tp.c_str();
-
             cur_rd_tok = m_Stream.next();
         }
     } catch ( std::exception& _ ) {}

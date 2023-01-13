@@ -41,7 +41,7 @@ std::vector<int> range(int __begin, int __end = 0) {
 )";
 
 void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
-               std::string& _dest = compiled_source, bool onlyAppend = false) {
+                std::string& _dest = compiled_source, bool onlyAppend = false) {
     unsigned int     prn_ind       = 0;
     int              fn_br_ind     = 0;
     int              rd_function   = 0;
@@ -127,7 +127,6 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
                 if (rd_function != -1) { _dest += ";"; continue; }
                 else rd_function = 0;
             }
-
             SC_IF_IN_PRNS;
             continue;
         }
@@ -179,18 +178,15 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         }
 
         if (child.type == "DOT") {
-            if (_dest.ends_with(';'))
-                _dest.erase(_dest.size() - 1);
+            if (_dest.ends_with(';')) _dest.erase(_dest.size() - 1);
             _dest += ".";
             continue;
         }
 
         if (child.type == "VAR") {
             _dest += child.ctx_type + " " + child.ident;
-            if (!child.initialized && !rd_function)
-                _dest += ";";
-            else
-                _dest += "=";
+            if (!child.initialized && !rd_function) _dest += ";";
+            else _dest += "=";
             continue;
         }
 
@@ -203,7 +199,6 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
 
     if (!onlyAppend) {
         _dest.insert(bt_size, compiled_funcs);
-
         std::ofstream o_file_buf(_buildFile);
         _dest += "}";
         o_file_buf << _dest;
