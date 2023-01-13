@@ -70,7 +70,7 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         }
 
         if (child.type == "STRING") {
-            _dest += '"' + child.value + "\"";
+            _dest += child.value;
             SC_IF_IN_PRNS;
             continue;
         }

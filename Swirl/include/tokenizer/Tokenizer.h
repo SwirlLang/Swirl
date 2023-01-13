@@ -99,7 +99,7 @@ public:
     }
 
     std::array<const char*, 2> readString(char del = '"') {
-        m_Ret = readEscaped(del);
+        m_Ret = '"' + readEscaped(del) + '"';
         return {"STRING", m_Ret.c_str()};
     }
 
