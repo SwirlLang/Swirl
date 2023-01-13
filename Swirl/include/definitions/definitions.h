@@ -9,10 +9,10 @@ struct defs {
         STRING, IDENT, NUMBER, PUNC
     };
 
-    std::array<const char *, 26> keywords = {
+    std::array<const char *, 25> keywords = {
             "func", "return", "if", "else", "for", "while",
             "is", "in", "or", "and", "class", "public",
-            "private", "static", "int", "string", "float", "bool",
+            "private", "int", "string", "float", "bool",
             "true", "false", "var", "const", "static", "break",
             "continue", "elif"
     };
