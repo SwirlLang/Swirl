@@ -107,8 +107,9 @@ public:
         return {"MACRO", m_Ret.c_str()};
     }
 
-    std::array<const char*, 2> readIdent() {
+    std::array<const char*, 2> readIdent(bool apndF = false) {
         m_Rax = readWhile(isId);
+        if (apndF) m_Rax.insert(0, "f");
         return {
                 isKeyword(m_Rax) ? "KEYWORD" : "IDENT",
                 m_Rax.c_str()
@@ -142,7 +143,7 @@ public:
             chr = m_Stream.peek();
             if (chr == '"' || chr == '\'')
                 return readString(chr, true);
-            else return readIdent();
+            else return readIdent(true);
         }
 
         if (isIdStart(chr)) return readIdent();
