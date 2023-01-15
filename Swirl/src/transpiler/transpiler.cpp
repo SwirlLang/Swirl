@@ -42,11 +42,6 @@ std::vector<int> range(int __begin, int __end = 0) {
 
 std::size_t bt_size = compiled_source.size();
 
-char lastChar(std::string& str, std::size_t& index) {
-    if (index == 0) { return str[0]; }
-    else return str[index - 1];
-}
-
 std::string format(std::string& str) {
     bool escape = false;
     std::string ret;
@@ -69,6 +64,7 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
     int              rd_function   = 0;
     bool             read_ret_type = false;
     bool             is_include    = false;
+    bool             rd_ident      = false;
 
     std::ifstream    bt_fstream{};
     std::string      tmp_str_cnst{};
@@ -81,6 +77,9 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         _dest += "int main() {\n";
 
     for (Node& child : _nodes) {
+        if (child.type != "IDENT") rd_ident = false;
+        else rd_ident = true;
+
         if (child.type == "OP") {
             if (!prn_ind)
                 _dest.erase(_dest.size() - 1);
@@ -165,12 +164,19 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         }
 
         if (child.type == "IDENT") {
+            if (rd_ident) {
+                _dest += child.value + " ";
+                rd_ident = false;
+                continue;
+            }
+
             if (read_ret_type) {
                 read_ret_type = false;
                 _dest.replace(_dest.find(last_func_ident) - 5, 4, child.value);
             }
             _dest += child.value;
             SC_IF_IN_PRNS;
+            rd_ident = true;
             continue;
         }
 
