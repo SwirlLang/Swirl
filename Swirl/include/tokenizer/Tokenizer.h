@@ -21,7 +21,7 @@ using namespace std::string_view_literals;
 class TokenStream {
     bool                                            m_Debug  = 0;
     bool                                            m_rdfs   = 0;
-    u_short                                         m_tkFlag = 0;
+    short                                           m_tkFlag = 0;
     std::string                                     m_Ret;
     std::string                                     m_Rax;
     InputStream                                     m_Stream;
