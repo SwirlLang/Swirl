@@ -1,13 +1,10 @@
 #include <iostream>
-#include <string_view>
-#include <vector>
-#include <limits>
-#include <array>
-#include <functional>
-#include <cstring>
-#include <string_view>
-#include <sstream>
 #include <map>
+#include <array>
+#include <vector>
+#include <cstring>
+#include <functional>
+#include <string_view>
 
 #include <definitions/definitions.h>
 #include <tokenizer/InputStream.h>
@@ -18,19 +15,20 @@
 
 #define SWIRL_TokenStream_H
 
-using namespace std::string_view_literals;
-
 const defs DEF{};
 using namespace std::string_view_literals;
+
 class TokenStream {
-    bool                                            m_Debug;
+    bool                                            m_Debug  = 0;
+    bool                                            m_rdfs   = 0;
+    u_short                                         m_tkFlag = 0;
     std::string                                     m_Ret;
     std::string                                     m_Rax;
     InputStream                                     m_Stream;
     std::array<const char*, 2>                      m_PeekTk{};
+    std::array<const char*, 2>                      m_lastTok{};
     std::array<const char*, 2>                      m_Cur{};
     std::array<std::array<const char*, 2>, 5>       m_TokReserve{};
-
 public:
     std::array<const char*, 2> p_CurTk{"", ""};
 
@@ -44,7 +42,7 @@ public:
         return "1234567890"sv.find(_chr) != std::string::npos;
     }
 
-    static uint8_t isId(char chr) {
+    static bool isId(char chr) {
         return isIdStart(chr) || "\"?!-<>=0123456789"sv.find(chr) != std::string::npos;
     }
 
@@ -98,8 +96,9 @@ public:
         return ret;
     }
 
-    std::array<const char*, 2> readString(char del = '"') {
+    std::array<const char*, 2> readString(char del = '"', bool _format = false) {
         m_Ret = '"' + readEscaped(del) + '"';
+        if (_format) { m_Ret.insert(0, "f"); m_rdfs = false; }
         return {"STRING", m_Ret.c_str()};
     }
 
@@ -137,6 +136,15 @@ public:
         if (chr == '\'') return readString('\'');
         if (chr == '#') return readMacro();
         if (isDigit(chr)) return readNumber();
+
+        if (chr == 'f') {
+            m_Stream.next();
+            chr = m_Stream.peek();
+            if (chr == '"' || chr == '\'')
+                return readString(chr, true);
+            else return readIdent();
+        }
+
         if (isIdStart(chr)) return readIdent();
 
         m_Ret = std::string(1, m_Stream.next());
@@ -153,12 +161,15 @@ public:
                     "PUNC",
                     m_Ret.c_str()
             };
-
-        m_Stream.raiseException(strcat((char*)"Failed to handle token ", &chr));
     }
 
-    std::array<const char*, 2> next(uint8_t _showTNw = false, uint8_t _showTWs = false) {
+    std::array<const char*, 2> next(const bool& _showTNw = false, const bool& _showTWs = false) {
         p_CurTk = readNextTok();
+        if (m_tkFlag) {
+            m_lastTok = p_CurTk;
+            m_tkFlag++;
+        }
+
         if (!_showTWs)
             if (strcmp(p_CurTk[0], "PUNC") == 0 && strcmp(p_CurTk[1], " ") == 0)
                 p_CurTk = readNextTok();
@@ -184,6 +195,10 @@ public:
         stream_state["POS"] = m_Stream.getPos();
         stream_state["COL"] = m_Stream.getCol();
         return stream_state;
+    }
+
+    void resetState() {
+        m_Stream.reset();
     }
 };
 

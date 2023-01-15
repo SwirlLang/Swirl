@@ -137,7 +137,24 @@ void Parser::dispatch() {
                 continue;
             }
 
-            if (t_type == "OP" || t_type == "NUMBER" || t_type == "STRING") {
+            if (t_type == "STRING") {
+                if (t_val.starts_with("f")) {
+                    tmp_node.format = true;
+                    t_val.erase(0, 1);
+                }
+
+                tmp_node.type = t_type;
+                tmp_node.value = t_val;
+                appendAST(m_AST, tmp_node);
+
+                tmp_node.format = false;
+                tmp_node.type = "";
+                tmp_node.value = "";
+                cur_rd_tok = m_Stream.next();
+                continue;
+            }
+
+            if (t_type == "OP" || t_type == "NUMBER") {
                 tmp_node.type = t_type;
                 tmp_node.value = t_val;
                 appendAST(m_AST, tmp_node);

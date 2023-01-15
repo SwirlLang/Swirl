@@ -15,6 +15,8 @@ std::string compiled_source = R"(
 #define __COLON__ ->
 #define in :
 
+using string = std::string;
+
 template < typename Obj >
 void print(Obj __Obj, const std::string& __End = "\n", bool __Flush = true) {
     if (__Flush) std::cout << std::boolalpha << __Obj << __End << std::flush;
@@ -39,6 +41,26 @@ std::vector<int> range(int __begin, int __end = 0) {
 }
 )";
 
+std::size_t bt_size = compiled_source.size();
+
+char lastChar(std::string& str, std::size_t& index) {
+    if (index == 0) { return str[0]; }
+    else return str[index - 1];
+}
+
+std::string format(std::string& str) {
+    std::string ret;
+    std::size_t ind;
+    for (char chr : str) {
+        ind++;
+        if (chr == '{' && lastChar(str, ind) != '\\')
+            ret += "\"+";
+        else if (chr == '}' && lastChar(str, ind) != '\\')
+            ret += "+\"";
+        else ret += chr;
+    } return ret;
+}
+
 void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
                 std::string& _dest = compiled_source, bool onlyAppend = false) {
     unsigned int     prn_ind       = 0;
@@ -54,8 +76,6 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
     std::string      cimports{};
     std::string      macros{};
 
-    std::size_t bt_size = _dest.size();
-    
     if (_dest == compiled_source)
         _dest += "int main() {\n";
 
@@ -71,7 +91,8 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
 
         if (child.type == "STRING") {
             if (is_include) { cimports += child.value + "\n"; is_include = false; continue; }
-            _dest += child.value;
+            else if (child.format) { _dest += "string(" + format(child.value) + ")"; SC_IF_IN_PRNS; continue; }
+            _dest += "string(" + child.value + ")";
             SC_IF_IN_PRNS;
             continue;
         }
@@ -80,7 +101,7 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
             rd_function = true;
             last_func_ident = child.ident;
             compiled_funcs += child.ctx_type + " " + child.ident;
-            for (auto const& arg : child.body) { }
+
             Transpile(child.arg_nodes, _buildFile, compiled_funcs, true);
             Transpile(child.body, _buildFile, compiled_funcs, true);
             continue;
@@ -195,11 +216,14 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         last_node_type = child.type;
     }
 
-    _dest.insert(bt_size, macros);
-
+    // is the bug fixed ?
+    
     if (!onlyAppend) {
         _dest.insert(bt_size, compiled_funcs);
-        _dest.insert(0, cimports);
+        _dest.insert(0, cimports);  // this inserts all your importc statements to the top of the file
+
+        _dest.insert(0, "\n" + macros + "\n");
+
         std::ofstream o_file_buf(_buildFile);
         _dest += "}";
         o_file_buf << _dest;

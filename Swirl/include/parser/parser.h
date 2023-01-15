@@ -7,6 +7,7 @@
 
 struct Node {
     bool initialized = false;
+    bool format      = false;
 
     std::string type;
     std::string value;
