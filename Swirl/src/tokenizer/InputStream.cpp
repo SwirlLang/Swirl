@@ -19,12 +19,12 @@ char InputStream::next(bool _noIncrement) {
     return chr;
 }
 
-bool InputStream::eof() {
-    return m_Pos == m_Source.size();
+void InputStream::reset() {
+    m_Col = m_Pos = m_Line = 0;
 }
 
-void InputStream::raiseException(const char* message) {
-    // TODO
+bool InputStream::eof() {
+    return m_Pos == m_Source.size();
 }
 
 std::size_t InputStream::getPos() const {
