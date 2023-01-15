@@ -1,4 +1,3 @@
-#include <iostream>
 #include <variant>
 #include <random>
 #include <parser/parser.h>
@@ -49,15 +48,17 @@ char lastChar(std::string& str, std::size_t& index) {
 }
 
 std::string format(std::string& str) {
+    bool escape = false;
     std::string ret;
-    std::size_t ind;
+
     for (char chr : str) {
-        ind++;
-        if (chr == '{' && lastChar(str, ind) != '\\')
+        if (chr == '{' && !escape)
             ret += "\"+";
-        else if (chr == '}' && lastChar(str, ind) != '\\')
+        else if (chr == '}' && !escape)
             ret += "+\"";
-        else ret += chr;
+        else if (chr == '\\')
+            escape = true;
+        else { ret += chr; if (escape) escape = false; };
     } return ret;
 }
 
@@ -216,8 +217,6 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         last_node_type = child.type;
     }
 
-    // is the bug fixed ?
-    
     if (!onlyAppend) {
         _dest.insert(bt_size, compiled_funcs);
         _dest.insert(0, cimports);  // this inserts all your importc statements to the top of the file
