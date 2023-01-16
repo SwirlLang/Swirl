@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <map>
 
 #include <cli/cli.h>
 #include <pre-processor/pre-processor.h>
