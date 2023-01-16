@@ -11,7 +11,7 @@ char InputStream::peek() {
 
 char InputStream::next(bool _noIncrement) {
     if (_noIncrement) {
-        char chr = m_Source.at(m_Pos);
+        char chr = m_Source.at(m_Pos + 1);
         return chr;
     }
 

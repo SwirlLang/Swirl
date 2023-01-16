@@ -11,7 +11,6 @@ std::string compiled_source = R"(
 
 #define elif else if
 #define var auto
-#define __COLON__ ->
 #define in :
 
 using string = std::string;
@@ -57,6 +56,17 @@ std::string format(std::string& str) {
     } return ret;
 }
 
+std::vector<std::string> splitStr(const std::string& str, char delimiter) {
+    std::vector<std::string> ret;
+    std::string tk;
+
+    for (char chr : str) {
+        if (chr == delimiter) { ret.push_back(tk); tk = ""; }
+        else { tk += chr; }
+    }
+    return ret;
+}
+
 void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
                 std::string& _dest = compiled_source, bool onlyAppend = false) {
     unsigned int     prn_ind       = 0;
@@ -76,6 +86,8 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         _dest += "int main() {\n";
 
     for (Node& child : _nodes) {
+        if (child.type == "TYPEDEF")
+            macros += "using " + child.ident + " = " + child.value + ";";
 
         if (child.type == "OP") {
             if (!prn_ind)
@@ -110,7 +122,7 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         }
 
         if (child.type == "COLON") {
-            _dest += " __COLON__ ";
+            _dest += ":";
             read_ret_type = true;
             continue;
         }
@@ -126,6 +138,14 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         }
 
         if (child.type == "MACRO") {
+            if (child.value.starts_with("typedef")) {
+                std::basic_string<char> typedefin = child.value.substr(7);
+                std::basic_string<char> f_type = splitStr(typedefin, ' ')[1];
+                typedefin.insert(child.value.find_first_of(f_type) + f_type.size() + 1, "=");
+                macros += "using " + typedefin + ";";
+                continue;
+            }
+
             macros += "#" + child.value + "\n";
             continue;
         }
@@ -163,7 +183,7 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         if (child.type == "IDENT") {
             if (read_ret_type) {
                 read_ret_type = false;
-                _dest.replace(_dest.find(last_func_ident) - 5, 4, child.value);
+//                _dest.replace(_dest.find(last_func_ident) - 5, 4, child.value);
             }
             _dest += child.value;
             SC_IF_IN_PRNS;
@@ -214,10 +234,11 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
     }
 
     if (!onlyAppend) {
-        _dest.insert(bt_size, compiled_funcs);
-        _dest.insert(0, cimports);  // this inserts all your importc statements to the top of the file
+        _dest.insert(bt_size, "\n" + macros + "\n");
+        bt_size = bt_size + macros.size();
 
-        _dest.insert(0, "\n" + macros + "\n");
+        _dest.insert(bt_size, compiled_funcs);
+        _dest.insert(0, cimports);
 
         std::ofstream o_file_buf(_buildFile);
         _dest += "}";

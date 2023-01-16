@@ -103,6 +103,17 @@ void Parser::dispatch() {
                     parseFunction();
                     rd_func = true;
                     continue;
+                } else if (t_val == "typedef") {
+                    tmp_node.type = "TYPEDEF";
+                    tmp_node.ident = m_Stream.next()[1];
+                    registered_types.push_back(tmp_node.ident);
+                    while (strcmp(m_Stream.next(true, true)[1], "\n") != 0)
+                        tmp_node.value += m_Stream.p_CurTk[1];
+                    appendAST(m_AST, tmp_node);
+                    tmp_node.type = "";
+                    tmp_node.value = "";
+                    cur_rd_tok = m_Stream.next();
+                    continue;
                 }
 
                 tmp_node.type = "KEYWORD";

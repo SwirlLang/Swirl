@@ -74,7 +74,7 @@ public:
         return ret;
     }
 
-    std::string readEscaped(char _end) {
+    std::string readEscaped(char _end, char apnd = 0) {
         uint8_t is_escaped = false;
         std::string ret;
 
@@ -93,6 +93,7 @@ public:
             else
                 ret += chr;
         }
+        if (!apnd) ret += apnd;
         return ret;
     }
 
@@ -103,6 +104,11 @@ public:
     }
 
     std::array<const char*, 2> readMacro() {
+        m_Stream.next(true);
+        if (m_Stream.next(true) == 't') {
+            m_Ret.replace(0, 6, "typedef");
+        }
+
         m_Ret = readEscaped('\n');
         return {"MACRO", m_Ret.c_str()};
     }
