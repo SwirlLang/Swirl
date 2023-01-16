@@ -98,7 +98,10 @@ public:
     }
 
     std::array<const char*, 2> readString(char del = '"', bool _format = false) {
-        m_Ret = '"' + readEscaped(del) + '"';
+        m_Ret = readEscaped(del);
+        m_Ret.pop_back();
+        m_Ret.insert(0, "\"");
+        m_Ret.append("\"");
         if (_format) { m_Ret.insert(0, "f"); m_rdfs = false; }
         return {"STRING", m_Ret.c_str()};
     }
