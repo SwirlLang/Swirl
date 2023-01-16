@@ -1,16 +1,15 @@
 #include <iostream>
 #include <algorithm>
 #include <string>
-#include <fstream>
 #include <vector>
 #include <filesystem>
 
 #include <cli/cli.h>
 #include <pre-processor/pre-processor.h>
+#include <exception/exception.h>
 #include <swirl.typedefs/swirl_t.h>
 #include <tokenizer/InputStream.h>
 #include <tokenizer/Tokenizer.h>
-#include <definitions/definitions.h>
 #include <transpiler/transpiler.h>
 #include <parser/parser.h>
 
@@ -18,6 +17,7 @@ bool SW_DEBUG = false;
 std::string SW_FED_FILE_PATH;
 std::string SW_OUTPUT;
 std::string SW_FED_FILE_SOURCE;
+std::vector<std::string> lines_rec{};
 
 const std::vector<Argument> application_flags = {
         {{"-h","--help"}, "Shows this help message", false, {}},
@@ -25,6 +25,11 @@ const std::vector<Argument> application_flags = {
         {{"-o", "--output"}, "Output file name", true, {}},
         {{"-c", "--compiler"}, "C++ compiler to use", true, {}},
         {{"-d", "--debug"}, "Log the steps of compilation", false, {}}
+};
+
+/* Map of all custom and builtin types to be used for look up */
+std::unordered_map<std::string, const char*> type_registry = {
+        {"int", ""}, {"string", ""}, {"bool", ""}, {"float", ""}, {"var", ""}
 };
 
 int main(int argc, const char ** const argv) {
@@ -68,11 +73,11 @@ int main(int argc, const char ** const argv) {
         SW_OUTPUT = app.get_flag_value("-o");
 
     SW_FED_FILE_SOURCE += "\n";
-    preProcess(SW_FED_FILE_SOURCE, cache_dir);
 
     if ( !SW_FED_FILE_SOURCE.empty() ) {
         InputStream is(SW_FED_FILE_SOURCE);
         TokenStream tk(is, _debug);
+        preProcess(SW_FED_FILE_SOURCE, tk, cache_dir);
 
         Parser parser(tk);
         parser.dispatch();

@@ -9,6 +9,7 @@ uint8_t    rd_param     = 0;
 uint8_t    rd_func      = 0;
 uint8_t    rd_param_cnt = 0;
 
+extern std::unordered_map<std::string, const char*> type_registry;
 
 void appendAST(AbstractSyntaxTree* _tree, Node& node) {
     if (rd_param) _tree->chl.back().arg_nodes.push_back(node);
@@ -106,9 +107,11 @@ void Parser::dispatch() {
                 } else if (t_val == "typedef") {
                     tmp_node.type = "TYPEDEF";
                     tmp_node.ident = m_Stream.next()[1];
-                    registered_types.push_back(tmp_node.ident);
+
+                    type_registry[m_Stream.p_CurTk[1]] = "";
                     while (strcmp(m_Stream.next(true, true)[1], "\n") != 0)
                         tmp_node.value += m_Stream.p_CurTk[1];
+
                     appendAST(m_AST, tmp_node);
                     tmp_node.type = "";
                     tmp_node.value = "";
@@ -140,11 +143,13 @@ void Parser::dispatch() {
                     parseCall(tmp_ident);
                     continue;
                 }
+
                 tmp_node.type = "IDENT";
                 tmp_node.value = tmp_ident;
                 appendAST(m_AST, tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
+                tmp_node.is_type = false;
                 continue;
             }
 

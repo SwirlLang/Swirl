@@ -8,6 +8,7 @@
 struct Node {
     bool initialized = false;
     bool format      = false;
+    bool is_type     = false;
 
     std::string type;
     std::string value;
@@ -28,7 +29,6 @@ public:
     AbstractSyntaxTree* m_AST;
     bool m_AppendToScope = false;
     std::vector<std::string> registered_symbols{};
-    std::vector<std::string> registered_types = {"int", "string", "bool", "float", "var"};
 
     explicit Parser(TokenStream&);
 

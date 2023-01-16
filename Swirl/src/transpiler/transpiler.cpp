@@ -4,6 +4,8 @@
 
 #define SC_IF_IN_PRNS if (!prn_ind) _dest += ";"
 
+extern std::unordered_map<std::string, const char*> type_registry;
+
 std::string compiled_funcs;
 std::string compiled_source = R"(
 #include <iostream>
@@ -181,10 +183,11 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         }
 
         if (child.type == "IDENT") {
-            if (read_ret_type) {
-                read_ret_type = false;
+//            if (read_ret_type) {
+//                read_ret_type = false;
 //                _dest.replace(_dest.find(last_func_ident) - 5, 4, child.value);
-            }
+//            }
+            if (type_registry.contains(child.value)) {_dest += child.value + " "; continue; }
             _dest += child.value;
             SC_IF_IN_PRNS;
             continue;
