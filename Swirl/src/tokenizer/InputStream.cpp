@@ -17,7 +17,9 @@ char InputStream::next(bool _noIncrement) {
 
     char chr = m_Source.at(m_Pos++);
     if (chr == '\n') { m_Line++; m_Col = 0; }
-    m_Col++;
+    else {
+        m_Col++;
+    }
     return chr;
 }
 
