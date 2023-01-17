@@ -16,11 +16,12 @@ char InputStream::next(bool _noIncrement) {
     }
 
     char chr = m_Source.at(m_Pos++);
+    if (chr == '\n') m_Line++;
     return chr;
 }
 
 void InputStream::reset() {
-    m_Col = m_Pos = m_Line = 0;
+    m_Col = m_Pos = 0; m_Line = 1;
 }
 
 bool InputStream::eof() {

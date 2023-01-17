@@ -7,7 +7,7 @@
 
 class InputStream {
     std::string m_Source{};
-    std::size_t m_Pos = 0, m_Line = 0, m_Col = 0;
+    std::size_t m_Pos = 0, m_Line = 1, m_Col = 0;
 public:
     explicit InputStream(std::string& _source);
 
