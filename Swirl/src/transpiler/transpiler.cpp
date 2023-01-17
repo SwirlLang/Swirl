@@ -111,7 +111,7 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         if (child.type == "FUNCTION") {
             rd_function = true;
             last_func_ident = child.ident;
-            compiled_funcs += child.ctx_type + " " + child.ident;
+            compiled_funcs += ";" + child.ctx_type + " " + child.ident;
 
             Transpile(child.arg_nodes, _buildFile, compiled_funcs, true);
             Transpile(child.body, _buildFile, compiled_funcs, true);
