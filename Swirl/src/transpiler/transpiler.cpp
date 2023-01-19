@@ -1,19 +1,25 @@
 #include <variant>
 #include <random>
+#include <optional>
+
 #include <parser/parser.h>
+
 
 #define SC_IF_IN_PRNS if (!prn_ind) _dest += ";"
 
 extern std::unordered_map<std::string, const char*> type_registry;
+std::unordered_map<std::string, const char*> symbol_table;
 
 std::string compiled_funcs;
 std::string compiled_source = R"(
 #include <iostream>
 #include <vector>
+#include <functional>
 
 #define elif else if
 #define var auto
 #define in :
+#define function std::function
 
 using string = std::string;
 
@@ -69,8 +75,13 @@ std::vector<std::string> splitStr(const std::string& str, char delimiter) {
     return ret;
 }
 
-void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
-                std::string& _dest = compiled_source, bool onlyAppend = false) {
+std::optional<std::unordered_map<std::string, const char*>> Transpile(
+        std::vector<Node>& _nodes,
+        const std::string& _buildFile,
+        std::string& _dest = compiled_source,
+        bool onlyAppend = false,
+        bool returnSymbolTable = false ) {
+
     unsigned int     prn_ind       = 0;
     int              fn_br_ind     = 0;
     int              rd_function   = 0;
@@ -110,9 +121,17 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
 
         if (child.type == "FUNCTION") {
             rd_function = true;
-            last_func_ident = child.ident;
-            compiled_funcs += ";" + child.ctx_type + " " + child.ident;
+            last_func_ident = child.value;
 
+            if (!child.template_args.empty()) {
+                compiled_funcs += "\n;template<";
+                for (const Node& t : child.template_args)
+                    compiled_funcs += "typename " + t.value;
+                compiled_funcs += ">\n";
+            }
+
+            if (child.template_args.empty()) compiled_funcs += ";";
+            compiled_funcs += child.ctx_type + " " + child.ident;
             Transpile(child.arg_nodes, _buildFile, compiled_funcs, true);
             Transpile(child.body, _buildFile, compiled_funcs, true);
             continue;
@@ -236,6 +255,9 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         last_node_type = child.type;
     }
 
+    if (returnSymbolTable)
+        return symbol_table;
+
     if (!onlyAppend) {
         _dest.insert(bt_size, "\n" + macros + "\n");
         bt_size = bt_size + macros.size();
@@ -248,4 +270,6 @@ void Transpile(std::vector<Node>& _nodes, const std::string& _buildFile,
         o_file_buf << _dest;
         o_file_buf.close();
     }
+
+    return {};
 }

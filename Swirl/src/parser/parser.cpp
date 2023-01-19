@@ -5,14 +5,21 @@
 #include <parser/parser.h>
 #include <exception/exception.h>
 
+
+short      ang_ind      = 0;
 uint8_t    rd_param     = 0;
 uint8_t    rd_func      = 0;
 uint8_t    rd_param_cnt = 0;
 
-extern std::unordered_map<std::string, const char*> type_registry;
+extern std::unordered_map<std::string, const char* > type_registry;
 
 void appendAST(AbstractSyntaxTree* _tree, Node& node) {
     if (rd_param) _tree->chl.back().arg_nodes.push_back(node);
+    else if (ang_ind > 0) {
+        _tree->chl.back().template_args.push_back(node);
+        if (node.type == "IDENT")
+            type_registry[node.value] = "template";
+    }
     else if (!rd_param && rd_func)  _tree->chl.back().body.push_back(node);
     else { _tree->chl.push_back(node); }
 }
@@ -24,6 +31,8 @@ Parser::Parser(TokenStream& _stream) : m_Stream(_stream) {
 Parser::~Parser() {
     delete m_AST;
 }
+
+void Parser::next() { cur_rd_tok = m_Stream.next(); }
 
 void Parser::dispatch() {
     int         br_ind    = 0;
@@ -104,6 +113,8 @@ void Parser::dispatch() {
                     parseFunction();
                     rd_func = true;
                     continue;
+                } else if (t_val == "export") {
+                    tmp_node.type = "EXPORT";
                 } else if (t_val == "typedef") {
                     tmp_node.type = "TYPEDEF";
                     tmp_node.ident = m_Stream.next()[1];
@@ -149,7 +160,6 @@ void Parser::dispatch() {
                 appendAST(m_AST, tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
-                tmp_node.is_type = false;
                 continue;
             }
 
@@ -170,7 +180,19 @@ void Parser::dispatch() {
                 continue;
             }
 
-            if (t_type == "OP" || t_type == "NUMBER") {
+            if (t_type == "OP") {
+                if (t_val == "<" && !rd_param && rd_func) { ang_ind++; next(); continue; }
+                if (t_val == ">" && !rd_param && rd_func) { ang_ind--; next(); continue; }
+
+                tmp_node.type = t_type;
+                tmp_node.value = tmp_node.ident = t_val;
+                appendAST(m_AST, tmp_node);
+                tmp_node.type = tmp_node.value = tmp_node.type = "";
+                cur_rd_tok = m_Stream.next();
+                continue;
+            }
+
+            if (t_type == "NUMBER") {
                 tmp_node.type = t_type;
                 tmp_node.value = t_val;
                 appendAST(m_AST, tmp_node);

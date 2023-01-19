@@ -6,16 +6,18 @@
 #define SWIRL_PARSER_H
 
 struct Node {
+
     bool initialized = false;
     bool format      = false;
-    bool is_type     = false;
 
     std::string type;
     std::string value;
     std::string ident;
     std::string ctx_type;
-    std::vector<Node> arg_nodes;
+
     std::vector<Node> body;
+    std::vector<Node> arg_nodes;
+    std::vector<Node> template_args;
 };
 
 struct AbstractSyntaxTree {
@@ -38,6 +40,7 @@ public:
     void parseFunction();
     void parseDecl(const char*, const char*);
     void parseLoop(const char*);
+    inline void next();
 
     ~Parser();
 };

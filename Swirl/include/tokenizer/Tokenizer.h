@@ -43,7 +43,7 @@ public:
     }
 
     static bool isId(char chr) {
-        return isIdStart(chr) || "\"?!-<>=0123456789"sv.find(chr) != std::string::npos;
+        return isIdStart(chr) || "\"?!-=0123456789"sv.find(chr) != std::string::npos;
     }
 
     static bool isIdStart(char _chr) {
@@ -188,6 +188,7 @@ public:
                 p_CurTk = readNextTok();
         if (m_Debug)
             std::cout << "Token Requested:\t" << p_CurTk[0] << "\t  " << p_CurTk[1] << std::endl;
+
         return p_CurTk;
     }
 
