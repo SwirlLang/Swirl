@@ -3,6 +3,7 @@
 #include <vector>
 #include <filesystem>
 #include <string>
+#include <sstream>
 
 #include <tokenizer/Tokenizer.h>
 
