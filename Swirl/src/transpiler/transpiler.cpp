@@ -1,6 +1,7 @@
 #include <variant>
 #include <random>
 #include <optional>
+#include <unordered_map>
 
 #include <parser/parser.h>
 
@@ -125,8 +126,10 @@ std::optional<std::unordered_map<std::string, const char*>> Transpile(
 
             if (!child.template_args.empty()) {
                 compiled_funcs += "\n;template<";
-                for (const Node& t : child.template_args)
-                    compiled_funcs += "typename " + t.value;
+                for (const Node& t : child.template_args) {
+                    std::cout << "T:  " << t.ident << std::endl;
+                    t.type == "IDENT" ? compiled_funcs += "typename " + t.value : compiled_source += child.value;
+                }
                 compiled_funcs += ">\n";
             }
 

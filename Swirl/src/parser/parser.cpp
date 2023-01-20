@@ -2,6 +2,7 @@
 #include <cstring>
 #include <array>
 
+#include <unordered_map>
 #include <parser/parser.h>
 #include <exception/exception.h>
 
@@ -17,6 +18,7 @@ void appendAST(AbstractSyntaxTree* _tree, Node& node) {
     if (rd_param) _tree->chl.back().arg_nodes.push_back(node);
     else if (ang_ind > 0) {
         _tree->chl.back().template_args.push_back(node);
+        std::cout << node.value << std::endl;
         if (node.type == "IDENT")
             type_registry[node.value] = "template";
     }
@@ -126,6 +128,7 @@ void Parser::dispatch() {
                     appendAST(m_AST, tmp_node);
                     tmp_node.type = "";
                     tmp_node.value = "";
+                    tmp_node.ident = "";
                     cur_rd_tok = m_Stream.next();
                     continue;
                 }
