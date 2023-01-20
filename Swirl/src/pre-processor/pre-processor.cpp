@@ -2,6 +2,7 @@
 #include <fstream>
 #include <vector>
 #include <filesystem>
+#include <string>
 
 #include <tokenizer/Tokenizer.h>
 

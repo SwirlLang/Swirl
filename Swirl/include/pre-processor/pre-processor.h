@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 
 #include <tokenizer/Tokenizer.h>
 
