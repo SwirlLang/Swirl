@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
-#include <map>
+#include <unordered_map>
 
 #include <cli/cli.h>
 #include <pre-processor/pre-processor.h>
@@ -28,12 +28,18 @@ const std::vector<Argument> application_flags = {
         {{"-d", "--debug"}, "Log the steps of compilation", false, {}}
 };
 
-/* Map of all custom and builtin types to be used for look up */
+/* Lookup table for registered types and their visibility. */
 std::unordered_map<std::string, const char*> type_registry = {
-        {"int", ""}, {"string", ""}, {"bool", ""}, {"float", ""}, {"var", ""}
+        {"int",     "global"},
+        {"string",  "global"},
+        {"bool",    "global"},
+        {"float",   "global"},
+        {"var",     "global"},
+        {"function","global"}
 };
 
-int main(int argc, const char ** const argv) {
+
+int main(int argc, const char** const argv) {
     cli app(argc, argv, application_flags);
 
     if (app.contains_flag("-h")) {
