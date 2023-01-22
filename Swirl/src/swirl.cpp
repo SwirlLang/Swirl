@@ -15,6 +15,7 @@
 #include <parser/parser.h>
 
 bool SW_DEBUG = false;
+const char *defination_header = "defs.h";
 std::string SW_FED_FILE_PATH;
 std::string SW_OUTPUT;
 std::string SW_FED_FILE_SOURCE;
@@ -89,7 +90,7 @@ int main(int argc, const char** const argv) {
         Parser parser(tk);
         parser.dispatch();
 
-        Transpile(parser.m_AST->chl, cache_dir + SW_OUTPUT + ".cpp");
+        Transpile(parser.m_AST->chl, cache_dir + SW_OUTPUT + ".cpp", cache_dir + defination_header);
     }
 
     if (app.contains_flag("-r")) {

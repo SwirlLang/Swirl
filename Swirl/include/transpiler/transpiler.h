@@ -7,6 +7,7 @@
 extern std::string compiled_source;
 std::optional<std::unordered_map<std::string, const char*>> Transpile( std::vector<Node>&,
                 const std::string&,
+                const std::string&,
                 std::string& _dest = compiled_source,
                 bool onlyAppend = false,
                 bool returnSymbolTable = false );

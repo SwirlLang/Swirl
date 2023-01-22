@@ -5,14 +5,17 @@
 
 #include <parser/parser.h>
 
-
 #define SC_IF_IN_PRNS if (!prn_ind) _dest += ";"
 
 extern std::unordered_map<std::string, const char*> type_registry;
 std::unordered_map<std::string, const char*> symbol_table;
 
 std::string compiled_funcs;
-std::string compiled_source = R"(
+
+std::string header_contents = R"(
+#ifndef DEFS_H
+#define DEFS_H
+
 #include <iostream>
 #include <vector>
 #include <functional>
@@ -48,6 +51,10 @@ std::vector<int> range(int __begin, int __end = 0) {
 }
 )";
 
+std::string compiled_source = R"(
+#include "defs.h"
+)";
+
 std::size_t bt_size = compiled_source.size();
 
 std::string format(std::string& str) {
@@ -79,6 +86,7 @@ std::vector<std::string> splitStr(const std::string& str, char delimiter) {
 std::optional<std::unordered_map<std::string, const char*>> Transpile(
         std::vector<Node>& _nodes,
         const std::string& _buildFile,
+        const std::string& _headerFile,
         std::string& _dest = compiled_source,
         bool onlyAppend = false,
         bool returnSymbolTable = false ) {
@@ -135,8 +143,8 @@ std::optional<std::unordered_map<std::string, const char*>> Transpile(
 
             if (child.template_args.empty()) compiled_funcs += ";";
             compiled_funcs += child.ctx_type + " " + child.ident;
-            Transpile(child.arg_nodes, _buildFile, compiled_funcs, true);
-            Transpile(child.body, _buildFile, compiled_funcs, true);
+            Transpile(child.arg_nodes, _buildFile, _headerFile, compiled_funcs, true);
+            Transpile(child.body, _buildFile, _headerFile, compiled_funcs, true);
             continue;
         }
 
@@ -262,11 +270,21 @@ std::optional<std::unordered_map<std::string, const char*>> Transpile(
         return symbol_table;
 
     if (!onlyAppend) {
-        _dest.insert(bt_size, "\n" + macros + "\n");
-        bt_size = bt_size + macros.size();
+
+        // _dest.insert(bt_size, "\n" + macros + "\n");
+        // bt_size = bt_size + macros.size();
 
         _dest.insert(bt_size, compiled_funcs);
-        _dest.insert(0, cimports);
+        // _dest.insert(0, cimports);
+
+        header_contents += cimports + '\n';
+        header_contents += macros + '\n';
+        header_contents += compiled_funcs.substr(0, compiled_funcs.find_first_of('{')) + ';';
+
+        std::ofstream o_header_file_buf(_headerFile);
+        o_header_file_buf << header_contents;
+        o_header_file_buf << "\n#endif // !DEFS_H\n";
+        o_header_file_buf.close();
 
         std::ofstream o_file_buf(_buildFile);
         _dest += "}";
