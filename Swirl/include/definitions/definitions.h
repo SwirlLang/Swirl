@@ -5,12 +5,12 @@
 #define SWIRL_DEFINITIONS_H
 
 struct defs {
-    std::array<const char *, 28> keywords = {
+    std::array<std::string, 26> keywords = {
             "func", "return", "if", "else", "for", "while",
             "is", "in", "or", "and", "class", "public",
-            "private", "int", "string", "float", "bool",
-            "true", "false", "var", "const", "static", "break",
-            "continue", "elif", "global", "importc", "typedef"
+            "private" "true", "false", "var", "const", "static", "break",
+            "continue", "elif", "global", "importc", "typedef",
+            "import", "export"
     };
 
     std::array<char, 9> op_chars = {'*', '!', '=', '%', '+', '-', '/', '>', '<'};

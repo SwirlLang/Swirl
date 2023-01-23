@@ -1,5 +1,4 @@
 #include <variant>
-#include <random>
 #include <optional>
 #include <unordered_map>
 
@@ -9,7 +8,7 @@
 #define SC_IF_IN_PRNS if (!prn_ind) _dest += ";"
 
 extern std::unordered_map<std::string, const char*> type_registry;
-std::unordered_map<std::string, const char*> symbol_table;
+std::unordered_map<std::string, std::string> symbol_table;
 
 std::string compiled_funcs;
 std::string compiled_source = R"(
@@ -43,8 +42,7 @@ std::vector<int> range(int __begin, int __end = 0) {
     std::vector<int> ret{};
     if (!__end) { __end = __begin; __begin = 0; }
     for (int i = __begin; i < __end; i++)
-        ret.emplace_back(i);
-    return ret;
+        ret.emplace_back(i); return ret;
 }
 )";
 
@@ -76,7 +74,8 @@ std::vector<std::string> splitStr(const std::string& str, char delimiter) {
     return ret;
 }
 
-std::optional<std::unordered_map<std::string, const char*>> Transpile(
+
+std::optional<std::unordered_map<std::string, std::string>> Transpile(
         std::vector<Node>& _nodes,
         const std::string& _buildFile,
         std::string& _dest = compiled_source,
@@ -87,13 +86,14 @@ std::optional<std::unordered_map<std::string, const char*>> Transpile(
     int              fn_br_ind     = 0;
     int              rd_function   = 0;
     bool             read_ret_type = false;
+    bool             rd_type       = false;
     bool             is_include    = false;
-
     std::ifstream    bt_fstream{};
     std::string      tmp_str_cnst{};
     std::string      last_node_type{};
     std::string      last_func_ident{};
     std::string      cimports{};
+    std::string      cr_scope{};  // %: func-local, $: global-var, @: template-arg
     std::string      macros{};
 
     if (_dest == compiled_source)
@@ -102,6 +102,10 @@ std::optional<std::unordered_map<std::string, const char*>> Transpile(
     for (Node& child : _nodes) {
         if (child.type == "TYPEDEF")
             macros += "using " + child.ident + " = " + child.value + ";";
+
+        if (child.type == "EXPORT")
+            for (Node& exp : child.body)
+                symbol_table[exp.value] = "";
 
         if (child.type == "OP") {
             if (!prn_ind)
@@ -122,13 +126,14 @@ std::optional<std::unordered_map<std::string, const char*>> Transpile(
 
         if (child.type == "FUNCTION") {
             rd_function = true;
-            last_func_ident = child.value;
+            symbol_table[child.ident] = "";
+            last_func_ident = child.ident;
 
             if (!child.template_args.empty()) {
                 compiled_funcs += "\n;template<";
                 for (const Node& t : child.template_args) {
-                    std::cout << "T:  " << t.ident << std::endl;
                     t.type == "IDENT" ? compiled_funcs += "typename " + t.value : compiled_source += child.value;
+                    symbol_table[t.value] = "%" + child.ident;
                 }
                 compiled_funcs += ">\n";
             }
@@ -209,7 +214,14 @@ std::optional<std::unordered_map<std::string, const char*>> Transpile(
 //                read_ret_type = false;
 //                _dest.replace(_dest.find(last_func_ident) - 5, 4, child.value);
 //            }
-            if (type_registry.contains(child.value)) {_dest += child.value + " "; continue; }
+            if (type_registry.contains(child.value)) {_dest += child.value + " "; rd_type = true; continue; }
+            if (rd_type) {
+                if (_dest == compiled_funcs)
+                    symbol_table[child.value] = "%" + last_func_ident;
+                else
+                    symbol_table[child.value] = "$" + std::string("__main__");
+                rd_type = false;
+            }
             _dest += child.value;
             SC_IF_IN_PRNS;
             continue;

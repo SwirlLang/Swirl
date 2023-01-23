@@ -117,6 +117,13 @@ void Parser::dispatch() {
                     continue;
                 } else if (t_val == "export") {
                     tmp_node.type = "EXPORT";
+                    while (strcmp(m_Stream.next(true)[1], "\n") != 0)
+                        if (strcmp(m_Stream.p_CurTk[0] , "IDENT") == 0)
+                            tmp_node.body.push_back(Node{.value=m_Stream.p_CurTk[1]});
+                    appendAST(m_AST, tmp_node);
+                    tmp_node.type = "";
+                    cur_rd_tok = m_Stream.next();
+                    continue;
                 } else if (t_val == "typedef") {
                     tmp_node.type = "TYPEDEF";
                     tmp_node.ident = m_Stream.next()[1];
