@@ -7,7 +7,6 @@
 
 #include <cli/cli.h>
 #include <pre-processor/pre-processor.h>
-#include <exception/exception.h>
 #include <swirl.typedefs/swirl_t.h>
 #include <tokenizer/InputStream.h>
 #include <tokenizer/Tokenizer.h>
@@ -20,6 +19,7 @@ std::string SW_OUTPUT;
 std::string SW_FED_FILE_SOURCE;
 std::vector<std::string> lines_rec{};
 
+
 const std::vector<Argument> application_flags = {
         {{"-h","--help"}, "Shows this help message", false, {}},
         {{"-r", "--run"}, "Run the compiled file", false, {}},
@@ -28,8 +28,10 @@ const std::vector<Argument> application_flags = {
         {{"-d", "--debug"}, "Log the steps of compilation", false, {}}
 };
 
+
 /* Lookup table for registered types and their visibility. */
 std::unordered_map<std::string, const char*> type_registry = {
+        // Pre-registered default types.
         {"int",     "global"},
         {"string",  "global"},
         {"bool",    "global"},
@@ -37,6 +39,25 @@ std::unordered_map<std::string, const char*> type_registry = {
         {"var",     "global"},
         {"function","global"}
 };
+
+
+std::optional<std::unordered_map<std::string, std::string>> compile(
+        std::string& _source,
+        const std::string& _cacheDir,
+        bool symt = false) {
+
+    InputStream chrinp_stream(_source);
+    TokenStream tk(chrinp_stream);
+    preProcess(_source, tk, _cacheDir);
+    Parser parser(tk);
+    return Transpile(
+            parser.m_AST->chl,
+            _cacheDir,
+            compiled_source,
+            true,
+            symt
+            );
+}
 
 
 int main(int argc, const char** const argv) {
@@ -88,8 +109,7 @@ int main(int argc, const char** const argv) {
 
         Parser parser(tk);
         parser.dispatch();
-
-        Transpile(parser.m_AST->chl, cache_dir + SW_OUTPUT + ".cpp");
+        Transpile(parser.m_AST->chl, cache_dir + SW_OUTPUT + ".cpp", compiled_source);
     }
 
     if (app.contains_flag("-r")) {
