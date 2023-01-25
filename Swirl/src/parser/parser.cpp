@@ -18,7 +18,6 @@ void appendAST(AbstractSyntaxTree* _tree, Node& node) {
     if (rd_param) _tree->chl.back().arg_nodes.push_back(node);
     else if (ang_ind > 0) {
         _tree->chl.back().template_args.push_back(node);
-        std::cout << node.value << std::endl;
         if (node.type == "IDENT")
             type_registry[node.value] = "template";
     }
