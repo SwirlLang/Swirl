@@ -114,6 +114,17 @@ void Parser::dispatch() {
                     parseFunction();
                     rd_func = true;
                     continue;
+                } else if (t_val == "from") {
+                    tmp_node.type = "IMPORT";
+                    while (strcmp(m_Stream.next()[1], "import") != 0)
+                        tmp_node.from += m_Stream.p_CurTk[1];
+                    while (strcmp(m_Stream.next(true)[1], "\n") != 0)
+                        tmp_node.impr += m_Stream.p_CurTk[1];
+                    appendAST(m_AST, tmp_node);
+
+                    tmp_node.type = tmp_node.from = tmp_node.impr = "";
+                    cur_rd_tok = m_Stream.next();
+                    continue;
                 } else if (t_val == "export") {
                     tmp_node.type = "EXPORT";
                     while (strcmp(m_Stream.next(true)[1], "\n") != 0)

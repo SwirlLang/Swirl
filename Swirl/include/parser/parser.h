@@ -6,7 +6,6 @@
 #define SWIRL_PARSER_H
 
 struct Node {
-
     bool initialized = false;
     bool format      = false;
 
@@ -14,6 +13,8 @@ struct Node {
     std::string value;
     std::string ident;
     std::string ctx_type;
+    std::string from;
+    std::string impr;
 
     std::vector<Node> body;
     std::vector<Node> arg_nodes;
