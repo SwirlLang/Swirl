@@ -211,9 +211,11 @@ void Parser::dispatch() {
             if (t_val == ">" && !rd_param && rd_func) { ang_ind--; next(); continue; }
 
             if (t_val == "//") {
-                while (strcmp(m_Stream.next(true)[1], "\n") != 0 || strcmp(m_Stream.next(true)[1], "null") != 0)
+                while (true) {
+                    if (strcmp(m_Stream.next(true)[1], "\n") == 0 || strcmp(m_Stream.next(true)[0], "null") == 0)
+                        break;
                     m_Stream.next();
-                cur_rd_tok = m_Stream.next();
+                } cur_rd_tok = m_Stream.next();
                 continue;
             }
 
