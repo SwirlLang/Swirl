@@ -4,10 +4,10 @@
 
 #include <parser/parser.h>
 
-
 #define SC_IF_IN_PRNS if (!prn_ind) _dest += ";"
 
 extern std::unordered_map<std::string, const char*> type_registry;
+
 std::unordered_map<std::string, std::string> symbol_table;
 
 std::string compiled_funcs;
@@ -43,23 +43,31 @@ std::vector<int> range(int __begin, int __end = 0) {
     if (!__end) { __end = __begin; __begin = 0; }
     for (int i = __begin; i < __end; i++)
         ret.emplace_back(i); return ret;
+    return ret;
 }
 )";
 
 std::size_t bt_size = compiled_source.size();
 
+char getNextChar(std::string& _str, std::size_t _index) noexcept {
+    if (_index < _str.size()) return _str[_index + 1];
+    return _str[_index];
+}
+
 std::string format(std::string& str) {
     bool escape = false;
     std::string ret;
+    std::size_t count = 0;
 
     for (char chr : str) {
         if (chr == '{' && !escape)
             ret += "\"+";
         else if (chr == '}' && !escape)
             ret += "+\"";
-        else if (chr == '\\')
+        else if (chr == '\\' /*&& getNextChar(str, count) == '{' || getNextChar(str, count) == '}'*/)
             escape = true;
         else { ret += chr; if (escape) escape = false; };
+        count++;
     } return ret;
 }
 
@@ -75,7 +83,7 @@ std::vector<std::string> splitStr(const std::string& str, char delimiter) {
 }
 
 
-std::optional<std::unordered_map<std::string, std::string>> Transpile(
+ std::optional<std::unordered_map<std::string, std::string>> Transpile(
         std::vector<Node>& _nodes,
         const std::string& _buildFile,
         std::string& _dest = compiled_source,
@@ -95,6 +103,8 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
     std::string      cimports{};
     std::string      cr_scope{};  // %: func-local, $: global-var, @: template-arg
     std::string      macros{};
+
+    std::optional<std::unordered_map<std::string, std::string>> ret = {};
 
     if (_dest == compiled_source)
         _dest += "int main() {\n";
@@ -164,6 +174,9 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
             else if (child.value == "importc")
                 { cimports += "#include "; is_include = true; continue;}
             else{ _dest += child.value + " "; continue; }
+        }
+
+        if (child.type == "IMPORT") {
         }
 
         if (child.type == "MACRO") {
@@ -271,7 +284,7 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
     }
 
     if (returnSymbolTable)
-        return symbol_table;
+        ret = symbol_table;
 
     if (!onlyAppend) {
         _dest.insert(bt_size, "\n" + macros + "\n");
@@ -286,5 +299,5 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
         o_file_buf.close();
     }
 
-    return {};
+    return ret;
 }
