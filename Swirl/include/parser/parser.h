@@ -19,6 +19,8 @@ struct Node {
     std::vector<Node> body;
     std::vector<Node> arg_nodes;
     std::vector<Node> template_args;
+
+    std::unordered_map<std::string, std::size_t> loc;
 };
 
 struct AbstractSyntaxTree {
@@ -36,11 +38,12 @@ public:
     explicit Parser(TokenStream&);
 
     void parseCondition(const char*);
-    void parseCall(const char*) const;
+    void parseCall(const char*);
     void dispatch();
     void parseFunction();
     void parseDecl(const char*, const char*);
     void parseLoop(const char*);
+    void appendAST(Node&);
     inline void next();
 
     ~Parser();

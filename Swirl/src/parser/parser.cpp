@@ -14,15 +14,19 @@ uint8_t    rd_param_cnt = 0;
 
 extern std::unordered_map<std::string, const char* > type_registry;
 
-void appendAST(AbstractSyntaxTree* _tree, Node& node) {
-    if (rd_param) _tree->chl.back().arg_nodes.push_back(node);
+void Parser::appendAST(Node& node) {
+    auto state = m_Stream.getStreamState();
+    node.loc["col"] = state["col"];
+    node.loc["line"] = state["line"];
+    
+    if (rd_param) m_AST->chl.back().arg_nodes.push_back(node);
     else if (ang_ind > 0) {
-        _tree->chl.back().template_args.push_back(node);
+        m_AST->chl.back().template_args.push_back(node);
         if (node.type == "IDENT")
             type_registry[node.value] = "template";
     }
-    else if (!rd_param && rd_func)  _tree->chl.back().body.push_back(node);
-    else { _tree->chl.push_back(node); }
+    else if (!rd_param && rd_func)  m_AST->chl.back().body.push_back(node);
+    else { m_AST->chl.push_back(node); }
 }
 
 Parser::Parser(TokenStream& _stream) : m_Stream(_stream) {
@@ -57,7 +61,7 @@ void Parser::dispatch() {
                         prn_ind--;
                         if (!prn_ind) {
                             tmp_node.type = "PRN_CLOSE";
-                            appendAST(m_AST, tmp_node);
+                            appendAST(tmp_node);
                             tmp_node.type = "";
                             rd_param = false;
                             rd_param_cnt++;
@@ -95,7 +99,7 @@ void Parser::dispatch() {
                 else if (t_val == ":") {tmp_node.type = "COLON";}
                 else if (t_val == ".") {tmp_node.type = "DOT"; }
                 else {cur_rd_tok = m_Stream.next(); continue;}
-                appendAST(m_AST, tmp_node);
+                appendAST(tmp_node);
                 tmp_node.type = "";
                 cur_rd_tok = m_Stream.next();
                 continue;
@@ -116,11 +120,14 @@ void Parser::dispatch() {
                     continue;
                 } else if (t_val == "from") {
                     tmp_node.type = "IMPORT";
+
                     while (strcmp(m_Stream.next()[1], "import") != 0)
                         tmp_node.from += m_Stream.p_CurTk[1];
+
                     while (strcmp(m_Stream.next(true)[1], "\n") != 0)
                         tmp_node.impr += m_Stream.p_CurTk[1];
-                    appendAST(m_AST, tmp_node);
+
+                    appendAST(tmp_node);
 
                     tmp_node.type = tmp_node.from = tmp_node.impr = "";
                     cur_rd_tok = m_Stream.next();
@@ -130,7 +137,7 @@ void Parser::dispatch() {
                     while (strcmp(m_Stream.next(true)[1], "\n") != 0)
                         if (strcmp(m_Stream.p_CurTk[0] , "IDENT") == 0)
                             tmp_node.body.push_back(Node{.value=m_Stream.p_CurTk[1]});
-                    appendAST(m_AST, tmp_node);
+                    appendAST(tmp_node);
                     tmp_node.type = "";
                     cur_rd_tok = m_Stream.next();
                     continue;
@@ -142,7 +149,7 @@ void Parser::dispatch() {
                     while (strcmp(m_Stream.next(true, true)[1], "\n") != 0)
                         tmp_node.value += m_Stream.p_CurTk[1];
 
-                    appendAST(m_AST, tmp_node);
+                    appendAST(tmp_node);
                     tmp_node.type = "";
                     tmp_node.value = "";
                     tmp_node.ident = "";
@@ -152,7 +159,7 @@ void Parser::dispatch() {
 
                 tmp_node.type = "KEYWORD";
                 tmp_node.value = t_val;
-                appendAST(m_AST, tmp_node);
+                appendAST(tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
                 cur_rd_tok = m_Stream.next();
@@ -177,7 +184,7 @@ void Parser::dispatch() {
 
                 tmp_node.type = "IDENT";
                 tmp_node.value = tmp_ident;
-                appendAST(m_AST, tmp_node);
+                appendAST(tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
                 continue;
@@ -191,7 +198,7 @@ void Parser::dispatch() {
 
                 tmp_node.type = t_type;
                 tmp_node.value = t_val;
-                appendAST(m_AST, tmp_node);
+                appendAST(tmp_node);
 
                 tmp_node.format = false;
                 tmp_node.type = "";
@@ -204,9 +211,16 @@ void Parser::dispatch() {
                 if (t_val == "<" && !rd_param && rd_func) { ang_ind++; next(); continue; }
                 if (t_val == ">" && !rd_param && rd_func) { ang_ind--; next(); continue; }
 
+                if (t_val == "//") {
+                    while (strcmp(m_Stream.next(true)[1], "\n") != 0 || strcmp(m_Stream.next(true)[1], "null") != 0)
+                        m_Stream.next();
+                    cur_rd_tok = m_Stream.next();
+                    continue;
+                }
+
                 tmp_node.type = t_type;
                 tmp_node.value = tmp_node.ident = t_val;
-                appendAST(m_AST, tmp_node);
+                appendAST(tmp_node);
                 tmp_node.type = tmp_node.value = tmp_node.type = "";
                 cur_rd_tok = m_Stream.next();
                 continue;
@@ -215,7 +229,7 @@ void Parser::dispatch() {
             if (t_type == "NUMBER") {
                 tmp_node.type = t_type;
                 tmp_node.value = t_val;
-                appendAST(m_AST, tmp_node);
+                appendAST(tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
                 cur_rd_tok = m_Stream.next();
@@ -225,7 +239,7 @@ void Parser::dispatch() {
             if (t_type == "MACRO") {
                 tmp_node.type = t_type;
                 tmp_node.value = t_val;
-                appendAST(m_AST, tmp_node);
+                appendAST(tmp_node);
                 tmp_node.type = "";
                 tmp_node.value = "";
                 cur_rd_tok = m_Stream.next();
@@ -245,7 +259,7 @@ void Parser::parseFunction() {
     func_node.ident = cur_rd_tok[1];
 
     cur_rd_tok = m_Stream.next();
-    appendAST(m_AST, func_node);
+    appendAST(func_node);
 }
 
 void Parser::parseDecl(const char* _type, const char* _ident) {
@@ -260,10 +274,10 @@ void Parser::parseDecl(const char* _type, const char* _ident) {
             decl_node.initialized = true;
     } catch ( std::exception& _ ) {}
 
-    appendAST(m_AST, decl_node);
+    appendAST(decl_node);
 }
 
-void Parser::parseCall(const char* _ident) const {
+void Parser::parseCall(const char* _ident) {
     Node call_node{};
     Node arg_node{};
     call_node.type = "CALL";
@@ -272,7 +286,7 @@ void Parser::parseCall(const char* _ident) const {
 //    m_Stream.next();
 //    if (m_AST->chl[-1].type == "FUNCTION" && m_AST->chl[-1].body[-1].ident == _ident)
 //        m_AST->chl[-1].body.pop_back();
-    appendAST(m_AST, call_node);
+    appendAST(call_node);
 }
 
 void Parser::parseLoop(const char* _type) {
@@ -288,7 +302,7 @@ void Parser::parseLoop(const char* _type) {
             cur_rd_tok = m_Stream.next();
         }
     } catch ( std::exception& _sigabrt ) { }
-    appendAST(m_AST, loop_node);
+    appendAST(loop_node);
 }
 
 void Parser::parseCondition(const char* _type) {
@@ -306,5 +320,5 @@ void Parser::parseCondition(const char* _type) {
         }
     } catch ( std::exception& _sigabrt ) { }
 
-    appendAST(m_AST, cnd_node);
+    appendAST(cnd_node);
 }
