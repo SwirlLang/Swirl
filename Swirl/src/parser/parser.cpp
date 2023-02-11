@@ -212,9 +212,8 @@ void Parser::dispatch() {
 
             if (t_val == "//") {
                 while (true) {
-                    if (strcmp(m_Stream.next(true)[1], "\n") == 0 || strcmp(m_Stream.next(true)[0], "null") == 0)
+                    if (strcmp(m_Stream.next(true)[1], "\n") == 0)
                         break;
-                    m_Stream.next();
                 } cur_rd_tok = m_Stream.next();
                 continue;
             }
