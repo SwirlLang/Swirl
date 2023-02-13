@@ -26,18 +26,18 @@ Some of the key features of Swirl include:
 * Advanced package management system for accessing a wide range of libraries and frameworks
 
 ## Getting Started
-To get started with Swirl, you'll need to install the Swirl. You can find installation instructions in the [docs](https://swirl-lang.vercel.app/docs/getting-started/installation).
+You can find installation instructions in the [docs](https://swirl-lang.vercel.app/docs/getting-started/installation).
 
-Once you have Swirl installed, you can start using it right away. Simply open a terminal and create a file named hello.sw with a simple hello world program: 
+Once you have Swirl installed, simply open a terminal and create a file named hello.sw with a simple hello world program: 
 ```
 print("Hello World")
 ```
 
-To run the program, save your code and use the swirl compiler to compile and run the program. For example:
+To run the program, save your code and use the swirl compiler to compile and run the program.
 ```bash
 swirl hello.sw --run
 ```
-Here the --run flag compiles and runs the app in a single command.
+Here the --run flag compiles and runs the program in a single command.
 
 ## Contributing to Swirl
 We welcome contributions to Swirl! If you have an idea for a new feature or have found a bug, please open an issue in the project repository. To contribute code to Swirl, fork the repository, create a new branch, and submit a pull request. Read the [Docs](https://swirl-lang.vercel.app/docs/) for more info.
