@@ -117,9 +117,11 @@ void Parser::dispatch() {
                 parseFunction();
                 rd_func = true;
                 continue;
+            } else if (t_val == "import") {
+                while (strcmp(m_Stream.next(true)[1], "\n") != 0)
+                    tmp_node.impr += m_Stream.p_CurTk[1];
             } else if (t_val == "from") {
                 tmp_node.type = "IMPORT";
-
                 while (strcmp(m_Stream.next()[1], "import") != 0)
                     tmp_node.from += m_Stream.p_CurTk[1];
 
