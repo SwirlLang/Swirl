@@ -10,7 +10,7 @@ if (WIN32)
 endif (WIN32)
 option(BUILD_STDLIB "Build the standard library" OFF)
 include_directories("include")
-add_executable(swirl src/swirl.cpp include/tokens/Tokens.h)
+add_executable(swirl src/swirl.cpp)
 
 add_subdirectory(src)
 if(BUILD_STDLIB)

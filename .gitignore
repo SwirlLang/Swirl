@@ -7,5 +7,5 @@ __swirl_cache__
 *.exe
 run
 build
-Swirl/cmake-build-debug/
+cmake-build-debug
 .backup
