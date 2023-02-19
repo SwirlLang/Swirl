@@ -98,7 +98,7 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
     bool             is_include    = false;
     std::ifstream    bt_fstream{};
     std::string      tmp_str_cnst{};
-    std::string      last_node_type{};
+    TokenType        last_node_type{};
     std::string      last_func_ident{};
     std::string      cimports{};
     std::string      cr_scope{};  // %: func-local, $: global-var, @: template-arg
@@ -110,14 +110,14 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
         _dest += "int main() {\n";
 
     for (Node& child : _nodes) {
-        if (child.type == "TYPEDEF")
+        if (child.type == TYPEDEF)
             macros += "using " + child.ident + " = " + child.value + ";";
 
-        if (child.type == "EXPORT")
+        if (child.type == EXPORT)
             for (Node& exp : child.body)
                 symbol_table[exp.value] = "";
 
-        if (child.type == "OP") {
+        if (child.type == OP) {
             if (!prn_ind)
                 _dest.erase(_dest.size() - 1);
             _dest += child.value;
@@ -126,7 +126,7 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
             continue;
         }
 
-        if (child.type == "STRING") {
+        if (child.type == STRING) {
             if (is_include) { cimports += child.value + "\n"; is_include = false; continue; }
             else if (child.format) { _dest += "string(" + format(child.value) + ")"; SC_IF_IN_PRNS; continue; }
             _dest += "string(" + child.value + ")";
@@ -134,7 +134,7 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
             continue;
         }
 
-        if (child.type == "FUNCTION") {
+        if (child.type == FUNCTION) {
             rd_function = true;
             symbol_table[child.ident] = "";
             last_func_ident = child.ident;
@@ -142,7 +142,7 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
             if (!child.template_args.empty()) {
                 compiled_funcs += "\n;template<";
                 for (const Node& t : child.template_args) {
-                    t.type == "IDENT" ? compiled_funcs += "typename " + t.value : compiled_source += child.value;
+                    t.type == IDENT ? compiled_funcs += "typename " + t.value : compiled_source += child.value;
                     symbol_table[t.value] = "%" + child.ident;
                 }
                 compiled_funcs += ">\n";
@@ -155,18 +155,18 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
             continue;
         }
 
-        if (child.type == "for" || child.type == "while") {
-            _dest += child.type + " (" + child.value + ")";
+        if (child.type == FOR || child.type == WHILE) {
+            _dest += std::string(child.type == FOR ? "for":"while") + " (" + child.value + ")";
             continue;
         }
 
-        if (child.type == "COLON") {
+        if (child.type == COLON) {
             _dest += ":";
             read_ret_type = true;
             continue;
         }
 
-        if (child.type == "KEYWORD") {
+        if (child.type == KEYWORD) {
             if   (child.value == "break" || child.value == "continue")
                 { _dest += child.value + ";"; continue; }
             else if (child.value == "true" || child.value == "false")
@@ -176,11 +176,11 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
             else{ _dest += child.value + " "; continue; }
         }
 
-        if (child.type == "IMPORT") {
+        if (child.type == IMPORT) {
 
         }
 
-        if (child.type == "MACRO") {
+        if (child.type == MACRO) {
             if (child.value.starts_with("typedef")) {
                 std::basic_string<char> typedefin = child.value.substr(7);
                 std::basic_string<char> f_type = splitStr(typedefin, ' ')[1];
@@ -193,13 +193,13 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
             continue;
         }
 
-        if (child.type == "PRN_OPEN") {
+        if (child.type == PRN_OPEN) {
             _dest += "(";
             prn_ind++;
             continue;
         }
 
-        if (child.type == "PRN_CLOSE") {
+        if (child.type == PRN_CLOSE) {
             _dest += ")";
             prn_ind--;
 
@@ -212,18 +212,18 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
             continue;
         }
 
-        if (child.type == "COMMA") {
+        if (child.type == COMMA) {
             _dest += ",";
             continue;
         }
 
-        if (child.type == "NUMBER") {
+        if (child.type == NUMBER) {
             _dest += child.value;
             SC_IF_IN_PRNS;
             continue;
         }
 
-        if (child.type == "IDENT") {
+        if (child.type == IDENT) {
 //            if (read_ret_type) {
 //                read_ret_type = false;
 //                _dest.replace(_dest.find(last_func_ident) - 5, 4, child.value);
@@ -241,7 +241,7 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
             continue;
         }
 
-        if (child.type == "BR_OPEN") {
+        if (child.type == BR_OPEN) {
             fn_br_ind ++;
             if (_dest[_dest.size() - 2] == ')')
                 _dest.erase(_dest.size() - 1);
@@ -249,7 +249,7 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
             continue;
         }
 
-        if (child.type == "BR_CLOSE") {
+        if (child.type == BR_CLOSE) {
             fn_br_ind --;
             _dest += "}";
 
@@ -258,28 +258,28 @@ std::optional<std::unordered_map<std::string, std::string>> Transpile(
             continue;
         }
 
-        if (child.type == "if" || child.type == "elif" || child.type == "else") {
-            if (child.type == "else")
+        if (child.type == IF || child.type == ELIF || child.type == ELSE) {
+            if (child.type == ELSE)
                 { if (_dest[_dest.size() - 1] == ';') _dest.erase(_dest.size() - 1); _dest += "else"; }
             else
-                _dest += child.type + " (" + child.value + ")";
+                _dest += std::string(child.type == IF ? "if" : child.type == ELIF ? "elif":"else") + " (" + child.value + ")"; // please forgive me
             continue;
         }
 
-        if (child.type == "DOT") {
+        if (child.type == DOT) {
             if (_dest.ends_with(';')) _dest.erase(_dest.size() - 1);
             _dest += ".";
             continue;
         }
 
-        if (child.type == "VAR") {
+        if (child.type == VAR) {
             _dest += child.ctx_type + " " + child.ident;
             if (!child.initialized && !rd_function) _dest += ";";
             else _dest += "=";
             continue;
         }
 
-        if (child.type == "CALL")
+        if (child.type == CALL)
             _dest += child.ident;
         last_node_type = child.type;
     }

@@ -56,14 +56,14 @@ func genericFunc<T>(T a, T b) {
 
 ## Data types
 
-| Type   | About                    |
+| type   | About                    |
 |--------|--------------------------|
 | string | Instance of Swirl::String|
 | int    | 64 bit Int               |
 | float  | double                   |
 | bool   | unsigned 8 bit int       | 
 
-## Type Qualifiers
+## type Qualifiers
 
 `const` ~ marks the variable as constant  
 `var` ~ makes the compiler checks for the type itself
