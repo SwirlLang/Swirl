@@ -59,9 +59,18 @@ std::optional<std::unordered_map<std::string, std::string>> compile(
             );
 }
 
-
 int main(int argc, const char** const argv) {
     cli app(argc, argv, application_flags);
+
+// For Debugging purpose
+//    const char *args[] = {
+//            "swirl",
+//            "main.sw",
+//            "-r",
+//            "-d"
+//    };
+//
+//    cli app(4, args, application_flags);
 
     if (app.contains_flag("-h")) {
         std::cout << USAGE << app.generate_help() << '\n';

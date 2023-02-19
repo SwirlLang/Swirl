@@ -1,0 +1,4 @@
+/mnt/win/Code/app/Linux/clion-2022.3.2/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/mnt/win/Code/app/Linux/clion-2022.3.2/bin/ninja/linux/x64/ninja -G Ninja -S /mnt/win/Code/Codings/C++/swirl/Swirl -B /mnt/win/Code/Codings/C++/swirl/Swirl/cmake-build-debug
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /mnt/win/Code/Codings/C++/swirl/Swirl/cmake-build-debug

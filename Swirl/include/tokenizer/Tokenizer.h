@@ -1,5 +1,6 @@
 #include <iostream>
 #include <map>
+#include <tuple>
 #include <array>
 #include <vector>
 #include <cstring>
@@ -9,6 +10,7 @@
 #include <definitions/definitions.h>
 #include <tokenizer/InputStream.h>
 #include <utils/utils.h>
+#include <tokens/Tokens.h>
 
 #ifndef SWIRL_TokenStream_H
 #define SWIRL_TokenStream_H
@@ -25,16 +27,16 @@ class TokenStream {
     std::string                                     m_Ret;
     std::string                                     m_Rax;
     InputStream                                     m_Stream;
-    std::array<const char*, 2>                      m_PeekTk{};
-    std::array<const char*, 2>                      m_lastTok{};
-    std::array<const char*, 2>                      m_Cur{};
-    std::array<std::array<const char*, 2>, 5>       m_TokReserve{};
+    Token                                           m_PeekTk{};
+    Token                                           m_lastTok{};
+    Token                                           m_Cur{};
+    std::array<Token, 5>                            m_TokReserve{};
 public:
-    std::array<const char*, 2> p_CurTk{"", ""};
+    Token p_CurTk{NONE, ""};
 
     explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {}
 
-    bool isKeyword(const std::string& _str) {
+    static bool isKeyword(const std::string& _str) {
         return std::find(DEF.keywords.begin(), DEF.keywords.end(), _str) != DEF.keywords.end();
     }
 
@@ -97,35 +99,35 @@ public:
         return ret;
     }
 
-    std::array<const char*, 2> readString(char del = '"', bool _format = false) {
+    Token readString(char del = '"', bool _format = false) {
         m_Ret = readEscaped(del);
         m_Ret.pop_back();
         m_Ret.insert(0, "\"");
         m_Ret.append("\"");
         if (_format) { m_Ret.insert(0, "f"); m_rdfs = false; }
-        return {"STRING", m_Ret.c_str()};
+        return {STRING, m_Ret.c_str()};
     }
 
-    std::array<const char*, 2> readMacro() {
+    Token readMacro() {
         m_Stream.next(true);
         if (m_Stream.next(true) == 't') {
             m_Ret.replace(0, 6, "typedef");
         }
 
         m_Ret = readEscaped('\n');
-        return {"MACRO", m_Ret.c_str()};
+        return {MACRO, m_Ret.c_str()};
     }
 
-    std::array<const char*, 2> readIdent(bool apndF = false) {
+    Token readIdent(bool apndF = false) {
         m_Rax = readWhile(isId);
         if (apndF) m_Rax.insert(0, "f");
         return {
-                isKeyword(m_Rax) ? "KEYWORD" : "IDENT",
+                isKeyword(m_Rax) ? KEYWORD : IDENT,
                 m_Rax.c_str()
         };
     }
 
-    std::array<const char*, 2> readNumber() {
+    Token readNumber() {
         static uint8_t has_decim = false;
         std::string number = readWhile([](char ch) {
             if (ch == '.') {
@@ -136,11 +138,11 @@ public:
         });
         has_decim = false;
         m_Ret = number;
-        return {"NUMBER", m_Ret.c_str()};
+        return {NUMBER, m_Ret.c_str()};
     }
 
-    std::array<const char*, 2> readNextTok(bool _noIncrement = false) {
-        if (m_Stream.eof()) {return {"null", "null"};}
+    Token readNextTok(bool _noIncrement = false) {
+        if (m_Stream.eof()) {return {_NONE, "null"};}
         auto chr = m_Stream.peek();
         if (chr == '"') return readString();
         if (chr == '\'') return readString('\'');
@@ -162,18 +164,18 @@ public:
         if (isOpChar(chr)) {
             m_Rax = chr + readWhile(isOpChar);
             return {
-                    "OP",
+                    OP,
                     m_Rax.c_str()
             };
         }
 
         if (isPunctuation(chr) ) return {
-                    "PUNC",
+                    PUNC,
                     m_Ret.c_str()
             };
     }
 
-    std::array<const char*, 2> next(const bool& _showTNw = false, const bool& _showTWs = false) {
+    Token next(const bool& _showTNw = false, const bool& _showTWs = false) {
         p_CurTk = readNextTok();
         if (m_tkFlag) {
             m_lastTok = p_CurTk;
@@ -181,18 +183,18 @@ public:
         }
 
         if (!_showTWs)
-            if (strcmp(p_CurTk[0], "PUNC") == 0 && strcmp(p_CurTk[1], " ") == 0)
+            if (p_CurTk.type == PUNC && strcmp(p_CurTk.value, " ") == 0)
                 p_CurTk = readNextTok();
         if (!_showTNw)
-            if (strcmp(p_CurTk[0], "PUNC") == 0 && strcmp(p_CurTk[1], "\n") == 0)
+            if (p_CurTk.type == PUNC && strcmp(p_CurTk.value, "\n") == 0)
                 p_CurTk = readNextTok();
         if (m_Debug)
-            std::cout << "Token Requested:\t" << p_CurTk[0] << "\t  " << p_CurTk[1] << std::endl;
+            std::cout << "Token Requested:\t" << p_CurTk.type << "\t  " << p_CurTk.value << std::endl;
 
         return p_CurTk;
     }
 
-    std::array<const char*, 2> peek() const {
+    [[nodiscard]] Token peek() const {
         return m_PeekTk;
     }
 

@@ -9,7 +9,7 @@ struct Node {
     bool initialized = false;
     bool format      = false;
 
-    std::string type;
+    TokenType type;
     std::string value;
     std::string ident;
     std::string ctx_type;
@@ -28,7 +28,7 @@ struct AbstractSyntaxTree {
 };
 
 class Parser {
-    std::array<const char*, 2> cur_rd_tok{};
+    Token cur_rd_tok{};
 public:
     TokenStream m_Stream;
     AbstractSyntaxTree* m_AST;
@@ -37,12 +37,12 @@ public:
 
     explicit Parser(TokenStream&);
 
-    void parseCondition(const char*);
+    void parseCondition(TokenType);
     void parseCall(const char*);
     void dispatch();
     void parseFunction();
     void parseDecl(const char*, const char*);
-    void parseLoop(const char*);
+    void parseLoop(TokenType);
     void appendAST(Node&);
     inline void next();
 
