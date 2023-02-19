@@ -323,7 +323,7 @@ void Parser::parseCondition(TokenType _type) {
     cnd_node.type = _type;
 
     cur_rd_tok = m_Stream.next();
-    while (m_Stream.p_CurTk.type == NONE) {
+    while (m_Stream.p_CurTk.type != NONE) {
         if (m_Stream.p_CurTk.type == PUNC && strcmp(m_Stream.p_CurTk.value, "{") == 0)
             break;
 
