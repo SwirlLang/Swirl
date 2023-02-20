@@ -35,7 +35,7 @@ std::string cli::generate_help() {
 	} return msg;
 }
 
-std::string cli::get_file() {
+std::optional<std::string> cli::get_file() {
 	for (int i = 1; i < m_argc; i++) {
 		if (
 			m_argv[i][0] != '-' &&
@@ -47,9 +47,8 @@ std::string cli::get_file() {
 			}) != m_flags.end()
 		)) {
 			return m_argv[i];
-			break;
 		}
-	}
+	} return {};
 }
 
 std::vector<Argument> cli::parse(int argc, const char **argv, const std::vector<Argument>& flags) {
