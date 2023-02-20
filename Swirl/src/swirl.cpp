@@ -83,7 +83,9 @@ int main(int argc, const char** const argv) {
         cxx = app.get_flag_value("-c");
     else cxx = "g++";
 
-    SW_FED_FILE_PATH = app.get_file();
+    std::optional<std::string> _file = app.get_file();
+    if (!_file.has_value()) { std::cerr << "No Input file\n"; return 1; }
+    SW_FED_FILE_PATH = *app.get_file();
 
     if (!std::filesystem::exists(SW_FED_FILE_PATH)) {
         std::cerr << "File '" << SW_FED_FILE_PATH << "' doesn't exists!" << std::endl;
