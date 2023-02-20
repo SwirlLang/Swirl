@@ -24,25 +24,32 @@ std::string compiled_source = R"(
 using string = std::string;
 
 template < typename Obj >
-void print(Obj __Obj, const std::string& __End = "\n", bool __Flush = true) {
-    if (__Flush) std::cout << std::boolalpha << __Obj << __End << std::flush;
-    else std::cout << std::boolalpha << __Obj << __End;
+void println(Obj __Obj, bool __Flush = true) {
+if (__Flush) std::cout << std::boolalpha << __Obj << '\n' << std::flush;
+else std::cout << std::boolalpha << __Obj << '\n';
+}
+
+template < typename Obj >
+void print(Obj __Obj, bool __Flush = true) {
+if (__Flush) std::cout << std::boolalpha << __Obj << std::flush;
+else std::cout << std::boolalpha << __Obj;
 }
 
 std::string input(const std::string& __Prompt) {
-    std::string ret;
-    std::cout << __Prompt << std::flush;
-    std::getline(std::cin, ret);
-    return ret;
+std::string ret;
+std::cout << __Prompt << std::flush;
+std::getline(std::cin, ret);
+
+return ret;
 }
 
 std::vector<int> range(int __begin, int __end = 0) {
-    // TODO: use an input iterator
-    std::vector<int> ret{};
-    if (!__end) { __end = __begin; __begin = 0; }
-    for (int i = __begin; i < __end; i++)
-        ret.emplace_back(i); return ret;
-    return ret;
+// TODO: use an input iterator
+std::vector<int> ret{};
+if (!__end) { __end = __begin; __begin = 0; }
+for (int i = __begin; i < __end; i++)
+ret.emplace_back(i); return ret;
+return ret;
 }
 )";
 
