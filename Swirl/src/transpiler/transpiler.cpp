@@ -32,14 +32,13 @@ void println(Obj __Obj, bool __Flush = true) {
 template < typename Obj >
 void print(Obj __Obj, bool __Flush = true) {
     if (__Flush) std::cout << std::boolalpha << __Obj << std::flush;
-        else std::cout << std::boolalpha << __Obj;
-    }
-    
-    std::string input(const std::string& __Prompt) {
+    else std::cout << std::boolalpha << __Obj;
+}
+
+std::string input(const std::string& __Prompt) {
     std::string ret;
     std::cout << __Prompt << std::flush;
     std::getline(std::cin, ret);
-
     return ret;
 }
 
