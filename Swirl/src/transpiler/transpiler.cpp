@@ -24,15 +24,9 @@ std::string compiled_source = R"(
 using string = std::string;
 
 template < typename Obj >
-void println(Obj __Obj, bool __Flush = true) {
-    if (__Flush) std::cout << std::boolalpha << __Obj << '\n' << std::flush;
-    else std::cout << std::boolalpha << __Obj << '\n';
-}
-
-template < typename Obj >
-void print(Obj __Obj, bool __Flush = true) {
-    if (__Flush) std::cout << std::boolalpha << __Obj << std::flush;
-    else std::cout << std::boolalpha << __Obj;
+void print(Obj __Obj, const std::string& __End = "\n", bool __Flush = true) {
+    if (__Flush) std::cout << std::boolalpha << __Obj << __End << std::flush;
+    else std::cout << std::boolalpha << __Obj << __End;
 }
 
 std::string input(const std::string& __Prompt) {
