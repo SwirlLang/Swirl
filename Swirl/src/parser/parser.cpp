@@ -1,11 +1,13 @@
 #include <iostream>
 #include <cstring>
 #include <array>
+#include <string>
 
 #include <unordered_map>
 #include <parser/parser.h>
 #include <exception/exception.h>
 
+using namespace std::string_literals;
 
 short      ang_ind      = 0;
 uint8_t    rd_param     = 0;
@@ -65,7 +67,7 @@ void Parser::dispatch() {
                         rd_param = false;
                         rd_param_cnt++;
                         cur_rd_tok = m_Stream.next();
-                        if (cur_rd_tok.type == PUNC && strcmp(cur_rd_tok.value, ":") == 0) {
+                        if (cur_rd_tok.type == PUNC && cur_rd_tok.value == ":") {
                             cur_rd_tok = m_Stream.next();
                             m_AST->chl.back().ctx_type = cur_rd_tok.value;
                             cur_rd_tok = m_Stream.next();
@@ -132,10 +134,10 @@ void Parser::dispatch() {
             } else if (t_val == "from") {
                 tmp_node.type = IMPORT;
 
-                while (strcmp(m_Stream.next().value, "import") != 0)
+                while (m_Stream.next().value != "import")
                     tmp_node.from += m_Stream.p_CurTk.value;
 
-                while (strcmp(m_Stream.next(true).value, "\n") != 0)
+                while (m_Stream.next(true).value != "\n")
                     tmp_node.impr += m_Stream.p_CurTk.value;
 
                 appendAST(tmp_node);
@@ -147,9 +149,9 @@ void Parser::dispatch() {
                 continue;
             } else if (t_val == "export") {
                 tmp_node.type = EXPORT;
-                while (strcmp(m_Stream.next(true).value, "\n") != 0)
+                while (m_Stream.next(true).value != "\n")
                     if (m_Stream.p_CurTk.type == IDENT)
-                        tmp_node.body.push_back(Node{.value=m_Stream.p_CurTk.value});
+                        tmp_node.body.push_back(Node { .value = m_Stream.p_CurTk.value.data() });
                 appendAST(tmp_node);
                 tmp_node.type = _NONE;
                 cur_rd_tok = m_Stream.next();
@@ -158,8 +160,8 @@ void Parser::dispatch() {
                 tmp_node.type = TYPEDEF;
                 tmp_node.ident = m_Stream.next().value;
 
-                type_registry[m_Stream.p_CurTk.value] = "";
-                while (strcmp(m_Stream.next(true, true).value, "\n") != 0)
+                type_registry[m_Stream.p_CurTk.value.data()] = "";
+                while (m_Stream.next(true, true).value != "\n")
                     tmp_node.value += m_Stream.p_CurTk.value;
 
                 appendAST(tmp_node);
@@ -190,7 +192,7 @@ void Parser::dispatch() {
             }
 
             cur_rd_tok = m_Stream.next();
-            if (strcmp(m_Stream.p_CurTk.value, "(") == 0) {
+            if (m_Stream.p_CurTk.value == "(") {
                 parseCall(tmp_ident);
                 continue;
             }
@@ -226,7 +228,7 @@ void Parser::dispatch() {
 
             if (t_val == "//") {
                 while (true) {
-                    if (strcmp(m_Stream.next(true).value, "\n") == 0)
+                    if (m_Stream.next(true).value == "\n")
                         break;
                 } cur_rd_tok = m_Stream.next();
                 continue;
@@ -284,7 +286,7 @@ void Parser::parseDecl(const char* _type, const char* _ident) {
 
     try {
         cur_rd_tok = m_Stream.next();
-        if (cur_rd_tok.type == OP && strcmp(cur_rd_tok.value, "=") == 0)
+        if (cur_rd_tok.type == OP && cur_rd_tok.value == "=")
             decl_node.initialized = true;
     } catch ( std::exception& _ ) {}
 
@@ -309,9 +311,9 @@ void Parser::parseLoop(TokenType _type) {
 
     cur_rd_tok = m_Stream.next();
     while (m_Stream.p_CurTk.type != NONE) {
-        if (m_Stream.p_CurTk.type == PUNC && strcmp(m_Stream.p_CurTk.value, "{") == 0)
+        if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "{")
             break;
-        loop_node.value += strcat((char*)m_Stream.p_CurTk.value, " ");
+        loop_node.value += m_Stream.p_CurTk.value.data() + " "s;
         cur_rd_tok = m_Stream.next();
     }
 
@@ -324,10 +326,9 @@ void Parser::parseCondition(TokenType _type) {
 
     cur_rd_tok = m_Stream.next();
     while (m_Stream.p_CurTk.type != NONE) {
-        if (m_Stream.p_CurTk.type == PUNC && strcmp(m_Stream.p_CurTk.value, "{") == 0)
+        if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "{")
             break;
-
-        cnd_node.value += strcat((char*)m_Stream.p_CurTk.value, " ");
+        cnd_node.value += m_Stream.p_CurTk.value.data() + " "s;
         cur_rd_tok = m_Stream.next();
     }
 

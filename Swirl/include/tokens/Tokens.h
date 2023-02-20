@@ -38,7 +38,7 @@ enum TokenType {
 
 struct Token {
     TokenType type;
-    const char *value;
+    std::string_view value;
 };
 
 #endif //SWIRL_TOKENS_H

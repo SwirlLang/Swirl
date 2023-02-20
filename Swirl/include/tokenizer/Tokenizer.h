@@ -183,10 +183,10 @@ public:
         }
 
         if (!_showTWs)
-            if (p_CurTk.type == PUNC && strcmp(p_CurTk.value, " ") == 0)
+            if (p_CurTk.type == PUNC && p_CurTk.value == " ")
                 p_CurTk = readNextTok();
         if (!_showTNw)
-            if (p_CurTk.type == PUNC && strcmp(p_CurTk.value, "\n") == 0)
+            if (p_CurTk.type == PUNC && p_CurTk.value == "\n")
                 p_CurTk = readNextTok();
         if (m_Debug)
             std::cout << "Token Requested:\t" << p_CurTk.type << "\t  " << p_CurTk.value << std::endl;
