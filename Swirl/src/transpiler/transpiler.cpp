@@ -33,7 +33,6 @@ std::string input(const std::string& __Prompt) {
     std::string ret;
     std::cout << __Prompt << std::flush;
     std::getline(std::cin, ret);
-
     return ret;
 }
 

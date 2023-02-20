@@ -2,6 +2,7 @@
 #include <variant>
 #include <string_view>
 #include <algorithm>
+#include <optional>
 #include <iostream>
 #include <tuple>
 
@@ -52,7 +53,7 @@ public:
 	std::string get_flag_value(std::string_view flag);
     std::string generate_help();
 
-	std::string get_file();
+	std::optional<std::string> get_file();
 };
 
 #endif
