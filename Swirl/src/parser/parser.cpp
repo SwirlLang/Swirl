@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <parser/parser.h>
 #include <exception/exception.h>
+#include <list>
 
 using namespace std::string_literals;
 
@@ -20,7 +21,7 @@ void Parser::appendAST(Node& node) {
     auto state = m_Stream.getStreamState();
     node.loc["col"] = state["col"];
     node.loc["line"] = state["line"];
-    
+
     if (rd_param) m_AST->chl.back().arg_nodes.push_back(node);
     else if (ang_ind > 0) {
         m_AST->chl.back().template_args.push_back(node);

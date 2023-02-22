@@ -12,7 +12,7 @@ enum TokenType {
 
     NONE,
 
-    // Extra Tokens required by the parser
+    // Name of the Token Groups packaged by the Parser
 
     TYPEDEF,
     EXPORT,

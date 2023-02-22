@@ -1,6 +1,7 @@
 #include <tokenizer/Tokenizer.h>
 #include <array>
 #include <map>
+#include <list>
 
 #ifndef SWIRL_PARSER_H
 #define SWIRL_PARSER_H
@@ -16,15 +17,15 @@ struct Node {
     std::string from;
     std::string impr;
 
-    std::vector<Node> body;
-    std::vector<Node> arg_nodes;
-    std::vector<Node> template_args;
+    std::list<Node> body;
+    std::list<Node> arg_nodes;
+    std::list<Node> template_args;
 
     std::unordered_map<std::string, std::size_t> loc;
 };
 
 struct AbstractSyntaxTree {
-    std::vector<Node> chl;
+    std::list<Node> chl;
 };
 
 class Parser {

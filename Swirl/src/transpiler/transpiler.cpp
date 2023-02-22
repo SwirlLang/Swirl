@@ -41,7 +41,7 @@ std::vector<int> range(int __begin, int __end = 0) {
     std::vector<int> ret{};
     if (!__end) { __end = __begin; __begin = 0; }
     for (int i = __begin; i < __end; i++)
-        ret.emplace_back(i); return ret;
+        ret.emplace_back(i);
     return ret;
 }
 )";
@@ -83,7 +83,7 @@ std::vector<std::string> splitStr(const std::string& str, char delimiter) {
 
 
 std::optional<std::unordered_map<std::string, std::string>> Transpile(
-        std::vector<Node>& _nodes,
+        std::list<Node>& _nodes,
         const std::string& _buildFile,
         std::string& _dest = compiled_source,
         bool onlyAppend = false,
