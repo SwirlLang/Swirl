@@ -23,7 +23,6 @@ using namespace std::string_view_literals;
 class TokenStream {
     bool                                            m_Debug  = 0;
     bool                                            m_rdfs   = 0;
-    short                                           m_tkFlag = 0;
     std::string                                     m_Ret;
     std::string                                     m_Rax;
     InputStream                                     m_Stream;
@@ -179,11 +178,6 @@ public:
     Token next(const bool& _showTNw = false, const bool& _showTWs = false) {
         p_CurTk.type == _NONE ? p_CurTk = readNextTok() : p_CurTk = m_PeekTk;
         m_PeekTk = readNextTok();
-
-        if (m_tkFlag) {
-            m_lastTok = p_CurTk;
-            m_tkFlag++;
-        }
 
         if (!_showTWs)
             if (m_PeekTk.type == PUNC && m_PeekTk.value == " ")
