@@ -8,9 +8,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 if (WIN32)
     set(CMAKE_CXX_STANDARD_LIBRARIES "-static-libgcc -static-libstdc++ -static")
 endif (WIN32)
+
 option(BUILD_STDLIB "Build the standard library" OFF)
 include_directories("include")
+
 add_executable(swirl src/swirl.cpp)
+add_compile_options(-O3)
 
 add_subdirectory(src)
 if(BUILD_STDLIB)
