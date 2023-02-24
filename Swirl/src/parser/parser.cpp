@@ -10,7 +10,10 @@
 
 using namespace std::string_literals;
 
+
+// Flags
 short      ang_ind      = 0;
+uint8_t    is_first_t   = 1;
 uint8_t    rd_param     = 0;
 uint8_t    rd_func      = 0;
 uint8_t    rd_param_cnt = 0;
@@ -40,7 +43,9 @@ Parser::~Parser() {
     delete m_AST;
 }
 
-void Parser::next() { cur_rd_tok = m_Stream.next(); }
+void Parser::next(bool swsFlg, bool snsFlg) {
+    cur_rd_tok = m_Stream.next(swsFlg, snsFlg);
+}
 
 void Parser::dispatch() {
     int         br_ind    = 0;
@@ -50,9 +55,9 @@ void Parser::dispatch() {
 
     Node tmp_node{};
 
-    cur_rd_tok = m_Stream.next();
+    next();
 
-    while (cur_rd_tok.type != _NONE) {
+    while (cur_rd_tok.type != NONE) {
         TokenType t_type = cur_rd_tok.type;
         std::string t_val(cur_rd_tok.value);
 
@@ -67,11 +72,11 @@ void Parser::dispatch() {
                         tmp_node.type = _NONE;
                         rd_param = false;
                         rd_param_cnt++;
-                        cur_rd_tok = m_Stream.next();
+                        next();
                         if (cur_rd_tok.type == PUNC && cur_rd_tok.value == ":") {
-                            cur_rd_tok = m_Stream.next();
+                            next();
                             m_AST->chl.back().ctx_type = cur_rd_tok.value;
-                            cur_rd_tok = m_Stream.next();
+                            next();
                             continue;
                         } continue;
                     }
@@ -87,7 +92,7 @@ void Parser::dispatch() {
                         tmp_node.type = _NONE;
                         rd_param = false;
                         rd_param_cnt = 0;
-                        cur_rd_tok = m_Stream.next();
+                        next();
                         continue;
                     }
                 }
@@ -100,10 +105,10 @@ void Parser::dispatch() {
             else if (t_val == "}") {tmp_node.type = BR_CLOSE;}
             else if (t_val == ":") {tmp_node.type = COLON;}
             else if (t_val == ".") {tmp_node.type = DOT; }
-            else {cur_rd_tok = m_Stream.next(); continue;}
+            else {next(); continue;}
             appendAST(tmp_node);
             tmp_node.type = _NONE;
-            cur_rd_tok = m_Stream.next();
+            next();
             continue;
         }
 
@@ -146,7 +151,7 @@ void Parser::dispatch() {
                 tmp_node.type = _NONE;
                 tmp_node.from = tmp_node.impr = "";
 
-                cur_rd_tok = m_Stream.next();
+                next();
                 continue;
             } else if (t_val == "export") {
                 tmp_node.type = EXPORT;
@@ -155,7 +160,7 @@ void Parser::dispatch() {
                         tmp_node.body.push_back(Node { .value = m_Stream.p_CurTk.value.data() });
                 appendAST(tmp_node);
                 tmp_node.type = _NONE;
-                cur_rd_tok = m_Stream.next();
+                next();
                 continue;
             } else if (t_val == "typedef") {
                 tmp_node.type = TYPEDEF;
@@ -169,7 +174,7 @@ void Parser::dispatch() {
                 tmp_node.type = _NONE;
                 tmp_node.value = "";
                 tmp_node.ident = "";
-                cur_rd_tok = m_Stream.next();
+                next();
                 continue;
             }
 
@@ -178,7 +183,7 @@ void Parser::dispatch() {
             appendAST(tmp_node);
             tmp_node.type = _NONE;
             tmp_node.value = "";
-            cur_rd_tok = m_Stream.next();
+            next();
             continue;
         }
 
@@ -188,11 +193,11 @@ void Parser::dispatch() {
                 parseDecl(tmp_type, tmp_ident);
                 tmp_type = "";
                 tmp_ident = "";
-                cur_rd_tok = m_Stream.next();
+                next();
                 continue;
             }
 
-            cur_rd_tok = m_Stream.next();
+            next();
             if (m_Stream.p_CurTk.value == "(") {
                 parseCall(tmp_ident);
                 continue;
@@ -219,7 +224,7 @@ void Parser::dispatch() {
             tmp_node.format = false;
             tmp_node.type = _NONE;
             tmp_node.value = "";
-            cur_rd_tok = m_Stream.next();
+            next();
             continue;
         }
 
@@ -231,7 +236,7 @@ void Parser::dispatch() {
                 while (true) {
                     if (m_Stream.next(true).value == "\n")
                         break;
-                } cur_rd_tok = m_Stream.next();
+                } next();
                 continue;
             }
 
@@ -240,7 +245,7 @@ void Parser::dispatch() {
             appendAST(tmp_node);
             tmp_node.type = _NONE;
             tmp_node.value = "";
-            cur_rd_tok = m_Stream.next();
+            next();
             continue;
         }
 
@@ -250,7 +255,7 @@ void Parser::dispatch() {
             appendAST(tmp_node);
             tmp_node.type = _NONE;
             tmp_node.value = "";
-            cur_rd_tok = m_Stream.next();
+            next();
             continue;
         }
 
@@ -260,10 +265,10 @@ void Parser::dispatch() {
             appendAST(tmp_node);
             tmp_node.type = _NONE;
             tmp_node.value = "";
-            cur_rd_tok = m_Stream.next();
+            next();
             continue;
         }
-        cur_rd_tok = m_Stream.next();
+        next();
     }
 }
 
@@ -272,10 +277,10 @@ void Parser::parseFunction() {
     Node func_node{};
     func_node.type = FUNCTION;
     func_node.ctx_type = "auto";
-    cur_rd_tok = m_Stream.next();
+    next();
     func_node.ident = cur_rd_tok.value;
 
-    cur_rd_tok = m_Stream.next();
+    next();
     appendAST(func_node);
 }
 
@@ -286,7 +291,7 @@ void Parser::parseDecl(const char* _type, const char* _ident) {
     decl_node.ident = _ident;
 
     try {
-        cur_rd_tok = m_Stream.next();
+        next();
         if (cur_rd_tok.type == OP && cur_rd_tok.value == "=")
             decl_node.initialized = true;
     } catch ( std::exception& _ ) {}
@@ -310,12 +315,12 @@ void Parser::parseLoop(TokenType _type) {
     Node loop_node{};
     loop_node.type = _type;
 
-    cur_rd_tok = m_Stream.next();
+    next();
     while (m_Stream.p_CurTk.type != NONE) {
         if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "{")
             break;
         loop_node.value += m_Stream.p_CurTk.value.data() + " "s;
-        cur_rd_tok = m_Stream.next();
+        next();
     }
 
     appendAST(loop_node);
@@ -325,12 +330,12 @@ void Parser::parseCondition(TokenType _type) {
     Node cnd_node{};
     cnd_node.type = _type;
 
-    cur_rd_tok = m_Stream.next();
+    next();
     while (m_Stream.p_CurTk.type != NONE) {
         if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "{")
             break;
         cnd_node.value += m_Stream.p_CurTk.value.data() + " "s;
-        cur_rd_tok = m_Stream.next();
+        next();
     }
 
     appendAST(cnd_node);

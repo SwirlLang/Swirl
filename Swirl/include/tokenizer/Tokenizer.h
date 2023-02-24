@@ -27,12 +27,13 @@ class TokenStream {
     std::string                                     m_Ret;
     std::string                                     m_Rax;
     InputStream                                     m_Stream;
-    Token                                           m_PeekTk{};
+    Token                                           m_PeekTk = {_NONE, ""};
     Token                                           m_lastTok{};
     Token                                           m_Cur{};
     std::array<Token, 5>                            m_TokReserve{};
 public:
-    Token p_CurTk{NONE, ""};
+    Token p_CurTk{_NONE, ""};
+    Token p_PeekTk{_NONE, ""};
 
     explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {}
 
@@ -142,7 +143,7 @@ public:
     }
 
     Token readNextTok(bool _noIncrement = false) {
-        if (m_Stream.eof()) {return {_NONE, "null"};}
+        if (m_Stream.eof()) {return {NONE, "null"};}
         auto chr = m_Stream.peek();
         if (chr == '"') return readString();
         if (chr == '\'') return readString('\'');
@@ -176,25 +177,29 @@ public:
     }
 
     Token next(const bool& _showTNw = false, const bool& _showTWs = false) {
-        p_CurTk = readNextTok();
+        p_CurTk.type == _NONE ? p_CurTk = readNextTok() : p_CurTk = m_PeekTk;
+        m_PeekTk = readNextTok();
+
         if (m_tkFlag) {
             m_lastTok = p_CurTk;
             m_tkFlag++;
         }
 
         if (!_showTWs)
-            if (p_CurTk.type == PUNC && p_CurTk.value == " ")
-                p_CurTk = readNextTok();
+            if (m_PeekTk.type == PUNC && m_PeekTk.value == " ")
+                m_PeekTk = readNextTok();
+
         if (!_showTNw)
-            if (p_CurTk.type == PUNC && p_CurTk.value == "\n")
-                p_CurTk = readNextTok();
+            if (m_PeekTk.type == PUNC && m_PeekTk.value == "\n")
+                m_PeekTk = readNextTok();
+
         if (m_Debug)
             std::cout << "Token Requested:\t" << p_CurTk.type << "\t  " << p_CurTk.value << std::endl;
 
         return p_CurTk;
     }
 
-    [[nodiscard]] Token peek() const {
+    Token peek() const {
         return m_PeekTk;
     }
 

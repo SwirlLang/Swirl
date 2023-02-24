@@ -6,6 +6,7 @@
 #ifndef SWIRL_PARSER_H
 #define SWIRL_PARSER_H
 
+
 struct Node {
     bool initialized = false;
     bool format      = false;
@@ -45,7 +46,7 @@ public:
     void parseDecl(const char*, const char*);
     void parseLoop(TokenType);
     void appendAST(Node&);
-    inline void next();
+    inline void next(bool swsFlg = false, bool snsFlg = false );
 
     ~Parser();
 };
