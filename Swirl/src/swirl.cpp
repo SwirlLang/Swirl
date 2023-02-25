@@ -95,7 +95,7 @@ int main(int argc, const char** const argv) {
     SW_FED_FILE_PATH = *app.get_file();
 
     if (!std::filesystem::exists(SW_FED_FILE_PATH)) {
-        std::cerr << "File '" << SW_FED_FILE_PATH << "' doesn't exists!" << std::endl;
+        std::cerr << "File '" << SW_FED_FILE_PATH << "' not found!" << std::endl;
         return 1;
     }
 
