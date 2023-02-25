@@ -12,6 +12,7 @@
 #include <tokenizer/Tokenizer.h>
 #include <transpiler/transpiler.h>
 #include <parser/parser.h>
+#include <include/SwirlConfig.h>
 
 bool SW_DEBUG = false;
 std::string SW_FED_FILE_PATH;
@@ -25,7 +26,8 @@ const std::vector<Argument> application_flags = {
         {{"-r", "--run"}, "Run the compiled file", false, {}},
         {{"-o", "--output"}, "Output file name", true, {}},
         {{"-c", "--compiler"}, "C++ compiler to use", true, {}},
-        {{"-d", "--debug"}, "Log the steps of compilation", false, {}}
+        {{"-d", "--debug"}, "Log the steps of compilation", false, {}},
+        {{"-v", "--version"}, "Shows the version of Swirl", false, {}}
 };
 
 
@@ -74,6 +76,11 @@ int main(int argc, const char** const argv) {
 
     if (app.contains_flag("-h")) {
         std::cout << USAGE << app.generate_help() << '\n';
+        return 0;
+    }
+
+    if (app.contains_flag("-v")) {
+        std::cout << "Swirl v" << Swirl_VERSION_MAJOR << "." << Swirl_VERSION_MINOR << "." << Swirl_VERSION_PATCH << "\n";
         return 0;
     }
 
