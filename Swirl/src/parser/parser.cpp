@@ -2,37 +2,58 @@
 #include <cstring>
 #include <array>
 #include <string>
+#include <memory>
+#include <vector>
 
 #include <unordered_map>
 #include <parser/parser.h>
 #include <exception/exception.h>
-#include <list>
 
 using namespace std::string_literals;
 
-
 // Flags
-short      ang_ind      = 0;
-uint8_t    is_first_t   = 1;
-uint8_t    rd_param     = 0;
-uint8_t    rd_func      = 0;
-uint8_t    rd_param_cnt = 0;
+int        br_ind          =  0;
+int        prn_ind         =  0;
+short      ang_ind         =  0;
+bool       rd_param        =  false;
+bool       rd_func         =  false;
+bool       rd_expr         =  false;
+uint8_t    rd_param_cnt    =  false;
 
+
+std::vector<Node*> cur_scope_ptr{};
 extern std::unordered_map<std::string, const char* > type_registry;
 
-void Parser::appendAST(Node& node) {
+
+void Parser::appendAST(Node& node, bool isScope) {
     auto state = m_Stream.getStreamState();
     node.loc["col"] = state["col"];
     node.loc["line"] = state["line"];
 
-    if (rd_param) m_AST->chl.back().arg_nodes.push_back(node);
-    else if (ang_ind > 0) {
-        m_AST->chl.back().template_args.push_back(node);
-        if (node.type == IDENT)
-            type_registry[node.value] = "template";
+    if (rd_param) {
+        m_AST->chl.back().arg_nodes.push_back(node);
+        cur_scope_ptr.emplace_back(&m_AST->chl.back());
     }
-    else if (!rd_param && rd_func)  m_AST->chl.back().body.push_back(node);
-    else { m_AST->chl.push_back(node); }
+    else if (rd_expr)
+        cur_scope_ptr.at(cur_scope_ptr.size() - 1)->expression.push_back(node);
+
+    else if (!cur_scope_ptr.empty()) {
+        cur_scope_ptr.at(cur_scope_ptr.size() - 1)->body.push_back(node);
+        std::cout << "pushed to: " << cur_scope_ptr.at(cur_scope_ptr.size() - 1) << std::endl;
+
+        if (isScope) {
+            std::cout << "pushing: " << &m_AST->chl.back() << std::endl;
+            cur_scope_ptr.emplace_back(&cur_scope_ptr.at(cur_scope_ptr.size() - 1)->body.back());
+        }
+    }
+
+    else {
+        m_AST->chl.push_back(node);
+        if (isScope) {
+            std::cout << "pushing: " << &m_AST->chl.back() << std::endl;
+            cur_scope_ptr.emplace_back(&m_AST->chl.back());
+        }
+    }
 }
 
 Parser::Parser(TokenStream& _stream) : m_Stream(_stream) {
@@ -42,14 +63,11 @@ Parser::Parser(TokenStream& _stream) : m_Stream(_stream) {
 Parser::~Parser() {
     delete m_AST;
 }
-
 void Parser::next(bool swsFlg, bool snsFlg) {
     cur_rd_tok = m_Stream.next(swsFlg, snsFlg);
 }
 
 void Parser::dispatch() {
-    int         br_ind    = 0;
-    int         prn_ind   = 0;
     const char* tmp_ident = "";
     const char* tmp_type  = "";
 
@@ -101,8 +119,11 @@ void Parser::dispatch() {
             if (t_val == "(") {tmp_node.type = PRN_OPEN;}
             else if (t_val == ")") {tmp_node.type = PRN_CLOSE;}
             else if (t_val == ",") {tmp_node.type = COMMA;}
-            else if (t_val == "{") {tmp_node.type = BR_OPEN;}
-            else if (t_val == "}") {tmp_node.type = BR_CLOSE;}
+            else if (t_val == "{") {
+                tmp_node.type = BR_OPEN;
+                if (rd_expr) rd_expr = false;
+            }
+            else if (t_val == "}") {tmp_node.type = BR_CLOSE; cur_scope_ptr.pop_back(); }
             else if (t_val == ":") {tmp_node.type = COLON;}
             else if (t_val == ".") {tmp_node.type = DOT; }
             else {next(); continue;}
@@ -114,8 +135,11 @@ void Parser::dispatch() {
 
         if (t_type == KEYWORD) {
             if (t_val == "if") {
-                parseCondition(IF);
+                tmp_node.type = IF;
+                next();
                 cur_rd_tok = m_Stream.p_CurTk;
+                appendAST(tmp_node, true);
+                rd_expr = true;
                 continue;
             } else if (t_val == "elif") {
                 parseCondition(ELIF);
@@ -273,7 +297,6 @@ void Parser::dispatch() {
 }
 
 void Parser::parseFunction() {
-    int br_ind;
     Node func_node{};
     func_node.type = FUNCTION;
     func_node.ctx_type = "auto";
@@ -281,7 +304,7 @@ void Parser::parseFunction() {
     func_node.ident = cur_rd_tok.value;
 
     next();
-    appendAST(func_node);
+    appendAST(func_node, true);
 }
 
 void Parser::parseDecl(const char* _type, const char* _ident) {
@@ -319,7 +342,7 @@ void Parser::parseLoop(TokenType _type) {
     while (m_Stream.p_CurTk.type != NONE) {
         if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "{")
             break;
-        loop_node.value += m_Stream.p_CurTk.value.data() + " "s;
+        loop_node.value += m_Stream.p_CurTk.value + " "s;
         next();
     }
 

@@ -21,6 +21,7 @@ struct Node {
     std::list<Node> body;
     std::list<Node> arg_nodes;
     std::list<Node> template_args;
+    std::list<Node> expression;
 
     std::unordered_map<std::string, std::size_t> loc;
 };
@@ -45,7 +46,7 @@ public:
     void parseFunction();
     void parseDecl(const char*, const char*);
     void parseLoop(TokenType);
-    void appendAST(Node&);
+    void appendAST(Node&, bool isScope = false);
     inline void next(bool swsFlg = false, bool snsFlg = false );
 
     ~Parser();
