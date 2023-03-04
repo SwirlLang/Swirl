@@ -22,12 +22,12 @@ std::vector<std::string> lines_rec{};
 
 
 const std::vector<Argument> application_flags = {
-        {{"-h","--help"}, "Shows this help message", false, {}},
+        {{"-h","--help"}, "Show the help message", false, {}},
         {{"-r", "--run"}, "Run the compiled file", false, {}},
         {{"-o", "--output"}, "Output file name", true, {}},
         {{"-c", "--compiler"}, "C++ compiler to use", true, {}},
         {{"-d", "--debug"}, "Log the steps of compilation", false, {}},
-        {{"-v", "--version"}, "Shows the version of Swirl", false, {}}
+        {{"-v", "--version"}, "Show the version of Swirl", false, {}}
 };
 
 
