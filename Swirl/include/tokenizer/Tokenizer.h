@@ -17,6 +17,7 @@
 
 #define SWIRL_TokenStream_H
 
+
 const defs DEF{};
 using namespace std::string_view_literals;
 
@@ -29,7 +30,7 @@ class TokenStream {
     Token                                           m_PeekTk = {_NONE, ""};
     Token                                           m_lastTok{};
     Token                                           m_Cur{};
-    std::array<Token, 5>                            m_TokReserve{};
+    std::array<std::size_t, 3>                      m_CacheState{};
 public:
     Token p_CurTk{_NONE, ""};
     Token p_PeekTk{_NONE, ""};
@@ -141,6 +142,16 @@ public:
         return {NUMBER, m_Ret.c_str()};
     }
 
+    void setReturnPoint() {
+        m_CacheState = {m_Stream.Pos, m_Stream.Line, m_Stream.Col};
+    }
+
+    void restoreCache() {
+        m_Stream.Pos = m_CacheState[0];
+        m_Stream.Line = m_CacheState[1];
+        m_Stream.Col  = m_CacheState[2];
+    }
+
     Token readNextTok(bool _noIncrement = false) {
         if (m_Stream.eof()) {return {NONE, "null"};}
         auto chr = m_Stream.peek();
@@ -175,7 +186,7 @@ public:
             };
     }
 
-    Token next(const bool& _showTNw = false, const bool& _showTWs = false) {
+    Token next(const bool _showTNw = false, const bool _showTWs = false) {
         p_CurTk.type == _NONE ? p_CurTk = readNextTok() : p_CurTk = m_PeekTk;
         m_PeekTk = readNextTok();
 
@@ -203,9 +214,9 @@ public:
 
     std::map<const char*, std::size_t> getStreamState() {
         std::map<const char*, std::size_t> stream_state;
-        stream_state["LINE"] = m_Stream.getLine();
-        stream_state["POS"] = m_Stream.getPos();
-        stream_state["COL"] = m_Stream.getCol();
+        stream_state["POS"] = m_Stream.Pos;
+        stream_state["LINE"] = m_Stream.Line;
+        stream_state["COL"] = m_Stream.Col;
         return stream_state;
     }
 

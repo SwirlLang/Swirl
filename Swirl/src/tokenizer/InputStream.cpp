@@ -6,39 +6,28 @@ InputStream::InputStream(std::string& _source): m_Source(_source) {
 }
 
 char InputStream::peek() {
-    return m_Source.at(m_Pos);
+    return m_Source.at(Pos);
 }
 
 char InputStream::next(bool _noIncrement) {
     if (_noIncrement) {
-        char chr = m_Source.at(m_Pos + 1);
+        char chr = m_Source.at(Pos + 1);
         return chr;
     }
 
-    char chr = m_Source.at(m_Pos++);
-    if (chr == '\n') { m_Line++; m_Col = 0; }
+    char chr = m_Source.at(Pos++);
+    if (chr == '\n') { Line++; Col = 0; }
     else {
-        m_Col++;
+        Col++;
     }
     return chr;
 }
 
 void InputStream::reset() {
-    m_Col = m_Pos = 0; m_Line = 1;
+    Col = Pos = 0; Line = 1;
 }
 
 bool InputStream::eof() {
-    return m_Pos == m_Source.size();
+    return Pos == m_Source.size();
 }
 
-std::size_t InputStream::getPos() const {
-    return m_Pos;
-}
-
-std::size_t InputStream::getLine() const {
-    return m_Line;
-}
-
-std::size_t InputStream::getCol() const {
-    return m_Col;
-}

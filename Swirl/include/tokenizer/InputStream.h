@@ -6,9 +6,8 @@
 
 
 class InputStream {
-    std::string m_Source{};
-    std::size_t m_Pos = 0, m_Line = 1, m_Col = 0;
 public:
+    std::size_t Pos = 0, Line = 1, Col = 0;
     explicit InputStream(std::string& _source);
 
     /** @brief Returns the next value without discarding it */
@@ -22,10 +21,8 @@ public:
 
     /** @brief resets the state of the stream */
     void reset();
-
-    std::size_t getPos() const;
-    std::size_t getLine() const;
-    std::size_t getCol() const;
+private:
+    std::string m_Source{};
 };
 
 #endif
