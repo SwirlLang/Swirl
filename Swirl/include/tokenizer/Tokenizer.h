@@ -187,24 +187,22 @@ public:
     }
 
     Token next(const bool _showTNw = false, const bool _showTWs = false) {
-        p_CurTk.type == _NONE ? p_CurTk = readNextTok() : p_CurTk = m_PeekTk;
-        m_PeekTk = readNextTok();
+        p_CurTk = readNextTok();
 
         if (!_showTWs)
-            if (m_PeekTk.type == PUNC && m_PeekTk.value == " ")
-                m_PeekTk = readNextTok();
-
+            if (p_CurTk.type == PUNC && p_CurTk.value == " ")
+                p_CurTk = readNextTok();
         if (!_showTNw)
-            if (m_PeekTk.type == PUNC && m_PeekTk.value == "\n")
-                m_PeekTk = readNextTok();
-
-        if (m_Debug)
-            std::cout << "Token Requested:\t" << p_CurTk.type << "\t  " << p_CurTk.value << std::endl;
+            if (p_CurTk.type == PUNC && p_CurTk.value == "\n")
+                p_CurTk = readNextTok();
 
         return p_CurTk;
     }
 
-    Token peek() const {
+    Token peek() {
+        setReturnPoint();
+        m_PeekTk = next();
+        restoreCache();
         return m_PeekTk;
     }
 

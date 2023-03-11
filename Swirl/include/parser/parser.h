@@ -3,11 +3,13 @@
 #include <map>
 #include <list>
 
+#include <llvm/IR/Value.h>
+
 #ifndef SWIRL_PARSER_H
 #define SWIRL_PARSER_H
 
-
-struct Node {
+class Node {
+public:
     bool initialized = false;
     bool format      = false;
 
@@ -24,11 +26,74 @@ struct Node {
     std::list<Node> expression;
 
     std::unordered_map<std::string, std::size_t> loc;
+
+    virtual llvm::Value* codegen() {
+        std::cout << "Unimplemented codegen virtual method in: " << typeid(*this).name() << std::endl;
+        std::exit(1);
+    };
+};
+
+class NdExpr : public Node {
+public:
+    Node          LHS;
+    std::string   op;
+    Node          RHS;
+
+    llvm::Value *codegen() override;
+};
+
+class NdInt : public Node {
+public:
+    long long value = 0;
+
+    llvm::Value *codegen() override;
+};
+
+class NdFloat : public Node {
+public:
+    float value = 0.0f;
+    llvm::Value *codegen() override;
+
+};
+
+class NdDouble : public Node {
+public:
+    double value = 0.0;
+
+    llvm::Value *codegen() override;
+};
+
+class NdAssignment : public Node {
+public:
+    Node value;
+    std::string type;
+    std::string ident;
+    bool initialized = false;
+};
+
+class NdStringLiteral : public Node {
+public:
+    std::string value;
+
+    llvm::Value *codegen() override;
+};
+
+class NdCall : public Node {
+public:
+    std::string callee;
+
+    llvm::Value *codegen() override;
+};
+
+class NdIf : public Node {
+public:
+    NdExpr cond;
 };
 
 struct AbstractSyntaxTree {
     std::list<Node> chl;
 };
+
 
 class Parser {
     Token cur_rd_tok{};
@@ -41,13 +106,13 @@ public:
     explicit Parser(TokenStream&);
 
     void parseCondition(TokenType);
-    void parseCall(const char*);
+    void parseCall();
     void dispatch();
     void parseFunction();
-    void parseDecl(const char*, const char*);
+    void parseVars();
     void parseLoop(TokenType);
     void appendAST(Node&, bool isScope = false);
-    inline void next(bool swsFlg = false, bool snsFlg = false );
+    void next(bool swsFlg = false, bool snsFlg = false );
 
     ~Parser();
 };
