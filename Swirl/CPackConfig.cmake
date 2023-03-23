@@ -1,4 +1,4 @@
-set(CPACK_GENERATOR "NSIS;RPM;DEB")
+set(CPACK_GENERATOR "RPM;DEB;NSIS;DragNDrop")
 
 set(CPACK_PACKAGE_NAME "Swirl")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "Swirl")
@@ -28,5 +28,8 @@ set(CPACK_NSIS_BRANDING_TEXT "Swirl Lang")
 set(CPACK_NSIS_URL_INFO_ABOUT "https://swirl-lang.vercel.app")
 set(CPACK_NSIS_MODIFY_PATH ON)
 set(CPACK_NSIS_MENU_LINKS "https://swirl-lang.vercel.app" "Swirl website" "https://github.com/SwirlLang/Swirl" "Swirl GitHub repo")
+
+# DragNDrop config
+set(CPACK_DMG_VOLUME_NAME "Swirl")
 
 include(CPack)
