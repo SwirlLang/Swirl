@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(swirl VERSION 0.0.4)
+project(swirl VERSION 0.0.5)
 configure_file(include/SwirlConfig.h.in include/SwirlConfig.h)
 
 # specify the C++ standard
