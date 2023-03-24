@@ -44,4 +44,4 @@ jobs:
       run: cmake --build build --config ${{env.BUILD_TYPE}}
       
     - name: Run app
-      run: 	./build/Swirl
+      run: 	./build/swirl
