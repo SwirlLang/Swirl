@@ -23,4 +23,9 @@ if(BUILD_STDLIB)
 endif()
 
 install(TARGETS ${CMAKE_PROJECT_NAME} DESTINATION bin)
-install(DIRECTORY include/ DESTINATION include)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    install(FILES "man/swirl.1" DESTINATION share/man/man1)
+endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+
+include(CPackConfig.cmake)
