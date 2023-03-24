@@ -57,6 +57,20 @@ jobs:
       - name: Build
         run: cmake --build build --config ${{env.BUILD_TYPE}}
 
+      - name: Package with CPack
+        run: |
+            cd build
+            if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+              cpack -G DEB
+              cpack -G RPM
+            elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+              cpack -G DragNDrop
+            elif [ "${{ matrix.os }}" == "windows-latest" ]; then
+              cpack -G NSIS
+            fi
+            cd ..
+        
+
       - name: rename and run the app
         run: |
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
@@ -70,7 +84,7 @@ jobs:
             ./build/swirl-linux
           fi
 
-      - name: Upload binary
+      - name: Upload binaries and packages
         uses: actions/upload-artifact@v2
         with:
           name: binary
@@ -84,29 +98,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
       - uses: actions/download-artifact@v2
         with:
           name: binary
           path: .
-
-      # Need to set an output variable because env variables can't be taken as input
-      # This is needed for the next step with releasing to GitHub
-      #- name: Find release type
-      #  id: release_type
-      #  env:
-      #    IS_PRERELEASE: ${{ contains(github.event.inputs.version_number, 'alpha') ||  contains(github.event.inputs.version_number, 'beta') }}
-      #  run: |
-      #    echo "isPrerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
-
+        
+      - name: Generate release notes
+        run: npx git-cliff@latest --unreleased --tag ${{github.event.inputs.version_number}} --output CHANGELOG.md
+      
       - name: Creating GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           name: v${{github.event.inputs.version_number}}
           tag_name: v${{github.event.inputs.version_number}}
-          #prerelease: ${{ steps.release_type.outputs.isPrerelease }}
           target_commitish: ${{github.event.inputs.sha}}
-          generate_release_notes: true
+          body_path: CHANGELOG.md
           files: |
-            swirl-linux
-            swirl-macos
-            swirl-windows.exe
+            swirl-*
