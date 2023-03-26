@@ -63,39 +63,35 @@ The following conventions are being used while authoring Swirl, we request contr
 
 ## Commit messages guideline
 
-Here are the guidelines for writing effective commit messages:
+We use [Conventional Commits](https://conventionalcommits.org) to make our commit messages more readable and to automate changelog generation. Please read the spec before committing to the project.
 
-**Keep the subject line short and concise**: The subject line should be a brief summary of the changes made in the commit. It should be no more than 50 characters long, and it should not end with a period.
+On top of the Conventional Commits, we have a few more guidelines to follow:
 
 **Use the imperative mood in the subject line**: The subject line should describe what the commit does, rather than what has been done. For example, "Add feature X" is better than "Added feature X."
 
-**Use the body to provide context and details**: The body of the commit message should provide more detailed information about the changes made in the commit. It should explain the motivations behind the changes, and it should provide any relevant context or background information.
-
-**Separate the subject line and body with a blank line**: Use a blank line to separate the subject line from the body of the commit message. This helps to visually distinguish between the two sections of the message.
-
 **Use bullet points to list specific changes**: If the commit includes multiple changes, it can be helpful to use bullet points to list them out. This helps to make the commit message more organized and easier to read.
 
-**Use tags to highlight important information**: The tags should be used to reflect the name of the file or component updated. Like cli, parser, transpiler. If there are multiple components, files updated, use a comma to separate the tags and descriptions. For example, "cli, parser: Update help message, Implement loop parser.".
+**Use scopes to specify part of the codebase**: Conventional Commits allows you to specify a scope for your commit. This helps to make the commit message more organized and easier to read. The following are the scopes that we use:
 
-Here is a list of common tags:
-* **cli**: For changes made to the cli.
 * **parser**: For changes made to the parser.
 * **transpiler**: For changes made to the transpiler.
-* **core**: For changes made to the core.
+* **tokenizer**: For changes made to the transpiler.
 * **pre-processor**: For changes made to the preprocessor.
+* **cli**: For changes made to the cli.
 * **cmake**: For changes made to the CMake files.
-* **packaging**: For changes made to the packaging system.
 
-If you can't find your tag here, you can use the file name as the tag. For example, if you are updating the file `README.md`, you can use the tag `readme`.
+If you can't find proper scope here, you can use the file name as the scope. For example, if you are updating the file `README.md`, you can use the scope `readme`.
 
-If you are unsure about the tag to use, you can use the `misc` tag.
+If you are unsure about the scope to use, you can leave the field empty.
 
 **Use proper spelling and grammar**: Make sure to use proper spelling and grammar in your commit messages. This helps to ensure that the messages are clear and easy to understand.
 
 A example commit message: 
 ```
-cli: Update include guard
+docs(contributing): add conventional commits to contributing guidelines
 
-Shifted include guard location after the include statements. And changed include guard format from SWIRL_CLI_H to CLI_H_Swirl.
+Contributing guidelines has been updated to reflect the recent changes to use Conventional Commits as spec for the commits for the project.
+
+Closes #42
 ```
 That's all, Thank you for having a look!
