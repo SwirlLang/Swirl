@@ -147,7 +147,7 @@ public:
     }
 
     void restoreCache() {
-        m_Stream.Pos = m_CacheState[0];
+        m_Stream.Pos  = m_CacheState[0];
         m_Stream.Line = m_CacheState[1];
         m_Stream.Col  = m_CacheState[2];
     }
@@ -186,8 +186,9 @@ public:
             };
     }
 
-    Token next(const bool _showTNw = false, const bool _showTWs = false) {
-        p_CurTk = readNextTok();
+    Token next(bool _showTNw = false, bool _showTWs = false, bool _modifyCurTk = true) {
+        Token cur_tk = readNextTok();
+        if (_modifyCurTk) { p_CurTk = cur_tk; }
 
         if (!_showTWs)
             if (p_CurTk.type == PUNC && p_CurTk.value == " ")
@@ -196,12 +197,12 @@ public:
             if (p_CurTk.type == PUNC && p_CurTk.value == "\n")
                 p_CurTk = readNextTok();
 
-        return p_CurTk;
+        return cur_tk;
     }
 
     Token peek() {
         setReturnPoint();
-        m_PeekTk = next();
+        m_PeekTk = next(false, false, false);
         restoreCache();
         return m_PeekTk;
     }
