@@ -14,7 +14,7 @@ public:
     char peek();
 
     /** @brief returns the next value and discards it */
-    char next(bool _noIncrement = false);
+    char next();
 
     /** @brief returns true if no more chars are left in the stream */
     bool eof();

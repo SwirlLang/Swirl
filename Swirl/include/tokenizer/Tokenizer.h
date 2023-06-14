@@ -1,16 +1,18 @@
+#include <ios>
 #include <iostream>
 #include <map>
 #include <tuple>
 #include <array>
+#include <unordered_map>
 #include <vector>
 #include <cstring>
 #include <functional>
 #include <string_view>
 
-#include <definitions/definitions.h>
 #include <tokenizer/InputStream.h>
 #include <utils/utils.h>
 #include <tokens/Tokens.h>
+
 
 #ifndef SWIRL_TokenStream_H
 #define SWIRL_TokenStream_H
@@ -18,12 +20,14 @@
 #define SWIRL_TokenStream_H
 
 
-const defs DEF{};
 using namespace std::string_view_literals;
 
+extern std::unordered_map<std::string, uint8_t> keywords;
+extern std::unordered_map<std::string, uint8_t> operators;
+
 class TokenStream {
-    bool                                            m_Debug  = 0;
-    bool                                            m_rdfs   = 0;
+    bool                                            m_Debug  = false;
+    bool                                            m_rdfs   = false;
     std::string                                     m_Ret;
     std::string                                     m_Rax;
     InputStream                                     m_Stream;
@@ -35,10 +39,16 @@ public:
     Token p_CurTk{_NONE, ""};
     Token p_PeekTk{_NONE, ""};
 
-    explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {}
+    explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {
+        std::cout << peek().value << std::endl;
+        m_Stream.next();
+        std::cout << peek().value << std::endl;
+        m_Stream.next();
+        std::cout << peek().value << std::endl;
+    }
 
     static bool isKeyword(const std::string& _str) {
-        return std::find(DEF.keywords.begin(), DEF.keywords.end(), _str) != DEF.keywords.end();
+        return keywords.contains(_str);
     }
 
     static bool isDigit(char _chr) {
@@ -60,7 +70,7 @@ public:
     }
 
     static bool isOpChar(char _chr) {
-        return "!=*&<>-/+^%"sv.find(_chr) != std::string::npos;
+        return operators.contains(std::string(1, _chr));
     }
 
     static bool isWhiteSpace(char _chr) {
@@ -106,17 +116,17 @@ public:
         m_Ret.insert(0, "\"");
         m_Ret.append("\"");
         if (_format) { m_Ret.insert(0, "f"); m_rdfs = false; }
-        return {STRING, m_Ret.c_str()};
+        return {STRING, m_Ret};
     }
 
     Token readMacro() {
-        m_Stream.next(true);
-        if (m_Stream.next(true) == 't') {
-            m_Ret.replace(0, 6, "typedef");
-        }
+//        m_Stream.next(true);
+//        if (m_Stream.next(true) == 't') {
+//            m_Ret.replace(0, 6, "typedef");
+//        }
 
         m_Ret = readEscaped('\n');
-        return {MACRO, m_Ret.c_str()};
+        return {MACRO, m_Ret};
     }
 
     Token readIdent(bool apndF = false) {
@@ -124,13 +134,13 @@ public:
         if (apndF) m_Rax.insert(0, "f");
         return {
                 isKeyword(m_Rax) ? KEYWORD : IDENT,
-                m_Rax.c_str()
+                m_Rax
         };
     }
 
     Token readNumber() {
         static uint8_t has_decim = false;
-        std::string number = readWhile([](char ch) {
+        std::string number = readWhile([](char ch) -> bool {
             if (ch == '.') {
                 if (has_decim) return false;
                 has_decim = true;
@@ -139,17 +149,20 @@ public:
         });
         has_decim = false;
         m_Ret = number;
-        return {NUMBER, m_Ret.c_str()};
+        return {NUMBER, m_Ret};
     }
 
     void setReturnPoint() {
         m_CacheState = {m_Stream.Pos, m_Stream.Line, m_Stream.Col};
+        std::cout << "POS: " << m_CacheState[0] << " LINE: " << m_CacheState[1] << " COL: " << m_CacheState[2] << std::endl;
     }
 
     void restoreCache() {
         m_Stream.Pos  = m_CacheState[0];
         m_Stream.Line = m_CacheState[1];
         m_Stream.Col  = m_CacheState[2];
+        std::cout << "Restoring cache -> " << "POS: " << m_CacheState[0] << " LINE: " << m_CacheState[1] << " COL: " << m_CacheState[2] << std::endl;
+
     }
 
     Token readNextTok(bool _noIncrement = false) {
@@ -176,13 +189,13 @@ public:
             m_Rax = chr + readWhile(isOpChar);
             return {
                     OP,
-                    m_Rax.c_str()
+                    m_Rax
             };
         }
 
         if (isPunctuation(chr) ) return {
                     PUNC,
-                    m_Ret.c_str()
+                    m_Ret
             };
     }
 
@@ -207,11 +220,11 @@ public:
         return m_PeekTk;
     }
 
-    bool eof() {
-        return false;
+    bool eof() const {
+        return p_CurTk.type == NONE;
     }
 
-    std::map<const char*, std::size_t> getStreamState() {
+    std::map<const char*, std::size_t> getStreamState() const {
         std::map<const char*, std::size_t> stream_state;
         stream_state["POS"] = m_Stream.Pos;
         stream_state["LINE"] = m_Stream.Line;
