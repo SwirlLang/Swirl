@@ -1,14 +1,18 @@
-name: build app
+name: Test CMake app
 
 on:
     push:
         paths:
             - "**.cpp"
             - "**.h"
+            - "CMakeLists.txt"
+            - "**.cmake"
     pull_request:
         paths:
             - "**.cpp"
             - "**.h"
+            - "CMakeLists.txt"
+            - "**.cmake"
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -40,4 +44,4 @@ jobs:
       run: cmake --build build --config ${{env.BUILD_TYPE}}
       
     - name: Run app
-      run: 	./build/Swirl
+      run: 	./build/swirl

@@ -24,14 +24,18 @@ struct Argument {
 };	
 
 class cli {
-private:
-	int m_argc;
-	const char ** m_argv;
+public:
+	cli(int argc, const char** argv, const std::vector<Argument>& flags);
 
-	std::vector<Argument> m_flags, m_args;
+public:
+	bool contains_flag(std::string_view flag);
+	std::string get_flag_value(std::string_view flag);
+    std::string generate_help();
+
+	std::optional<std::string> get_file();
 
 private:
-	std::vector<Argument> parse(int argc, const char **argv, const std::vector<Argument>& flags);
+	std::vector<Argument> parse();
 
     /**
     * This function returns the value of the flag requested from the provided args vector.
@@ -45,15 +49,12 @@ private:
     */
     std::variant<std::string, bool> get_flag(std::string_view flag);
 
-public:
-	cli(int argc, const char** argv, const std::vector<Argument>& flags);
+private:
+	int m_argc;
+	const char ** m_argv;
 
-public:
-	bool contains_flag(std::string_view flag);
-	std::string get_flag_value(std::string_view flag);
-    std::string generate_help();
-
-	std::optional<std::string> get_file();
+	const std::vector<Argument> *m_flags;
+  std::vector<Argument> m_args;
 };
 
 #endif

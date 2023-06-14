@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(Swirl VERSION 0.0.4)
+project(swirl VERSION 0.0.5)
 configure_file(include/SwirlConfig.h.in include/SwirlConfig.h)
 
 # specify the C++ standard
@@ -14,7 +14,7 @@ option(BUILD_STDLIB "Build the standard library" OFF)
 include_directories("include")
 include_directories("${PROJECT_BINARY_DIR}")
 
-add_executable(Swirl src/swirl.cpp)
+add_executable(swirl src/swirl.cpp)
 add_compile_options(-O3)
 
 add_subdirectory(src)
@@ -23,4 +23,9 @@ if(BUILD_STDLIB)
 endif()
 
 install(TARGETS ${CMAKE_PROJECT_NAME} DESTINATION bin)
-install(DIRECTORY include/ DESTINATION include)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    install(FILES "man/swirl.1" DESTINATION share/man/man1)
+endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+
+include(CPackConfig.cmake)
