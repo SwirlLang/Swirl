@@ -12,7 +12,7 @@
 #include <tokenizer/Tokenizer.h>
 #include <transpiler/transpiler.h>
 #include <parser/parser.h>
-#include <include/SwirlConfig.h>
+#include <SwirlConfig.h.in>
 
 bool SW_DEBUG = false;
 std::string SW_FED_FILE_PATH;
@@ -42,6 +42,90 @@ std::unordered_map<std::string, const char*> type_registry = {
         {"function","global"}
 };
 
+std::unordered_map<std::string, uint8_t> non_assign_binary_ops = {
+        {"+", 0},
+        {"-", 1},
+        {"*", 2},
+        {"/", 3},
+        {"%", 4},
+        {"==", 5},
+        {"!=", 6},
+        {">", 7},
+        {"<", 8},
+        {">=", 9},
+        {"<=", 10},
+        {"&&", 11},
+        {"||", 12},
+        {"&", 13},
+        {"|", 14},
+        {"^", 15},
+        {"<<", 16},
+        {">>", 17},
+};
+
+std::unordered_map<std::string, uint8_t> keywords = {
+        {"func", 0},
+        {"return", 1},
+        {"if", 2},
+        {"else", 3},
+        {"for", 4},
+        {"while", 5},
+        {"is", 6},
+        {"in", 7},
+        {"or", 8},
+        {"and", 9},
+        {"class", 10},
+        {"public", 11},
+        {"private", 12},
+        {"const", 15},
+        {"static", 16},
+        {"break", 17},
+        {"continue", 18},
+        {"elif", 19},
+        {"global", 20},
+        {"importc", 21},
+        {"typedef", 22},
+        {"import", 23},
+        {"export", 24},
+        {"from", 25},
+        {"var", 26}
+};
+
+std::unordered_map<std::string, uint8_t> operators = {
+        {"+", 0},
+        {"-", 1},
+        {"*", 2},
+        {"/", 3},
+        {"%", 4},
+        {"==", 5},
+        {"!=", 6},
+        {">", 7},
+        {"<", 8},
+        {">=", 9},
+        {"<=", 10},
+        {"&&", 11},
+        {"||", 12},
+        {"&", 13},
+        {"|", 14},
+        {"^", 15},
+        {"<<", 16},
+        {">>", 17},
+        {"=", 18},
+        {"+=", 19},
+        {"-=", 20},
+        {"*=", 21},
+        {"/=", 22},
+        {"%=", 23},
+        {"===", 24},
+        {"!==", 25},
+        {"&=", 26},
+        {"|=", 27},
+        {"^=", 28},
+        {"<<=", 29},
+        {">>=", 30},
+        {"++", 31},
+        {"--", 32},
+};
 
 std::optional<std::unordered_map<std::string, std::string>> compile(
         std::string& _source,
@@ -50,15 +134,15 @@ std::optional<std::unordered_map<std::string, std::string>> compile(
 
     InputStream chrinp_stream(_source);
     TokenStream tk(chrinp_stream);
-    preProcess(_source, tk, _cacheDir);
+//    preProcess(_source, tk, _cacheDir);
     Parser parser(tk);
-    return Transpile(
-            parser.m_AST->chl,
-            _cacheDir,
-            compiled_source,
-            true,
-            symt
-            );
+//    return Transpile(
+//            {},
+//            _cacheDir,
+//            compiled_source,
+//            true,
+//            symt
+//            );
 }
 
 int main(int argc, const char** const argv) {
@@ -123,11 +207,11 @@ int main(int argc, const char** const argv) {
     if ( !SW_FED_FILE_SOURCE.empty() ) {
         InputStream is(SW_FED_FILE_SOURCE);
         TokenStream tk(is, _debug);
-        preProcess(SW_FED_FILE_SOURCE, tk, cache_dir);
+//        preProcess(SW_FED_FILE_SOURCE, tk, cache_dir);
 
         Parser parser(tk);
         parser.dispatch();
-        Transpile(parser.m_AST->chl, cache_dir + SW_OUTPUT + ".cpp", compiled_source);
+//        Transpile(parser.m_AST->chl, cache_dir + SW_OUTPUT + ".cpp", compiled_source);
     }
 
     if (app.contains_flag("-r")) {
