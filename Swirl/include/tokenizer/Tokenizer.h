@@ -31,7 +31,6 @@ class TokenStream {
     std::string                                     m_Ret;
     std::string                                     m_Rax;
     InputStream                                     m_Stream;
-    Token                                           m_PeekTk = {_NONE, ""};
     Token                                           m_lastTok{};
     Token                                           m_Cur{};
     std::array<std::size_t, 3>                      m_CacheState{};
@@ -39,13 +38,7 @@ public:
     Token p_CurTk{_NONE, ""};
     Token p_PeekTk{_NONE, ""};
 
-    explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {
-        std::cout << peek().value << std::endl;
-        m_Stream.next();
-        std::cout << peek().value << std::endl;
-        m_Stream.next();
-        std::cout << peek().value << std::endl;
-    }
+    explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {}
 
     static bool isKeyword(const std::string& _str) {
         return keywords.contains(_str);
@@ -154,14 +147,14 @@ public:
 
     void setReturnPoint() {
         m_CacheState = {m_Stream.Pos, m_Stream.Line, m_Stream.Col};
-        std::cout << "POS: " << m_CacheState[0] << " LINE: " << m_CacheState[1] << " COL: " << m_CacheState[2] << std::endl;
+//        std::cout << "POS: " << m_CacheState[0] << " LINE: " << m_CacheState[1] << " COL: " << m_CacheState[2] << std::endl;
     }
 
     void restoreCache() {
         m_Stream.Pos  = m_CacheState[0];
         m_Stream.Line = m_CacheState[1];
         m_Stream.Col  = m_CacheState[2];
-        std::cout << "Restoring cache -> " << "POS: " << m_CacheState[0] << " LINE: " << m_CacheState[1] << " COL: " << m_CacheState[2] << std::endl;
+//        std::cout << "Restoring cache -> " << "POS: " << m_CacheState[0] << " LINE: " << m_CacheState[1] << " COL: " << m_CacheState[2] << std::endl;
 
     }
 
@@ -170,17 +163,8 @@ public:
         auto chr = m_Stream.peek();
         if (chr == '"') return readString();
         if (chr == '\'') return readString('\'');
-        if (chr == '#') return readMacro();
+//        if (chr == '#') return readMacro();
         if (isDigit(chr)) return readNumber();
-
-        if (chr == 'f') {
-            m_Stream.next();
-            chr = m_Stream.peek();
-            if (chr == '"' || chr == '\'')
-                return readString(chr, true);
-            else return readIdent(true);
-        }
-
         if (isIdStart(chr)) return readIdent();
 
         m_Ret = std::string(1, m_Stream.next());
@@ -201,40 +185,47 @@ public:
 
     Token next(bool _showTNw = false, bool _showTWs = false, bool _modifyCurTk = true) {
         Token cur_tk = readNextTok();
-        if (_modifyCurTk) { p_CurTk = cur_tk; }
 
         if (!_showTWs)
-            if (p_CurTk.type == PUNC && p_CurTk.value == " ")
-                p_CurTk = readNextTok();
+            if (cur_tk.type == PUNC && cur_tk.value == " ")
+                cur_tk = readNextTok();
         if (!_showTNw)
-            if (p_CurTk.type == PUNC && p_CurTk.value == "\n")
-                p_CurTk = readNextTok();
+            if (cur_tk.type == PUNC && cur_tk.value == "\n")
+                cur_tk = readNextTok();
+
+        if (_modifyCurTk) { p_CurTk = cur_tk; }
+
 
         return cur_tk;
     }
 
     Token peek() {
         setReturnPoint();
-        m_PeekTk = next(false, false, false);
+        if (m_Stream.eof()) {
+            restoreCache();
+            return {NONE, "NULL"};  // Return token with type NONE and empty value
+        }
+        p_PeekTk = next(false, false, false);
         restoreCache();
-        return m_PeekTk;
+        return p_PeekTk;
     }
+
 
     bool eof() const {
         return p_CurTk.type == NONE;
     }
 
-    std::map<const char*, std::size_t> getStreamState() const {
-        std::map<const char*, std::size_t> stream_state;
-        stream_state["POS"] = m_Stream.Pos;
-        stream_state["LINE"] = m_Stream.Line;
-        stream_state["COL"] = m_Stream.Col;
-        return stream_state;
-    }
-
-    void resetState() {
-        m_Stream.reset();
-    }
+//    std::map<const char*, std::size_t> getStreamState() const {
+//        std::map<const char*, std::size_t> stream_state;
+//        stream_state["POS"] = m_Stream.Pos;
+//        stream_state["LINE"] = m_Stream.Line;
+//        stream_state["COL"] = m_Stream.Col;
+//        return stream_state;
+//    }
+//
+//    void resetState() {
+//        m_Stream.reset();
+//    }
 };
 
 #endif

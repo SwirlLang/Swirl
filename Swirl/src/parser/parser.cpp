@@ -45,6 +45,8 @@ void Parser::dispatch() {
     while (m_Stream.p_CurTk.type != NONE) {
         TokenType t_type = m_Stream.p_CurTk.type;
         std::string t_val = m_Stream.p_CurTk.value;
+        std::cout << "cur -> " << t_val << std::endl;
+        std::cout << "peek -> " << m_Stream.peek().value << std::endl;
 
         if (t_type == KEYWORD) {
             if (t_val == "var" || t_val == "const") {

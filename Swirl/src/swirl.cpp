@@ -164,7 +164,7 @@ int main(int argc, const char** const argv) {
     }
 
     if (app.contains_flag("-v")) {
-        std::cout << "Swirl v" << swirl_VERSION_MAJOR << "." << swirl_VERSION_MINOR << "." << swirl_VERSION_PATCH << "\n";
+//        std::cout << "Swirl v" << swirl_VERSION_MAJOR << "." << swirl_VERSION_MINOR << "." << swirl_VERSION_PATCH << "\n";
         return 0;
     }
 
