@@ -35,7 +35,7 @@ struct Expression: Node {
     // The order in which the expression is supposed to be evaluated is pushed into this array
     // the reading begins from the right hand side.
     unsigned int max_precedence = 10;
-    std::vector<Expression> evaluation_ord;
+    std::vector<std::shared_ptr<Expression>> evaluation_ord;
 
     virtual NodeType getType() const {
         return ND_EXPR;
@@ -151,7 +151,7 @@ public:
     void dispatch();
     void parseFunction();
     void parseVar();
-    void parseExpr(std::vector<Expression>*, const std::string id = "");
+    void parseExpr(const std::string id = "");
     void parseLoop(TokenType);
 //    void appendAST(Node&);
     inline void next(bool swsFlg = false, bool snsFlg = false);
