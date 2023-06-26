@@ -51,7 +51,6 @@ void traverse(std::shared_ptr<Expression> &expr) {
     for (auto elem: expr->evaluation_ord) {
         if (elem->getType() == ND_EXPR)
             traverse(elem);
-        std::cout << elem->getType() << std::endl;
     }
 }
 
@@ -136,7 +135,8 @@ void Parser::parseExpr(const std::string id) {
     std::vector<std::shared_ptr<Expression>> expr{};
     std::vector<std::shared_ptr<Expression>> current_expr_grp_ptr{};
 
-    unsigned int paren_cnt = 0;
+    int paren_cnt = 0;
+    bool give_up_control = false;
 
     auto push_to_expr = [&expr, &current_expr_grp_ptr](const std::shared_ptr<Expression>& node) -> void {
         if (current_expr_grp_ptr.empty()) { expr.emplace_back(node); }
@@ -145,6 +145,9 @@ void Parser::parseExpr(const std::string id) {
 
     std::cout << "parsing expression..." << std::endl;
     while (!m_Stream.eof()) {
+        if (give_up_control) { give_up_control = false; break; }
+        if (!non_assign_binary_ops.contains(m_Stream.peek().value)) { give_up_control = true; }
+
         if (m_Stream.p_CurTk.type == IDENT && m_Stream.peek().type == PUNC && m_Stream.peek().value == "(")
             push_to_expr(parseCall());
 
@@ -192,6 +195,7 @@ void Parser::parseExpr(const std::string id) {
             m_Stream.next();
             continue;
         }
+
     }
 
 //    for (auto& elem  : expr) {
