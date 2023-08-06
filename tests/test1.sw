@@ -1,2 +1,2 @@
-print("Hello world")
-print("Hello, from Swirl!!")
+
+t_func("a" + "b", 123)

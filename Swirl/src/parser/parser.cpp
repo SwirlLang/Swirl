@@ -2,11 +2,13 @@
 #include <deque>
 #include <iostream>
 #include <memory>
+#include <ostream>
 #include <string>
 
 #include <parser/parser.h>
 #include <tokens/Tokens.h>
 #include <unordered_map>
+#include <variant>
 
 using namespace std::string_literals;
 
@@ -81,6 +83,7 @@ void Parser::dispatch() {
 }
 
 void Parser::parseVar() {
+    std::cout << "var" << std::endl;
     Var var_node;
     var_node.is_const = m_Stream.p_CurTk.value == "const";
     var_node.var_ident = m_Stream.next().value;
@@ -99,7 +102,7 @@ void Parser::parseVar() {
 }
 
 std::unique_ptr<FuncCall> Parser::parseCall() {
-    std::deque<Token> expr_tok_track{};
+    std::cout << "call" << std::endl;
     std::unique_ptr<FuncCall> call_node = std::make_unique<FuncCall>();
     call_node->ident = m_Stream.p_CurTk.value;
     next();
@@ -109,6 +112,8 @@ std::unique_ptr<FuncCall> Parser::parseCall() {
         return call_node;
 
     parseExpr( call_node->ident);
+
+    std::cout << "first arg parsed" << std::endl;
 //    std::function<void()> parseArgs = [this, &call_node, &parseArgs]() -> void {
 //        if (m_Stream.p_CurTk.value == "," && m_Stream.p_CurTk.type == PUNC) {
 //            m_Stream.next();
@@ -118,6 +123,7 @@ std::unique_ptr<FuncCall> Parser::parseCall() {
 //    };
 
     while (true) {
+//        if (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")) m_Stream.next();
         if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")
             break;
         if (m_Stream.p_CurTk.value == "," && m_Stream.p_CurTk.type == PUNC) {
@@ -131,83 +137,79 @@ std::unique_ptr<FuncCall> Parser::parseCall() {
     return call_node;
 }
 
+
 void Parser::parseExpr(const std::string id) {
     std::vector<std::shared_ptr<Expression>> expr{};
     std::vector<std::shared_ptr<Expression>> current_expr_grp_ptr{};
 
     int paren_cnt = 0;
     bool give_up_control = false;
-
+    
     auto push_to_expr = [&expr, &current_expr_grp_ptr](const std::shared_ptr<Expression>& node) -> void {
         if (current_expr_grp_ptr.empty()) { expr.emplace_back(node); }
         else { current_expr_grp_ptr.back()->evaluation_ord.emplace_back(node); }
     };
 
-    std::cout << "parsing expression..." << std::endl;
+    std::cout << "parsing expression... for " << id << std::endl;
     while (!m_Stream.eof()) {
+        std::cout << "val: " << m_Stream.p_CurTk.value << " type: " << m_Stream.p_CurTk.type << std::endl;
         if (give_up_control) { give_up_control = false; break; }
-        if (!non_assign_binary_ops.contains(m_Stream.peek().value)) { give_up_control = true; }
+        if (m_Stream.p_CurTk.type == OP) {
+           if (!non_assign_binary_ops.contains(m_Stream.p_CurTk.value)) {
+               give_up_control = true;
+           }
+        }
 
         if (m_Stream.p_CurTk.type == IDENT && m_Stream.peek().type == PUNC && m_Stream.peek().value == "(")
             push_to_expr(parseCall());
 
-        if (m_Stream.p_CurTk.type == STRING) {
-            push_to_expr(std::make_shared<String>(m_Stream.p_CurTk.value));
-            m_Stream.next();
-            continue;
-        }
+        switch (m_Stream.p_CurTk.type) {
+            case STRING:
+                push_to_expr(std::make_shared<String>(m_Stream.p_CurTk.value));
+                std::cout << "E: " << m_Stream.p_CurTk.value << std::endl;
+                m_Stream.next();
+                continue;
 
-        if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "(") {
-            paren_cnt++;
-            auto expr_grp = std::make_shared<Expression>();
-            push_to_expr(expr_grp);
-            current_expr_grp_ptr.emplace_back(expr_grp);
-            m_Stream.next();
-            continue;
-        }
+            case PUNC:
+                if (m_Stream.p_CurTk.value == "(") {
+                    paren_cnt++;
+                    auto expr_grp = std::make_shared<Expression>();
+                    push_to_expr(expr_grp);
+                    current_expr_grp_ptr.emplace_back(expr_grp);
+                    m_Stream.next();
+                    continue;
+                }
 
-        if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")") {
-            paren_cnt--;
-            current_expr_grp_ptr.pop_back();
-            m_Stream.next();
-            continue;
-        }
+                if (m_Stream.p_CurTk.value == ")") {
+                    if (paren_cnt == 0) { return; }
+                    else { paren_cnt--; };
+                    std::cout << "C" << std::endl;
+                    current_expr_grp_ptr.pop_back();
+                    m_Stream.next();
+                    continue;
+                }
 
-        if (m_Stream.p_CurTk.type == NUMBER) {
-            if (m_Stream.p_CurTk.value.find('.') != std::string::npos)
-                push_to_expr(std::make_shared<Double>(std::stod(m_Stream.p_CurTk.value)));
-            else
-                push_to_expr(std::make_shared<Int>(std::stoi(m_Stream.p_CurTk.value)));
-            m_Stream.next();
-            continue;
-        }
 
-        if (m_Stream.p_CurTk.type == IDENT) {
-            push_to_expr(std::make_shared<Ident>(m_Stream.p_CurTk.value));
-            m_Stream.next();
-            continue;
-        }
+            case NUMBER:
+                std::cout << "num: " << m_Stream.p_CurTk.value << std::endl;
+                if (m_Stream.p_CurTk.value.find('.') != std::string::npos)
+                    push_to_expr(std::make_shared<Double>(std::stod(m_Stream.p_CurTk.value)));
+                else
+                    push_to_expr(std::make_shared<Int>(std::stoi(m_Stream.p_CurTk.value)));
+                m_Stream.next();
+                continue;
 
-        if (!non_assign_binary_ops.contains(m_Stream.p_CurTk.value))
-            break;
-        else {
-            push_to_expr(std::make_shared<Op>(m_Stream.p_CurTk.value));
-            m_Stream.next();
-            continue;
-        }
+            case IDENT:
+                push_to_expr(std::make_shared<Ident>(m_Stream.p_CurTk.value));
+                m_Stream.next();
+                continue;
 
+            case OP:
+                if (non_assign_binary_ops.contains(m_Stream.p_CurTk.value)) {
+                    push_to_expr(std::make_shared<Op>(m_Stream.p_CurTk.value));
+                    std::cout << "OP: " << m_Stream.p_CurTk.value << std::endl;
+                    m_Stream.next();
+                } else break;
+        }
     }
-
-//    for (auto& elem  : expr) {
-//        if (elem->getType() == ND_EXPR) {
-//            for (auto f: elem->evaluation_ord) {
-//                std::cout << "Yes! " << std::endl;
-//                if (elem->getType() == ND_EXPR) {
-//                    for (auto f: elem->evaluation_ord) {
-//                        std::cout << "Yes! " << std::endl;
-//                    }
-//                }
-//            }
-//        } else std::cout << "E\n";
-//    }
 }
