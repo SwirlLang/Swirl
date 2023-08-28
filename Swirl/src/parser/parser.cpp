@@ -113,7 +113,6 @@ std::unique_ptr<FuncCall> Parser::parseCall() {
 
     parseExpr( call_node->ident);
 
-    std::cout << "first arg parsed" << std::endl;
 //    std::function<void()> parseArgs = [this, &call_node, &parseArgs]() -> void {
 //        if (m_Stream.p_CurTk.value == "," && m_Stream.p_CurTk.type == PUNC) {
 //            m_Stream.next();
@@ -192,11 +191,15 @@ void Parser::parseExpr(const std::string id) {
 
             case NUMBER:
                 std::cout << "num: " << m_Stream.p_CurTk.value << std::endl;
-                if (m_Stream.p_CurTk.value.find('.') != std::string::npos)
-                    push_to_expr(std::make_shared<Double>(std::stod(m_Stream.p_CurTk.value)));
-                else
-                    push_to_expr(std::make_shared<Int>(std::stoi(m_Stream.p_CurTk.value)));
-                m_Stream.next();
+
+                try {
+                    if (m_Stream.p_CurTk.value.find('.') != std::string::npos)
+                        push_to_expr(std::make_shared<Double>(std::stod(m_Stream.p_CurTk.value)));
+                    else
+                        push_to_expr(std::make_shared<Int>(std::stoi(m_Stream.p_CurTk.value)));
+                    m_Stream.next();
+                } catch (const std::invalid_argument& _) { return; }
+
                 continue;
 
             case IDENT:

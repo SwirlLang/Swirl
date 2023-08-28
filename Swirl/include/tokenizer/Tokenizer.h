@@ -80,6 +80,7 @@ public:
         return ret;
     }
 
+ 
     std::string readEscaped(char _end, char apnd = 0) {
         uint8_t is_escaped = false;
         std::string ret;
@@ -182,6 +183,7 @@ public:
                     m_Ret
             };
     }
+
 
     Token next(bool _showTNw = false, bool _showTWs = false, bool _modifyCurTk = true) {
         Token cur_tk = readNextTok();
