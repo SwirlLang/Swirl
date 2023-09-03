@@ -39,9 +39,27 @@ var nature_of_root: str = {
 
 | Types | Description           |
 |-------|-----------------------|
-| bool  | boolean               |
+| bool  | `true` or `false`         |
 | str   | string                | 
 | int   | 64-bit integer        |
 | float | 64 bit floating point |
 
 
+## Loops
+```py
+// the type of i can be inferred, no keyword required
+for i in 0..100 { ... }
+
+while <condition> {...}
+```
+Beside these two traditional loop, there is a third kind, specifically made as a syntactic sugar
+for tasks where the goal is to simply execute a blob of code a give number of times
+
+```c
+// execute the code 100 times, saves some typing time by avoiding the for loop
+rep 100 { ... } 
+
+// it can be used this way to repeat a single expression 
+print("hello world") rep 100
+```
+'rep' stands for repetitions in case you are wondering that
