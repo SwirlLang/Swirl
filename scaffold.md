@@ -52,7 +52,7 @@ for i in 0..100 { ... }
 
 while <condition> {...}
 ```
-Beside these two traditional loop, there is a third kind, specifically made as a syntactic sugar
+Beside these two traditional loops, there is a third kind, specifically made as a syntactic sugar
 for tasks where the goal is to simply execute a blob of code a give number of times
 
 ```c
