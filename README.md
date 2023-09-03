@@ -1,7 +1,7 @@
 <div align=center>
 <img width=500 src="https://raw.githubusercontent.com/SwirlLang/branding/main/logos/wordmark-logo-transparent.png">
 
-# Swirl programming language
+# Swirl Programming Language
 A high level, statically typed, compiled programming language.
 
 [Website](https://swirl-lang.vercel.app) |
