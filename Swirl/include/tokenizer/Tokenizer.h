@@ -189,10 +189,10 @@ public:
         Token cur_tk = readNextTok();
 
         if (!_showTWs)
-            if (cur_tk.type == PUNC && cur_tk.value == " ")
+            while (cur_tk.type == PUNC && cur_tk.value == " ")
                 cur_tk = readNextTok();
         if (!_showTNw)
-            if (cur_tk.type == PUNC && cur_tk.value == "\n")
+            while (cur_tk.type == PUNC && cur_tk.value == "\n")
                 cur_tk = readNextTok();
 
         if (_modifyCurTk) { p_CurTk = cur_tk; }
