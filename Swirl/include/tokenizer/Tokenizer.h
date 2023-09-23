@@ -26,6 +26,16 @@ extern std::unordered_map<std::string, uint8_t> keywords;
 extern std::unordered_map<std::string, uint8_t> operators;
 
 class TokenStream {
+    // Just as a data struct for representing the state of the tokenizer.
+    struct State {
+        std::size_t Pos, Line, Col;
+        State(
+                std::size_t pos = 0,
+                std::size_t line = 0,
+                std::size_t col = 0
+                ): Pos(pos), Line(line), Col(col) {}
+    };
+
     bool                                            m_Debug  = false;
     bool                                            m_rdfs   = false;
     std::string                                     m_Ret;
@@ -33,7 +43,8 @@ class TokenStream {
     InputStream                                     m_Stream;
     Token                                           m_lastTok{};
     Token                                           m_Cur{};
-    std::array<std::size_t, 3>                      m_CacheState{};
+    std::array<State, 3>                            m_Cache = {};
+
 public:
     Token p_CurTk{_NONE, ""};
     Token p_PeekTk{_NONE, ""};
@@ -70,17 +81,18 @@ public:
         return " \t\n"sv.find(_chr) != std::string::npos;
     }
 
+    /* Read and return the characters until the given boolean function evaluates to true. */
     std::string readWhile(const std::function<bool (char)>& delimiter) {
         std::string ret;
         while (!m_Stream.eof()) {
             if (delimiter(m_Stream.peek())) {
                 ret += m_Stream.next();
-            } else {break;}
+            } else { break; }
         }
         return ret;
     }
 
- 
+    /* Used to start reading a stream of characters till the `_end` char is hit. */
     std::string readEscaped(char _end, char apnd = 0) {
         uint8_t is_escaped = false;
         std::string ret;
@@ -113,16 +125,6 @@ public:
         return {STRING, m_Ret};
     }
 
-    Token readMacro() {
-//        m_Stream.next(true);
-//        if (m_Stream.next(true) == 't') {
-//            m_Ret.replace(0, 6, "typedef");
-//        }
-
-        m_Ret = readEscaped('\n');
-        return {MACRO, m_Ret};
-    }
-
     Token readIdent(bool apndF = false) {
         m_Rax = readWhile(isId);
         if (apndF) m_Rax.insert(0, "f");
@@ -146,25 +148,28 @@ public:
         return {NUMBER, m_Ret};
     }
 
-    void setReturnPoint() {
-        m_CacheState = {m_Stream.Pos, m_Stream.Line, m_Stream.Col};
-//        std::cout << "POS: " << m_CacheState[0] << " LINE: " << m_CacheState[1] << " COL: " << m_CacheState[2] << std::endl;
+    /* Stores the state of the tokenizer in one of the three locations of the cache array
+     * Id's work as defined below
+     * 0: previous token
+     * 1: succeeding token (peek)
+     * 2: custom return point */
+    void setReturnPoint(uint8_t id) {
+        m_Cache[id] = {m_Stream.Pos, m_Stream.Line, m_Stream.Col};
     }
 
-    void restoreCache() {
-        m_Stream.Pos  = m_CacheState[0];
-        m_Stream.Line = m_CacheState[1];
-        m_Stream.Col  = m_CacheState[2];
-//        std::cout << "Restoring cache -> " << "POS: " << m_CacheState[0] << " LINE: " << m_CacheState[1] << " COL: " << m_CacheState[2] << std::endl;
+    void restoreCache(uint8_t id) {
+        m_Stream.Pos  = m_Cache[id].Pos;
+        m_Stream.Line = m_Cache[id].Line;
+        m_Stream.Col  = m_Cache[id].Col;
 
     }
 
+    /* Consume the next token from the stream. */
     Token readNextTok(bool _noIncrement = false) {
         if (m_Stream.eof()) {return {NONE, "null"};}
         auto chr = m_Stream.peek();
         if (chr == '"') return readString();
         if (chr == '\'') return readString('\'');
-//        if (chr == '#') return readMacro();
         if (isDigit(chr)) return readNumber();
         if (isIdStart(chr)) return readIdent();
 
@@ -184,31 +189,31 @@ public:
             };
     }
 
-
-    Token next(bool _showTNw = false, bool _showTWs = false, bool _modifyCurTk = true) {
+    /* An abstraction over readNextTok. */
+    Token next(bool _readNewLines = false, bool _readWhitespaces = false, bool _modifyCurTk = true) {
+        setReturnPoint(0);
         Token cur_tk = readNextTok();
 
-        if (!_showTWs)
+        if (!_readWhitespaces)
             while (cur_tk.type == PUNC && cur_tk.value == " ")
                 cur_tk = readNextTok();
-        if (!_showTNw)
+        if (!_readNewLines)
             while (cur_tk.type == PUNC && cur_tk.value == "\n")
                 cur_tk = readNextTok();
 
         if (_modifyCurTk) { p_CurTk = cur_tk; }
-
-
         return cur_tk;
     }
 
+    /* Return the next token from the stream without consuming it. */
     Token peek() {
-        setReturnPoint();
+        setReturnPoint(1);
         if (m_Stream.eof()) {
-            restoreCache();
+            restoreCache(1);
             return {NONE, "NULL"};  // Return token with type NONE and empty value
         }
         p_PeekTk = next(false, false, false);
-        restoreCache();
+        restoreCache(1);
         return p_PeekTk;
     }
 
@@ -216,18 +221,6 @@ public:
     bool eof() const {
         return p_CurTk.type == NONE;
     }
-
-//    std::map<const char*, std::size_t> getStreamState() const {
-//        std::map<const char*, std::size_t> stream_state;
-//        stream_state["POS"] = m_Stream.Pos;
-//        stream_state["LINE"] = m_Stream.Line;
-//        stream_state["COL"] = m_Stream.Col;
-//        return stream_state;
-//    }
-//
-//    void resetState() {
-//        m_Stream.reset();
-//    }
 };
 
 #endif
