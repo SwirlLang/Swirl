@@ -1,14 +1,16 @@
 #include <cmath>
-#include <deque>
 #include <iostream>
 #include <memory>
 #include <ostream>
 #include <string>
+#include <set>
+#include <stack>
+#include <unordered_map>
+#include <unordered_set>
 
 #include <parser/parser.h>
-#include <tokens/Tokens.h>
-#include <unordered_map>
-#include <variant>
+
+#define n_ptr std::make_unique<Node>
 
 using namespace std::string_literals;
 
@@ -21,24 +23,41 @@ uint8_t rd_param_cnt = 0;
 
 std::vector<Node> Module{};
 extern std::unordered_map<std::string, const char *> type_registry;
-extern std::unordered_map<std::string, uint8_t> non_assign_binary_ops;
+extern std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
 
-std::unordered_map<std::string, uint8_t> default_operator_precedence = {
-        {"+",  0},
+
+std::unordered_map<std::string, uint8_t> precedence_table = {
         {"-",  1},
+        {"+",  1},
         {"*",  2},
-        {"/",  3},
-        {"**", 4},
-        {">>", 5},
-        {"<<", 6},
+        {"/",  2},
+        {"%",  2},
+        {"**", 3},
+        {">>", 4},
+        {"<<", 4},
+        {"~",  5},
+        {"&",  6},
         {"^",  7},
         {"|",  8},
-        {"&",  9},
-        {"~",  10}
 };
 
-Parser::Parser(TokenStream &tks) : m_Stream(tks) {}
+void handleNodes(NodeType type, std::unique_ptr<Node>& nd) {
+    switch (type) {
+        case ND_IDENT:
+            break;
+        case ND_FLOAT:
+            break;
+        case ND_INT:
+            break;
+        case ND_OP:
+            break;
+        default:
+            break;
+    }
+}
 
+
+Parser::Parser(TokenStream &tks) : m_Stream(tks) {}
 Parser::~Parser() = default;
 
 void Parser::next(bool swsFlg, bool snsFlg) {
@@ -49,13 +68,6 @@ void appendModule(const Node &nd) {
 //    Module.emplace_back(nd);
 }
 
-void traverse(std::shared_ptr<Expression> &expr) {
-    for (auto elem: expr->evaluation_ord) {
-        if (elem->getType() == ND_EXPR)
-            traverse(elem);
-    }
-}
-
 void Parser::dispatch() {
     int br_ind = 0;
     int prn_ind = 0;
@@ -63,13 +75,15 @@ void Parser::dispatch() {
     const char *tmp_type = "";
 
     m_Stream.next();
-    while (m_Stream.p_CurTk.type != NONE) {
+
+    while (!m_Stream.eof()) {
         TokenType t_type = m_Stream.p_CurTk.type;
         std::string t_val = m_Stream.p_CurTk.value;
 
         if (t_type == KEYWORD) {
             if (t_val == "var" || t_val == "const") {
                 parseVar();
+                continue;
             }
         }
 
@@ -92,7 +106,7 @@ void Parser::parseVar() {
         next();
         var_node.var_type = m_Stream.next().value;
     }
-    
+
     if (m_Stream.peek().type == OP && m_Stream.peek().value == "=") {
         var_node.initialized = true;
         next();
@@ -100,6 +114,7 @@ void Parser::parseVar() {
         parseExpr();
     }
 }
+
 
 std::unique_ptr<FuncCall> Parser::parseCall() {
     std::cout << "call" << std::endl;
@@ -112,14 +127,6 @@ std::unique_ptr<FuncCall> Parser::parseCall() {
         return call_node;
 
     parseExpr( call_node->ident);
-
-//    std::function<void()> parseArgs = [this, &call_node, &parseArgs]() -> void {
-//        if (m_Stream.p_CurTk.value == "," && m_Stream.p_CurTk.type == PUNC) {
-//            m_Stream.next();
-//            parseExpr(&call_node->args, call_node->ident);
-//        }
-//        parseArgs();
-//    };
 
     while (true) {
 //        if (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")) m_Stream.next();
@@ -137,82 +144,50 @@ std::unique_ptr<FuncCall> Parser::parseCall() {
 }
 
 
+/* This method converts the expression into a postfix form, each expression object it creates
+ * consists of two vectors, one for the operands, the other for the operators sorted
+ * in the order of their precedence by this algorithm. Inspired from the Shunting-Yard-Algorithm.
+ * The method assumes that the current token(m_Stream.p_CurTk) is the start of the expression.*/
 void Parser::parseExpr(const std::string id) {
-    std::vector<std::shared_ptr<Expression>> expr{};
-    std::vector<std::shared_ptr<Expression>> current_expr_grp_ptr{};
+    // TODO: implement the special case for PUNC '(' and ')'
+    std::stack<Node> ops{};  // our operator stack
+    std::vector<std::unique_ptr<Node>> output{};  // operators and operands go into this in the postfix form
 
-    int paren_cnt = 0;
-    bool give_up_control = false;
-    
-    auto push_to_expr = [&expr, &current_expr_grp_ptr](const std::shared_ptr<Expression>& node) -> void {
-        if (current_expr_grp_ptr.empty()) { expr.emplace_back(node); }
-        else { current_expr_grp_ptr.back()->evaluation_ord.emplace_back(node); }
-    };
+    int ops_opr_consumed       = 0;
+    Token prev_token;
+    std::unordered_set<TokenType> invalid_prev_types{IDENT, NUMBER, KEYWORD, STRING};
 
-    std::cout << "parsing expression... for " << id << std::endl;
     while (!m_Stream.eof()) {
-        std::cout << "val: " << m_Stream.p_CurTk.value << " type: " << m_Stream.p_CurTk.type << std::endl;
-        if (give_up_control) { give_up_control = false; break; }
-        if (m_Stream.p_CurTk.type == OP) {
-           if (!non_assign_binary_ops.contains(m_Stream.p_CurTk.value)) {
-               give_up_control = true;
-           }
-        }
+        if (ops_opr_consumed > 1) {
+            if (invalid_prev_types.contains(prev_token.type) && m_Stream.p_CurTk.type != OP)
+                break;
 
-        if (m_Stream.p_CurTk.type == IDENT && m_Stream.peek().type == PUNC && m_Stream.peek().value == "(")
-            push_to_expr(parseCall());
+        }
 
         switch (m_Stream.p_CurTk.type) {
-            case STRING:
-                push_to_expr(std::make_shared<String>(m_Stream.p_CurTk.value));
-                std::cout << "E: " << m_Stream.p_CurTk.value << std::endl;
-                m_Stream.next();
-                continue;
-
-            case PUNC:
-                if (m_Stream.p_CurTk.value == "(") {
-                    paren_cnt++;
-                    auto expr_grp = std::make_shared<Expression>();
-                    push_to_expr(expr_grp);
-                    current_expr_grp_ptr.emplace_back(expr_grp);
-                    m_Stream.next();
-                    continue;
-                }
-
-                if (m_Stream.p_CurTk.value == ")") {
-                    if (paren_cnt == 0) { return; }
-                    else { paren_cnt--; };
-                    std::cout << "C" << std::endl;
-                    current_expr_grp_ptr.pop_back();
-                    m_Stream.next();
-                    continue;
-                }
-
-
             case NUMBER:
-                std::cout << "num: " << m_Stream.p_CurTk.value << std::endl;
-
-                try {
-                    if (m_Stream.p_CurTk.value.find('.') != std::string::npos)
-                        push_to_expr(std::make_shared<Double>(std::stod(m_Stream.p_CurTk.value)));
-                    else
-                        push_to_expr(std::make_shared<Int>(std::stoi(m_Stream.p_CurTk.value)));
-                    m_Stream.next();
-                } catch (const std::invalid_argument& _) { return; }
-
-                continue;
-
+                output.emplace_back(std::make_unique<Int>(Int(m_Stream.p_CurTk.value)));
+                break;
             case IDENT:
-                push_to_expr(std::make_shared<Ident>(m_Stream.p_CurTk.value));
-                m_Stream.next();
-                continue;
-
+                if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
+                    parseCall();
+                    break;
+                }
+                output.emplace_back(std::make_unique<Ident>(Ident(m_Stream.p_CurTk.value)));
+                break;
             case OP:
-                if (non_assign_binary_ops.contains(m_Stream.p_CurTk.value)) {
-                    push_to_expr(std::make_shared<Op>(m_Stream.p_CurTk.value));
-                    std::cout << "OP: " << m_Stream.p_CurTk.value << std::endl;
-                    m_Stream.next();
-                } else break;
+                break;
+            case PUNC:
+                break;
+            default:
+                break;
         }
+
+        ops_opr_consumed++;
+        prev_token = m_Stream.p_CurTk;
+        m_Stream.next();
     }
+
+    for (auto& e: output) { handleNodes(e->getType(), e); }
+//    std::cout << "it is " << ops_opr_consumed << std::endl;
 }

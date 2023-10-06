@@ -1,13 +1,12 @@
-#include <ios>
 #include <iostream>
 #include <map>
-#include <tuple>
 #include <array>
-#include <unordered_map>
+#include <cstdint>
 #include <vector>
 #include <cstring>
 #include <functional>
 #include <string_view>
+#include <unordered_map>
 
 #include <tokenizer/InputStream.h>
 #include <utils/utils.h>
@@ -149,7 +148,7 @@ public:
     }
 
     /* Stores the state of the tokenizer in one of the three locations of the cache array
-     * Id's work as defined below
+     * Id's work as defined below :-
      * 0: previous token
      * 1: succeeding token (peek)
      * 2: custom return point */
@@ -166,6 +165,8 @@ public:
 
     /* Consume the next token from the stream. */
     Token readNextTok(bool _noIncrement = false) {
+        setReturnPoint(0);
+
         if (m_Stream.eof()) {return {NONE, "null"};}
         auto chr = m_Stream.peek();
         if (chr == '"') return readString();
@@ -191,7 +192,6 @@ public:
 
     /* An abstraction over readNextTok. */
     Token next(bool _readNewLines = false, bool _readWhitespaces = false, bool _modifyCurTk = true) {
-        setReturnPoint(0);
         Token cur_tk = readNextTok();
 
         if (!_readWhitespaces)
@@ -217,6 +217,15 @@ public:
         return p_PeekTk;
     }
 
+    /* Return the previous token, then restore the state of the stream. */
+    Token previous() {
+        Token pre;
+        setReturnPoint(2);
+        restoreCache(0);
+        pre = next();
+        restoreCache(2);
+        return pre;
+    }
 
     bool eof() const {
         return p_CurTk.type == NONE;

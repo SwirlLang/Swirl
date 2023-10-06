@@ -2,24 +2,21 @@
 #include <list>
 
 #include <memory>
+#include <utility>
 #include <tokenizer/Tokenizer.h>
 
 #ifndef SWIRL_PARSER_H
 #define SWIRL_PARSER_H
 
-
 enum NodeType {
     ND_INVALID,
     ND_EXPR,
-    ND_GROUP,
     ND_INT,
     ND_FLOAT,
-    ND_DOUBLE,
     ND_OP,
     ND_VAR,
     ND_STR,
     ND_CALL,
-    ND_ARG,
     ND_IDENT
 };
 
@@ -28,93 +25,96 @@ struct Node {
     // Provides a common base class for all the nodes
     std::string value;
 
+    virtual std::string getValue() const = 0;
     virtual NodeType getType() const { return ND_INVALID; };
 };
 
-struct Expression: Node {
-    // The order in which the expression is supposed to be evaluated is pushed into this array
-    // the reading begins from the right hand side.
-    unsigned int max_precedence = 10;
-    std::vector<std::shared_ptr<Expression>> evaluation_ord;
+
+struct Op: Node {
+    std::string value;
+
+    // the value will be 3 bytes at max so no need of a reference
+    explicit Op(std::string val): value(std::move(val)) {}
+
+    std::string getValue() const override {
+        return value;
+    }
+
+    [[nodiscard]] NodeType getType() const override {
+        return ND_OP;
+    }
+};
+
+
+struct Expression {
+    std::vector<Op> operators{};
+    std::vector<std::unique_ptr<Expression>> operands{};
 
     virtual NodeType getType() const {
         return ND_EXPR;
     }
 };
 
-struct ExprGroup: Expression {
-    // Just a struct to group non-complex expressions
-    unsigned int precedence = 0;
-    std::vector<Expression> group_members;
 
-    NodeType getType() const override {
-        return ND_GROUP;
+struct Int: Node {
+    std::string value = 0;
+
+    explicit Int(std::string val): value(std::move(val)) {}
+
+    std::string getValue() const override {
+        return value;
     }
-};
-
-struct Int: Expression {
-    long long value = 0;
-
-    explicit Int(long long val): value(val) {}
 
     NodeType getType() const override {
         return ND_INT;
     }
 };
 
-struct Float: Expression {
-    float value = 0;
+
+struct Float: Node {
+    std::string value = 0;
+
+    explicit Float(std::string val): value(std::move(val)) {}
+
+    std::string getValue() const override {
+        return value;
+    }
 
     NodeType getType() const override {
         return ND_FLOAT;
     }
 };
 
-struct Double: Expression {
-    double value = 0;
 
-    explicit Double(double val): value(val) {}
-    NodeType getType() const override {
-        return ND_DOUBLE;
-    }
-};
-
-struct Op: Expression {
+struct String: Node {
     std::string value;
 
-    // the value will be 3 bytes at max so no need of a reference
-    Op(std::string val): value(val) {}
+    explicit String(std::string  val): value(std::move(val)) {}
 
-    NodeType getType() const override {
-        return ND_OP;
+    std::string getValue() const override {
+        return value;
     }
-};
-
-struct Stmt: Node {
-    // Base class for all statements
-};
-
-struct String: Expression {
-    std::string value;
-
-    String(const std::string& val): value(val) {}
 
     NodeType getType() const override {
         return ND_STR;
     }
 };
 
-struct Ident: Expression {
+struct Ident: Node {
     std::string value;
 
-    Ident(const std::string& val): value(val) {}
+    explicit Ident(std::string  val): value(std::move(val)) {}
+
+    std::string getValue() const override {
+        return value;
+    }
 
     NodeType getType() const override {
         return ND_IDENT;
     }
 };
 
-struct Var: Stmt {
+struct Var: Node {
     std::string var_ident;
     std::string var_type;
     Expression value;
@@ -122,15 +122,20 @@ struct Var: Stmt {
     bool initialized = false;
     bool is_const    = false;
 
+    std::string getValue() const override {
+        return var_ident;
+    }
+
     NodeType getType() const override {
         return ND_VAR;
     }
 };
 
-struct FuncCall: Expression {
+struct FuncCall: Node {
     std::vector<Expression> args;
     std::string ident;
 
+    std::string getValue() const override { return ident; }
     NodeType getType() const override {
         return ND_CALL;
     }
