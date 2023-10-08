@@ -149,19 +149,24 @@ std::unique_ptr<FuncCall> Parser::parseCall() {
  * in the order of their precedence by this algorithm. Inspired from the Shunting-Yard-Algorithm.
  * The method assumes that the current token(m_Stream.p_CurTk) is the start of the expression.*/
 void Parser::parseExpr(const std::string id) {
-    // TODO: implement the special case for PUNC '(' and ')'
     std::stack<Node> ops{};  // our operator stack
     std::vector<std::unique_ptr<Node>> output{};  // operators and operands go into this in the postfix form
 
-    int ops_opr_consumed       = 0;
+    int paren_counter    = 0;
+    int ops_opr_consumed = 0;
+
     Token prev_token;
     std::unordered_set<TokenType> invalid_prev_types{IDENT, NUMBER, KEYWORD, STRING};
 
     while (!m_Stream.eof()) {
-        if (ops_opr_consumed > 1) {
-            if (invalid_prev_types.contains(prev_token.type) && m_Stream.p_CurTk.type != OP)
-                break;
 
+        // break once the expression ends
+        if (ops_opr_consumed > 1) {
+            if (m_Stream.p_CurTk.type == KEYWORD) break;
+            if ((invalid_prev_types.contains(prev_token.type) && m_Stream.p_CurTk.type != OP)) {
+                if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")") {
+                } else { break; }
+            }
         }
 
         switch (m_Stream.p_CurTk.type) {
@@ -178,6 +183,8 @@ void Parser::parseExpr(const std::string id) {
             case OP:
                 break;
             case PUNC:
+                if (m_Stream.p_CurTk.value == "(") paren_counter++;
+                else if  (m_Stream.p_CurTk.value == ")") paren_counter--;
                 break;
             default:
                 break;
@@ -188,6 +195,5 @@ void Parser::parseExpr(const std::string id) {
         m_Stream.next();
     }
 
-    for (auto& e: output) { handleNodes(e->getType(), e); }
 //    std::cout << "it is " << ops_opr_consumed << std::endl;
 }
