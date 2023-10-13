@@ -20,20 +20,26 @@ enum NodeType {
     ND_IDENT
 };
 
-
 struct Node {
     // Provides a common base class for all the nodes
     std::string value;
 
-    virtual std::string getValue() const = 0;
+    virtual std::string getValue() const { return "INVALID"; }
     virtual NodeType getType() const { return ND_INVALID; };
 };
 
+struct Safeguard: Node {
+    std::string getValue() const override { return "E"; }
+};
+
+struct Punc: Node { std::string getValue() const override { return "("; } };
 
 struct Op: Node {
     std::string value;
 
     // the value will be 3 bytes at max so no need of a reference
+
+    Op() {}
     explicit Op(std::string val): value(std::move(val)) {}
 
     std::string getValue() const override {

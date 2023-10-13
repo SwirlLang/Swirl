@@ -26,7 +26,7 @@ extern std::unordered_map<std::string, const char *> type_registry;
 extern std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
 
 
-std::unordered_map<std::string, uint8_t> precedence_table = {
+std::unordered_map<std::string, int> precedence_table = {
         {"-",  1},
         {"+",  1},
         {"*",  2},
@@ -35,21 +35,25 @@ std::unordered_map<std::string, uint8_t> precedence_table = {
         {"**", 3},
         {">>", 4},
         {"<<", 4},
-        {"~",  5},
-        {"&",  6},
-        {"^",  7},
-        {"|",  8},
+        {"&",  5},
+        {"^",  6},
+        {"|",  7},
+        {"~",  8}
 };
 
+// this function is meant to be used for debugging purpose
 void handleNodes(NodeType type, std::unique_ptr<Node>& nd) {
     switch (type) {
         case ND_IDENT:
+            std::cout << nd->getValue() << " ";
             break;
         case ND_FLOAT:
             break;
         case ND_INT:
+            std::cout << nd->getValue() << " ";
             break;
         case ND_OP:
+            std::cout << nd->getValue() << " ";
             break;
         default:
             break;
@@ -65,7 +69,7 @@ void Parser::next(bool swsFlg, bool snsFlg) {
 }
 
 void appendModule(const Node &nd) {
-//    Module.emplace_back(nd);
+//    Module.emplace(nd);
 }
 
 void Parser::dispatch() {
@@ -97,7 +101,6 @@ void Parser::dispatch() {
 }
 
 void Parser::parseVar() {
-    std::cout << "var" << std::endl;
     Var var_node;
     var_node.is_const = m_Stream.p_CurTk.value == "const";
     var_node.var_ident = m_Stream.next().value;
@@ -117,7 +120,6 @@ void Parser::parseVar() {
 
 
 std::unique_ptr<FuncCall> Parser::parseCall() {
-    std::cout << "call" << std::endl;
     std::unique_ptr<FuncCall> call_node = std::make_unique<FuncCall>();
     call_node->ident = m_Stream.p_CurTk.value;
     next();
@@ -143,29 +145,30 @@ std::unique_ptr<FuncCall> Parser::parseCall() {
     return call_node;
 }
 
-
 /* This method converts the expression into a postfix form, each expression object it creates
  * consists of two vectors, one for the operands, the other for the operators sorted
  * in the order of their precedence by this algorithm. Inspired from the Shunting-Yard-Algorithm.
  * The method assumes that the current token(m_Stream.p_CurTk) is the start of the expression.*/
 void Parser::parseExpr(const std::string id) {
-    std::stack<Node> ops{};  // our operator stack
-    std::vector<std::unique_ptr<Node>> output{};  // operators and operands go into this in the postfix form
+    // TODO: Fix last statement goes undetected bug
+    std::stack<Op> ops{};  // our operator stack
+    std::vector<std::unique_ptr<Node>> output{};  // the final postfix(RPN) form
 
     int paren_counter    = 0;
     int ops_opr_consumed = 0;
 
     Token prev_token;
-    std::unordered_set<TokenType> invalid_prev_types{IDENT, NUMBER, KEYWORD, STRING};
+    static const std::unordered_set<TokenType> invalid_prev_types{IDENT, NUMBER, KEYWORD, STRING};
 
     while (!m_Stream.eof()) {
+        Op top_elem;
 
         // break once the expression ends
         if (ops_opr_consumed > 1) {
-            if (m_Stream.p_CurTk.type == KEYWORD) break;
+            if (m_Stream.p_CurTk.type == KEYWORD) { break;}
+
             if ((invalid_prev_types.contains(prev_token.type) && m_Stream.p_CurTk.type != OP)) {
-                if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")") {
-                } else { break; }
+                if (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")) { break; }
             }
         }
 
@@ -175,16 +178,32 @@ void Parser::parseExpr(const std::string id) {
                 break;
             case IDENT:
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
-                    parseCall();
+                    output.emplace_back(parseCall());
+                    break;
+                } output.emplace_back(std::make_unique<Ident>(Ident(m_Stream.p_CurTk.value)));
+                    break;
+            case OP:
+                // pop ops and push them into output till the top operator of the stack has greater or equal precedence
+                while (!ops.empty() && precedence_table[m_Stream.p_CurTk.value] <= precedence_table[ops.top().getValue()]) {
+                    output.emplace_back(std::make_unique<Op>(ops.top()));
+                    ops.pop();
+                } ops.emplace(m_Stream.p_CurTk.value);
+                  break;
+            case PUNC:
+                if (m_Stream.p_CurTk.value == "(") {
+                    paren_counter++;
+                    ops.emplace("(");
                     break;
                 }
-                output.emplace_back(std::make_unique<Ident>(Ident(m_Stream.p_CurTk.value)));
-                break;
-            case OP:
-                break;
-            case PUNC:
-                if (m_Stream.p_CurTk.value == "(") paren_counter++;
-                else if  (m_Stream.p_CurTk.value == ")") paren_counter--;
+                else if (m_Stream.p_CurTk.value == ")") {
+                    paren_counter--;
+                    while (ops.top().getValue() != "(") {
+                        output.emplace_back(std::make_unique<Op>(ops.top()));
+                        ops.pop();
+                    }
+                    ops.pop();
+                    break;
+                }
                 break;
             default:
                 break;
@@ -195,5 +214,13 @@ void Parser::parseExpr(const std::string id) {
         m_Stream.next();
     }
 
-//    std::cout << "it is " << ops_opr_consumed << std::endl;
+    while (!ops.empty()) {
+        output.emplace_back(std::make_unique<Op>(ops.top()));
+        ops.pop();
+    }
+
+    // uncomment for debugging purpose
+//    for (auto& elem : output) {
+//        handleNodes(elem->getType(), elem);
+//    } std::cout << "\n";
 }
