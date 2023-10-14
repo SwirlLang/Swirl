@@ -55,6 +55,9 @@ void handleNodes(NodeType type, std::unique_ptr<Node>& nd) {
         case ND_OP:
             std::cout << nd->getValue() << " ";
             break;
+        case ND_STR:
+            std::cout << nd->getValue() << " ";
+            break;
         default:
             break;
     }
@@ -164,19 +167,21 @@ void Parser::parseExpr(const std::string id) {
         Op top_elem;
 
         // break once the expression ends
-        if (m_Stream.p_CurTk.type == KEYWORD) { break; }
+        if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ",") break;
+        if (m_Stream.p_CurTk.type == KEYWORD) break;
         if (ops_opr_consumed > 1) {
             if (m_Stream.p_CurTk.type == KEYWORD) { break; }
-
             if ((invalid_prev_types.contains(prev_token.type) && m_Stream.p_CurTk.type != OP)) {
                 if (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")) { break; }
             }
         }
 
-        std::cout << "in expr -> " << m_Stream.p_CurTk.value << std::endl;
         switch (m_Stream.p_CurTk.type) {
             case NUMBER:
                 output.emplace_back(std::make_unique<Int>(Int(m_Stream.p_CurTk.value)));
+                break;
+            case STRING:
+                output.emplace_back(std::make_unique<String>(m_Stream.p_CurTk.value));
                 break;
             case IDENT:
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
