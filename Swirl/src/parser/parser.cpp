@@ -120,6 +120,7 @@ void Parser::parseVar() {
 
 
 std::unique_ptr<FuncCall> Parser::parseCall() {
+    std::cout << "call" << std::endl;
     std::unique_ptr<FuncCall> call_node = std::make_unique<FuncCall>();
     call_node->ident = m_Stream.p_CurTk.value;
     next();
@@ -150,7 +151,6 @@ std::unique_ptr<FuncCall> Parser::parseCall() {
  * in the order of their precedence by this algorithm. Inspired from the Shunting-Yard-Algorithm.
  * The method assumes that the current token(m_Stream.p_CurTk) is the start of the expression.*/
 void Parser::parseExpr(const std::string id) {
-    // TODO: Fix last statement goes undetected bug
     std::stack<Op> ops{};  // our operator stack
     std::vector<std::unique_ptr<Node>> output{};  // the final postfix(RPN) form
 
@@ -164,14 +164,16 @@ void Parser::parseExpr(const std::string id) {
         Op top_elem;
 
         // break once the expression ends
+        if (m_Stream.p_CurTk.type == KEYWORD) { break; }
         if (ops_opr_consumed > 1) {
-            if (m_Stream.p_CurTk.type == KEYWORD) { break;}
+            if (m_Stream.p_CurTk.type == KEYWORD) { break; }
 
             if ((invalid_prev_types.contains(prev_token.type) && m_Stream.p_CurTk.type != OP)) {
                 if (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")) { break; }
             }
         }
 
+        std::cout << "in expr -> " << m_Stream.p_CurTk.value << std::endl;
         switch (m_Stream.p_CurTk.type) {
             case NUMBER:
                 output.emplace_back(std::make_unique<Int>(Int(m_Stream.p_CurTk.value)));
@@ -219,8 +221,8 @@ void Parser::parseExpr(const std::string id) {
         ops.pop();
     }
 
-    // uncomment for debugging purpose
-//    for (auto& elem : output) {
-//        handleNodes(elem->getType(), elem);
-//    } std::cout << "\n";
+//     uncomment for debugging purpose
+    for (auto& elem : output) {
+        handleNodes(elem->getType(), elem);
+    } std::cout << " <--- in postfix" <<  "\n";
 }

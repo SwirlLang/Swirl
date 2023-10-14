@@ -63,9 +63,7 @@ public:
     }
 
     static bool isIdStart(char _chr) {
-        return "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"sv.find(
-                _chr
-        ) != std::string::npos;
+        return "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"sv.find(_chr) != std::string::npos;
     }
 
     static bool isPunctuation(char chr) {
