@@ -132,20 +132,10 @@ std::unique_ptr<FuncCall> Parser::parseCall() {
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")
         return call_node;
 
-    parseExpr( call_node->ident);
-
-    while (true) {
-//        if (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")) m_Stream.next();
-        if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")
-            break;
-        if (m_Stream.p_CurTk.value == "," && m_Stream.p_CurTk.type == PUNC) {
-            m_Stream.next();
-            parseExpr(call_node->ident);
-        }
+    while (m_Stream.p_CurTk.value != ")") {
+        parseExpr(true);
     }
 
-//    parseArgs();
-    m_Stream.next();
     return call_node;
 }
 
@@ -153,7 +143,8 @@ std::unique_ptr<FuncCall> Parser::parseCall() {
  * consists of two vectors, one for the operands, the other for the operators sorted
  * in the order of their precedence by this algorithm. Inspired from the Shunting-Yard-Algorithm.
  * The method assumes that the current token(m_Stream.p_CurTk) is the start of the expression.*/
-void Parser::parseExpr(const std::string id) {
+void Parser::parseExpr(bool isCall) {
+    bool kill_yourself = false;
     std::stack<Op> ops{};  // our operator stack
     std::vector<std::unique_ptr<Node>> output{};  // the final postfix(RPN) form
 
@@ -167,7 +158,8 @@ void Parser::parseExpr(const std::string id) {
         Op top_elem;
 
         // break once the expression ends
-        if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ",") break;
+        if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ",") { m_Stream.next(); break; }
+//        if ((m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")") && !invalid_prev_types.contains(prev_token.type)) break;
         if (m_Stream.p_CurTk.type == KEYWORD) break;
         if (ops_opr_consumed > 1) {
             if (m_Stream.p_CurTk.type == KEYWORD) { break; }
@@ -204,6 +196,7 @@ void Parser::parseExpr(const std::string id) {
                 }
                 else if (m_Stream.p_CurTk.value == ")") {
                     paren_counter--;
+                    if (isCall && paren_counter == -1) { kill_yourself = true; break; }
                     while (ops.top().getValue() != "(") {
                         output.emplace_back(std::make_unique<Op>(ops.top()));
                         ops.pop();
@@ -216,6 +209,7 @@ void Parser::parseExpr(const std::string id) {
                 break;
         }
 
+        if (kill_yourself) { kill_yourself = false; break; }
         ops_opr_consumed++;
         prev_token = m_Stream.p_CurTk;
         m_Stream.next();

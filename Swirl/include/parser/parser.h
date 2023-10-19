@@ -162,7 +162,7 @@ public:
     void dispatch();
     void parseFunction();
     void parseVar();
-    void parseExpr(const std::string id = "");
+    void parseExpr(bool isCall = false);
     void parseLoop(TokenType);
 //    void appendAST(Node&);
     inline void next(bool swsFlg = false, bool snsFlg = false);
