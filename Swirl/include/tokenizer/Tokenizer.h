@@ -25,6 +25,7 @@ extern std::unordered_map<std::string, uint8_t> keywords;
 extern std::unordered_map<std::string, uint8_t> operators;
 
 class TokenStream {
+private:
     // Just as a data struct for representing the state of the tokenizer.
     struct State {
         std::size_t Pos, Line, Col;
@@ -35,20 +36,17 @@ class TokenStream {
                 ): Pos(pos), Line(line), Col(col) {}
     };
 
-    bool                                            m_Debug  = false;
-    bool                                            m_rdfs   = false;
-    std::string                                     m_Ret;
-    std::string                                     m_Rax;
-    InputStream                                     m_Stream;
-    Token                                           m_lastTok{};
-    Token                                           m_Cur{};
-    std::array<State, 3>                            m_Cache = {};
+    int                                          m_Pcnt  = 0;       // paren counter
+    bool                                         m_Debug  = false;  // Debug flag
+    bool                                         m_rdfs   = false;  // deprecated string interpolation flag
+    bool                                         m_trackp = false;  // track parentheses flag
+    std::string                                  m_Ret;             // temporary cache
+    std::string                                  m_Rax;             // temporary cache
+    InputStream                                  m_Stream;          // input stream instance
+    Token                                        m_lastTok{};
+    Token                                        m_Cur{};
+    std::array<State, 3>                         m_Cache = {};
 
-public:
-    Token p_CurTk{_NONE, ""};
-    Token p_PeekTk{_NONE, ""};
-
-    explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {}
 
     static bool isKeyword(const std::string& _str) {
         return keywords.contains(_str);
@@ -145,22 +143,6 @@ public:
         return {NUMBER, m_Ret};
     }
 
-    /* Stores the state of the tokenizer in one of the three locations of the cache array
-     * Id's work as defined below :-
-     * 0: previous token
-     * 1: succeeding token (peek)
-     * 2: custom return point */
-    void setReturnPoint(uint8_t id) {
-        m_Cache[id] = {m_Stream.Pos, m_Stream.Line, m_Stream.Col};
-    }
-
-    void restoreCache(uint8_t id) {
-        m_Stream.Pos  = m_Cache[id].Pos;
-        m_Stream.Line = m_Cache[id].Line;
-        m_Stream.Col  = m_Cache[id].Col;
-
-    }
-
     /* Consume the next token from the stream. */
     Token readNextTok(bool _noIncrement = false) {
         setReturnPoint(0);
@@ -188,9 +170,51 @@ public:
             };
     }
 
+
+public:
+    Token p_CurTk{_NONE, ""};
+    Token p_PeekTk{_NONE, ""};
+
+    explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {}
+
+    /* Enabling this flag makes the tokenizer track the current open parentheses and omit its closing counterpart
+     * from the stream when it is encountered. Eases the process of parser recovering from an error. */
+    inline void trackParen() {
+        m_trackp = true;
+        m_Pcnt = 1;
+    }
+
+
+    /* Stores the state of the tokenizer in one of the three locations of the cache array
+     * Id's work as defined below :-
+     * 0: previous token
+     * 1: succeeding token (peek)
+     * 2: custom return point */
+    void setReturnPoint(uint8_t id) {
+        m_Cache[id] = {m_Stream.Pos, m_Stream.Line, m_Stream.Col};
+    }
+
+    void restoreCache(uint8_t id) {
+        m_Stream.Pos  = m_Cache[id].Pos;
+        m_Stream.Line = m_Cache[id].Line;
+        m_Stream.Col  = m_Cache[id].Col;
+
+    }
+
     /* An abstraction over readNextTok. */
     Token next(bool _readNewLines = false, bool _readWhitespaces = false, bool _modifyCurTk = true) {
         Token cur_tk = readNextTok();
+
+        if (m_trackp) {
+            if (cur_tk.type == PUNC) {
+                if (cur_tk.value == "(") m_Pcnt++;
+                if (cur_tk.value == ")") {
+                    m_Pcnt--;
+                    if (m_Pcnt == 0) { cur_tk = readNextTok(); m_trackp = false; }
+
+                }
+            }
+        }
 
         if (!_readWhitespaces)
             while (cur_tk.type == PUNC && cur_tk.value == " ")

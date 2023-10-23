@@ -17,20 +17,28 @@ enum NodeType {
     ND_VAR,
     ND_STR,
     ND_CALL,
-    ND_IDENT
+    ND_IDENT,
+    ND_FUNC
 };
 
+// A common base class for all the nodes
 struct Node {
-    // Provides a common base class for all the nodes
+    struct Param {
+        std::string var_ident;
+        std::string var_type;
+
+        bool initialized = false;
+        bool is_const    = false;
+
+    };
+
     std::string value;
 
     virtual std::string getValue() const { return "INVALID"; }
     virtual NodeType getType() const { return ND_INVALID; };
+    virtual std::vector<Param> getParams() const {};
 };
 
-struct Safeguard: Node {
-    std::string getValue() const override { return "E"; }
-};
 
 struct Punc: Node { std::string getValue() const override { return "("; } };
 
@@ -137,6 +145,24 @@ struct Var: Node {
     }
 };
 
+
+struct Function: Node {
+    std::string ident;
+    std::vector<Param> params{};
+
+    NodeType getType() const override {
+        return ND_FUNC;
+    }
+
+    std::string getValue() const override {
+        return ident;
+    }
+
+    std::vector<Param> getParams() const override {
+        return params;
+    }
+};
+
 struct FuncCall: Node {
     std::vector<Expression> args;
     std::string ident;
@@ -157,10 +183,10 @@ public:
 
     explicit Parser(TokenStream&);
 
-    void parseCondition(TokenType);
-    std::unique_ptr<FuncCall> parseCall();
-    void dispatch();
     void parseFunction();
+    void parseCondition(TokenType);
+    std::unique_ptr<Node> parseCall();
+    void dispatch();
     void parseVar();
     void parseExpr(bool isCall = false);
     void parseLoop(TokenType);

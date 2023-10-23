@@ -21,8 +21,10 @@ uint8_t rd_param = 0;
 uint8_t rd_func = 0;
 uint8_t rd_param_cnt = 0;
 
-std::vector<Node> Module{};
-extern std::unordered_map<std::string, const char *> type_registry;
+std::vector<std::unique_ptr<Node>>               Module{};
+std::stack<std::vector<std::unique_ptr<Node>>*>  LatestScopePtr{};
+
+extern std::unordered_map<std::string, const char*> type_registry;
 extern std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
 
 
@@ -41,26 +43,18 @@ std::unordered_map<std::string, int> precedence_table = {
         {"~",  8}
 };
 
+template <typename T, typename = std::enable_if_t<std::is_base_of<Node, T>::value>>
+void pushToModule(std::unique_ptr<Node> node) {
+    if (LatestScopePtr.empty())
+        Module.emplace_back(std::move(node));
+    else
+        LatestScopePtr.top()->emplace_back(std::move(node));
+}
+
 // this function is meant to be used for debugging purpose
 void handleNodes(NodeType type, std::unique_ptr<Node>& nd) {
-    switch (type) {
-        case ND_IDENT:
-            std::cout << nd->getValue() << " ";
-            break;
-        case ND_FLOAT:
-            break;
-        case ND_INT:
-            std::cout << nd->getValue() << " ";
-            break;
-        case ND_OP:
-            std::cout << nd->getValue() << " ";
-            break;
-        case ND_STR:
-            std::cout << nd->getValue() << " ";
-            break;
-        default:
-            break;
-    }
+    std::cout << nd->getValue() << " ";
+
 }
 
 
@@ -71,15 +65,11 @@ void Parser::next(bool swsFlg, bool snsFlg) {
     cur_rd_tok = m_Stream.next(swsFlg, snsFlg);
 }
 
-void appendModule(const Node &nd) {
-//    Module.emplace(nd);
-}
-
 void Parser::dispatch() {
     int br_ind = 0;
     int prn_ind = 0;
-    const char *tmp_ident = "";
-    const char *tmp_type = "";
+    const char* tmp_ident = "";
+    const char* tmp_type = "";
 
     m_Stream.next();
 
@@ -92,15 +82,37 @@ void Parser::dispatch() {
                 parseVar();
                 continue;
             }
+
+            if (t_val == "func") {
+                parseFunction();
+                continue;
+            }
         }
 
         if (t_type == IDENT) {
             if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
-                appendModule(*parseCall());
+                pushToModule<FuncCall>(parseCall());
             }
         }
         m_Stream.next();
     }
+}
+
+Node a() { return Node; }
+
+void Parser::parseFunction() {
+    Function func_nd{};
+
+    m_Stream.next();
+    std::string ident = m_Stream.p_CurTk.value;
+
+    m_Stream.next();
+    m_Stream.next();
+
+    if (m_Stream.p_CurTk.type != PUNC) {
+
+
+    } else if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")") {}
 }
 
 void Parser::parseVar() {
@@ -121,8 +133,7 @@ void Parser::parseVar() {
     }
 }
 
-
-std::unique_ptr<FuncCall> Parser::parseCall() {
+std::unique_ptr<Node> Parser::parseCall() {
     std::cout << "call" << std::endl;
     std::unique_ptr<FuncCall> call_node = std::make_unique<FuncCall>();
     call_node->ident = m_Stream.p_CurTk.value;
@@ -133,11 +144,17 @@ std::unique_ptr<FuncCall> Parser::parseCall() {
         return call_node;
 
     while (m_Stream.p_CurTk.value != ")") {
+//        m_Stream.trackParen();
         parseExpr(true);
     }
 
     return call_node;
 }
+
+void parseFunction() {
+
+}
+
 
 /* This method converts the expression into a postfix form, each expression object it creates
  * consists of two vectors, one for the operands, the other for the operators sorted
