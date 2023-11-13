@@ -1,9 +1,11 @@
 #include <array>
 #include <list>
-
 #include <memory>
 #include <utility>
+#include <stack>
+
 #include <tokenizer/Tokenizer.h>
+#include <llvm/IR/Value.h>
 
 #ifndef SWIRL_PARSER_H
 #define SWIRL_PARSER_H
@@ -29,25 +31,25 @@ struct Node {
 
         bool initialized = false;
         bool is_const    = false;
-
     };
 
     std::string value;
 
-    virtual std::string getValue() const { return "INVALID"; }
-    virtual NodeType getType() const { return ND_INVALID; };
-    virtual std::vector<Param> getParams() const {};
+    const virtual std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
+    virtual Param getParamInstance() { return Param{}; }
+    virtual std::string getValue() const { throw std::runtime_error("getValue called on base node"); };
+    virtual NodeType getType() const { throw std::runtime_error("getType called on base node"); };
+    virtual std::vector<Param> getParams() const { throw std::runtime_error("getParams called on base getParams"); };
+    virtual llvm::Value* codegen() { throw std::runtime_error("unimplemented Node::codegen"); }
 };
 
-
-struct Punc: Node { std::string getValue() const override { return "("; } };
 
 struct Op: Node {
     std::string value;
 
     // the value will be 3 bytes at max so no need of a reference
 
-    Op() {}
+    Op() = default;
     explicit Op(std::string val): value(std::move(val)) {}
 
     std::string getValue() const override {
@@ -60,20 +62,42 @@ struct Op: Node {
 };
 
 
-struct Expression {
-    std::vector<Op> operators{};
-    std::vector<std::unique_ptr<Expression>> operands{};
+struct Expression: Node {
+    std::vector<std::unique_ptr<Node>> expr{};
 
-    virtual NodeType getType() const {
+    Expression() = default;
+    Expression(Expression&& other) noexcept {
+        expr.reserve(other.expr.size());
+
+        std::move(
+                std::make_move_iterator(other.expr.begin()),
+                std::make_move_iterator(other.expr.end()),
+                std::back_inserter(expr)
+                );
+
+        for (const auto& nd : expr) {
+//            std::cout << "moving : " << nd->getValue() << std::endl;
+        }
+    }
+
+    const std::vector<std::unique_ptr<Node>>& getExprValue() override { return expr; }
+
+    std::string getValue() const override {
+        throw std::runtime_error("getValue called on expression");
+    }
+
+    NodeType getType() const override {
         return ND_EXPR;
     }
+
+    llvm::Value* codegen() override;
 };
 
 
-struct Int: Node {
-    std::string value = 0;
+struct IntLit: Node {
+    std::string value;
 
-    explicit Int(std::string val): value(std::move(val)) {}
+    explicit IntLit(std::string val): value(std::move(val)) {}
 
     std::string getValue() const override {
         return value;
@@ -82,13 +106,15 @@ struct Int: Node {
     NodeType getType() const override {
         return ND_INT;
     }
+
+    llvm::Value *codegen() override;
 };
 
 
-struct Float: Node {
+struct FloatLit: Node {
     std::string value = 0;
 
-    explicit Float(std::string val): value(std::move(val)) {}
+    explicit FloatLit(std::string val): value(std::move(val)) {}
 
     std::string getValue() const override {
         return value;
@@ -97,13 +123,15 @@ struct Float: Node {
     NodeType getType() const override {
         return ND_FLOAT;
     }
+
+    llvm::Value *codegen() override;
 };
 
 
-struct String: Node {
+struct StrLit: Node {
     std::string value;
 
-    explicit String(std::string  val): value(std::move(val)) {}
+    explicit StrLit(std::string  val): value(std::move(val)) {}
 
     std::string getValue() const override {
         return value;
@@ -112,6 +140,8 @@ struct String: Node {
     NodeType getType() const override {
         return ND_STR;
     }
+
+    llvm::Value *codegen() override;
 };
 
 struct Ident: Node {
@@ -136,15 +166,16 @@ struct Var: Node {
     bool initialized = false;
     bool is_const    = false;
 
+    Var() {};
     std::string getValue() const override {
         return var_ident;
     }
 
+    
     NodeType getType() const override {
         return ND_VAR;
     }
 };
-
 
 struct Function: Node {
     std::string ident;
@@ -168,9 +199,12 @@ struct FuncCall: Node {
     std::string ident;
 
     std::string getValue() const override { return ident; }
+
     NodeType getType() const override {
         return ND_CALL;
     }
+
+    llvm::Value* codegen() override;
 };
 
 class Parser {
@@ -188,7 +222,8 @@ public:
     std::unique_ptr<Node> parseCall();
     void dispatch();
     void parseVar();
-    void parseExpr(bool isCall = false);
+    void parseExpr(std::vector<Expression>*, bool isCall = false);
+    void parseExpr(Expression&, bool isCall = false);
     void parseLoop(TokenType);
 //    void appendAST(Node&);
     inline void next(bool swsFlg = false, bool snsFlg = false);

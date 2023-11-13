@@ -43,6 +43,7 @@ std::unordered_map<std::string, int> precedence_table = {
         {"~",  8}
 };
 
+
 template <typename T, typename = std::enable_if_t<std::is_base_of<Node, T>::value>>
 void pushToModule(std::unique_ptr<Node> node) {
     if (LatestScopePtr.empty())
@@ -53,10 +54,8 @@ void pushToModule(std::unique_ptr<Node> node) {
 
 // this function is meant to be used for debugging purpose
 void handleNodes(NodeType type, std::unique_ptr<Node>& nd) {
-    std::cout << nd->getValue() << " ";
 
 }
-
 
 Parser::Parser(TokenStream &tks) : m_Stream(tks) {}
 Parser::~Parser() = default;
@@ -98,7 +97,6 @@ void Parser::dispatch() {
     }
 }
 
-Node a() { return Node; }
 
 void Parser::parseFunction() {
     Function func_nd{};
@@ -106,12 +104,19 @@ void Parser::parseFunction() {
     m_Stream.next();
     std::string ident = m_Stream.p_CurTk.value;
 
-    m_Stream.next();
-    m_Stream.next();
+    m_Stream.next(); m_Stream.next();
 
     if (m_Stream.p_CurTk.type != PUNC) {
+        decltype(func_nd.getParamInstance()) param{};
+        param.var_ident = m_Stream.p_CurTk.value;  // parameter identifier
 
+        m_Stream.next(); m_Stream.next();
+        param.var_type = m_Stream.p_CurTk.value;
 
+        param.initialized = m_Stream.peek().type == PUNC && m_Stream.peek().value == "=";
+        if (param.initialized) {
+            m_Stream.next();
+        }
     } else if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")") {}
 }
 
@@ -129,12 +134,11 @@ void Parser::parseVar() {
         var_node.initialized = true;
         next();
         next();
-        parseExpr();
+//        parseExpr();
     }
 }
 
 std::unique_ptr<Node> Parser::parseCall() {
-    std::cout << "call" << std::endl;
     std::unique_ptr<FuncCall> call_node = std::make_unique<FuncCall>();
     call_node->ident = m_Stream.p_CurTk.value;
     next();
@@ -144,23 +148,25 @@ std::unique_ptr<Node> Parser::parseCall() {
         return call_node;
 
     while (m_Stream.p_CurTk.value != ")") {
-//        m_Stream.trackParen();
-        parseExpr(true);
+        parseExpr(&call_node->args, true);
     }
 
+    for (const auto& n : call_node->args) {
+        for (const std::unique_ptr<Node>& e : n.expr) {
+            std::cout << e->getValue() << " ";
+        }
+        std::cout << std::endl;
+    }
     return call_node;
 }
 
-void parseFunction() {
-
-}
 
 
 /* This method converts the expression into a postfix form, each expression object it creates
- * consists of two vectors, one for the operands, the other for the operators sorted
+ * consists of two vectors, one for the expr, the other for the operators sorted
  * in the order of their precedence by this algorithm. Inspired from the Shunting-Yard-Algorithm.
  * The method assumes that the current token(m_Stream.p_CurTk) is the start of the expression.*/
-void Parser::parseExpr(bool isCall) {
+void Parser::parseExpr(std::vector<Expression>* ptr, bool isCall) {
     bool kill_yourself = false;
     std::stack<Op> ops{};  // our operator stack
     std::vector<std::unique_ptr<Node>> output{};  // the final postfix(RPN) form
@@ -187,10 +193,10 @@ void Parser::parseExpr(bool isCall) {
 
         switch (m_Stream.p_CurTk.type) {
             case NUMBER:
-                output.emplace_back(std::make_unique<Int>(Int(m_Stream.p_CurTk.value)));
+                output.emplace_back(std::make_unique<IntLit>(IntLit(m_Stream.p_CurTk.value)));
                 break;
             case STRING:
-                output.emplace_back(std::make_unique<String>(m_Stream.p_CurTk.value));
+                output.emplace_back(std::make_unique<StrLit>(m_Stream.p_CurTk.value));
                 break;
             case IDENT:
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
@@ -237,8 +243,19 @@ void Parser::parseExpr(bool isCall) {
         ops.pop();
     }
 
-//     uncomment for debugging purpose
+    //     uncomment for debugging purpose
     for (auto& elem : output) {
         handleNodes(elem->getType(), elem);
-    } std::cout << " <--- in postfix" <<  "\n";
+    }
+
+//    std::cout << " <--- in postfix" <<  "\n";
+
+    Expression expr{};
+    expr.expr.reserve(output.size());
+    std::move(
+            std::make_move_iterator(output.begin()),
+            std::make_move_iterator(output.end()),
+            std::back_inserter(expr.expr)
+            );
+    ptr->push_back(std::move(expr));
 }
