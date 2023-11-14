@@ -35,19 +35,19 @@ struct Node {
 
     std::string value;
 
-    const virtual std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
+    virtual const std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
     virtual Param getParamInstance() { return Param{}; }
     virtual std::string getValue() const { throw std::runtime_error("getValue called on base node"); };
     virtual NodeType getType() const { throw std::runtime_error("getType called on base node"); };
     virtual std::vector<Param> getParams() const { throw std::runtime_error("getParams called on base getParams"); };
     virtual llvm::Value* codegen() { throw std::runtime_error("unimplemented Node::codegen"); }
+    virtual int8_t getArity() { throw std::runtime_error("getArity called on base Node instance "); }
 };
 
 
 struct Op: Node {
     std::string value;
-
-    // the value will be 3 bytes at max so no need of a reference
+    int8_t arity = 2;  // the no. of operands the operator requires, binary by default
 
     Op() = default;
     explicit Op(std::string val): value(std::move(val)) {}
@@ -56,6 +56,7 @@ struct Op: Node {
         return value;
     }
 
+    int8_t getArity() override { return arity; }
     [[nodiscard]] NodeType getType() const override {
         return ND_OP;
     }

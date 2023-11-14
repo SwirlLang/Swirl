@@ -16,7 +16,7 @@
 
 
 llvm::LLVMContext Context;
-llvm::IRBuilder   Builder(Context);
+llvm::IRBuilder<> Builder(Context);
 
 auto LModule = std::make_unique<llvm::Module>("test", Context);
 
@@ -34,8 +34,38 @@ llvm::Value* StrLit::codegen() {
 }
 
 llvm::Value* Expression::codegen() {
-    // TODO: support for unary operators
+    std::stack<llvm::Value*> eval{};
+    static std::unordered_map<std::string, std::function<llvm::Value*(llvm::Value*, llvm::Value*)>> op_table = {
+            {"+", [](llvm::Value* a, llvm::Value* b) { return Builder.CreateAdd(a, b); }},
+            {"-", [](llvm::Value* a, llvm::Value* b) { return Builder.CreateSub(a, b); }},
+            {"*", [](llvm::Value* a, llvm::Value* b) { return Builder.CreateMul(a, b); }},
+            {"/",
+             [](llvm::Value* a, llvm::Value* b) {
+                if (a->getType()->isIntegerTy())
+                    a = Builder.CreateSIToFP(a, llvm::Type::getFloatTy(Context));
+                if (b->getType()->isIntegerTy()) {
+                    b = Builder.CreateSIToFP(b, llvm::Type::getFloatTy(Context));
+                return Builder.CreateFDiv(a, b);
+                }
+            }
+            }
+    };
 
+    for (const std::unique_ptr<Node>& nd : expr) {
+        if (nd->getType() != ND_OP)
+            eval.push(nd->codegen());
+        else if (nd->getType() == ND_OP) {
+            if (nd->getArity() == 2) {
+                if (eval.size() < 2) { throw std::runtime_error("Not enough operands on eval stack"); }
+                llvm::Value* op1 = eval.top();
+                eval.pop();
+                llvm::Value* op2 = eval.top();
+                eval.pop();
+
+                eval.push(op_table[nd->getValue()](op1, op2));
+            }
+        }
+    }
 }
 
 llvm::Value* FuncCall::codegen() {
