@@ -3,6 +3,7 @@
 #include <memory>
 #include <utility>
 #include <stack>
+#include <variant>
 
 #include <tokenizer/Tokenizer.h>
 #include <llvm/IR/Value.h>
@@ -172,10 +173,12 @@ struct Var: Node {
         return var_ident;
     }
 
-    
     NodeType getType() const override {
         return ND_VAR;
     }
+
+    std::vector<std::unique_ptr<Node>>& getExprValue() override { return value.expr; }
+    llvm::Value* codegen() override;
 };
 
 struct Function: Node {
@@ -223,8 +226,7 @@ public:
     std::unique_ptr<Node> parseCall();
     void dispatch();
     void parseVar();
-    void parseExpr(std::vector<Expression>*, bool isCall = false);
-    void parseExpr(Expression&, bool isCall = false);
+    void parseExpr(std::variant<std::vector<Expression>*, Expression*>, bool isCall = false);
     void parseLoop(TokenType);
 //    void appendAST(Node&);
     inline void next(bool swsFlg = false, bool snsFlg = false);

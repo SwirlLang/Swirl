@@ -5,28 +5,21 @@
 #include <string>
 #include <set>
 #include <stack>
+#include <variant>
 #include <unordered_map>
 #include <unordered_set>
 
 #include <parser/parser.h>
+#include <llvm/IR/Type.h>
 
-#define n_ptr std::make_unique<Node>
+#define IS_INSTANCE_OF(cls) std::enable_if_t<std::is_base_of<cls, T>::value>
 
-using namespace std::string_literals;
-
-// Flags
-short ang_ind = 0;
-uint8_t is_first_t = 1;
-uint8_t rd_param = 0;
-uint8_t rd_func = 0;
-uint8_t rd_param_cnt = 0;
 
 std::vector<std::unique_ptr<Node>>               Module{};
-std::stack<std::vector<std::unique_ptr<Node>>*>  LatestScopePtr{};
+std::stack<std::vector<std::unique_ptr<Node>>*>  InsertPoint{};
 
-extern std::unordered_map<std::string, const char*> type_registry;
+
 extern std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
-
 
 std::unordered_map<std::string, int> precedence_table = {
         {"-",  1},
@@ -43,19 +36,14 @@ std::unordered_map<std::string, int> precedence_table = {
         {"~",  8}
 };
 
-
-template <typename T, typename = std::enable_if_t<std::is_base_of<Node, T>::value>>
+template <typename T, typename = IS_INSTANCE_OF(Node)>
 void pushToModule(std::unique_ptr<Node> node) {
-    if (LatestScopePtr.empty())
+    if (InsertPoint.empty())
         Module.emplace_back(std::move(node));
     else
-        LatestScopePtr.top()->emplace_back(std::move(node));
+        InsertPoint.top()->emplace_back(std::move(node));
 }
 
-// this function is meant to be used for debugging purpose
-void handleNodes(NodeType type, std::unique_ptr<Node>& nd) {
-
-}
 
 Parser::Parser(TokenStream &tks) : m_Stream(tks) {}
 Parser::~Parser() = default;
@@ -88,11 +76,18 @@ void Parser::dispatch() {
             }
         }
 
+        if (t_type == PUNC) {
+            if (t_val == "}") {
+                InsertPoint.pop();
+            }
+        }
+
         if (t_type == IDENT) {
             if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
                 pushToModule<FuncCall>(parseCall());
             }
         }
+
         m_Stream.next();
     }
 }
@@ -134,8 +129,10 @@ void Parser::parseVar() {
         var_node.initialized = true;
         next();
         next();
-//        parseExpr();
+        parseExpr(&var_node.value);
     }
+
+    pushToModule<Var>(std::make_unique<Var>(std::move(var_node)));
 }
 
 std::unique_ptr<Node> Parser::parseCall() {
@@ -157,16 +154,17 @@ std::unique_ptr<Node> Parser::parseCall() {
         }
         std::cout << std::endl;
     }
+
+    std::cout << "----------" << std::endl;
     return call_node;
 }
 
 
 
-/* This method converts the expression into a postfix form, each expression object it creates
- * consists of two vectors, one for the expr, the other for the operators sorted
- * in the order of their precedence by this algorithm. Inspired from the Shunting-Yard-Algorithm.
- * The method assumes that the current token(m_Stream.p_CurTk) is the start of the expression.*/
-void Parser::parseExpr(std::vector<Expression>* ptr, bool isCall) {
+/* This method is an implementation of the `Shunting Yard Algorithm`.
+ * */
+void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, bool isCall) {
+
     bool kill_yourself = false;
     std::stack<Op> ops{};  // our operator stack
     std::vector<std::unique_ptr<Node>> output{};  // the final postfix(RPN) form
@@ -243,12 +241,6 @@ void Parser::parseExpr(std::vector<Expression>* ptr, bool isCall) {
         ops.pop();
     }
 
-    //     uncomment for debugging purpose
-    for (auto& elem : output) {
-        handleNodes(elem->getType(), elem);
-    }
-
-//    std::cout << " <--- in postfix" <<  "\n";
 
     Expression expr{};
     expr.expr.reserve(output.size());
@@ -257,5 +249,9 @@ void Parser::parseExpr(std::vector<Expression>* ptr, bool isCall) {
             std::make_move_iterator(output.end()),
             std::back_inserter(expr.expr)
             );
-    ptr->push_back(std::move(expr));
+
+    if (std::holds_alternative<std::vector<Expression>*>(ptr))
+        std::get<std::vector<Expression>*>(ptr)->push_back(std::move(expr));
+    else
+        std::get<Expression*>(ptr)->expr = std::move(output);
 }
