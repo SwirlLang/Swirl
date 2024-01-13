@@ -1,4 +1,3 @@
-#include <cmath>
 #include <iostream>
 #include <memory>
 #include <ostream>
@@ -12,14 +11,12 @@
 #include <parser/parser.h>
 #include <llvm/IR/Type.h>
 
-#define IS_INSTANCE_OF(cls) std::enable_if_t<std::is_base_of<cls, T>::value>
 
-
-std::vector<std::unique_ptr<Node>>               Module{};
-std::stack<std::vector<std::unique_ptr<Node>>*>  InsertPoint{};
-
+std::stack<Node*>                  ScopeTrack{};
+std::vector<std::unique_ptr<Node>> Module{};
 
 extern std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
+
 
 std::unordered_map<std::string, int> precedence_table = {
         {"-",  1},
@@ -36,12 +33,10 @@ std::unordered_map<std::string, int> precedence_table = {
         {"~",  8}
 };
 
-template <typename T, typename = IS_INSTANCE_OF(Node)>
+
+template <typename T>
 void pushToModule(std::unique_ptr<Node> node) {
-    if (InsertPoint.empty())
-        Module.emplace_back(std::move(node));
-    else
-        InsertPoint.top()->emplace_back(std::move(node));
+    std::cout << node->getParent() << std::endl;
 }
 
 
@@ -78,7 +73,7 @@ void Parser::dispatch() {
 
         if (t_type == PUNC) {
             if (t_val == "}") {
-                InsertPoint.pop();
+                ScopeTrack.pop();
             }
         }
 
@@ -132,6 +127,8 @@ void Parser::parseVar() {
         parseExpr(&var_node.value);
     }
 
+    if (!ScopeTrack.empty())
+        var_node.parent = ScopeTrack.top();
     pushToModule<Var>(std::make_unique<Var>(std::move(var_node)));
 }
 
