@@ -34,10 +34,10 @@ std::unordered_map<std::string, int> precedence_table = {
 };
 
 
-//template <typename T>
-void pushToModule(std::unique_ptr<Node> node, bool asParent = false) {
+void pushToModule(std::unique_ptr<Node> node, bool isOrphan = true) {
+    if (!ScopeTrack.empty()) node->setParent(ScopeTrack.top());
     Module.emplace_back(std::move(node));
-    if (asParent) ScopeTrack.push(Module.back().get());
+    if (!isOrphan) ScopeTrack.push(Module.back().get());
 }
 
 
@@ -123,7 +123,7 @@ void Parser::parseFunction() {
     if (m_Stream.p_CurTk.type == IDENT)
         func_nd.ret_type = m_Stream.p_CurTk.value;
 
-    pushToModule(std::make_unique<Function>(std::move(func_nd)), true);
+    pushToModule(std::make_unique<Function>(std::move(func_nd)), false);
 }
 
 

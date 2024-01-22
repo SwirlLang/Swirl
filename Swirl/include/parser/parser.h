@@ -39,7 +39,8 @@ struct Node {
 
     virtual const std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
     virtual Param getParamInstance() { return Param{}; }
-    virtual Node* getParent() { return parent; }
+    virtual void setParent(Node* pr) { }
+    virtual Node* getParent() const { throw std::runtime_error("getParent called on base"); }
     virtual std::string getValue() const { throw std::runtime_error("getValue called on base node"); };
     virtual NodeType getType() const { throw std::runtime_error("getType called on base node"); };
     virtual std::vector<Param> getParams() const { throw std::runtime_error("getParams called on base getParams"); };
@@ -166,18 +167,17 @@ struct Var: Node {
     std::string var_ident;
     std::string var_type;
     Expression value;
+    Node* parent;
 
     bool initialized = false;
     bool is_const    = false;
 
     Var() {};
-    std::string getValue() const override {
-        return var_ident;
-    }
 
-    NodeType getType() const override {
-        return ND_VAR;
-    }
+    std::string getValue() const override { return var_ident; }
+    NodeType getType() const override { return ND_VAR; }
+    Node* getParent() const override { return parent; }
+    void setParent(Node* pr) override { parent = pr; }
 
     std::vector<std::unique_ptr<Node>>& getExprValue() override { return value.expr; }
     llvm::Value* codegen() override;
@@ -204,12 +204,12 @@ struct Function: Node {
 struct FuncCall: Node {
     std::vector<Expression> args;
     std::string ident;
-
     std::string getValue() const override { return ident; }
+    Node* parent;
 
-    NodeType getType() const override {
-        return ND_CALL;
-    }
+    NodeType getType() const override { return ND_CALL; }
+    void setParent(Node* pr) override { parent = pr; }
+    Node* getParent() const override { return parent; }
 
     llvm::Value* codegen() override;
 };
