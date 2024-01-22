@@ -34,18 +34,21 @@ std::unordered_map<std::string, int> precedence_table = {
 };
 
 
-template <typename T>
-void pushToModule(std::unique_ptr<Node> node) {
-    std::cout << node->getParent() << std::endl;
+//template <typename T>
+void pushToModule(std::unique_ptr<Node> node, bool asParent = false) {
+    Module.emplace_back(std::move(node));
+    if (asParent) ScopeTrack.push(Module.back().get());
 }
 
 
 Parser::Parser(TokenStream &tks) : m_Stream(tks) {}
 Parser::~Parser() = default;
 
+
 void Parser::next(bool swsFlg, bool snsFlg) {
     cur_rd_tok = m_Stream.next(swsFlg, snsFlg);
 }
+
 
 void Parser::dispatch() {
     int br_ind = 0;
@@ -65,7 +68,7 @@ void Parser::dispatch() {
                 continue;
             }
 
-            if (t_val == "func") {
+            if (t_val == "fn") {
                 parseFunction();
                 continue;
             }
@@ -79,7 +82,7 @@ void Parser::dispatch() {
 
         if (t_type == IDENT) {
             if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
-                pushToModule<FuncCall>(parseCall());
+                pushToModule(parseCall());
             }
         }
 
@@ -92,11 +95,10 @@ void Parser::parseFunction() {
     Function func_nd{};
 
     m_Stream.next();
-    std::string ident = m_Stream.p_CurTk.value;
+    func_nd.ident = m_Stream.p_CurTk.value;
+    next(); next();
 
-    m_Stream.next(); m_Stream.next();
-
-    if (m_Stream.p_CurTk.type != PUNC) {
+    auto parse_params = [this]() {
         decltype(func_nd.getParamInstance()) param{};
         param.var_ident = m_Stream.p_CurTk.value;  // parameter identifier
 
@@ -104,11 +106,26 @@ void Parser::parseFunction() {
         param.var_type = m_Stream.p_CurTk.value;
 
         param.initialized = m_Stream.peek().type == PUNC && m_Stream.peek().value == "=";
-        if (param.initialized) {
-            m_Stream.next();
+        next();
+        return param;
+    };
+
+    if (m_Stream.p_CurTk.type != PUNC) {
+        while (m_Stream.p_CurTk.value != ")" && m_Stream.p_CurTk.type != PUNC) {
+            func_nd.params.push_back(parse_params());
+            if (m_Stream.p_CurTk.value == ",")
+                next();
         }
-    } else if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")") {}
+    }
+
+    // a(")")
+    next();
+    if (m_Stream.p_CurTk.type == IDENT)
+        func_nd.ret_type = m_Stream.p_CurTk.value;
+
+    pushToModule(std::make_unique<Function>(std::move(func_nd)), true);
 }
+
 
 void Parser::parseVar() {
     Var var_node;
@@ -129,8 +146,9 @@ void Parser::parseVar() {
 
     if (!ScopeTrack.empty())
         var_node.parent = ScopeTrack.top();
-    pushToModule<Var>(std::make_unique<Var>(std::move(var_node)));
+    pushToModule(std::make_unique<Var>(std::move(var_node)));
 }
+
 
 std::unique_ptr<Node> Parser::parseCall() {
     std::unique_ptr<FuncCall> call_node = std::make_unique<FuncCall>();
@@ -145,26 +163,17 @@ std::unique_ptr<Node> Parser::parseCall() {
         parseExpr(&call_node->args, true);
     }
 
-    for (const auto& n : call_node->args) {
-        for (const std::unique_ptr<Node>& e : n.expr) {
-            std::cout << e->getValue() << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << "----------" << std::endl;
     return call_node;
 }
 
 
-
-/* This method is an implementation of the `Shunting Yard Algorithm`.
- * */
+/* This method is an adaptation of the `Shunting Yard Algorithm`. */
 void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, bool isCall) {
+    // TODO: remove overcomplexity
 
     bool kill_yourself = false;
-    std::stack<Op> ops{};  // our operator stack
-    std::vector<std::unique_ptr<Node>> output{};  // the final postfix(RPN) form
+    std::stack<Op> ops{};  // operator stack
+    std::vector<std::unique_ptr<Node>> output{};  // the final postfix (RPN) form
 
     int paren_counter    = 0;
     int ops_opr_consumed = 0;

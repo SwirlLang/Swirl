@@ -129,7 +129,7 @@ private:
         };
     }
 
-    Token readNumber() {
+    Token readNumber(const char* neg = "") {
         static uint8_t has_decim = false;
         std::string number = readWhile([](char ch) -> bool {
             if (ch == '.') {
@@ -140,7 +140,7 @@ private:
         });
         has_decim = false;
         m_Ret = number;
-        return {NUMBER, m_Ret};
+        return {NUMBER, neg + m_Ret};
     }
 
     /* Consume the next token from the stream. */
@@ -157,6 +157,15 @@ private:
         m_Ret = std::string(1, m_Stream.next());
 
         if (isOpChar(chr)) {
+//            if (chr == '-') {
+//                m_Stream.next();
+//                if (isDigit(m_Stream.peek())) {
+//                    Token ret = readNumber("-");
+//                    m_Stream.backoff();
+//                    return ret;
+//                }
+//            }
+
             m_Rax = chr + readWhile(isOpChar);
             return {
                     OP,
@@ -168,6 +177,9 @@ private:
                     PUNC,
                     m_Ret
             };
+
+
+        throw std::runtime_error("[FATAL]: No valid token found");
     }
 
 

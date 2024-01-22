@@ -30,18 +30,6 @@ const std::vector<Argument> application_flags = {
         {{"-v", "--version"}, "Show the version of Swirl", false, {}}
 };
 
-
-/* Lookup table for registered types and their visibility. */
-std::unordered_map<std::string, const char*> type_registry = {
-        // Pre-registered default types.
-        {"int",     "global"},
-        {"string",  "global"},
-        {"bool",    "global"},
-        {"float",   "global"},
-        {"var",     "global"},
-        {"function","global"}
-};
-
 std::unordered_map<std::string, uint8_t> valid_expr_bin_ops = {
         {"+", 0},
         {"-", 1},
@@ -88,7 +76,8 @@ std::unordered_map<std::string, uint8_t> keywords = {
         {"import", 23},
         {"export", 24},
         {"from", 25},
-        {"var", 26}
+        {"var", 26},
+        {"fn", 27}
 };
 
 std::unordered_map<std::string, uint8_t> operators = {
@@ -123,7 +112,7 @@ std::unordered_map<std::string, uint8_t> operators = {
         {">>=", 29},
         {"++",  30},
         {"--",  31},
-        {"~",   32}
+        {"~",   32},
 };
 
 
