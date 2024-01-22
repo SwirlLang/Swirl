@@ -35,9 +35,11 @@ struct Node {
     };
 
     std::string value;
+    Node* parent = nullptr;
 
     virtual const std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
     virtual Param getParamInstance() { return Param{}; }
+    virtual Node* getParent() { return parent; }
     virtual std::string getValue() const { throw std::runtime_error("getValue called on base node"); };
     virtual NodeType getType() const { throw std::runtime_error("getType called on base node"); };
     virtual std::vector<Param> getParams() const { throw std::runtime_error("getParams called on base getParams"); };
@@ -183,6 +185,7 @@ struct Var: Node {
 
 struct Function: Node {
     std::string ident;
+    std::string ret_type;
     std::vector<Param> params{};
 
     NodeType getType() const override {
