@@ -12,16 +12,16 @@
 #define SWIRL_PARSER_H
 
 enum NodeType {
-    ND_INVALID,
-    ND_EXPR,
-    ND_INT,
-    ND_FLOAT,
-    ND_OP,
-    ND_VAR,
-    ND_STR,
-    ND_CALL,
-    ND_IDENT,
-    ND_FUNC
+    ND_INVALID,     //  0
+    ND_EXPR,        //  1
+    ND_INT,         //  2
+    ND_FLOAT,       //  3
+    ND_OP,          //  4
+    ND_VAR,         //  5
+    ND_STR,         //  6
+    ND_CALL,        //  7
+    ND_IDENT,       //  8
+    ND_FUNC         //  9
 };
 
 // A common base class for all the nodes
@@ -40,7 +40,7 @@ struct Node {
     virtual const std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
     virtual Param getParamInstance() { return Param{}; }
     virtual void setParent(Node* pr) { }
-    virtual Node* getParent() const { throw std::runtime_error("getParent called on base"); }
+    virtual Node* getParent() const { return nullptr; }
     virtual std::string getValue() const { throw std::runtime_error("getValue called on base node"); };
     virtual NodeType getType() const { throw std::runtime_error("getType called on base node"); };
     virtual std::vector<Param> getParams() const { throw std::runtime_error("getParams called on base getParams"); };
@@ -167,7 +167,7 @@ struct Var: Node {
     std::string var_ident;
     std::string var_type;
     Expression value;
-    Node* parent;
+    Node* parent = nullptr;
 
     bool initialized = false;
     bool is_const    = false;
@@ -205,7 +205,7 @@ struct FuncCall: Node {
     std::vector<Expression> args;
     std::string ident;
     std::string getValue() const override { return ident; }
-    Node* parent;
+    Node* parent = nullptr;
 
     NodeType getType() const override { return ND_CALL; }
     void setParent(Node* pr) override { parent = pr; }

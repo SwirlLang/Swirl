@@ -1,8 +1,6 @@
 #include <iostream>
 #include <memory>
-#include <ostream>
 #include <string>
-#include <set>
 #include <stack>
 #include <variant>
 #include <unordered_map>
@@ -34,10 +32,13 @@ std::unordered_map<std::string, int> precedence_table = {
 };
 
 
-void pushToModule(std::unique_ptr<Node> node, bool isOrphan = true) {
+void pushToModule(std::unique_ptr<Node> node, bool isNotParent = true) {
     if (!ScopeTrack.empty()) node->setParent(ScopeTrack.top());
     Module.emplace_back(std::move(node));
-    if (!isOrphan) ScopeTrack.push(Module.back().get());
+    if (!isNotParent) {
+        std::cout << "stack push: " << Module.back()->getType() << std::endl;
+        ScopeTrack.push(Module.back().get());
+    }
 }
 
 
@@ -48,7 +49,6 @@ Parser::~Parser() = default;
 void Parser::next(bool swsFlg, bool snsFlg) {
     cur_rd_tok = m_Stream.next(swsFlg, snsFlg);
 }
-
 
 void Parser::dispatch() {
     int br_ind = 0;
@@ -88,6 +88,10 @@ void Parser::dispatch() {
 
         m_Stream.next();
     }
+
+    for (const auto& nd : Module) {
+        std::cout << nd->getType() << " -> " << nd->getParent() << std::endl;
+    }
 }
 
 
@@ -98,9 +102,9 @@ void Parser::parseFunction() {
     func_nd.ident = m_Stream.p_CurTk.value;
     next(); next();
 
-    auto parse_params = [this]() {
+    static auto parse_params = [this]() {
         decltype(func_nd.getParamInstance()) param{};
-        param.var_ident = m_Stream.p_CurTk.value;  // parameter identifier
+        param.var_ident = m_Stream.p_CurTk.value;  // parameter ident
 
         m_Stream.next(); m_Stream.next();
         param.var_type = m_Stream.p_CurTk.value;
@@ -118,7 +122,7 @@ void Parser::parseFunction() {
         }
     }
 
-    // a(")")
+    // current token == ')'
     next();
     if (m_Stream.p_CurTk.type == IDENT)
         func_nd.ret_type = m_Stream.p_CurTk.value;
@@ -144,8 +148,7 @@ void Parser::parseVar() {
         parseExpr(&var_node.value);
     }
 
-    if (!ScopeTrack.empty())
-        var_node.parent = ScopeTrack.top();
+
     pushToModule(std::make_unique<Var>(std::move(var_node)));
 }
 
@@ -189,7 +192,7 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
 //        if ((m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")") && !invalid_prev_types.contains(prev_token.type)) break;
         if (m_Stream.p_CurTk.type == KEYWORD) break;
         if (ops_opr_consumed > 1) {
-            if (m_Stream.p_CurTk.type == KEYWORD) { break; }
+            if (m_Stream.p_CurTk.type == KEYWORD) break;
             if ((invalid_prev_types.contains(prev_token.type) && m_Stream.p_CurTk.type != OP)) {
                 if (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")) { break; }
             }
