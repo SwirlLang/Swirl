@@ -11,7 +11,7 @@
 
 
 std::stack<Node*>                  ScopeTrack{};
-std::vector<std::unique_ptr<Node>> Module{};
+std::vector<std::unique_ptr<Node>> ParsedModule{};
 
 extern std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
 
@@ -34,10 +34,9 @@ std::unordered_map<std::string, int> precedence_table = {
 
 void pushToModule(std::unique_ptr<Node> node, bool isNotParent = true) {
     if (!ScopeTrack.empty()) node->setParent(ScopeTrack.top());
-    Module.emplace_back(std::move(node));
+    ParsedModule.emplace_back(std::move(node));
     if (!isNotParent) {
-        std::cout << "stack push: " << Module.back()->getType() << std::endl;
-        ScopeTrack.push(Module.back().get());
+        ScopeTrack.push(ParsedModule.back().get());
     }
 }
 
@@ -89,8 +88,8 @@ void Parser::dispatch() {
         m_Stream.next();
     }
 
-    for (const auto& nd : Module) {
-        std::cout << nd->getType() << " -> " << nd->getParent() << std::endl;
+    for (const auto& nd : ParsedModule) {
+        nd->codegen();
     }
 }
 
@@ -147,7 +146,6 @@ void Parser::parseVar() {
         next();
         parseExpr(&var_node.value);
     }
-
 
     pushToModule(std::make_unique<Var>(std::move(var_node)));
 }
@@ -250,17 +248,16 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
         ops.pop();
     }
 
-
     Expression expr{};
     expr.expr.reserve(output.size());
-    std::move(
-            std::make_move_iterator(output.begin()),
-            std::make_move_iterator(output.end()),
-            std::back_inserter(expr.expr)
-            );
+    for (auto& nd : output) {
+        auto n = std::make_unique<Node>();
+        n = std::move(nd);
+        expr.expr.push_back(std::move(n));
+    }
 
     if (std::holds_alternative<std::vector<Expression>*>(ptr))
         std::get<std::vector<Expression>*>(ptr)->push_back(std::move(expr));
     else
-        std::get<Expression*>(ptr)->expr = std::move(output);
+        std::get<Expression*>(ptr)->expr = std::move(expr.expr);
 }

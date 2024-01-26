@@ -185,7 +185,7 @@ struct Var: Node {
 
 struct Function: Node {
     std::string ident;
-    std::string ret_type;
+    std::string ret_type = "none";
     std::vector<Param> params{};
 
     NodeType getType() const override {
@@ -199,6 +199,8 @@ struct Function: Node {
     std::vector<Param> getParams() const override {
         return params;
     }
+
+    llvm::Value* codegen() override;
 };
 
 struct FuncCall: Node {
