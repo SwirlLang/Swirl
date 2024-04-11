@@ -50,12 +50,12 @@ void Parser::next(bool swsFlg, bool snsFlg) {
 }
 
 void Parser::dispatch() {
-    int br_ind = 0;
-    int prn_ind = 0;
-    const char* tmp_ident = "";
-    const char* tmp_type = "";
-
     m_Stream.next();
+
+    // uncomment to check the stream's input for debugging
+//    while (!m_Stream.eof()) {
+//        m_Stream.next();
+//    }
 
     while (!m_Stream.eof()) {
         TokenType t_type = m_Stream.p_CurTk.type;
