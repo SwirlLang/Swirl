@@ -69,7 +69,8 @@ private:
     }
 
     static bool isOpChar(char _chr) {
-        return "+-/*><"sv.find(_chr) >= 0;
+//        return operators.contains(std::string(1, _chr));
+        return "+-/*><="sv.find(_chr) != std::string::npos;
     }
 
     static bool isWhiteSpace(char _chr) {
@@ -111,12 +112,11 @@ private:
         return ret;
     }
 
-    Token readString(char del = '"', bool _format = false) {
+    Token readString(char del = '"') {
         m_Ret = readEscaped(del);
         m_Ret.pop_back();
         m_Ret.insert(0, "\"");
         m_Ret.append("\"");
-        if (_format) { m_Ret.insert(0, "f"); m_rdfs = false; }
         return {STRING, m_Ret};
     }
 
@@ -199,12 +199,32 @@ public:
     Token next(bool _readNewLines = false, bool _readWhitespaces = false, bool _modifyCurTk = true) {
         Token cur_tk = readNextTok();
 
+        // discards comments from the stream
+        auto discard_comments = [&cur_tk, this]() -> void {
+            if (cur_tk.type == OP && cur_tk.value == "//") {
+                while (true) {
+                    if (cur_tk.type == PUNC && cur_tk.value == "\n" || m_Stream.eof())
+                        break;
+                    cur_tk = readNextTok();
+                }
+            }
+        };
+
+        discard_comments();
+
+        // discard whitespaces
         if (!_readWhitespaces)
-            while (cur_tk.type == PUNC && cur_tk.value == " ")
+            while ((cur_tk.type == PUNC && cur_tk.value == " ")) {
                 cur_tk = readNextTok();
+                discard_comments();
+            }
+
+        // discard newlines
         if (!_readNewLines)
-            while (cur_tk.type == PUNC && cur_tk.value == "\n")
+            while (cur_tk.type == PUNC && cur_tk.value == "\n") {
                 cur_tk = readNextTok();
+                discard_comments();
+            }
 
         if (_modifyCurTk) { p_CurTk = cur_tk; }
         return cur_tk;
