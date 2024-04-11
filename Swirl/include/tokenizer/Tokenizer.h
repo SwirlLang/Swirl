@@ -33,7 +33,7 @@ private:
                 std::size_t pos = 0,
                 std::size_t line = 0,
                 std::size_t col = 0
-                ): Pos(pos), Line(line), Col(col) {}
+        ): Pos(pos), Line(line), Col(col) {}
     };
 
     int                                          m_Pcnt  = 0;       // paren counter
@@ -69,7 +69,7 @@ private:
     }
 
     static bool isOpChar(char _chr) {
-        return operators.contains(std::string(1, _chr));
+        return "+-/*><"sv.find(_chr) >= 0;
     }
 
     static bool isWhiteSpace(char _chr) {
@@ -88,7 +88,7 @@ private:
     }
 
     /* Used to start reading a stream of characters till the `_end` char is hit. */
-    std::string readEscaped(char _end, char apnd = 0) {
+    std::string readEscaped(char _end) {
         uint8_t is_escaped = false;
         std::string ret;
 
@@ -107,7 +107,7 @@ private:
             else
                 ret += chr;
         }
-        if (!apnd) ret += apnd;
+
         return ret;
     }
 
@@ -120,9 +120,8 @@ private:
         return {STRING, m_Ret};
     }
 
-    Token readIdent(bool apndF = false) {
+    Token readIdent() {
         m_Rax = readWhile(isId);
-        if (apndF) m_Rax.insert(0, "f");
         return {
                 isKeyword(m_Rax) ? KEYWORD : IDENT,
                 m_Rax
@@ -144,7 +143,7 @@ private:
     }
 
     /* Consume the next token from the stream. */
-    Token readNextTok(bool _noIncrement = false) {
+    Token readNextTok() {
         setReturnPoint(0);
 
         if (m_Stream.eof()) {return {NONE, "null"};}
@@ -157,15 +156,6 @@ private:
         m_Ret = std::string(1, m_Stream.next());
 
         if (isOpChar(chr)) {
-//            if (chr == '-') {
-//                m_Stream.next();
-//                if (isDigit(m_Stream.peek())) {
-//                    Token ret = readNumber("-");
-//                    m_Stream.backoff();
-//                    return ret;
-//                }
-//            }
-
             m_Rax = chr + readWhile(isOpChar);
             return {
                     OP,
@@ -189,14 +179,6 @@ public:
 
     explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {}
 
-    /* Enabling this flag makes the tokenizer track the current open parentheses and omit its closing counterpart
-     * from the stream when it is encountered. Eases the process of parser recovering from an error. */
-    inline void trackParen() {
-        m_trackp = true;
-        m_Pcnt = 1;
-    }
-
-
     /* Stores the state of the tokenizer in one of the three locations of the cache array
      * Id's work as defined below :-
      * 0: previous token
@@ -216,17 +198,6 @@ public:
     /* An abstraction over readNextTok. */
     Token next(bool _readNewLines = false, bool _readWhitespaces = false, bool _modifyCurTk = true) {
         Token cur_tk = readNextTok();
-
-        if (m_trackp) {
-            if (cur_tk.type == PUNC) {
-                if (cur_tk.value == "(") m_Pcnt++;
-                if (cur_tk.value == ")") {
-                    m_Pcnt--;
-                    if (m_Pcnt == 0) { cur_tk = readNextTok(); m_trackp = false; }
-
-                }
-            }
-        }
 
         if (!_readWhitespaces)
             while (cur_tk.type == PUNC && cur_tk.value == " ")
