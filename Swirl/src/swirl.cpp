@@ -113,6 +113,7 @@ std::unordered_map<std::string, uint8_t> operators = {
         {"++",  30},
         {"--",  31},
         {"~",   32},
+        {"//", 33}
 };
 
 
@@ -184,7 +185,7 @@ int main(int argc, const char** const argv) {
 
     std::string file_name = SW_FED_FILE_PATH.substr(SW_FED_FILE_PATH.find_last_of("/\\") + 1);
     std::string out_dir = SW_FED_FILE_PATH.replace(SW_FED_FILE_PATH.find(file_name),file_name.length(),"");
-    file_name = file_name.substr(0, file_name.find_last_of("."));
+    file_name = file_name.substr(0, file_name.find_last_of('.'));
 
     SW_OUTPUT = file_name;
 

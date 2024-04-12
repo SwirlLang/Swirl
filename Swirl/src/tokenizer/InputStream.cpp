@@ -2,6 +2,8 @@
 #include <string>
 #include <tokenizer/InputStream.h>
 
+std::size_t prev_col_state = 0;
+
 InputStream::InputStream(std::string& _source): m_Source(_source) {}
 
 char InputStream::peek() {
@@ -15,12 +17,30 @@ char InputStream::next() {
 //    }
 
     char chr = m_Source.at(Pos++);
-    if (chr == '\n') { Line++; Col = 0;}
+
+    if (chr == '\n') {prev_col_state = Col; Line++; Col = 0;}
     else {
         Col++;
     }
 
     return chr;
+}
+
+void InputStream::backoff() {
+    char chr = m_Source.at(--Pos);
+    if (chr == '\n') {
+        Line--; Col = prev_col_state;
+    } else {
+        Col--;
+    }
+}
+
+void InputStream::setReturnPoint() {
+    cache = {Pos, Line, Col};
+}
+
+void InputStream::restoreCache() {
+    std::tie(Pos, Line, Col) = cache;
 }
 
 void InputStream::reset() {

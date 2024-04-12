@@ -206,6 +206,7 @@ struct Function: Node {
 struct FuncCall: Node {
     std::vector<Expression> args;
     std::string ident;
+    std::string type = "void";
     std::string getValue() const override { return ident; }
     Node* parent = nullptr;
 

@@ -13,7 +13,7 @@ enum TokenType {
     MACRO,
 
     NONE,
-    _NONE, // to be used in the parser, "" will be replaced with this
+    _NONE // to be used in the parser, "" will be replaced with this
 };
 
 struct Token {
