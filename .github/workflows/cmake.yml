@@ -1,18 +1,18 @@
 name: Test CMake app
 
-on:
-    push:
-        paths:
-            - "**.cpp"
-            - "**.h"
-            - "CMakeLists.txt"
-            - "**.cmake"
-    pull_request:
-        paths:
-            - "**.cpp"
-            - "**.h"
-            - "CMakeLists.txt"
-            - "**.cmake"
+# on:
+#     push:
+#         paths:
+#             - "**.cpp"
+#             - "**.h"
+#             - "CMakeLists.txt"
+#             - "**.cmake"
+#     pull_request:
+#         paths:
+#             - "**.cpp"
+#             - "**.h"
+#             - "CMakeLists.txt"
+#             - "**.cmake"
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
