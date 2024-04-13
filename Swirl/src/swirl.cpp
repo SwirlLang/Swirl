@@ -23,7 +23,6 @@ std::vector<std::string> lines_rec{};
 
 const std::vector<Argument> application_flags = {
         {{"-h","--help"}, "Show the help message", false, {}},
-        {{"-r", "--run"}, "Run the compiled file", false, {}},
         {{"-o", "--output"}, "Output file name", true, {}},
         {{"-c", "--compiler"}, "C++ compiler to use", true, {}},
         {{"-d", "--debug"}, "Log the steps of compilation", false, {}},
@@ -138,16 +137,6 @@ std::optional<std::unordered_map<std::string, std::string>> compile(
 int main(int argc, const char** const argv) {
     cli app(argc, argv, application_flags);
 
-// For Debugging purpose
-//    const char *args[] = {
-//            "swirl",
-//            "main.sw",
-//            "-r",
-//            "-d"
-//    };
-//
-//    cli app(4, args, application_flags);
-
     if (app.contains_flag("-h")) {
         std::cout << USAGE << app.generate_help() << '\n';
         return 0;
@@ -202,17 +191,5 @@ int main(int argc, const char** const argv) {
         Parser parser(tk);
         parser.dispatch();
 //        Transpile(parser.m_AST->chl, cache_dir + SW_OUTPUT + ".cpp", compiled_source);
-    }
-
-    if (app.contains_flag("-r")) {
-        std::string cpp_obj = cxx + " " + cache_dir + SW_OUTPUT + ".cpp" + " -o " + out_dir + SW_OUTPUT + " && ";
-        
-        if (out_dir[0] != '/'){
-            cpp_obj += "./" + out_dir + SW_OUTPUT;
-        } else {
-            cpp_obj += out_dir + SW_OUTPUT;
-        }
-        
-        system(cpp_obj.c_str());
     }
 }
