@@ -12,8 +12,11 @@
 
 std::stack<Node*>                  ScopeTrack{};
 std::vector<std::unique_ptr<Node>> ParsedModule{};
+std::unordered_set<std::string>    SymbolTable{};
+
 
 extern std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
+
 
 
 std::unordered_map<std::string, int> precedence_table = {
@@ -28,7 +31,13 @@ std::unordered_map<std::string, int> precedence_table = {
         {"&",  5},
         {"^",  6},
         {"|",  7},
-        {"~",  8}
+        {"~",  8},
+        {"<",  9},
+        {"<=", 9},
+        {">",  9},
+        {">=", 9},
+        {"==", 10},
+        {"!=", 10}
 };
 
 
@@ -57,32 +66,40 @@ void Parser::dispatch() {
 //        m_Stream.next();
 //    }
 
+
     while (!m_Stream.eof()) {
         TokenType t_type = m_Stream.p_CurTk.type;
         std::string t_val = m_Stream.p_CurTk.value;
 
-        if (t_type == KEYWORD) {
-            if (t_val == "var" || t_val == "const") {
-                parseVar();
-                continue;
-            }
+        switch (t_type) {
+            case KEYWORD:
+                if (t_val == "var" || t_val == "const") {
+                    parseVar();
+                    continue;
+                }
+                else if (t_val == "fn") {
+                    parseFunction();
+                    continue;
+                }
 
-            if (t_val == "fn") {
-                parseFunction();
-                continue;
-            }
-        }
+                break;
 
-        if (t_type == PUNC) {
-            if (t_val == "}") {
-                ScopeTrack.pop();
-            }
-        }
+            case PUNC:
+                if (t_val == "}")
+                    ScopeTrack.pop();
+                break;
 
-        if (t_type == IDENT) {
-            if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
-                pushToModule(parseCall());
-            }
+            case IDENT:
+                if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
+                    pushToModule(parseCall());
+                }
+
+                    // ignore rogue identifiers if they are valid
+                else {
+                    m_Stream.next();
+                    continue;
+                }
+            break;
         }
 
         m_Stream.next();
