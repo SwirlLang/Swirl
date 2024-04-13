@@ -24,7 +24,6 @@ std::vector<std::string> lines_rec{};
 const std::vector<Argument> application_flags = {
         {{"-h","--help"}, "Show the help message", false, {}},
         {{"-o", "--output"}, "Output file name", true, {}},
-        {{"-c", "--compiler"}, "C++ compiler to use", true, {}},
         {{"-d", "--debug"}, "Log the steps of compilation", false, {}},
         {{"-v", "--version"}, "Show the version of Swirl", false, {}}
 };
@@ -146,12 +145,6 @@ int main(int argc, const char** const argv) {
 //        std::cout << "Swirl v" << swirl_VERSION_MAJOR << "." << swirl_VERSION_MINOR << "." << swirl_VERSION_PATCH << "\n";
         return 0;
     }
-
-    std::string cxx;
-
-    if (app.contains_flag("-c"))
-        cxx = app.get_flag_value("-c");
-    else cxx = "g++";
 
     std::optional<std::string> _file = app.get_file();
     if (!_file.has_value()) { std::cerr << "No Input file\n"; return 1; }
