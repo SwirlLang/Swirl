@@ -26,26 +26,22 @@ extern std::unordered_map<std::string, uint8_t> operators;
 
 class TokenStream {
 private:
-    // Just as a data struct for representing the state of the tokenizer.
-    struct State {
-        std::size_t Pos, Line, Col;
-        State(
-                std::size_t pos = 0,
-                std::size_t line = 0,
-                std::size_t col = 0
-        ): Pos(pos), Line(line), Col(col) {}
+    struct StreamState {
+        std::size_t Line, Pos, Col;
+        std::string CurLn;
     };
 
-    int                                          m_Pcnt  = 0;       // paren counter
-    bool                                         m_Debug  = false;  // Debug flag
-    bool                                         m_rdfs   = false;  // deprecated string interpolation flag
-    bool                                         m_trackp = false;  // track parentheses flag
-    std::string                                  m_Ret;             // temporary cache
-    std::string                                  m_Rax;             // temporary cache
-    InputStream                                  m_Stream;          // input stream instance
-    Token                                        m_lastTok{};
-    Token                                        m_Cur{};
-    std::array<State, 3>                         m_Cache = {};
+    int                         m_Pcnt  = 0;       // paren counter
+    bool                        m_Debug  = false;  // Debug flag
+    bool                        m_rdfs   = false;  // deprecated string interpolation flag
+    bool                        m_trackp = false;  // track parentheses flag
+    std::string                 m_Ret;             // temporary cache
+    std::string                 m_Rax;             // temporary cache
+    Token                       m_lastTok{};
+    Token                       m_Cur{};
+    std::array<StreamState, 3>  m_Cache = {};
+    InputStream                 m_Stream;          // InputStream instance
+    std::string                 m_CurLn;
 
 
     static bool isKeyword(const std::string& _str) {
@@ -69,7 +65,6 @@ private:
     }
 
     static bool isOpChar(char _chr) {
-//        return operators.contains(std::string(1, _chr));
         return "+-/*><="sv.find(_chr) != std::string::npos;
     }
 
@@ -88,7 +83,7 @@ private:
         return ret;
     }
 
-    /* Used to start reading a stream of characters till the `_end` char is hit. */
+    /* Used to start reading a m_Stream of characters till the `_end` char is hit. */
     std::string readEscaped(char _end) {
         uint8_t is_escaped = false;
         std::string ret;
@@ -117,14 +112,15 @@ private:
         m_Ret.pop_back();
         m_Ret.insert(0, "\"");
         m_Ret.append("\"");
-        return {STRING, m_Ret};
+        return {STRING, m_Ret, m_Stream.Line};
     }
 
     Token readIdent() {
         m_Rax = readWhile(isId);
         return {
                 isKeyword(m_Rax) ? KEYWORD : IDENT,
-                m_Rax
+                m_Rax,
+                m_Stream.Line
         };
     }
 
@@ -139,14 +135,14 @@ private:
         });
         has_decim = false;
         m_Ret = number;
-        return {NUMBER, neg + m_Ret};
+        return {NUMBER, neg + m_Ret, m_Stream.Line};
     }
 
-    /* Consume the next token from the stream. */
+    /* Consume the next token from the m_Stream. */
     Token readNextTok() {
         setReturnPoint(0);
 
-        if (m_Stream.eof()) {return {NONE, "null"};}
+        if (m_Stream.eof()) {return {NONE, "null", m_Stream.Line};}
         auto chr = m_Stream.peek();
         if (chr == '"') return readString();
         if (chr == '\'') return readString('\'');
@@ -159,13 +155,15 @@ private:
             m_Rax = chr + readWhile(isOpChar);
             return {
                     OP,
-                    m_Rax
+                    m_Rax,
+                    m_Stream.Line
             };
         }
 
         if (isPunctuation(chr) ) return {
                     PUNC,
-                    m_Ret
+                    m_Ret,
+                    m_Stream.Line
             };
 
 
@@ -176,6 +174,7 @@ private:
 public:
     Token p_CurTk{_NONE, ""};
     Token p_PeekTk{_NONE, ""};
+
 
     explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {}
 
@@ -230,19 +229,19 @@ public:
         return cur_tk;
     }
 
-    /* Return the next token from the stream without consuming it. */
+    /* Return the next token from the m_Stream without consuming it. */
     Token peek() {
         setReturnPoint(1);
         if (m_Stream.eof()) {
             restoreCache(1);
-            return {NONE, "NULL"};  // Return token with type NONE and empty value
+            return {NONE, "NULL", m_Stream.Line};  // Return token with type NONE and empty value
         }
         p_PeekTk = next(false, false, false);
         restoreCache(1);
         return p_PeekTk;
     }
 
-    /* Return the previous token, then restore the state of the stream. */
+    /* Return the previous token, then restore the state of the m_Stream. */
     Token previous() {
         Token pre;
         setReturnPoint(2);
@@ -252,9 +251,23 @@ public:
         return pre;
     }
 
+    StreamState getStreamState() {
+        return StreamState{
+            .Line  = m_Stream.Line - 1,
+            .Pos   = m_Stream.Pos,
+            .Col   = m_Stream.Col,
+            .CurLn = m_Stream.LineMap[m_Stream.Line]
+        };
+    }
+
     bool eof() const {
         return p_CurTk.type == NONE;
     }
+
+    std::string getLineFromSrc(std::size_t index) {
+        return m_Stream.LineMap[index];
+    }
+
 };
 
 #endif

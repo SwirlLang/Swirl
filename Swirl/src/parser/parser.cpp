@@ -8,15 +8,18 @@
 
 #include <parser/parser.h>
 #include <llvm/IR/Type.h>
+#include <format>
 
 
-std::stack<Node*>                  ScopeTrack{};
-std::vector<std::unique_ptr<Node>> ParsedModule{};
-std::unordered_set<std::string>    SymbolTable{};
+bool EnablePanicMode = false;  // whether the parser is in panik
+
+std::size_t                                  ScopeId{};
+std::stack<Node*>                            ScopeTrack{};
+std::vector<std::unique_ptr<Node>>           ParsedModule{};
+std::unordered_map<std::string, std::size_t> SymbolTable{};  // maps the symbols to their scope
 
 
 extern std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
-
 
 
 std::unordered_map<std::string, int> precedence_table = {
@@ -61,7 +64,7 @@ void Parser::next(bool swsFlg, bool snsFlg) {
 void Parser::dispatch() {
     m_Stream.next();
 
-    // uncomment to check the stream's input for debugging
+    // uncomment to check the m_Stream's input for debugging
 //    while (!m_Stream.eof()) {
 //        m_Stream.next();
 //    }
@@ -76,17 +79,18 @@ void Parser::dispatch() {
                 if (t_val == "var" || t_val == "const") {
                     parseVar();
                     continue;
-                }
-                else if (t_val == "fn") {
+                } else if (t_val == "fn") {
                     parseFunction();
                     continue;
                 }
-
                 break;
 
             case PUNC:
-                if (t_val == "}")
+                if (t_val == "}") {
                     ScopeTrack.pop();
+                    ScopeId--;
+                } else if (t_val == "{")
+                    ScopeId++;
                 break;
 
             case IDENT:
@@ -96,8 +100,17 @@ void Parser::dispatch() {
 
                     // ignore rogue identifiers if they are valid
                 else {
-                    m_Stream.next();
-                    continue;
+                    if (SymbolTable.find(t_val) == SymbolTable.end()) {
+                        auto stream_state = m_Stream.getStreamState();
+                        m_ExceptionHandler.newException(
+                                ERROR,
+                                stream_state.Line,
+                                stream_state.Col - (t_val.size()),
+                                stream_state.Col,
+                                m_Stream.getLineFromSrc(stream_state.Line),
+                                std::format("Undefined reference to the symbol {}", t_val)
+                        );
+                    }
                 }
             break;
         }
@@ -105,6 +118,7 @@ void Parser::dispatch() {
         m_Stream.next();
     }
 
+    m_ExceptionHandler.raiseAll();
     for (const auto& nd : ParsedModule) {
         nd->codegen();
     }
@@ -116,7 +130,25 @@ void Parser::parseFunction() {
 
     m_Stream.next();
     func_nd.ident = m_Stream.p_CurTk.value;
+
+    // Check for errors
+    if (SymbolTable.find(func_nd.ident) != SymbolTable.end()) {
+        auto stream_state = m_Stream.getStreamState();
+        EnablePanicMode = true;
+        m_ExceptionHandler.newException(
+                ERROR,
+                stream_state.Line,
+                stream_state.Col - (func_nd.ident.size()),
+                stream_state.Col,
+                stream_state.CurLn,
+                "A function with this name already exists"
+        );
+    } else {
+        SymbolTable[func_nd.ident] = ScopeId;
+    }
+
     next(); next();
+    ScopeId++;
 
     static auto parse_params = [this]() {
         decltype(func_nd.getParamInstance()) param{};

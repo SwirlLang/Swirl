@@ -1,4 +1,4 @@
-#include <array>
+#include<array>
 #include <list>
 #include <memory>
 #include <utility>
@@ -7,6 +7,7 @@
 
 #include <tokenizer/Tokenizer.h>
 #include <llvm/IR/Value.h>
+#include <exception/ExceptionHandler.h>
 
 #ifndef SWIRL_PARSER_H
 #define SWIRL_PARSER_H
@@ -219,6 +220,8 @@ struct FuncCall: Node {
 
 class Parser {
     Token cur_rd_tok{};
+    ExceptionHandler m_ExceptionHandler{};
+
 public:
     TokenStream m_Stream;
 //    AbstractSyntaxTree* m_AST;

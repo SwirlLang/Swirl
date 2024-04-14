@@ -116,7 +116,6 @@ std::unordered_map<std::string, uint8_t> operators = {
         {"//", 33}
 };
 
-
 std::optional<std::unordered_map<std::string, std::string>> compile(
         std::string& _source,
         const std::string& _cacheDir,

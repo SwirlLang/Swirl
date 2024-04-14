@@ -19,6 +19,7 @@ enum TokenType {
 struct Token {
     TokenType type;
     std::string value;
+    std::size_t at_line;
 };
 
 #endif //SWIRL_TOKENS_H

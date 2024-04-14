@@ -4,6 +4,7 @@
 
 std::size_t prev_col_state = 0;
 
+
 InputStream::InputStream(std::string& _source): m_Source(_source) {}
 
 char InputStream::peek() {
@@ -11,16 +12,17 @@ char InputStream::peek() {
 }
 
 char InputStream::next() {
-//    if (_noIncrement) {
-//        char chr = m_Source.at(Pos + 1);
-//        return chr;
-//    }
-
     char chr = m_Source.at(Pos++);
 
-    if (chr == '\n') {prev_col_state = Col; Line++; Col = 0;}
-    else {
+    if (chr == '\n') {
+        prev_col_state = Col; Line++;
+        Col = 0;
+        this->LineMap[Line] = m_CurrentLine;
+        // TODO: an alternative to mapping each line
+        m_CurrentLine.clear();
+    } else {
         Col++;
+        m_CurrentLine += chr;
     }
 
     return chr;
@@ -29,7 +31,8 @@ char InputStream::next() {
 void InputStream::backoff() {
     char chr = m_Source.at(--Pos);
     if (chr == '\n') {
-        Line--; Col = prev_col_state;
+        Line--;
+        Col = prev_col_state;
     } else {
         Col--;
     }
@@ -50,4 +53,10 @@ void InputStream::reset() {
 bool InputStream::eof() {
     return Pos == m_Source.size();
 }
+
+std::string InputStream::getCurrentLine() const {
+    return m_CurrentLine;
+}
+
+
 
