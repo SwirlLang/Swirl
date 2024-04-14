@@ -15,27 +15,27 @@ A high level, statically typed, compiled programming language.
 
 </div>
 <div align="center">
-The ambition of Swirl is to be a modern programming language combining and its own ideas and the best features and practices 
- of beloved programming languages in a unique way.
+The ambition of Swirl is to be a modern programming language combining and its own ideas and the best features and practices of beloved programming languages in a unique way.
+
+To get a general idea, take a look at the [scaffold](https://github.com/SwirlLang/Swirl/blob/main/scaffold.md).
 </div>
 
 
-## Getting Started
+<!-- ## Getting Started
 You can find installation instructions in the [docs](https://swirl-lang.vercel.app/docs/getting-started/installation).
 
-Once you have Swirl installed, simply open a terminal and create a file named hello.sw with a simple hello world program: 
-```
+Once you have Swirl installed, create a file named hello.sw with a simple hello world program:  
+```c
 print("Hello World")
 ```
 
-To run the program, save your code and use the swirl compiler to compile and run the program.
-```bash
-swirl hello.sw --run
-```
-Here the --run flag compiles and runs the program in a single command.
+To run the program, use the swirl compiler to compile and run the program.
+```shell
+swirl hello.sw && ./hello
+``` -->
 
 ## Contributing to Swirl
-We welcome contributions to Swirl! If you have an idea for a new feature or have found a bug, please open an issue in the project repository. To contribute code to Swirl, fork the repository, create a new branch, and submit a pull request. Read the [Docs](https://swirl-lang.vercel.app/docs/) for more info.
+We welcome contributions to Swirl! To start contributing to Swirl, fork the repository, create a new branch, make the changes, and submit a pull request. Read the [Docs](https://swirl-lang.vercel.app/docs/) for more info.
 
 ## Issues and feature request
 
