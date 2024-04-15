@@ -177,21 +177,18 @@ public:
 
     explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {}
 
-    /* Stores the state of the tokenizer in one of the three locations of the cache array
-     * Id's work as defined below :-
-     * 0: previous token
-     * 1: succeeding token (peek)
-     * 2: custom return point */
     void setReturnPoint() {
         m_Cache.Line = m_Stream.Line;
         m_Cache.Pos  = m_Stream.Pos;
         m_Cache.Col  = m_Stream.Col;
+        m_Cache.CurLn = m_Stream.LineMap[m_Stream.Line];
     }
 
     void restoreCache() {
         m_Stream.Pos  = m_Cache.Pos;
         m_Stream.Line = m_Cache.Line;
         m_Stream.Col  = m_Cache.Col;
+        m_Stream.LineMap[m_Stream.Line] = m_Cache.CurLn;
     }
 
     /* An abstraction over readNextTok. */
