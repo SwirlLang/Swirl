@@ -18,7 +18,7 @@ void ExceptionHandler::newException(EXCEPTION_TYPE type, std::size_t line, std::
         m_Errors.append(
                 std::format("[ERROR]: In file {}\nLine {}, Column {}\n{}\n{}",
                             SW_FED_FILE_PATH,
-                            line + 1,
+                            line + 2,
                             from,
                             err_lines,
                             msg));

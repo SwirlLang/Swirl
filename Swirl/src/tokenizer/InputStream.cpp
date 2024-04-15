@@ -15,11 +15,17 @@ char InputStream::next() {
     char chr = m_Source.at(Pos++);
 
     if (chr == '\n') {
-        prev_col_state = Col; Line++;
-        Col = 0;
-        this->LineMap[Line] = m_CurrentLine;
+        prev_col_state = Col;
+
+        std::cout << "E: " << m_CurrentLine << std::endl;
+        LineMap[Line] = m_CurrentLine;
+
         // TODO: an alternative to mapping each line
         m_CurrentLine.clear();
+
+        Line++;
+        Col = 0;
+
     } else {
         Col++;
         m_CurrentLine += chr;

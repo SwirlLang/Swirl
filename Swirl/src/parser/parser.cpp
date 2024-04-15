@@ -16,7 +16,7 @@ bool EnablePanicMode = false;  // whether the parser is in panik
 std::size_t                                  ScopeId{};
 std::stack<Node*>                            ScopeTrack{};
 std::vector<std::unique_ptr<Node>>           ParsedModule{};
-std::unordered_map<std::string, std::size_t> SymbolTable{};  // maps the symbols to their scope
+std::unordered_map<std::string, std::size_t> SymbolTable{};  // TODO: impl rigorous stack based scope tracking
 
 
 extern std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
@@ -64,8 +64,9 @@ void Parser::next(bool swsFlg, bool snsFlg) {
 void Parser::dispatch() {
     m_Stream.next();
 
-    // uncomment to check the m_Stream's input for debugging
+    // uncomment to check the stream's output for debugging
 //    while (!m_Stream.eof()) {
+//        std::cout << m_Stream.p_CurTk.value << " peek: " << m_Stream.peek().value << std::endl;
 //        m_Stream.next();
 //    }
 
@@ -184,12 +185,31 @@ void Parser::parseVar() {
     var_node.is_const = m_Stream.p_CurTk.value == "const";
     var_node.var_ident = m_Stream.next().value;
 
-    if (m_Stream.peek().type == PUNC && m_Stream.peek().value == ":") {
+    // add an error if the variable already exists
+    if (SymbolTable.find(var_node.var_ident) != SymbolTable.end()) {
+        auto stream_state = m_Stream.getStreamState();
+        EnablePanicMode = true;
+
+        m_ExceptionHandler.newException(
+                ERROR,
+                stream_state.Line,
+                stream_state.Col - (var_node.var_ident.size()),
+                stream_state.Col,
+                stream_state.CurLn,
+                "Redefinition of an existing variable"
+        );
+    } else {
+        SymbolTable[var_node.var_ident] = ScopeId;
+    }
+
+    auto p_token = m_Stream.peek();
+    if (p_token.type == PUNC && p_token.value == ":") {
         next();
         var_node.var_type = m_Stream.next().value;
     }
 
-    if (m_Stream.peek().type == OP && m_Stream.peek().value == "=") {
+    p_token = m_Stream.peek();
+    if (p_token.type == OP && p_token.value == "=") {
         var_node.initialized = true;
         next();
         next();
@@ -309,4 +329,6 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
         std::get<std::vector<Expression>*>(ptr)->push_back(std::move(expr));
     else
         std::get<Expression*>(ptr)->expr = std::move(expr.expr);
+
+    // NOTE: this function propagates the stream at the token right after the expression
 }
