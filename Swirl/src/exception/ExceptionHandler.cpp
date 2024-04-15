@@ -1,7 +1,7 @@
 #include <format>
 #include <exception/ExceptionHandler.h>
 
-extern std::string SW_FED_FILE_PATH;
+extern std::string SW_COMPLETE_FED_FILE_PATH;
 
 
 void ExceptionHandler::newException(EXCEPTION_TYPE type, std::size_t line, std::size_t from, std::size_t to,
@@ -17,7 +17,7 @@ void ExceptionHandler::newException(EXCEPTION_TYPE type, std::size_t line, std::
 
         m_Errors.append(
                 std::format("[ERROR]: In file {}\nLine {}, Column {}\n{}\n{}",
-                            SW_FED_FILE_PATH,
+                            SW_COMPLETE_FED_FILE_PATH,
                             line + 2,
                             from,
                             err_lines,
@@ -35,7 +35,7 @@ void ExceptionHandler::newException(EXCEPTION_TYPE type, std::size_t line, std::
 
         m_Warnings.append(
                 std::format("[WARNING]: In file {}\nLine {}, Column {}\n{}\n{}",
-                            SW_FED_FILE_PATH,
+                            SW_COMPLETE_FED_FILE_PATH,
                             line,
                             from,
                             w_lines,
@@ -50,7 +50,7 @@ void ExceptionHandler::raiseAll() {
         std::cerr << "\n" << NumberOfErrors << " error(s) in total detected" << std::endl;
         std::exit(1);
     } else {
-
+        // TODO: Warnings
     }
 }
 

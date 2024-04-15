@@ -18,7 +18,7 @@ bool SW_DEBUG = false;
 std::string SW_FED_FILE_PATH;
 std::string SW_OUTPUT;
 std::string SW_FED_FILE_SOURCE;
-std::vector<std::string> lines_rec{};
+std::string SW_COMPLETE_FED_FILE_PATH;
 
 
 const std::vector<Argument> application_flags = {
@@ -90,6 +90,7 @@ int main(int argc, const char** const argv) {
     }
 
     SW_FED_FILE_PATH = *app.get_file();
+    SW_COMPLETE_FED_FILE_PATH = SW_FED_FILE_PATH;
 
     if (!std::filesystem::exists(SW_FED_FILE_PATH)) {
         std::cerr << "File '" << SW_FED_FILE_PATH << "' not found!" << std::endl;
