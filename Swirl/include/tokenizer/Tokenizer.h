@@ -39,9 +39,8 @@ private:
     std::string                 m_Rax;             // temporary cache
     Token                       m_lastTok{};
     Token                       m_Cur{};
-    std::array<StreamState, 3>  m_Cache = {};
+    StreamState                 m_Cache{};
     InputStream                 m_Stream;          // InputStream instance
-    std::string                 m_CurLn;
 
 
     static bool isKeyword(const std::string& _str) {
@@ -140,7 +139,7 @@ private:
 
     /* Consume the next token from the m_Stream. */
     Token readNextTok() {
-        setReturnPoint(0);
+        setReturnPoint();
 
         if (m_Stream.eof()) {return {NONE, "null", m_Stream.Line};}
         auto chr = m_Stream.peek();
@@ -183,15 +182,16 @@ public:
      * 0: previous token
      * 1: succeeding token (peek)
      * 2: custom return point */
-    void setReturnPoint(uint8_t id) {
-        m_Cache[id] = {m_Stream.Pos, m_Stream.Line, m_Stream.Col};
+    void setReturnPoint() {
+        m_Cache.Line = m_Stream.Line;
+        m_Cache.Pos  = m_Stream.Pos;
+        m_Cache.Col  = m_Stream.Col;
     }
 
-    void restoreCache(uint8_t id) {
-        m_Stream.Pos  = m_Cache[id].Pos;
-        m_Stream.Line = m_Cache[id].Line;
-        m_Stream.Col  = m_Cache[id].Col;
-
+    void restoreCache() {
+        m_Stream.Pos  = m_Cache.Pos;
+        m_Stream.Line = m_Cache.Line;
+        m_Stream.Col  = m_Cache.Col;
     }
 
     /* An abstraction over readNextTok. */
@@ -231,24 +231,15 @@ public:
 
     /* Return the next token from the m_Stream without consuming it. */
     Token peek() {
-        setReturnPoint(1);
+        setReturnPoint();
+        
         if (m_Stream.eof()) {
-            restoreCache(1);
+            restoreCache();
             return {NONE, "NULL", m_Stream.Line};  // Return token with type NONE and empty value
         }
         p_PeekTk = next(false, false, false);
-        restoreCache(1);
+        restoreCache();
         return p_PeekTk;
-    }
-
-    /* Return the previous token, then restore the state of the m_Stream. */
-    Token previous() {
-        Token pre;
-        setReturnPoint(2);
-        restoreCache(0);
-        pre = next();
-        restoreCache(2);
-        return pre;
     }
 
     StreamState getStreamState() {
