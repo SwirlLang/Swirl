@@ -17,7 +17,6 @@ char InputStream::next() {
     if (chr == '\n') {
         prev_col_state = Col;
 
-        std::cout << "E: " << m_CurrentLine << std::endl;
         LineMap[Line] = m_CurrentLine;
 
         // TODO: an alternative to mapping each line

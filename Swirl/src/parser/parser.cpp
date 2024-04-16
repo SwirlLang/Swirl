@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <stack>
 #include <variant>
@@ -13,10 +14,14 @@
 
 bool EnablePanicMode = false;  // whether the parser is in panik
 
-std::size_t                                  ScopeId{};
-std::stack<Node*>                            ScopeTrack{};
-std::vector<std::unique_ptr<Node>>           ParsedModule{};
-std::unordered_map<std::string, std::size_t> SymbolTable{};  // TODO: impl rigorous stack based scope tracking
+ struct TypeInfo  {
+    bool is_const = false;
+};
+
+std::size_t                                             ScopeIndex{};
+std::stack<Node*>                                       ScopeTrack{};
+std::vector<std::unique_ptr<Node>>                      ParsedModule{};
+std::vector<std::unordered_map<std::string, TypeInfo>>  SymbolTable{};  // TODO: use a more efficient symbol resolution approach
 
 
 extern std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
@@ -52,6 +57,13 @@ void pushToModule(std::unique_ptr<Node> node, bool isNotParent = true) {
     }
 }
 
+bool isASymbol(const std::string& symbol) {
+    for (auto & iter : std::ranges::reverse_view(SymbolTable))
+        if (iter.find(symbol) != iter.end())
+            return true;
+    return false;
+}
+
 
 Parser::Parser(TokenStream &tks) : m_Stream(tks) {}
 Parser::~Parser() = default;
@@ -63,6 +75,9 @@ void Parser::next(bool swsFlg, bool snsFlg) {
 
 void Parser::dispatch() {
     m_Stream.next();
+
+    // push the global scope
+    SymbolTable.emplace_back();
 
     // uncomment to check the stream's output for debugging
 //    while (!m_Stream.eof()) {
@@ -84,14 +99,15 @@ void Parser::dispatch() {
                     parseFunction();
                     continue;
                 }
-                break;
 
             case PUNC:
                 if (t_val == "}") {
                     ScopeTrack.pop();
-                    ScopeId--;
+                    ScopeIndex--;
+                    SymbolTable.pop_back();
                 } else if (t_val == "{")
-                    ScopeId++;
+                    ScopeIndex++;
+                    SymbolTable.emplace_back();
                 break;
 
             case IDENT:
@@ -101,7 +117,7 @@ void Parser::dispatch() {
 
                     // ignore rogue identifiers if they are valid
                 else {
-                    if (SymbolTable.find(t_val) == SymbolTable.end()) {
+                    if (!isASymbol(t_val)) {
                         auto stream_state = m_Stream.getStreamState();
                         m_ExceptionHandler.newException(
                                 ERROR,
@@ -133,7 +149,7 @@ void Parser::parseFunction() {
     func_nd.ident = m_Stream.p_CurTk.value;
 
     // Check for errors
-    if (SymbolTable.find(func_nd.ident) != SymbolTable.end()) {
+    if (isASymbol(func_nd.ident)) {
         auto stream_state = m_Stream.getStreamState();
         EnablePanicMode = true;
         m_ExceptionHandler.newException(
@@ -145,11 +161,10 @@ void Parser::parseFunction() {
                 "A function with this name already exists"
         );
     } else {
-        SymbolTable[func_nd.ident] = ScopeId;
+        SymbolTable.back()[func_nd.ident] = {};
     }
 
     next(); next();
-    ScopeId++;
 
     static auto parse_params = [this]() {
         decltype(func_nd.getParamInstance()) param{};
@@ -185,8 +200,9 @@ void Parser::parseVar() {
     var_node.is_const = m_Stream.p_CurTk.value == "const";
     var_node.var_ident = m_Stream.next().value;
 
+
     // add an error if the variable already exists
-    if (SymbolTable.find(var_node.var_ident) != SymbolTable.end()) {
+    if (isASymbol(var_node.var_ident)) {
         auto stream_state = m_Stream.getStreamState();
         EnablePanicMode = true;
 
@@ -199,7 +215,7 @@ void Parser::parseVar() {
                 "Redefinition of an existing variable"
         );
     } else {
-        SymbolTable[var_node.var_ident] = ScopeId;
+        SymbolTable.back()[var_node.var_ident] = {.is_const = var_node.is_const};
     }
 
     auto p_token = m_Stream.peek();
