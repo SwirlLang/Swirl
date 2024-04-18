@@ -218,6 +218,14 @@ struct FuncCall: Node {
     llvm::Value* codegen() override;
 };
 
+struct Condition: Node {
+    Expression if_cond{};
+
+    const std::vector<std::unique_ptr<Node>>& getExprValue() override {
+        return if_cond.expr;
+    }
+};
+
 class Parser {
     Token cur_rd_tok{};
     ExceptionHandler m_ExceptionHandler{};
@@ -231,7 +239,7 @@ public:
     explicit Parser(TokenStream&);
 
     void parseFunction();
-    void parseCondition(TokenType);
+    void parseCondition();
     std::unique_ptr<Node> parseCall();
     void dispatch();
     void parseVar();

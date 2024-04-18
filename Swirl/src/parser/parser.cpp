@@ -28,6 +28,8 @@ extern std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
 
 
 std::unordered_map<std::string, int> precedence_table = {
+        {"&&", 0},
+        {"||", 0},
         {"-",  1},
         {"+",  1},
         {"*",  2},
@@ -49,16 +51,16 @@ std::unordered_map<std::string, int> precedence_table = {
 };
 
 
-void pushToModule(std::unique_ptr<Node> node, bool isNotParent = true) {
+void pushToModule(std::unique_ptr<Node> node, bool isParent = false) {
     if (!ScopeTrack.empty()) node->setParent(ScopeTrack.top());
     ParsedModule.emplace_back(std::move(node));
-    if (!isNotParent) {
+    if (isParent) {
         ScopeTrack.push(ParsedModule.back().get());
     }
 }
 
 bool isASymbol(const std::string& symbol) {
-    for (auto & iter : std::ranges::reverse_view(SymbolTable))
+    for (auto& iter : std::ranges::reverse_view(SymbolTable))
         if (iter.find(symbol) != iter.end())
             return true;
     return false;
@@ -90,13 +92,17 @@ void Parser::dispatch() {
         TokenType t_type = m_Stream.p_CurTk.type;
         std::string t_val = m_Stream.p_CurTk.value;
 
+
         switch (t_type) {
-            case KEYWORD:
+            case KEYWORD:  // TODO: switch to switch
                 if (t_val == "var" || t_val == "const") {
                     parseVar();
                     continue;
                 } else if (t_val == "fn") {
                     parseFunction();
+                    continue;
+                } else if (t_val == "if") {
+                    parseCondition();
                     continue;
                 }
 
@@ -105,11 +111,12 @@ void Parser::dispatch() {
                     ScopeTrack.pop();
                     ScopeIndex--;
                     SymbolTable.pop_back();
-                } else if (t_val == "{")
+                } else if (t_val == "{") {
                     ScopeIndex++;
                     SymbolTable.emplace_back();
-                break;
+                }
 
+                break;
             case IDENT:
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
                     pushToModule(parseCall());
@@ -191,7 +198,7 @@ void Parser::parseFunction() {
     if (m_Stream.p_CurTk.type == IDENT)
         func_nd.ret_type = m_Stream.p_CurTk.value;
 
-    pushToModule(std::make_unique<Function>(std::move(func_nd)), false);
+    pushToModule(std::make_unique<Function>(std::move(func_nd)), true);
 }
 
 
@@ -216,6 +223,7 @@ void Parser::parseVar() {
         );
     } else {
         SymbolTable.back()[var_node.var_ident] = {.is_const = var_node.is_const};
+        std::cout << SymbolTable.size();
     }
 
     auto p_token = m_Stream.peek();
@@ -271,7 +279,14 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
         Op top_elem;
 
         // break once the expression ends
-        if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ",") { m_Stream.next(); break; }
+        if (m_Stream.p_CurTk.type == PUNC) {
+            if (m_Stream.p_CurTk.value == ",") {  // for function parameters
+                m_Stream.next();
+                break;
+            } if (m_Stream.p_CurTk.value == "}")
+                break;
+        }
+
 //        if ((m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")") && !invalid_prev_types.contains(prev_token.type)) break;
         if (m_Stream.p_CurTk.type == KEYWORD) break;
         if (ops_opr_consumed > 1) {
@@ -346,5 +361,14 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
     else
         std::get<Expression*>(ptr)->expr = std::move(expr.expr);
 
+    std::cout << "Ending at: " << m_Stream.p_CurTk.value << std::endl;
     // NOTE: this function propagates the stream at the token right after the expression
+}
+
+
+void Parser::parseCondition() {
+    Condition cnd;
+    next();
+    parseExpr(&cnd.if_cond);
+    pushToModule(std::make_unique<Condition>(std::move(cnd)), true);
 }
