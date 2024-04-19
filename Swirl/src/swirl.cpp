@@ -20,6 +20,8 @@ std::string SW_OUTPUT;
 std::string SW_FED_FILE_SOURCE;
 std::string SW_COMPLETE_FED_FILE_PATH;
 
+std::unordered_map<std::size_t, std::string> LineTable{};
+
 
 const std::vector<Argument> application_flags = {
     {{"-h","--help"}, "Show the help message", false, {}},
@@ -51,23 +53,7 @@ std::unordered_map<std::string, uint8_t> operators = {
     {"&=", 25}, {"|=", 26}, {"^=", 27}, {"<<=", 28}, {">>=", 29}, {"++", 30},
     {"--", 31}, {"~", 32},  {"//", 33}};
 
-std::optional<std::unordered_map<std::string, std::string>> compile(
-        std::string& _source,
-        const std::string& _cacheDir,
-        bool symt = false) {
 
-    InputStream chrinp_stream(_source);
-    TokenStream tk(chrinp_stream);
-    // preProcess(_source, tk, _cacheDir);
-    Parser parser(tk);
-    // return Transpile(
-    //         {},
-    //         _cacheDir,
-    //         compiled_source,
-    //         true,
-    //         symt
-    //         );
-}
 
 int main(int argc, const char** const argv) {
     cli app(argc, argv, application_flags);
@@ -98,10 +84,18 @@ int main(int argc, const char** const argv) {
     }
 
     std::ifstream fed_file_src_buf(SW_FED_FILE_PATH);
-    SW_FED_FILE_SOURCE = {
-            std::istreambuf_iterator<char>(fed_file_src_buf),
-            {}
-    };
+
+    std::size_t line = 1;
+    for (std::string cur_ln; std::getline(fed_file_src_buf, cur_ln); line++) {
+        SW_FED_FILE_SOURCE += cur_ln + '\n';
+        LineTable[line] = cur_ln;
+    }
+
+//    SW_FED_FILE_SOURCE = {
+//            std::istreambuf_iterator<char>(fed_file_src_buf),
+//            {}
+//    };
+
     fed_file_src_buf.close();
 
     std::string cache_dir = getWorkingDirectory(SW_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP;

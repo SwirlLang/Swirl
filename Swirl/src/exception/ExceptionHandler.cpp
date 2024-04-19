@@ -18,13 +18,15 @@ void ExceptionHandler::newException(EXCEPTION_TYPE type, std::size_t line, std::
         m_Errors.append(
                 std::format("[ERROR]: In file {}\nLine {}, Column {}\n{}\n{}",
                             SW_COMPLETE_FED_FILE_PATH,
-                            line + 2,
+                            line + 1,
                             from,
                             err_lines,
                             msg));
         NumberOfErrors++;
     }
 
+
+    // type == ERROR
     // type == WARNING
     else {
         if (!m_Warnings.empty())
@@ -47,7 +49,7 @@ void ExceptionHandler::newException(EXCEPTION_TYPE type, std::size_t line, std::
 void ExceptionHandler::raiseAll() {
     if (m_HasErrors) {
         std::cerr << m_Errors << std::endl;
-        std::cerr << "\n" << NumberOfErrors << " error(s) in total detected" << std::endl;
+        std::cerr << "\n" << NumberOfErrors << " error(s) in total detected." << std::endl;
         std::exit(1);
     } else {
         // TODO: Warnings

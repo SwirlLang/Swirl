@@ -23,6 +23,7 @@ using namespace std::string_view_literals;
 
 extern std::unordered_map<std::string, uint8_t> keywords;
 extern std::unordered_map<std::string, uint8_t> operators;
+extern std::unordered_map<std::size_t, std::string> LineTable;
 
 class TokenStream {
 private:
@@ -252,8 +253,8 @@ public:
         return p_CurTk.type == NONE;
     }
 
-    std::string getLineFromSrc(std::size_t index) {
-        return m_Stream.LineMap[index];
+    static std::string getLineFromSrc(std::size_t index) {
+        return LineTable[index];
     }
 
 };

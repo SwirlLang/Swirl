@@ -18,10 +18,9 @@ char InputStream::next() {
         prev_col_state = Col;
 
         LineMap[Line] = m_CurrentLine;
-
         // TODO: an alternative to mapping each line
-        m_CurrentLine.clear();
 
+        m_CurrentLine.clear();
         Line++;
         Col = 0;
 

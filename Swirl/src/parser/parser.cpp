@@ -12,11 +12,13 @@
 #include <format>
 
 
+
 bool EnablePanicMode = false;  // whether the parser is in panik
 
  struct TypeInfo  {
     bool is_const = false;
 };
+
 
 std::size_t                                             ScopeIndex{};
 std::stack<Node*>                                       ScopeTrack{};
@@ -75,6 +77,35 @@ void Parser::next(bool swsFlg, bool snsFlg) {
     cur_rd_tok = m_Stream.next(swsFlg, snsFlg);
 }
 
+
+int minEditDistance(const std::string& word1, const std::string& word2) {
+    std::size_t m = word1.size();
+    std::size_t n = word2.size();
+
+    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1, 0));
+
+    for (int i = 0; i <= m; ++i) {
+        dp[i][0] = i;
+    }
+    for (int j = 0; j <= n; ++j) {
+        dp[0][j] = j;
+    }
+
+    for (int i = 1; i <= m; ++i) {
+        for (int j = 1; j <= n; ++j) {
+            if (word1[i - 1] == word2[j - 1]) {
+                dp[i][j] = dp[i - 1][j - 1];
+            } else {
+                dp[i][j] = 1 + std::min({dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]});
+            }
+        }
+    }
+
+    return dp[m][n];
+
+}
+
+
 void Parser::dispatch() {
     m_Stream.next();
 
@@ -91,7 +122,7 @@ void Parser::dispatch() {
     while (!m_Stream.eof()) {
         TokenType t_type = m_Stream.p_CurTk.type;
         std::string t_val = m_Stream.p_CurTk.value;
-
+        auto          stream_state = m_Stream.getStreamState();
 
         switch (t_type) {
             case KEYWORD:  // TODO: switch to switch
@@ -105,6 +136,7 @@ void Parser::dispatch() {
                     parseCondition();
                     continue;
                 }
+                break;
 
             case PUNC:
                 if (t_val == "}") {
@@ -115,8 +147,8 @@ void Parser::dispatch() {
                     ScopeIndex++;
                     SymbolTable.emplace_back();
                 }
-
                 break;
+
             case IDENT:
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
                     pushToModule(parseCall());
@@ -125,14 +157,29 @@ void Parser::dispatch() {
                     // ignore rogue identifiers if they are valid
                 else {
                     if (!isASymbol(t_val)) {
-                        auto stream_state = m_Stream.getStreamState();
+                        std::string   close_to{};
+                        std::uint32_t size_close_to = -1;
+
+                        for (const auto& [key, value] : SymbolTable.back()) {
+                            int d = minEditDistance(key, t_val);
+                            if (d < size_close_to) {
+                                size_close_to = d;
+                                close_to = key;
+                            }
+                        }
+
+                        std::string msg = std::format("Undefined reference to the symbol '{}'.", t_val);
+                        if (!msg.empty())
+                            msg.append(" Did you mean '" + close_to + "'?");
+
+                        std::cout << stream_state.Col << std::endl;
                         m_ExceptionHandler.newException(
                                 ERROR,
                                 stream_state.Line,
                                 stream_state.Col - (t_val.size()),
                                 stream_state.Col,
-                                m_Stream.getLineFromSrc(stream_state.Line),
-                                std::format("Undefined reference to the symbol {}", t_val)
+                                TokenStream::getLineFromSrc(stream_state.Line + 1),
+                                msg
                         );
                     }
                 }
@@ -223,7 +270,6 @@ void Parser::parseVar() {
         );
     } else {
         SymbolTable.back()[var_node.var_ident] = {.is_const = var_node.is_const};
-        std::cout << SymbolTable.size();
     }
 
     auto p_token = m_Stream.peek();
@@ -289,6 +335,8 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
 
 //        if ((m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")") && !invalid_prev_types.contains(prev_token.type)) break;
         if (m_Stream.p_CurTk.type == KEYWORD) break;
+        if (prev_token.type != OP && m_Stream.p_CurTk.type == IDENT) break;
+
         if (ops_opr_consumed > 1) {
             if (m_Stream.p_CurTk.type == KEYWORD) break;
             if ((invalid_prev_types.contains(prev_token.type) && m_Stream.p_CurTk.type != OP)) {
@@ -361,7 +409,6 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
     else
         std::get<Expression*>(ptr)->expr = std::move(expr.expr);
 
-    std::cout << "Ending at: " << m_Stream.p_CurTk.value << std::endl;
     // NOTE: this function propagates the stream at the token right after the expression
 }
 
