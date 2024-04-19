@@ -13,15 +13,15 @@ void ExceptionHandler::newException(EXCEPTION_TYPE type, std::size_t line, std::
             m_Errors.append(EXCEPTION_STR_LINE);
 
         std::string err_lines = line_str + "\n";
-        err_lines.append(std::string(from, '~') + std::string(to - from, '^'));
+        err_lines.append(std::string(from, ' ') + std::string(to - from, '^'));
 
         m_Errors.append(
-                std::format("[ERROR]: In file {}\nLine {}, Column {}\n{}\n{}",
+                std::format("File '{}'; line {}, col {}\n{}\n{}",
                             SW_COMPLETE_FED_FILE_PATH,
-                            line + 1,
+                            line,
                             from,
                             err_lines,
-                            msg));
+                            "Error: " + msg));
         NumberOfErrors++;
     }
 

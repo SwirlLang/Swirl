@@ -29,7 +29,6 @@ class TokenStream {
 private:
     struct StreamState {
         std::size_t Line, Pos, Col;
-        std::string CurLn;
     };
 
     int                         m_Pcnt  = 0;       // paren counter
@@ -182,14 +181,12 @@ public:
         m_Cache.Line = m_Stream.Line;
         m_Cache.Pos  = m_Stream.Pos;
         m_Cache.Col  = m_Stream.Col;
-        m_Cache.CurLn = m_Stream.LineMap[m_Stream.Line];
     }
 
     void restoreCache() {
         m_Stream.Pos  = m_Cache.Pos;
         m_Stream.Line = m_Cache.Line;
         m_Stream.Col  = m_Cache.Col;
-        m_Stream.LineMap[m_Stream.Line] = m_Cache.CurLn;
     }
 
     /* An abstraction over readNextTok. */
@@ -242,10 +239,9 @@ public:
 
     StreamState getStreamState() {
         return StreamState{
-            .Line  = m_Stream.Line - 1,
+            .Line  = m_Stream.Line,
             .Pos   = m_Stream.Pos,
             .Col   = m_Stream.Col,
-            .CurLn = m_Stream.LineMap[m_Stream.Line]
         };
     }
 

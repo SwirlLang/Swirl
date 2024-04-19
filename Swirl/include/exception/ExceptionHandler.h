@@ -5,7 +5,7 @@
 #ifndef SWIRL_EXCEPTION_H
 #define SWIRL_EXCEPTION_H
 
-#define EXCEPTION_STR_LINE "\n--------------------------------------------------------------------------------\n\n\n"
+#define EXCEPTION_STR_LINE "\n--------------------------------------------------------------------------------\n\n"
 
 
 enum EXCEPTION_TYPE {

@@ -172,13 +172,12 @@ void Parser::dispatch() {
                         if (!msg.empty())
                             msg.append(" Did you mean '" + close_to + "'?");
 
-                        std::cout << stream_state.Col << std::endl;
                         m_ExceptionHandler.newException(
                                 ERROR,
                                 stream_state.Line,
                                 stream_state.Col - (t_val.size()),
                                 stream_state.Col,
-                                TokenStream::getLineFromSrc(stream_state.Line + 1),
+                                TokenStream::getLineFromSrc(stream_state.Line),
                                 msg
                         );
                     }
@@ -211,7 +210,7 @@ void Parser::parseFunction() {
                 stream_state.Line,
                 stream_state.Col - (func_nd.ident.size()),
                 stream_state.Col,
-                stream_state.CurLn,
+                TokenStream::getLineFromSrc(stream_state.Line),
                 "A function with this name already exists"
         );
     } else {
@@ -265,7 +264,7 @@ void Parser::parseVar() {
                 stream_state.Line,
                 stream_state.Col - (var_node.var_ident.size()),
                 stream_state.Col,
-                stream_state.CurLn,
+                TokenStream::getLineFromSrc(stream_state.Line),
                 "Redefinition of an existing variable"
         );
     } else {
