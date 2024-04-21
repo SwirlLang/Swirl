@@ -16,24 +16,20 @@ enum EXCEPTION_TYPE {
 class ExceptionHandler {
     std::string m_Errors{};
     std::string m_Warnings{};
+//    const TokenStream& m_StreamInst;
 
     bool m_HasErrors = false;
+
 public:
+    ExceptionHandler() = default;
+//    explicit ExceptionHandler(const TokenStream& stream_inst): m_StreamInst(stream_inst) {}
+
     unsigned int NumberOfErrors = 0;
-    /*
-     * Exception format:-
-     *
-     * [ERROR]: In file <PATH>
-     * Line <LINE_NUM>, Col <COL>
-     * <CONTENT>
-     * ~~~~^^^^^
-     *     <msg>
-     * */
+
     void newException(EXCEPTION_TYPE,
                       std::size_t line,
                       std::size_t from,
                       std::size_t to,
-                      const std::string&,
                       const std::string& msg
                       );
 

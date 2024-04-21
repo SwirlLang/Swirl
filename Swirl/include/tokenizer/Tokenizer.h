@@ -248,11 +248,6 @@ public:
     bool eof() const {
         return p_CurTk.type == NONE;
     }
-
-    static std::string getLineFromSrc(std::size_t index) {
-        return LineTable[index];
-    }
-
 };
 
 #endif

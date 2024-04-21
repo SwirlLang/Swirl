@@ -2,17 +2,18 @@
 #include <exception/ExceptionHandler.h>
 
 extern std::string SW_COMPLETE_FED_FILE_PATH;
+extern std::unordered_map<std::size_t, std::string> LineTable;
 
 
 void ExceptionHandler::newException(EXCEPTION_TYPE type, std::size_t line, std::size_t from, std::size_t to,
-                                    const std::string& line_str, const std::string& msg) {
+                                    const std::string& msg) {
     if (type == ERROR) {
         m_HasErrors = true;
 
         if (!m_Errors.empty())
             m_Errors.append(EXCEPTION_STR_LINE);
 
-        std::string err_lines = line_str + "\n";
+        std::string err_lines = LineTable[line] + "\n";
         err_lines.append(std::string(from, ' ') + std::string(to - from, '^'));
 
         m_Errors.append(
@@ -32,7 +33,7 @@ void ExceptionHandler::newException(EXCEPTION_TYPE type, std::size_t line, std::
         if (!m_Warnings.empty())
             m_Warnings.append(EXCEPTION_STR_LINE);
 
-        std::string w_lines = line_str + "\n";
+        std::string w_lines = LineTable[line] + "\n";
         w_lines.append(std::string(from, '~') + std::string(to - from, '^'));
 
         m_Warnings.append(
