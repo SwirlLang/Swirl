@@ -1,65 +1,35 @@
-# The Idea
+# Scaffolding
 
-This file will provide you with an idea of the overall design.
+### Basically like C, but with additions including but not limited to:
+- Scopes can return values
+- Pattern Matching
+- Generics
+- Range based loops
+- Rust inspired traits like system to allow dynamic dispatch
+- Increased type + memory safety (RAII || Reference counting?)
+- Modules based "include" system
 
-**This is an entirely new design compared to [what was followed](https://github.com/SwirlLang/Swirl/blob/main/old_spec.md) till version 0.0.5. The old design was inconsistent and not very compatible with our overall policy.**
 
-## Variables
-The `var` keyword is used for their definitions, the compiler is supposed to be able to infer the type in case it is not specified
-(with the obvious condition that the variable must be initialized for its type to be inferred).
-```c
-// with type
-var string_a: str = "hello world!" 
+<hr>
 
-// type can be inferred
-var string_b = "hello world!"
-```
+Syntactic sample:
+```cpp
 
-You can assign function-like scopes to variables, the return value of
-that scope will be the assigned value of the variable.
+// generics, with constraints (if any)
+int func<T: constraint1 | constraint2> (T x, T y) {
+    return x + y;
+};
 
-```c
-// demo with a quadratic expression
-var a = int(input("coefficient of x^2: "))
-var b = int(input("coefficient of x:   "))
-var c = int(input("the constant c:     "))
 
-// what is the nature of the roots/zeroes/x-intercepts?
-var nature_of_root: str = {
-    var discriminant = b**2 - 4*a*c
+int main() {
+    int var = 12 *  {
+        return 12 & 1;
+    };  // rogue scopes are akin to functions, var = 0
     
-    if discriminant < 0
-        return "imaginary"
-    else
-        return "real"
+
+    const str my_string = "hello world";
+    
+    for (i : 1..12) {
+    }
 }
 ```
-
- the fundamental types are:
-
-| Types | Description           |
-|-------|-----------------------|
-| bool  | `true` or `false`         |
-| str   | string                | 
-| int   | 64-bit integer        |
-| float | 64 bit floating point |
-
-
-## Loops
-```py
-// the type of i can be inferred, no keyword required
-for i in 0..100 { ... }
-
-while <condition> {...}
-```
-Beside these two traditional loops, there is a third kind, specifically made as a syntactic sugar
-for tasks where the goal is to simply execute a blob of code a give number of times
-
-```c
-// execute the code 100 times, saves some typing time by avoiding the for loop
-rep 100 { ... } 
-
-// it can be used this way to repeat a single expression 
-print("hello world") rep 100
-```
-'rep' stands for repetitions in case you are wondering that
