@@ -3,6 +3,7 @@
 
 #include <string>
 
+
 enum TokenType {
     KEYWORD,
     IDENT,
@@ -11,6 +12,7 @@ enum TokenType {
     PUNC,
     NUMBER,
     MACRO,
+    COMMENT,
 
     NONE,
     _NONE // to be used in the parser, "" will be replaced with this

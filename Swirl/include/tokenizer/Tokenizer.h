@@ -21,8 +21,8 @@
 
 using namespace std::string_view_literals;
 
-extern std::unordered_map<std::string, uint8_t> keywords;
-extern std::unordered_map<std::string, uint8_t> operators;
+extern const std::unordered_map<std::string, uint8_t> keywords;
+extern std::unordered_map<std::string, int> operators;
 extern std::unordered_map<std::size_t, std::string> LineTable;
 
 class TokenStream {
@@ -42,25 +42,24 @@ private:
     StreamState                 m_Cache{};
     InputStream                 m_Stream;          // InputStream instance
 
-
     static bool isKeyword(const std::string& _str) {
         return keywords.contains(_str);
     }
 
-    static bool isDigit(char _chr) {
-        return "1234567890"sv.find(_chr) != std::string::npos;
+    static bool isDigit(char chr) {
+        return ('0' <= chr && chr <= '9');
+    }
+
+    static bool isIdStart(char chr) {
+        return ('A' <= chr && chr <= 'Z') || ('a' <= chr && chr <= 'z');
     }
 
     static bool isId(char chr) {
-        return isIdStart(chr) || "\"?!-=0123456789"sv.find(chr) != std::string::npos;
-    }
-
-    static bool isIdStart(char _chr) {
-        return "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"sv.find(_chr) != std::string::npos;
+        return isIdStart(chr) || isDigit(chr);
     }
 
     static bool isPunctuation(char chr) {
-        return "();,{}[]"sv.find(chr) >= 0;
+        return "();,{}[]"sv.find(chr) != std::string::npos;
     }
 
     static bool isOpChar(char _chr) {
@@ -82,19 +81,29 @@ private:
         return ret;
     }
 
-    /* Used to start reading a m_Stream of characters till the `_end` char is hit. */
+    /* Used to start reading a stream of characters till the `_end` char is hit. */
     std::string readEscaped(char _end) {
-        uint8_t is_escaped = false;
+        bool is_escaped = false;
         std::string ret;
 
         m_Stream.next();
         while (!m_Stream.eof()) {
             char chr = m_Stream.next();
             if (is_escaped) {
-                ret += chr;
+                switch (chr) {
+                    case 'n': ret += '\n'; break;
+                    case 't': ret += '\t'; break;
+                    case 'r': ret += '\r'; break;
+                    case 'b': ret += '\b'; break;
+                    case 'f': ret += '\f'; break;
+                    case '\\': ret += '\\'; break;
+                    case '\"': ret += '\"'; break;
+                    case '\'': ret += '\''; break;
+                    case '0': ret += '\0'; break;
+                    default: ret += '\\'; ret += chr; break;
+                }
                 is_escaped = false;
             } else if (chr == '\\') {
-                ret += '\\';
                 is_escaped = true;
             }
             else if (chr == _end)
@@ -142,31 +151,47 @@ private:
         setReturnPoint();
 
         if (m_Stream.eof()) {return {NONE, "null", m_Stream.Line};}
+
         auto chr = m_Stream.peek();
-        if (chr == '"') return readString();
-        if (chr == '\'') return readString('\'');
-        if (isDigit(chr)) return readNumber();
-        if (isIdStart(chr)) return readIdent();
 
-        m_Ret = std::string(1, m_Stream.next());
+        switch (chr) {
+            case '"':
+                return readString();
+            case '\'':
+                return readString('\'');
+            default:
+                if (isDigit(chr)) return readNumber();
+                if (isIdStart(chr)) return readIdent();
 
-        if (isOpChar(chr)) {
-            m_Rax = chr + readWhile(isOpChar);
-            return {
-                    OP,
-                    m_Rax,
-                    m_Stream.Line
-            };
-        }
+                m_Ret = std::string(1, m_Stream.next());
 
-        if (isPunctuation(chr) ) return {
+                if (isOpChar(chr)) {
+                    m_Rax = chr + readWhile(isOpChar);
+                    if (m_Rax == "//") {
+                        return {
+                            COMMENT,
+                            readWhile([](char ch) {
+                                return ch == '\n';
+                            })
+                        };
+                    }
+
+                    return {
+                        OP,
+                        m_Rax,
+                        m_Stream.Line
+                    };
+                }
+
+                return {
                     PUNC,
                     m_Ret,
                     m_Stream.Line
-            };
+                };
+        }
 
 
-        throw std::runtime_error("[FATAL]: No valid token found");
+        throw std::runtime_error("No valid token");
     }
 
 
@@ -189,38 +214,23 @@ public:
         m_Stream.Col  = m_Cache.Col;
     }
 
+
     /* An abstraction over readNextTok. */
-    Token next(bool _readNewLines = false, bool _readWhitespaces = false, bool _modifyCurTk = true) {
+    Token next(bool _modifyCurTk = true) {
         Token cur_tk = readNextTok();
 
-        // discards comments from the stream
-        auto discard_comments = [&cur_tk, this]() -> void {
-            if (cur_tk.type == OP && cur_tk.value == "//") {
-                while (true) {
-                    if (cur_tk.type == PUNC && cur_tk.value == "\n" || m_Stream.eof())
-                        break;
-                    cur_tk = readNextTok();
-                }
-            }
-        };
+        // discard all the junk
+        while ((cur_tk.type == PUNC &&
+            (cur_tk.value == " " || cur_tk.value == "\t" || cur_tk.value == "\n")) || cur_tk.type == COMMENT) {
+            cur_tk = readNextTok();
+        }
 
-        discard_comments();
+        while ((cur_tk.type == PUNC &&
+            (cur_tk.value == " " || cur_tk.value == "\t" || cur_tk.value == "\n")) || cur_tk.type == COMMENT){
+            cur_tk = readNextTok();
+        }
 
-        // discard whitespaces
-        if (!_readWhitespaces)
-            while ((cur_tk.type == PUNC && cur_tk.value == " ")) {
-                cur_tk = readNextTok();
-                discard_comments();
-            }
-
-        // discard newlines
-        if (!_readNewLines)
-            while (cur_tk.type == PUNC && cur_tk.value == "\n") {
-                cur_tk = readNextTok();
-                discard_comments();
-            }
-
-        if (_modifyCurTk) { p_CurTk = cur_tk; }
+        if (_modifyCurTk) p_CurTk = cur_tk;
         return cur_tk;
     }
 
@@ -232,10 +242,12 @@ public:
             restoreCache();
             return {NONE, "NULL", m_Stream.Line};  // Return token with type NONE and empty value
         }
-        p_PeekTk = next(false, false, false);
+
+        p_PeekTk = next(false);
         restoreCache();
         return p_PeekTk;
     }
+
 
     StreamState getStreamState() {
         return StreamState{
