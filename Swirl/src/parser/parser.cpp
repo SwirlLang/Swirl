@@ -6,51 +6,36 @@
 #include <variant>
 #include <unordered_map>
 #include <unordered_set>
+#include <format>
 
 #include <parser/parser.h>
 #include <llvm/IR/Type.h>
-#include <format>
 
 
+bool EnablePanicMode = false; // whether the parser is in panik
 
-bool EnablePanicMode = false;  // whether the parser is in panik
-
- struct TypeInfo  {
+struct TypeInfo {
     bool is_const = false;
+    std::optional<llvm::Value*> gen_val = std::nullopt;
 };
 
 
-std::size_t                                             ScopeIndex{};
-std::stack<Node*>                                       ScopeTrack{};
-std::vector<std::unique_ptr<Node>>                      ParsedModule{};
-std::vector<std::unordered_map<std::string, TypeInfo>>  SymbolTable{};  // TODO: use a more efficient symbol resolution approach
+constexpr auto trim_trim = [] {
+    return 23 * 23;
+}();
+
+std::size_t ScopeIndex{};
+std::stack<Node*> ScopeTrack{};
+std::vector<std::unique_ptr<Node>> ParsedModule{};
+std::vector<std::unordered_map<std::string, TypeInfo>> SymbolTable{}; // TODO: use a more efficient symbol resolution approach
 
 
-extern std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
+class Symmt final {
 
-
-std::unordered_map<std::string, int> precedence_table = {
-        {"&&", 0},
-        {"||", 0},
-        {"-",  1},
-        {"+",  1},
-        {"*",  2},
-        {"/",  2},
-        {"%",  2},
-        {"**", 3},
-        {">>", 4},
-        {"<<", 4},
-        {"&",  5},
-        {"^",  6},
-        {"|",  7},
-        {"~",  8},
-        {"<",  9},
-        {"<=", 9},
-        {">",  9},
-        {">=", 9},
-        {"==", 10},
-        {"!=", 10}
 };
+
+extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
+extern std::unordered_map<std::string, int> operators;
 
 
 void pushToModule(std::unique_ptr<Node> node, bool isParent = false) {
@@ -61,28 +46,24 @@ void pushToModule(std::unique_ptr<Node> node, bool isParent = false) {
     }
 }
 
+
 bool isASymbol(const std::string& symbol) {
-    for (auto& iter : std::ranges::reverse_view(SymbolTable))
-        if (iter.find(symbol) != iter.end())
+    for (auto& iter: std::ranges::reverse_view(SymbolTable))
+        if (iter.contains(symbol))
             return true;
     return false;
 }
 
 
-Parser::Parser(TokenStream &tks) : m_Stream(tks) {}
+Parser::Parser(TokenStream& tks) : m_Stream(tks) {}
 Parser::~Parser() = default;
 
 
-void Parser::next(bool swsFlg, bool snsFlg) {
-    cur_rd_tok = m_Stream.next(swsFlg, snsFlg);
-}
-
-
-int minEditDistance(const std::string& word1, const std::string& word2) {
+int minEditDistance(const std::string &word1, const std::string &word2) {
     std::size_t m = word1.size();
     std::size_t n = word2.size();
 
-    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1, 0));
+    std::vector<std::vector<int> > dp(m + 1, std::vector<int>(n + 1, 0));
 
     for (int i = 0; i <= m; ++i) {
         dp[i][0] = i;
@@ -102,37 +83,42 @@ int minEditDistance(const std::string& word1, const std::string& word2) {
     }
 
     return dp[m][n];
-
 }
 
+void Parser::forwardStream(const uint8_t n = 1) {
+    for (uint8_t _ = 0; _ < n; _++)
+        m_Stream.next();
+}
 
 void Parser::dispatch() {
-    m_Stream.next();
+    forwardStream();
 
     // push the global scope
     SymbolTable.emplace_back();
 
     // uncomment to check the stream's output for debugging
-//    while (!m_Stream.eof()) {
-//        std::cout << m_Stream.p_CurTk.value << " peek: " << m_Stream.peek().value << std::endl;
-//        m_Stream.next();
-//    }
+    //    while (!m_Stream.eof()) {
+    //        std::cout << m_Stream.p_CurTk.value << " peek: " << m_Stream.peek().value << std::endl;
+    //        m_Stream.next();
+    //    }
 
 
     while (!m_Stream.eof()) {
-        TokenType t_type = m_Stream.p_CurTk.type;
+        const TokenType t_type = m_Stream.p_CurTk.type;
         std::string t_val = m_Stream.p_CurTk.value;
-        auto          stream_state = m_Stream.getStreamState();
+        auto stream_state = m_Stream.getStreamState();
 
         switch (t_type) {
-            case KEYWORD:  // TODO: switch to switch
+            case KEYWORD: // TODO: switch to switch
                 if (t_val == "var" || t_val == "const") {
                     parseVar();
                     continue;
-                } else if (t_val == "fn") {
+                }
+                if (t_val == "fn") {
                     parseFunction();
                     continue;
-                } else if (t_val == "if") {
+                }
+                if (t_val == "if") {
                     parseCondition();
                     continue;
                 }
@@ -154,13 +140,13 @@ void Parser::dispatch() {
                     pushToModule(parseCall());
                 }
 
-                    // ignore rogue identifiers if they are valid
+                // ignore rogue identifiers if they are valid
                 else {
                     if (!isASymbol(t_val)) {
-                        std::string   close_to{};
+                        std::string close_to{};
                         std::uint32_t size_close_to = -1;
 
-                        for (const auto& [key, value] : SymbolTable.back()) {
+                        for (const auto& key: SymbolTable.back() | std::views::keys) {
                             int d = minEditDistance(key, t_val);
                             if (d < size_close_to) {
                                 size_close_to = d;
@@ -173,22 +159,22 @@ void Parser::dispatch() {
                             msg.append(" Did you mean '" + close_to + "'?");
 
                         m_ExceptionHandler.newException(
-                                ERROR,
-                                stream_state.Line,
-                                stream_state.Col - (t_val.size()),
-                                stream_state.Col,
-                                msg
+                            ERROR,
+                            stream_state.Line,
+                            stream_state.Col - (t_val.size()),
+                            stream_state.Col,
+                            msg
                         );
                     }
                 }
-            break;
+                break;
         }
 
         m_Stream.next();
     }
 
     m_ExceptionHandler.raiseAll();
-    for (const auto& nd : ParsedModule) {
+    for (const auto &nd: ParsedModule) {
         nd->codegen();
     }
 }
@@ -205,27 +191,29 @@ void Parser::parseFunction() {
         auto stream_state = m_Stream.getStreamState();
         EnablePanicMode = true;
         m_ExceptionHandler.newException(
-                ERROR,
-                stream_state.Line,
-                stream_state.Col - (func_nd.ident.size()),
-                stream_state.Col,
-                "A function with this name already exists"
+            ERROR,
+            stream_state.Line,
+            stream_state.Col - (func_nd.ident.size()),
+            stream_state.Col,
+            "A function with this name already exists"
         );
     } else {
         SymbolTable.back()[func_nd.ident] = {};
     }
 
-    next(); next();
+    m_Stream.next();
+    m_Stream.next();
 
     static auto parse_params = [this]() {
         decltype(func_nd.getParamInstance()) param{};
-        param.var_ident = m_Stream.p_CurTk.value;  // parameter ident
+        param.var_ident = m_Stream.p_CurTk.value; // parameter ident
 
-        m_Stream.next(); m_Stream.next();
+        m_Stream.next();
+        m_Stream.next();
         param.var_type = m_Stream.p_CurTk.value;
 
         param.initialized = m_Stream.peek().type == PUNC && m_Stream.peek().value == "=";
-        next();
+        m_Stream.next();
         return param;
     };
 
@@ -233,12 +221,12 @@ void Parser::parseFunction() {
         while (m_Stream.p_CurTk.value != ")" && m_Stream.p_CurTk.type != PUNC) {
             func_nd.params.push_back(parse_params());
             if (m_Stream.p_CurTk.value == ",")
-                next();
+                m_Stream.next();
         }
     }
 
     // current token == ')'
-    next();
+    m_Stream.next();
     if (m_Stream.p_CurTk.type == IDENT)
         func_nd.ret_type = m_Stream.p_CurTk.value;
 
@@ -248,7 +236,7 @@ void Parser::parseFunction() {
 
 void Parser::parseVar() {
     Var var_node;
-    var_node.is_const = m_Stream.p_CurTk.value == "const";
+    var_node.is_const = m_Stream.p_CurTk.value[0] == 'c';
     var_node.var_ident = m_Stream.next().value;
 
 
@@ -258,27 +246,28 @@ void Parser::parseVar() {
         EnablePanicMode = true;
 
         m_ExceptionHandler.newException(
-                ERROR,
-                stream_state.Line,
-                stream_state.Col - (var_node.var_ident.size()),
-                stream_state.Col,
-                "Redefinition of an existing variable"
+            ERROR,
+            stream_state.Line,
+            stream_state.Col - (var_node.var_ident.size()),
+            stream_state.Col,
+            "Redefinition of an existing variable"
         );
     } else {
         SymbolTable.back()[var_node.var_ident] = {.is_const = var_node.is_const};
     }
 
+
     auto p_token = m_Stream.peek();
     if (p_token.type == PUNC && p_token.value == ":") {
-        next();
+        m_Stream.next();
         var_node.var_type = m_Stream.next().value;
     }
 
     p_token = m_Stream.peek();
     if (p_token.type == OP && p_token.value == "=") {
         var_node.initialized = true;
-        next();
-        next();
+        m_Stream.next();
+        m_Stream.next();
         parseExpr(&var_node.value);
     }
 
@@ -289,8 +278,8 @@ void Parser::parseVar() {
 std::unique_ptr<Node> Parser::parseCall() {
     std::unique_ptr<FuncCall> call_node = std::make_unique<FuncCall>();
     call_node->ident = m_Stream.p_CurTk.value;
-    next();
-    next();
+    m_Stream.next();
+    m_Stream.next();
 
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")
         return call_node;
@@ -308,10 +297,10 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
     // TODO: remove overcomplexity
 
     bool kill_yourself = false;
-    std::stack<Op> ops{};  // operator stack
-    std::vector<std::unique_ptr<Node>> output{};  // the final postfix (RPN) form
+    std::stack<Op> ops{}; // operator stack
+    std::vector<std::unique_ptr<Node> > output{}; // the final postfix (RPN) form
 
-    int paren_counter    = 0;
+    int paren_counter = 0;
     int ops_opr_consumed = 0;
 
     Token prev_token;
@@ -322,16 +311,18 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
 
         // break once the expression ends
         if (m_Stream.p_CurTk.type == PUNC) {
-            if (m_Stream.p_CurTk.value == ",") {  // for function parameters
+            if (m_Stream.p_CurTk.value == ",") {
+                // for function parameters
                 m_Stream.next();
                 break;
-            } if (m_Stream.p_CurTk.value == "}")
+            }
+            if (m_Stream.p_CurTk.value == "}")
                 break;
         }
 
-//        if ((m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")") && !invalid_prev_types.contains(prev_token.type)) break;
-        if (m_Stream.p_CurTk.type == KEYWORD) break;
-        if (prev_token.type != OP && m_Stream.p_CurTk.type == IDENT) break;
+        if (m_Stream.p_CurTk.type == KEYWORD || (prev_token.type != OP && m_Stream.p_CurTk.type == IDENT))
+            break;
+        // if (prev_token.type != OP && m_Stream.p_CurTk.type == IDENT) break;
 
         if (ops_opr_consumed > 1) {
             if (m_Stream.p_CurTk.type == KEYWORD) break;
@@ -351,24 +342,28 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
                     output.emplace_back(parseCall());
                     break;
-                } output.emplace_back(std::make_unique<Ident>(Ident(m_Stream.p_CurTk.value)));
-                    break;
+                }
+                output.emplace_back(std::make_unique<Ident>(Ident(m_Stream.p_CurTk.value)));
+                break;
             case OP:
                 // pop ops and push them into output till the top operator of the stack has greater or equal precedence
-                while (!ops.empty() && precedence_table[m_Stream.p_CurTk.value] <= precedence_table[ops.top().getValue()]) {
+                while (!ops.empty() && operators[m_Stream.p_CurTk.value] <= operators[ops.top().getValue()]) {
                     output.emplace_back(std::make_unique<Op>(ops.top()));
                     ops.pop();
-                } ops.emplace(m_Stream.p_CurTk.value);
-                  break;
+                }
+                ops.emplace(m_Stream.p_CurTk.value);
+                break;
             case PUNC:
                 if (m_Stream.p_CurTk.value == "(") {
                     paren_counter++;
                     ops.emplace("(");
                     break;
-                }
-                else if (m_Stream.p_CurTk.value == ")") {
+                } else if (m_Stream.p_CurTk.value == ")") {
                     paren_counter--;
-                    if (isCall && paren_counter == -1) { kill_yourself = true; break; }
+                    if (isCall && paren_counter == -1) {
+                        kill_yourself = true;
+                        break;
+                    }
                     while (ops.top().getValue() != "(") {
                         output.emplace_back(std::make_unique<Op>(ops.top()));
                         ops.pop();
@@ -381,7 +376,10 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
                 break;
         }
 
-        if (kill_yourself) { kill_yourself = false; break; }
+        if (kill_yourself) {
+            kill_yourself = false;
+            break;
+        }
         ops_opr_consumed++;
         prev_token = m_Stream.p_CurTk;
         m_Stream.next();
@@ -394,14 +392,18 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
 
     Expression expr{};
     expr.expr.reserve(output.size());
-    for (auto& nd : output) {
+    for (auto &nd: output) {
         auto n = std::make_unique<Node>();
         n = std::move(nd);
         expr.expr.push_back(std::move(n));
     }
 
+    for (auto &n: expr.expr) {
+        std::cout << n->getValue() << std::endl;
+    }
+
     if (std::holds_alternative<std::vector<Expression>*>(ptr))
-        std::get<std::vector<Expression>*>(ptr)->push_back(std::move(expr));
+        std::get<std::vector<Expression> *>(ptr)->push_back(std::move(expr));
     else
         std::get<Expression*>(ptr)->expr = std::move(expr.expr);
 
@@ -411,7 +413,7 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
 
 void Parser::parseCondition() {
     Condition cnd;
-    next();
+    m_Stream.next();
     parseExpr(&cnd.if_cond);
     pushToModule(std::make_unique<Condition>(std::move(cnd)), true);
 }

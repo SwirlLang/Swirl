@@ -1,4 +1,4 @@
-#include<array>
+#include <array>
 #include <list>
 #include <memory>
 #include <utility>
@@ -25,11 +25,13 @@ enum NodeType {
     ND_FUNC         //  9
 };
 
+
 // A common base class for all the nodes
 struct Node {
     struct Param {
         std::string var_ident;
         std::string var_type;
+        std::size_t symt_index;
 
         bool initialized = false;
         bool is_const    = false;
@@ -74,7 +76,6 @@ struct Expression: Node {
     Expression() = default;
     Expression(Expression&& other) noexcept {
         expr.reserve(other.expr.size());
-
         std::move(
                 std::make_move_iterator(other.expr.begin()),
                 std::make_move_iterator(other.expr.end()),
@@ -130,7 +131,7 @@ struct FloatLit: Node {
         return ND_FLOAT;
     }
 
-    llvm::Value *codegen() override;
+    llvm::Value* codegen() override;
 };
 
 
@@ -162,6 +163,8 @@ struct Ident: Node {
     NodeType getType() const override {
         return ND_IDENT;
     }
+
+    llvm::Value* codegen() override;
 };
 
 struct Var: Node {
@@ -226,6 +229,7 @@ struct Condition: Node {
     }
 };
 
+
 class Parser {
     Token cur_rd_tok{};
     ExceptionHandler m_ExceptionHandler{};
@@ -243,6 +247,7 @@ public:
     std::unique_ptr<Node> parseCall();
     void dispatch();
     void parseVar();
+    void forwardStream(uint8_t n);
     void parseExpr(std::variant<std::vector<Expression>*, Expression*>, bool isCall = false);
     void parseLoop(TokenType);
 //    void appendAST(Node&);

@@ -33,7 +33,7 @@ std::unordered_map<std::string, llvm::Type*> type_registry = {
         {"i64",   llvm::Type::getInt64Ty(Context)},
         {"i32",   llvm::Type::getInt32Ty(Context)},
         {"i128",  llvm::Type::getInt128Ty(Context)},
-        {"float", llvm::Type::getFloatTy(Context)},
+        {"f32", llvm::Type::getFloatTy(Context)},
         {"bool",  llvm::Type::getInt1Ty(Context)},
         {"void",  llvm::Type::getVoidTy(Context)}
 };
@@ -48,9 +48,11 @@ llvm::Value* FloatLit::codegen() {
     return llvm::ConstantFP::get(llvm::Type::getFloatTy(Context), value);
 }
 
-
 llvm::Value* StrLit::codegen() {
     return llvm::ConstantDataArray::getString(Context, value, true);
+}
+
+llvm::Value* Ident::codegen() {
 }
 
 void printIR() {
@@ -101,7 +103,7 @@ llvm::Value* Expression::codegen() {
             if (a->getType()->isIntegerTy() || b->getType()->isIntegerTy())
                 return Builder.CreateICmp(llvm::CmpInst::ICMP_EQ, a, b);
 
-            else if (a->getType()->isFloatingPointTy() && b->getType()->isFloatingPointTy())
+            if (a->getType()->isFloatingPointTy() && b->getType()->isFloatingPointTy())
                 return Builder.CreateFCmp(llvm::CmpInst::FCMP_OEQ, a, b);
 
             throw std::runtime_error("undefined operation '==' on the type");
@@ -138,7 +140,8 @@ llvm::Value* FuncCall::codegen() {
 
     std::vector<llvm::Value*> arguments{};
     arguments.reserve(args.size());
-for ( auto& item : args) {
+
+    for (auto& item : args) {
         arguments.push_back(item.codegen());
     }
 
@@ -150,6 +153,7 @@ llvm::Value* Var::codegen() {
     auto type_iter = type_registry.find(var_type);
     if (type_iter == type_registry.end()) throw std::runtime_error("undefined type");
 
+    std::cout << parent << std::endl;
     if (type_iter->second->isIntegerTy())
         IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(type_iter->second);
 

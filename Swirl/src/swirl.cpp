@@ -30,13 +30,13 @@ const std::vector<Argument> application_flags = {
     {{"-v", "--version"}, "Show the version of Swirl", false, {}}
 };
 
-std::unordered_map<std::string, uint8_t> valid_expr_bin_ops = {
+const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops = {
     {"+", 0},   {"-", 1},  {"*", 2},  {"/", 3},  {"%", 4},   {"==", 5},
     {"!=", 6},  {">", 7},  {"<", 8},  {">=", 9}, {"<=", 10}, {"&&", 11},
     {"||", 12}, {"&", 13}, {"|", 14}, {"^", 15}, {"<<", 16}, {">>", 17},
 };
 
-std::unordered_map<std::string, uint8_t> keywords = {
+const std::unordered_map<std::string, uint8_t> keywords = {
     {"func", 0},      {"return", 1},  {"if", 2},      {"else", 3},
     {"for", 4},       {"while", 5},   {"is", 6},      {"in", 7},
     {"or", 8},        {"and", 9},     {"class", 10},  {"public", 11},
@@ -45,17 +45,20 @@ std::unordered_map<std::string, uint8_t> keywords = {
     {"typedef", 22},  {"import", 23}, {"export", 24}, {"from", 25},
     {"var", 26},      {"fn", 27}};
 
-std::unordered_map<std::string, uint8_t> operators = {
-    {"+", 0},   {"-", 1},   {"*", 2},   {"/", 3},    {"%", 4},    {"==", 5},
-    {"!=", 6},  {">", 7},   {"<", 8},   {">=", 9},   {"<=", 10},  {"&&", 11},
-    {"||", 12}, {"&", 13},  {"|", 14},  {"^", 15},   {"<<", 16},  {">>", 17},
-    {"=", 18},  {"+=", 19}, {"-=", 20}, {"*=", 21},  {"/=", 22},  {"%=", 23},
-    {"&=", 25}, {"|=", 26}, {"^=", 27}, {"<<=", 28}, {">>=", 29}, {"++", 30},
-    {"--", 31}, {"~", 32},  {"//", 33}};
+
+// map, {operator, precedence}
+std::unordered_map<std::string, int> operators = {
+        {"&&", 0}, {"**", 3}, {"<",  9},
+        {"||", 0}, {">>", 4}, {"<=", 9},
+        {"-",  1}, {"<<", 4}, {">",  9},
+        {"+",  1}, {"&",  5}, {">=", 9},
+        {"*",  2}, {"^",  6}, {"==", 10},
+        {"/",  2}, {"|",  7}, {"!=", 10},
+        {"%",  2}, {"~",  8}
+};
 
 
-
-int main(int argc, const char** const argv) {
+int main(int argc, const char** argv) {
     cli app(argc, argv, application_flags);
 
     if (app.contains_flag("-h")) {

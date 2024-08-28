@@ -1,7 +1,7 @@
 file(GLOB src
     cli/cli.cpp
     transpiler/builtins.txt
-    exception/ExceptionHandler.cpp
+    exception_handler/ExceptionHandler.cpp
     parser/class/ClassParser.cpp
     parser/functions/FunctionParser.cpp
     pre-processor/pre-processor.cpp

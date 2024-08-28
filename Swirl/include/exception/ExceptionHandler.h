@@ -1,5 +1,6 @@
 #include <iostream>
 #include <map>
+
 #include <tokenizer/InputStream.h>
 
 #ifndef SWIRL_EXCEPTION_H
