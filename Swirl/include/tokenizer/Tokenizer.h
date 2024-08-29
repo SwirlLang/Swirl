@@ -51,7 +51,7 @@ private:
     }
 
     static bool isIdStart(char chr) {
-        return ('A' <= chr && chr <= 'Z') || ('a' <= chr && chr <= 'z');
+        return ('A' <= chr && chr <= 'Z') || ('a' <= chr && chr <= 'z') || chr == '_';
     }
 
     static bool isId(char chr) {
