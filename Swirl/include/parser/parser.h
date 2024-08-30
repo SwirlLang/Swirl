@@ -1,4 +1,3 @@
-#include <array>
 #include <list>
 #include <memory>
 #include <utility>
@@ -49,6 +48,7 @@ struct Node {
     virtual std::vector<Param> getParams() const { throw std::runtime_error("getParams called on base getParams"); };
     virtual llvm::Value* codegen() { throw std::runtime_error("unimplemented Node::codegen"); }
     virtual int8_t getArity() { throw std::runtime_error("getArity called on base Node instance "); }
+    virtual ~Node() = default;
 };
 
 
@@ -118,7 +118,7 @@ struct IntLit: Node {
 };
 
 
-struct FloatLit: Node {
+struct FloatLit : Node {
     std::string value = 0;
 
     explicit FloatLit(std::string val): value(std::move(val)) {}
@@ -191,6 +191,7 @@ struct Function: Node {
     std::string ident;
     std::string ret_type = "none";
     std::vector<Param> params{};
+    std::vector<std::unique_ptr<Node>> children{};
 
     NodeType getType() const override {
         return ND_FUNC;
@@ -222,11 +223,13 @@ struct FuncCall: Node {
 };
 
 struct Condition: Node {
-    Expression if_cond{};
+    Expression bool_expr{};
 
     const std::vector<std::unique_ptr<Node>>& getExprValue() override {
-        return if_cond.expr;
+        return bool_expr.expr;
     }
+
+    llvm::Value* codegen() override;
 };
 
 
@@ -242,14 +245,15 @@ public:
 
     explicit Parser(TokenStream&);
 
-    void parseFunction();
+    std::unique_ptr<Function> parseFunction();
     void parseCondition();
     std::unique_ptr<Node> parseCall();
-    void dispatch();
-    void parseVar();
+    std::unique_ptr<Node> dispatch();
+    std::unique_ptr<Var> parseVar();
     void forwardStream(uint8_t n);
     void parseExpr(std::variant<std::vector<Expression>*, Expression*>, bool isCall = false);
     void parseLoop(TokenType);
+    void parse();
 //    void appendAST(Node&);
     inline void next(bool swsFlg = false, bool snsFlg = false);
 

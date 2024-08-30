@@ -9,7 +9,6 @@
 #include <format>
 
 #include <parser/parser.h>
-#include <llvm/IR/Type.h>
 
 
 bool EnablePanicMode = false; // whether the parser is in panik
@@ -20,25 +19,17 @@ struct TypeInfo {
 };
 
 
-constexpr auto trim_trim = [] {
-    return 23 * 23;
-}();
-
 std::size_t ScopeIndex{};
 std::stack<Node*> ScopeTrack{};
 std::vector<std::unique_ptr<Node>> ParsedModule{};
 std::vector<std::unordered_map<std::string, TypeInfo>> SymbolTable{}; // TODO: use a more efficient symbol resolution approach
 
 
-class Symmt final {
-
-};
-
 extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
 extern std::unordered_map<std::string, int> operators;
 
 
-void pushToModule(std::unique_ptr<Node> node, bool isParent = false) {
+void pushToModule(std::unique_ptr<Node> node, const bool isParent = false) {
     if (!ScopeTrack.empty()) node->setParent(ScopeTrack.top());
     ParsedModule.emplace_back(std::move(node));
     if (isParent) {
@@ -47,9 +38,9 @@ void pushToModule(std::unique_ptr<Node> node, bool isParent = false) {
 }
 
 
-bool isASymbol(const std::string& symbol) {
+bool isASymbol(const std::string_view symbol) {
     for (auto& iter: std::ranges::reverse_view(SymbolTable))
-        if (iter.contains(symbol))
+        if (iter.contains(std::string(symbol)))
             return true;
     return false;
 }
@@ -59,11 +50,11 @@ Parser::Parser(TokenStream& tks) : m_Stream(tks) {}
 Parser::~Parser() = default;
 
 
-int minEditDistance(const std::string &word1, const std::string &word2) {
+int minEditDistance(const std::string_view word1, const std::string_view word2) {
     std::size_t m = word1.size();
     std::size_t n = word2.size();
 
-    std::vector<std::vector<int> > dp(m + 1, std::vector<int>(n + 1, 0));
+    std::vector dp(m + 1, std::vector(n + 1, 0));
 
     for (int i = 0; i <= m; ++i) {
         dp[i][0] = i;
@@ -90,101 +81,61 @@ void Parser::forwardStream(const uint8_t n = 1) {
         m_Stream.next();
 }
 
-void Parser::dispatch() {
-    forwardStream();
+std::unique_ptr<Node> Parser::dispatch() {
+    if (!m_Stream.eof()) {
+        const TokenType type = m_Stream.p_CurTk.type;
+        const auto value = m_Stream.p_CurTk.value;
 
-    // push the global scope
-    SymbolTable.emplace_back();
-
-    // uncomment to check the stream's output for debugging
-    //    while (!m_Stream.eof()) {
-    //        std::cout << m_Stream.p_CurTk.value << " peek: " << m_Stream.peek().value << std::endl;
-    //        m_Stream.next();
-    //    }
-
-
-    while (!m_Stream.eof()) {
-        const TokenType t_type = m_Stream.p_CurTk.type;
-        std::string t_val = m_Stream.p_CurTk.value;
-        auto stream_state = m_Stream.getStreamState();
-
-        switch (t_type) {
-            case KEYWORD: // TODO: switch to switch
-                if (t_val == "var" || t_val == "const") {
-                    parseVar();
-                    continue;
+        switch (m_Stream.p_CurTk.type) {
+            case KEYWORD:
+                if (m_Stream.p_CurTk.value == "const" || m_Stream.p_CurTk.value == "var") {
+                    return std::move(parseVar());
                 }
-                if (t_val == "fn") {
-                    parseFunction();
-                    continue;
-                }
-                if (t_val == "if") {
-                    parseCondition();
-                    continue;
+                if (m_Stream.p_CurTk.value == "fn") {
+                    std::cout << "parsing function" << std::endl;
+                    return std::move(parseFunction());
                 }
                 break;
-
-            case PUNC:
-                if (t_val == "}") {
-                    ScopeTrack.pop();
-                    ScopeIndex--;
-                    SymbolTable.pop_back();
-                } else if (t_val == "{") {
-                    ScopeIndex++;
-                    SymbolTable.emplace_back();
-                }
-                break;
-
             case IDENT:
-                if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
-                    pushToModule(parseCall());
-                }
-
-                // ignore rogue identifiers if they are valid
-                else {
-                    if (!isASymbol(t_val)) {
-                        std::string close_to{};
-                        std::uint32_t size_close_to = -1;
-
-                        for (const auto& key: SymbolTable.back() | std::views::keys) {
-                            int d = minEditDistance(key, t_val);
-                            if (d < size_close_to) {
-                                size_close_to = d;
-                                close_to = key;
-                            }
-                        }
-
-                        std::string msg = std::format("Undefined reference to the symbol '{}'.", t_val);
-                        if (!msg.empty())
-                            msg.append(" Did you mean '" + close_to + "'?");
-
-                        m_ExceptionHandler.newException(
-                            ERROR,
-                            stream_state.Line,
-                            stream_state.Col - (t_val.size()),
-                            stream_state.Col,
-                            msg
-                        );
-                    }
-                }
+                if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(")
+                    return parseCall();
                 break;
+            default:
+                std::cout << m_Stream.p_CurTk.value << ": " << type << std::endl;
+                throw std::runtime_error("dispatch: nothing found");
         }
-
         m_Stream.next();
     }
 
     m_ExceptionHandler.raiseAll();
-    for (const auto &nd: ParsedModule) {
-        nd->codegen();
+    // for (const auto& nd: ParsedModule) {
+    //     nd->codegen();
+    // }
+}
+
+
+void Parser::parse() {
+    // uncomment to check the stream's output for debugging
+    // while (!m_Stream.eof()) {
+    //     std::cout << m_Stream.p_CurTk.value << " peek: " << m_Stream.peek().value << std::endl;
+    //     m_Stream.next();
+    // }
+    forwardStream();
+    SymbolTable.emplace_back();  // global scope
+
+    while (!m_Stream.eof()) {
+        ParsedModule.emplace_back(std::move(dispatch()));
+    }
+
+    for (const auto & a : ParsedModule) {
+        std::cout << a->getType() << std::endl;
     }
 }
 
 
-void Parser::parseFunction() {
+std::unique_ptr<Function> Parser::parseFunction() {
     Function func_nd{};
-
-    m_Stream.next();
-    func_nd.ident = m_Stream.p_CurTk.value;
+    func_nd.ident = m_Stream.next().value;
 
     // Check for errors
     if (isASymbol(func_nd.ident)) {
@@ -201,15 +152,13 @@ void Parser::parseFunction() {
         SymbolTable.back()[func_nd.ident] = {};
     }
 
-    m_Stream.next();
-    m_Stream.next();
+    forwardStream(2);
 
-    static auto parse_params = [this]() {
+    static auto parse_params = [this] {
         decltype(func_nd.getParamInstance()) param{};
         param.var_ident = m_Stream.p_CurTk.value; // parameter ident
 
-        m_Stream.next();
-        m_Stream.next();
+        forwardStream(2);
         param.var_type = m_Stream.p_CurTk.value;
 
         param.initialized = m_Stream.peek().type == PUNC && m_Stream.peek().value == "=";
@@ -230,11 +179,21 @@ void Parser::parseFunction() {
     if (m_Stream.p_CurTk.type == IDENT)
         func_nd.ret_type = m_Stream.p_CurTk.value;
 
-    pushToModule(std::make_unique<Function>(std::move(func_nd)), true);
+    if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ":") {
+        func_nd.ret_type = m_Stream.next().value;
+        forwardStream();
+    }
+
+    forwardStream();
+    while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}"))
+        func_nd.children.push_back(std::move(dispatch()));
+    forwardStream();
+
+    return std::make_unique<Function>(std::move(func_nd));
 }
 
 
-void Parser::parseVar() {
+std::unique_ptr<Var> Parser::parseVar() {
     Var var_node;
     var_node.is_const = m_Stream.p_CurTk.value[0] == 'c';
     var_node.var_ident = m_Stream.next().value;
@@ -266,20 +225,18 @@ void Parser::parseVar() {
     p_token = m_Stream.peek();
     if (p_token.type == OP && p_token.value == "=") {
         var_node.initialized = true;
-        m_Stream.next();
-        m_Stream.next();
+        forwardStream(2);
         parseExpr(&var_node.value);
     }
 
-    pushToModule(std::make_unique<Var>(std::move(var_node)));
+    return std::make_unique<Var>(std::move(var_node));
 }
 
 
 std::unique_ptr<Node> Parser::parseCall() {
-    std::unique_ptr<FuncCall> call_node = std::make_unique<FuncCall>();
+    auto call_node = std::make_unique<FuncCall>();
     call_node->ident = m_Stream.p_CurTk.value;
-    m_Stream.next();
-    m_Stream.next();
+    forwardStream(2);
 
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")
         return call_node;
@@ -289,6 +246,13 @@ std::unique_ptr<Node> Parser::parseCall() {
     }
 
     return call_node;
+}
+
+void Parser::parseCondition() {
+    Condition cnd;
+    m_Stream.next();
+    parseExpr(&cnd.bool_expr);
+    pushToModule(std::make_unique<Condition>(std::move(cnd)), true);
 }
 
 
@@ -392,14 +356,10 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
 
     Expression expr{};
     expr.expr.reserve(output.size());
-    for (auto &nd: output) {
+    for (auto& nd: output) {
         auto n = std::make_unique<Node>();
         n = std::move(nd);
         expr.expr.push_back(std::move(n));
-    }
-
-    for (auto &n: expr.expr) {
-        std::cout << n->getValue() << std::endl;
     }
 
     if (std::holds_alternative<std::vector<Expression>*>(ptr))
@@ -411,9 +371,3 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
 }
 
 
-void Parser::parseCondition() {
-    Condition cnd;
-    m_Stream.next();
-    parseExpr(&cnd.if_cond);
-    pushToModule(std::make_unique<Condition>(std::move(cnd)), true);
-}

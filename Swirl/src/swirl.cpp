@@ -122,7 +122,7 @@ int main(int argc, const char** argv) {
         // preProcess(SW_FED_FILE_SOURCE, tk, cache_dir);
 
         Parser parser(tk);
-        parser.dispatch();
+        parser.parse();
         // Transpile(parser.m_AST->chl, cache_dir + SW_OUTPUT + ".cpp", compiled_source);
     }
 }
