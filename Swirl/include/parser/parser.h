@@ -37,7 +37,8 @@ struct Node {
     };
 
     std::string value;
-    Node* parent = nullptr;
+
+    Node* parent  = nullptr;
 
     virtual const std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
     virtual Param getParamInstance() { return Param{}; }
@@ -79,8 +80,7 @@ struct Expression: Node {
         std::move(
                 std::make_move_iterator(other.expr.begin()),
                 std::make_move_iterator(other.expr.end()),
-                std::back_inserter(expr)
-                );
+                std::back_inserter(expr));
 
         for (const auto& nd : expr) {
 //            std::cout << "moving : " << nd->getValue() << std::endl;
@@ -189,7 +189,9 @@ struct Var: Node {
 
 struct Function: Node {
     std::string ident;
-    std::string ret_type = "none";
+    std::string ret_type = "void";
+    Expression return_val{};
+
     std::vector<Param> params{};
     std::vector<std::unique_ptr<Node>> children{};
 
@@ -222,7 +224,7 @@ struct FuncCall: Node {
     llvm::Value* codegen() override;
 };
 
-struct Condition: Node {
+struct Condition : Node {
     Expression bool_expr{};
 
     const std::vector<std::unique_ptr<Node>>& getExprValue() override {

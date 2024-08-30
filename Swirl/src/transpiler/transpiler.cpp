@@ -28,6 +28,7 @@ llvm::LLVMContext Context;
 llvm::IRBuilder<> Builder(Context);
 
 auto LModule = std::make_unique<llvm::Module>(SW_OUTPUT, Context);
+bool IsLocalScope = false;
 
 std::unordered_map<std::string, llvm::Type*> type_registry = {
         {"i64",   llvm::Type::getInt64Ty(Context)},
@@ -39,6 +40,11 @@ std::unordered_map<std::string, llvm::Type*> type_registry = {
 };
 
 llvm::IntegerType* IntegralTypeState;
+
+struct BeginScope {
+    BeginScope()  { IsLocalScope = true; }
+    ~BeginScope() { IsLocalScope = false; }
+};
 
 llvm::Value* IntLit::codegen() {
     return llvm::ConstantInt::get(IntegralTypeState, value, 10);
@@ -53,6 +59,7 @@ llvm::Value* StrLit::codegen() {
 }
 
 llvm::Value* Ident::codegen() {
+
 }
 
 void printIR() {
@@ -68,13 +75,21 @@ llvm::Value* Function::codegen() {
     for (const auto& param : params)
         param_types.push_back(type_registry[param.var_type]);
 
-    llvm::FunctionType* f_type = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), param_types, false);
-    llvm::Function*     func   = llvm::Function::Create(f_type, llvm::GlobalValue::ExternalLinkage, ident, LModule.get());
+    llvm::FunctionType* f_type = llvm::FunctionType::get(type_registry[this->ret_type], param_types, false);
+    llvm::Function*     func   = llvm::Function::Create(f_type, llvm::GlobalValue::InternalLinkage, ident, LModule.get());
 
-    llvm::BasicBlock*   BB     = llvm::BasicBlock::Create(Context, value, func);
+    llvm::BasicBlock*   BB     = llvm::BasicBlock::Create(Context, "", func);
     Builder.SetInsertPoint(BB);
+    BeginScope _;
 
-    if (ident == "main") { printIR(); }
+    for (const auto& child : this->children)
+        child->codegen();
+
+    if (!return_val.expr.empty()) {
+        Builder.CreateRet(this->return_val.codegen());
+    }
+    else Builder.CreateRetVoid();
+
     return func;
 }
 
@@ -95,7 +110,8 @@ llvm::Value* Expression::codegen() {
                     b = Builder.CreateSIToFP(b, llvm::Type::getFloatTy(Context));
                 }
                 return Builder.CreateFDiv(a, b);
-            }
+            },
+
         },
 
         // Boolean operators
@@ -127,13 +143,21 @@ llvm::Value* Expression::codegen() {
     } return eval.top();
 }
 
+llvm::Value* Condition::codegen() {
+    auto if_block = llvm::BasicBlock::Create(Context);
+    auto else_block = llvm::BasicBlock::Create(Context);
+
+    // Builder.CreateCondBr(this->bool_expr.codegen(), if_block, else_block);
+    // Builder.SetInsertPoint(if_block);
+}
+
+
 llvm::Value* FuncCall::codegen() {
     llvm::Type* returnType = type_registry[type];
     std::vector<llvm::Type*> paramTypes;
     llvm::FunctionType* functionType = llvm::FunctionType::get(returnType, paramTypes, false);
-    llvm::Function* myFunction = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, "c", LModule.get());
+    llvm::Function* myFunction = llvm::Function::Create(functionType, llvm::GlobalValue::InternalLinkage, "c", LModule.get());
 
-    llvm::Function* relative;
     llvm::Function* func = LModule->getFunction(ident);
     if (!func)
         throw std::runtime_error("No such function defined");
@@ -153,7 +177,6 @@ llvm::Value* Var::codegen() {
     auto type_iter = type_registry.find(var_type);
     if (type_iter == type_registry.end()) throw std::runtime_error("undefined type");
 
-    std::cout << parent << std::endl;
     if (type_iter->second->isIntegerTy())
         IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(type_iter->second);
 
@@ -163,7 +186,7 @@ llvm::Value* Var::codegen() {
     if (initialized)
         init = value.codegen();
 
-    if (!parent) {
+    if (!IsLocalScope) {
         auto* var = new llvm::GlobalVariable(
                 *LModule, type_iter->second, is_const, llvm::GlobalVariable::InternalLinkage,
                 nullptr, var_ident
@@ -176,14 +199,11 @@ llvm::Value* Var::codegen() {
 
         ret = var;
     } else {
-        std::cout << type_iter->second << std::endl;
         llvm::AllocaInst* var_alloca = Builder.CreateAlloca(type_iter->second, nullptr, var_ident);
         // * is_volatile is false
         if (init) Builder.CreateStore(init, var_alloca);
         ret = var_alloca;
     }
 
-    std::cout << "----------------" << std::endl;
-    printIR();
     return ret;
 }

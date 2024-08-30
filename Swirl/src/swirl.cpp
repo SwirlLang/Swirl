@@ -37,7 +37,7 @@ const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops = {
 };
 
 const std::unordered_map<std::string, uint8_t> keywords = {
-    {"func", 0},      {"return", 1},  {"if", 2},      {"else", 3},
+    {"return", 1},  {"if", 2},      {"else", 3},
     {"for", 4},       {"while", 5},   {"is", 6},      {"in", 7},
     {"or", 8},        {"and", 9},     {"class", 10},  {"public", 11},
     {"private", 12},  {"const", 15},  {"static", 16}, {"break", 17},

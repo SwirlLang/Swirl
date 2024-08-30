@@ -28,6 +28,7 @@ std::vector<std::unordered_map<std::string, TypeInfo>> SymbolTable{}; // TODO: u
 extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
 extern std::unordered_map<std::string, int> operators;
 
+extern void printIR();
 
 void pushToModule(std::unique_ptr<Node> node, const bool isParent = false) {
     if (!ScopeTrack.empty()) node->setParent(ScopeTrack.top());
@@ -92,7 +93,6 @@ std::unique_ptr<Node> Parser::dispatch() {
                     return std::move(parseVar());
                 }
                 if (m_Stream.p_CurTk.value == "fn") {
-                    std::cout << "parsing function" << std::endl;
                     return std::move(parseFunction());
                 }
                 break;
@@ -127,9 +127,11 @@ void Parser::parse() {
         ParsedModule.emplace_back(std::move(dispatch()));
     }
 
-    for (const auto & a : ParsedModule) {
-        std::cout << a->getType() << std::endl;
+    for ( auto & a : ParsedModule) {
+        a->codegen();
     }
+
+    printIR();
 }
 
 
@@ -184,9 +186,18 @@ std::unique_ptr<Function> Parser::parseFunction() {
         forwardStream();
     }
 
+    // parses the function's children and the return statement
     forwardStream();
-    while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}"))
-        func_nd.children.push_back(std::move(dispatch()));
+    while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}")) {
+        if (m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "return") {
+            m_Stream.next();
+            if (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ";")) {
+                parseExpr(&func_nd.return_val);
+                std::cout << func_nd.return_val.expr.size() << std::endl;
+
+            } continue;
+        } func_nd.children.push_back(std::move(dispatch()));
+    }
     forwardStream();
 
     return std::make_unique<Function>(std::move(func_nd));
