@@ -46,8 +46,9 @@ struct BeginScope {
     ~BeginScope() { IsLocalScope = false; }
 };
 
+
 llvm::Value* IntLit::codegen() {
-    return llvm::ConstantInt::get(IntegralTypeState, value, 10);
+    return llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), getValue(), 10);
 }
 
 llvm::Value* FloatLit::codegen() {
@@ -86,7 +87,7 @@ llvm::Value* Function::codegen() {
         child->codegen();
 
     if (!return_val.expr.empty()) {
-        Builder.CreateRet(this->return_val.codegen());
+        Builder.CreateRet(return_val.codegen());
     }
     else Builder.CreateRetVoid();
 
@@ -140,7 +141,9 @@ llvm::Value* Expression::codegen() {
                 eval.push(op_table[nd->getValue()](op1, op2));
             }
         }
-    } return eval.top();
+    }
+    if (eval.empty()) throw std::runtime_error("expr-codegen: eval stack is empty");
+    return eval.top();
 }
 
 llvm::Value* Condition::codegen() {

@@ -7,6 +7,7 @@
 #include <tokenizer/Tokenizer.h>
 #include <llvm/IR/Value.h>
 #include <exception/ExceptionHandler.h>
+#include <llvm/IR/Instructions.h>
 
 #ifndef SWIRL_PARSER_H
 #define SWIRL_PARSER_H
@@ -27,6 +28,9 @@ enum NodeType {
 
 // A common base class for all the nodes
 struct Node {
+    using inst_ptr_t = std::variant<llvm::AllocaInst*, llvm::GlobalVariable*>;
+    using symt_t     = std::unordered_map<std::string, inst_ptr_t>;
+
     struct Param {
         std::string var_ident;
         std::string var_type;
@@ -38,8 +42,10 @@ struct Node {
 
     std::string value;
 
-    Node* parent  = nullptr;
+    Node*  parent  = nullptr;
+    symt_t symbol_table{};
 
+    virtual bool hasScopes() { return false; }
     virtual const std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
     virtual Param getParamInstance() { return Param{}; }
     virtual void setParent(Node* pr) { }
@@ -49,6 +55,13 @@ struct Node {
     virtual std::vector<Param> getParams() const { throw std::runtime_error("getParams called on base getParams"); };
     virtual llvm::Value* codegen() { throw std::runtime_error("unimplemented Node::codegen"); }
     virtual int8_t getArity() { throw std::runtime_error("getArity called on base Node instance "); }
+    virtual const symt_t& getChildren() const { return symbol_table; }
+
+    virtual std::optional<inst_ptr_t> lookupSymbol(std::string_view name) {
+        auto nd_type = getType();
+
+        return std::nullopt;
+    }
     virtual ~Node() = default;
 };
 
@@ -176,7 +189,7 @@ struct Var: Node {
     bool initialized = false;
     bool is_const    = false;
 
-    Var() {};
+    Var() = default;
 
     std::string getValue() const override { return var_ident; }
     NodeType getType() const override { return ND_VAR; }
@@ -205,6 +218,10 @@ struct Function: Node {
 
     std::vector<Param> getParams() const override {
         return params;
+    }
+
+    bool hasScopes() override {
+        return true;
     }
 
     llvm::Value* codegen() override;

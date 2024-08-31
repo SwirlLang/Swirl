@@ -24,7 +24,6 @@ std::stack<Node*> ScopeTrack{};
 std::vector<std::unique_ptr<Node>> ParsedModule{};
 std::vector<std::unordered_map<std::string, TypeInfo>> SymbolTable{}; // TODO: use a more efficient symbol resolution approach
 
-
 extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
 extern std::unordered_map<std::string, int> operators;
 
@@ -93,24 +92,17 @@ std::unique_ptr<Node> Parser::dispatch() {
                     return std::move(parseVar());
                 }
                 if (m_Stream.p_CurTk.value == "fn") {
+                    std::cout << "parsing function..." << std::endl;
                     return std::move(parseFunction());
                 }
-                break;
             case IDENT:
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(")
                     return parseCall();
-                break;
             default:
                 std::cout << m_Stream.p_CurTk.value << ": " << type << std::endl;
                 throw std::runtime_error("dispatch: nothing found");
         }
-        m_Stream.next();
     }
-
-    m_ExceptionHandler.raiseAll();
-    // for (const auto& nd: ParsedModule) {
-    //     nd->codegen();
-    // }
 }
 
 
@@ -131,6 +123,7 @@ void Parser::parse() {
         a->codegen();
     }
 
+    m_ExceptionHandler.raiseAll();
     printIR();
 }
 
@@ -197,8 +190,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
             } continue;
         } func_nd.children.push_back(std::move(dispatch()));
-    }
-    forwardStream();
+    } forwardStream();
 
     return std::make_unique<Function>(std::move(func_nd));
 }
