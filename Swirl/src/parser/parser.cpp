@@ -89,11 +89,14 @@ std::unique_ptr<Node> Parser::dispatch() {
         switch (m_Stream.p_CurTk.type) {
             case KEYWORD:
                 if (m_Stream.p_CurTk.value == "const" || m_Stream.p_CurTk.value == "var") {
-                    return std::move(parseVar());
+                    auto ret =  std::move(parseVar());
+                    return std::move(ret);
                 }
                 if (m_Stream.p_CurTk.value == "fn") {
-                    std::cout << "parsing function..." << std::endl;
-                    return std::move(parseFunction());
+                    ScopeIndex++;
+                    auto ret = std::move(parseFunction());
+                    ret->scope_id = ScopeIndex;
+                    return std::move(ret);
                 }
             case IDENT:
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(")
@@ -192,6 +195,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
         } func_nd.children.push_back(std::move(dispatch()));
     } forwardStream();
 
+    ScopeIndex--;
     return std::make_unique<Function>(std::move(func_nd));
 }
 
@@ -251,11 +255,31 @@ std::unique_ptr<Node> Parser::parseCall() {
     return call_node;
 }
 
-void Parser::parseCondition() {
+std::unique_ptr<Condition> Parser::parseCondition() {
     Condition cnd;
-    m_Stream.next();
+    forwardStream();  // skip "if"
     parseExpr(&cnd.bool_expr);
-    pushToModule(std::make_unique<Condition>(std::move(cnd)), true);
+    forwardStream();  // skip the opening brace
+
+    while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}"))
+        cnd.if_children.push_back(std::move(dispatch()));
+    forwardStream();
+
+    // handle `else(s)`
+    if (!(m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "else"))
+        return std::make_unique<Condition>(std::move(cnd));
+
+    while (!(m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "else")) {
+
+        cnd.else_childrens.emplace_back();
+
+        // parse, parse and parse
+        while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}"))
+            cnd.else_childrens.back().push_back(std::move(dispatch()));
+        forwardStream(2);
+    }
+
+    return std::make_unique<Condition>(std::move(cnd));
 }
 
 

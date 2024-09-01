@@ -1,7 +1,6 @@
-#include <list>
+#pragma once
 #include <memory>
 #include <utility>
-#include <stack>
 #include <variant>
 
 #include <tokenizer/Tokenizer.h>
@@ -26,9 +25,14 @@ enum NodeType {
 };
 
 
+struct SymInfo {
+    llvm::AllocaInst* inst_ptr    = nullptr;
+    std::size_t       scope_depth = 0;
+};
+
 // A common base class for all the nodes
 struct Node {
-    using inst_ptr_t = std::variant<llvm::AllocaInst*, llvm::GlobalVariable*>;
+    using inst_ptr_t = llvm::AllocaInst*;
     using symt_t     = std::unordered_map<std::string, inst_ptr_t>;
 
     struct Param {
@@ -40,7 +44,8 @@ struct Node {
         bool is_const    = false;
     };
 
-    std::string value;
+    std::string value{};
+    std::size_t scope_id{};
 
     Node*  parent  = nullptr;
     symt_t symbol_table{};
@@ -55,10 +60,15 @@ struct Node {
     virtual std::vector<Param> getParams() const { throw std::runtime_error("getParams called on base getParams"); };
     virtual llvm::Value* codegen() { throw std::runtime_error("unimplemented Node::codegen"); }
     virtual int8_t getArity() { throw std::runtime_error("getArity called on base Node instance "); }
-    virtual const symt_t& getChildren() const { return symbol_table; }
+    virtual const symt_t& getSymt() const { return symbol_table; }
+    virtual std::size_t getScopeID() const { return scope_id; }
+    virtual void debug() { throw std::runtime_error("debug called on base Node"); }
 
     virtual std::optional<inst_ptr_t> lookupSymbol(std::string_view name) {
-        auto nd_type = getType();
+        if (hasScopes()) {
+            for (const auto& [key, val]: getSymt()) {
+            }
+        }
 
         return std::nullopt;
     }
@@ -243,9 +253,15 @@ struct FuncCall: Node {
 
 struct Condition : Node {
     Expression bool_expr{};
+    std::vector<std::unique_ptr<Node>> if_children{};
+    std::vector<std::vector<std::unique_ptr<Node>>> else_childrens{};
 
     const std::vector<std::unique_ptr<Node>>& getExprValue() override {
         return bool_expr.expr;
+    }
+
+    bool hasScopes() override {
+        return true;
     }
 
     llvm::Value* codegen() override;
@@ -265,7 +281,7 @@ public:
     explicit Parser(TokenStream&);
 
     std::unique_ptr<Function> parseFunction();
-    void parseCondition();
+    std::unique_ptr<Condition> parseCondition();
     std::unique_ptr<Node> parseCall();
     std::unique_ptr<Node> dispatch();
     std::unique_ptr<Var> parseVar();

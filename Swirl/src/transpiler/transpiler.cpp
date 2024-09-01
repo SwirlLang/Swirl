@@ -20,6 +20,7 @@
 #include <string>
 #include <string_view>
 
+std::size_t ScopeDepth = 0;
 
 extern std::string SW_OUTPUT;
 extern std::vector<std::unique_ptr<Node>> ParsedModule;
@@ -39,7 +40,7 @@ std::unordered_map<std::string, llvm::Type*> type_registry = {
         {"void",  llvm::Type::getVoidTy(Context)}
 };
 
-llvm::IntegerType* IntegralTypeState;
+llvm::IntegerType* IntegralTypeState = llvm::Type::getInt32Ty(Context);
 
 struct BeginScope {
     BeginScope()  { IsLocalScope = true; }
@@ -48,7 +49,7 @@ struct BeginScope {
 
 
 llvm::Value* IntLit::codegen() {
-    return llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), getValue(), 10);
+    return llvm::ConstantInt::get(IntegralTypeState, getValue(), 10);
 }
 
 llvm::Value* FloatLit::codegen() {
