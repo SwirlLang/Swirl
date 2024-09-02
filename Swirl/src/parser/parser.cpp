@@ -82,19 +82,25 @@ void Parser::forwardStream(const uint8_t n = 1) {
 }
 
 std::unique_ptr<Node> Parser::dispatch() {
-    if (!m_Stream.eof()) {
+    while (!m_Stream.eof()) {
         const TokenType type = m_Stream.p_CurTk.type;
         const auto value = m_Stream.p_CurTk.value;
 
         switch (m_Stream.p_CurTk.type) {
             case KEYWORD:
                 if (m_Stream.p_CurTk.value == "const" || m_Stream.p_CurTk.value == "var") {
-                    auto ret =  std::move(parseVar());
+                    auto ret = parseVar();
                     return std::move(ret);
                 }
                 if (m_Stream.p_CurTk.value == "fn") {
                     ScopeIndex++;
-                    auto ret = std::move(parseFunction());
+                    auto ret = parseFunction();
+                    ret->scope_id = ScopeIndex;
+                    return std::move(ret);
+                }
+                if (m_Stream.p_CurTk.value == "if") {
+                    ScopeIndex++;
+                    auto ret = parseCondition();
                     ret->scope_id = ScopeIndex;
                     return std::move(ret);
                 }
@@ -102,7 +108,9 @@ std::unique_ptr<Node> Parser::dispatch() {
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(")
                     return parseCall();
             default:
+                auto [line, _, col] = m_Stream.getStreamState();
                 std::cout << m_Stream.p_CurTk.value << ": " << type << std::endl;
+                std::cout << "Line: " << line << " Col: " << col << std::endl;
                 throw std::runtime_error("dispatch: nothing found");
         }
     }
@@ -123,7 +131,8 @@ void Parser::parse() {
     }
 
     for ( auto & a : ParsedModule) {
-        a->codegen();
+        a->print();
+        // a->codegen();
     }
 
     m_ExceptionHandler.raiseAll();
@@ -248,10 +257,11 @@ std::unique_ptr<Node> Parser::parseCall() {
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")
         return call_node;
 
-    while (m_Stream.p_CurTk.value != ")") {
+    while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")) {
         parseExpr(&call_node->args, true);
     }
 
+    forwardStream();
     return call_node;
 }
 
@@ -261,6 +271,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
     parseExpr(&cnd.bool_expr);
     forwardStream();  // skip the opening brace
 
+    ScopeIndex--;
     while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}"))
         cnd.if_children.push_back(std::move(dispatch()));
     forwardStream();
@@ -269,16 +280,13 @@ std::unique_ptr<Condition> Parser::parseCondition() {
     if (!(m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "else"))
         return std::make_unique<Condition>(std::move(cnd));
 
-    while (!(m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "else")) {
-
+    while (m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "else") {
         cnd.else_childrens.emplace_back();
-
-        // parse, parse and parse
-        while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}"))
-            cnd.else_childrens.back().push_back(std::move(dispatch()));
         forwardStream(2);
+        while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}")) {
+            cnd.else_childrens.back().push_back(dispatch());
+        } forwardStream();
     }
-
     return std::make_unique<Condition>(std::move(cnd));
 }
 
@@ -288,7 +296,7 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
     // TODO: remove overcomplexity
 
     bool kill_yourself = false;
-    std::stack<Op> ops{}; // operator stack
+    std::stack<Op> ops{};  // OUR operator stack
     std::vector<std::unique_ptr<Node> > output{}; // the final postfix (RPN) form
 
     int paren_counter = 0;

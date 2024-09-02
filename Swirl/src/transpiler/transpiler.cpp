@@ -70,6 +70,14 @@ void printIR() {
 }
 
 
+void Function::print() {
+    std::cout << std::format("Function: {}", ident) << std::endl;
+    for (const auto& a : children) {
+        std::cout << "\t";
+        a->print();
+    }
+}
+
 llvm::Value* Function::codegen() {
     std::vector<llvm::Type*> param_types;
 
@@ -176,6 +184,31 @@ llvm::Value* FuncCall::codegen() {
     llvm::Value* ret = Builder.CreateCall(func, arguments, ident);
     return ret;
 }
+
+void Var::print() {
+    std::cout << std::format("Var: {}", var_ident) << std::endl;
+}
+
+void Condition::print() {
+    std::cout <<
+        std::format("Condition: if-children-size: {}, else-children-size: {}", if_children.size(), else_childrens.size())
+    << std::endl;
+
+    std::cout << "IF-children:" << std::endl;
+    for (const auto& a : if_children) {
+        std::cout << "\t";
+        a->print();
+    }
+    std::cout << "ELSE-children:" << std::endl;
+    for (const auto& a : else_childrens) {
+        for (const auto& a : if_children) {
+            std::cout << "\t";
+            a->print();
+        }
+    }
+}
+
+
 
 llvm::Value* Var::codegen() {
     auto type_iter = type_registry.find(var_type);

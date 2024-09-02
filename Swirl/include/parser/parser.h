@@ -62,7 +62,7 @@ struct Node {
     virtual int8_t getArity() { throw std::runtime_error("getArity called on base Node instance "); }
     virtual const symt_t& getSymt() const { return symbol_table; }
     virtual std::size_t getScopeID() const { return scope_id; }
-    virtual void debug() { throw std::runtime_error("debug called on base Node"); }
+    virtual void print() { throw std::runtime_error("debug called on base Node"); }
 
     virtual std::optional<inst_ptr_t> lookupSymbol(std::string_view name) {
         if (hasScopes()) {
@@ -206,6 +206,8 @@ struct Var: Node {
     Node* getParent() const override { return parent; }
     void setParent(Node* pr) override { parent = pr; }
 
+    void print() override;
+
     std::vector<std::unique_ptr<Node>>& getExprValue() override { return value.expr; }
     llvm::Value* codegen() override;
 };
@@ -233,6 +235,8 @@ struct Function: Node {
     bool hasScopes() override {
         return true;
     }
+
+    void print() override;
 
     llvm::Value* codegen() override;
 };
@@ -264,6 +268,7 @@ struct Condition : Node {
         return true;
     }
 
+    void print() override;
     llvm::Value* codegen() override;
 };
 
