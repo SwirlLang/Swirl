@@ -131,11 +131,10 @@ void Parser::parse() {
     }
 
     for ( auto & a : ParsedModule) {
-        a->print();
-        // a->codegen();
+        // a->print();
+        a->codegen();
     }
-
-    m_ExceptionHandler.raiseAll();
+    // m_ExceptionHandler.raiseAll();
     printIR();
 }
 
@@ -296,14 +295,14 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
     // TODO: remove overcomplexity
 
     bool kill_yourself = false;
-    std::stack<Op> ops{};  // OUR operator stack
+    std::stack<Op> ops{};  // our operator stack
     std::vector<std::unique_ptr<Node> > output{}; // the final postfix (RPN) form
 
     int paren_counter = 0;
     int ops_opr_consumed = 0;
 
-    Token prev_token;
-    static const std::unordered_set<TokenType> invalid_prev_types{IDENT, NUMBER, KEYWORD, STRING};
+    Token prev_token = {OP, "="};
+    static const std::unordered_set invalid_prev_types{IDENT, NUMBER, KEYWORD, STRING};
 
     while (!m_Stream.eof()) {
         Op top_elem;
@@ -319,7 +318,7 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
                 break;
         }
 
-        if (m_Stream.p_CurTk.type == KEYWORD || (prev_token.type != OP && m_Stream.p_CurTk.type == IDENT))
+        if (m_Stream.p_CurTk.type == KEYWORD || (prev_token.type != OP && (m_Stream.p_CurTk.type == IDENT)))
             break;
         // if (prev_token.type != OP && m_Stream.p_CurTk.type == IDENT) break;
 
@@ -357,7 +356,7 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
                     paren_counter++;
                     ops.emplace("(");
                     break;
-                } else if (m_Stream.p_CurTk.value == ")") {
+                } if (m_Stream.p_CurTk.value == ")") {
                     paren_counter--;
                     if (isCall && paren_counter == -1) {
                         kill_yourself = true;
@@ -403,6 +402,7 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
         std::get<Expression*>(ptr)->expr = std::move(expr.expr);
 
     // NOTE: this function propagates the stream at the token right after the expression
+    std::cout << "expr leaving at: " << m_Stream.p_CurTk.value << std::endl;
 }
 
 
