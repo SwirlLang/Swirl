@@ -93,7 +93,6 @@ struct Op: Node {
     }
 };
 
-
 struct Expression: Node {
     std::vector<std::unique_ptr<Node>> expr{};
 
@@ -123,6 +122,11 @@ struct Expression: Node {
     llvm::Value* codegen() override;
 };
 
+struct Assignment : Node {
+    Expression value{};
+    std::string ident{};
+    llvm::Value *codegen() override;
+};
 
 struct IntLit: Node {
     std::string value;

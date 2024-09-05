@@ -22,7 +22,6 @@ struct TypeInfo {
 std::size_t ScopeIndex{};
 std::stack<Node*> ScopeTrack{};
 std::vector<std::unique_ptr<Node>> ParsedModule{};
-std::vector<std::unordered_map<std::string, TypeInfo>> SymbolTable{}; // TODO: use a more efficient symbol resolution approach
 
 extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
 extern std::unordered_map<std::string, int> operators;
@@ -39,9 +38,9 @@ void pushToModule(std::unique_ptr<Node> node, const bool isParent = false) {
 
 
 bool isASymbol(const std::string_view symbol) {
-    for (auto& iter: std::ranges::reverse_view(SymbolTable))
-        if (iter.contains(std::string(symbol)))
-            return true;
+    // for (auto& iter: std::ranges::reverse_view(SymbolTable))
+    //     if (iter.contains(std::string(symbol)))
+    //         return true;
     return false;
 }
 
@@ -107,6 +106,15 @@ std::unique_ptr<Node> Parser::dispatch() {
             case IDENT:
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(")
                     return parseCall();
+
+                if (m_Stream.peek().type == OP && m_Stream.peek().value == "=") {
+                    auto assignment = std::make_unique<Assignment>();
+                    assignment->ident = m_Stream.p_CurTk.value;
+
+                    forwardStream(2);
+                    parseExpr(&assignment->value);
+                    return assignment;
+                }
             default:
                 auto [line, _, col] = m_Stream.getStreamState();
                 std::cout << m_Stream.p_CurTk.value << ": " << type << std::endl;
@@ -124,7 +132,6 @@ void Parser::parse() {
     //     m_Stream.next();
     // }
     forwardStream();
-    SymbolTable.emplace_back();  // global scope
 
     while (!m_Stream.eof()) {
         ParsedModule.emplace_back(std::move(dispatch()));
@@ -155,7 +162,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
             "A function with this name already exists"
         );
     } else {
-        SymbolTable.back()[func_nd.ident] = {};
+        // SymbolTable.back()[func_nd.ident] = {};
     }
 
     forwardStream(2);
@@ -196,9 +203,9 @@ std::unique_ptr<Function> Parser::parseFunction() {
         if (m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "return") {
             m_Stream.next();
             if (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ";")) {
+                std::cout << "passing control at " << m_Stream.p_CurTk.value << std::endl;
                 parseExpr(&func_nd.return_val);
                 std::cout << func_nd.return_val.expr.size() << std::endl;
-
             } continue;
         } func_nd.children.push_back(std::move(dispatch()));
     } forwardStream();
@@ -227,7 +234,7 @@ std::unique_ptr<Var> Parser::parseVar() {
             "Redefinition of an existing variable"
         );
     } else {
-        SymbolTable.back()[var_node.var_ident] = {.is_const = var_node.is_const};
+        // SymbolTable.back()[var_node.var_ident] = {.is_const = var_node.is_const};
     }
 
 

@@ -38,14 +38,34 @@ std::unordered_map<std::string, llvm::Type*> type_registry = {
         {"void",  llvm::Type::getVoidTy(Context)}
 };
 
+struct TableEntry {
+    llvm::Value* ptr{};
+    llvm::Type* type{};
+    bool is_const = false;
+};
+
 llvm::IntegerType* IntegralTypeState = llvm::Type::getInt32Ty(Context);
-static std::vector<std::unordered_map<std::string, llvm::Value*>> SymbolTable{};
-std::unordered_map<std::string, std::variant<llvm::GlobalVariable*, llvm::Function*>> GlobalValueTable{};
+static std::vector<std::unordered_map<std::string, TableEntry>> SymbolTable{};
+// std::unordered_map<std::string, std::variant<llvm::GlobalVariable*, llvm::Function*>> GlobalValueTable{};
 
 
-struct BeginScope {
-     BeginScope() { IsLocalScope = true; SymbolTable.emplace_back(); }
-    ~BeginScope() { IsLocalScope = false; SymbolTable.pop_back(); }
+// this class must be instatiated BEFORE SetInsertPoint is called
+struct NewScope {
+    llvm::IRBuilderBase::InsertPoint IP;
+
+     NewScope() {
+         IsLocalScope = true;
+         SymbolTable.emplace_back();
+         IP = Builder.saveIP();
+     }
+
+    ~NewScope() {
+         IsLocalScope = false;
+         SymbolTable.pop_back();
+
+         if (IP.getBlock() != nullptr)
+            Builder.restoreIP(IP);
+     }
 };
 
 
@@ -64,19 +84,11 @@ llvm::Value* StrLit::codegen() {
 llvm::Value* Ident::codegen() {
     for (auto& entry: SymbolTable | std::views::reverse) {
         if (entry.contains(this->value)) {
-            const auto o = entry[this->value];
-            return Builder.CreateLoad(o->getType(), o);
+            const auto [ptr, type, _] = entry[this->value];
+            return Builder.CreateLoad(type, ptr);
         }
     } throw std::runtime_error("Invalid ident");
 }
-
-void printIR() {
-    LModule->print(llvm::outs(), nullptr);
-    llvm::outs().flush();
-
-    std::cout << "--------------[NATIVE-ASM]----------------" << std::endl;
-}
-
 
 void Function::print() {
     std::cout << std::format("Function: {}", ident) << std::endl;
@@ -97,15 +109,15 @@ llvm::Value* Function::codegen() {
     llvm::Function*     func   = llvm::Function::Create(f_type, llvm::GlobalValue::InternalLinkage, ident, LModule.get());
 
     llvm::BasicBlock*   BB     = llvm::BasicBlock::Create(Context, "", func);
+    NewScope _;
     Builder.SetInsertPoint(BB);
-    BeginScope _;
 
     for (int i = 0; i < params.size(); i++) {
         const auto p_name = params[i].var_ident;
         const auto param = func->getArg(i);
 
         param->setName(p_name);
-        SymbolTable.back()[p_name] = param;
+        SymbolTable.back()[p_name] = {param, param_types[i]};
     }
 
     for (const auto& child : this->children)
@@ -177,21 +189,37 @@ llvm::Value* Expression::codegen() {
     return eval.top();
 }
 
+llvm::Value* Assignment::codegen() {
+    llvm::Value* ptr;
+    if (!std::ranges::any_of(SymbolTable | std::views::reverse, [this, &ptr](auto& entry) {
+        if (entry.contains(ident) && !entry[ident].is_const) {
+            ptr = entry[ident].ptr;
+            return true;
+        } return false;
+    })) throw std::runtime_error("assignment: variable not defined previously or is const");
+
+    Builder.CreateStore(value.codegen(), ptr);
+    return nullptr;
+}
+
 llvm::Value* Condition::codegen() {
-    const auto if_block = llvm::BasicBlock::Create(Context);
-    const auto else_block = llvm::BasicBlock::Create(Context);
+    const auto parent = Builder.GetInsertBlock()->getParent();
+    const auto if_block = llvm::BasicBlock::Create(Context, "if", parent);
+    const auto else_block = llvm::BasicBlock::Create(Context, "else");
     const auto condition = this->bool_expr.codegen();
 
-    BeginScope _();
+    NewScope _;
 
     if (!condition)
         throw std::runtime_error("condition is null");
 
     Builder.CreateCondBr(condition, if_block, else_block);
-    Builder.SetInsertPoint(if_block);
 
-    for (const auto& child : this->if_children)
-        child->codegen();
+    if (!this->if_children.empty()) {
+        Builder.SetInsertPoint(if_block);
+        for (const auto& child : this->if_children)
+            child->codegen();
+    }
 
     // TODO: handle else
     return nullptr;
@@ -273,10 +301,19 @@ llvm::Value* Var::codegen() {
         llvm::AllocaInst* var_alloca = Builder.CreateAlloca(type_iter->second, nullptr, var_ident);
         // * is_volatile is false
         if (init) Builder.CreateStore(init, var_alloca);
-        SymbolTable.back()[var_ident] = var_alloca;
+        SymbolTable.back()[var_ident] = {var_alloca, type_registry[var_type]};
         ret = var_alloca;
     }
 
     IntegralTypeState = state_cache;
     return ret;
+}
+
+void printIR() {
+    const auto ln1 = "--------------------[IR]--------------------\n";
+    llvm::outs().write(ln1, strlen(ln1));
+    LModule->print(llvm::outs(), nullptr);
+    const auto ln2 = "----------------[NATIVE-ASM]----------------\n";
+    llvm::outs().write(ln2, strlen(ln2));
+    llvm::outs().flush();
 }
