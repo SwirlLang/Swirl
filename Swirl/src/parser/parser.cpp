@@ -37,13 +37,6 @@ void pushToModule(std::unique_ptr<Node> node, const bool isParent = false) {
 }
 
 
-bool isASymbol(const std::string_view symbol) {
-    // for (auto& iter: std::ranges::reverse_view(SymbolTable))
-    //     if (iter.contains(std::string(symbol)))
-    //         return true;
-    return false;
-}
-
 
 Parser::Parser(TokenStream& tks) : m_Stream(tks) {}
 Parser::~Parser() = default;
@@ -122,6 +115,8 @@ std::unique_ptr<Node> Parser::dispatch() {
                 throw std::runtime_error("dispatch: nothing found");
         }
     }
+
+    throw std::runtime_error("dispatch: this wasn't supposed to happen");
 }
 
 
@@ -134,7 +129,7 @@ void Parser::parse() {
     forwardStream();
 
     while (!m_Stream.eof()) {
-        ParsedModule.emplace_back(std::move(dispatch()));
+        ParsedModule.emplace_back(dispatch());
     }
 
     for ( auto & a : ParsedModule) {
@@ -151,22 +146,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     func_nd.ident = m_Stream.next().value;
 
     // Check for errors
-    if (isASymbol(func_nd.ident)) {
-        auto stream_state = m_Stream.getStreamState();
-        EnablePanicMode = true;
-        m_ExceptionHandler.newException(
-            ERROR,
-            stream_state.Line,
-            stream_state.Col - (func_nd.ident.size()),
-            stream_state.Col,
-            "A function with this name already exists"
-        );
-    } else {
-        // SymbolTable.back()[func_nd.ident] = {};
-    }
-
     forwardStream(2);
-
     static auto parse_params = [this] {
         decltype(func_nd.getParamInstance()) param{};
         param.var_ident = m_Stream.p_CurTk.value; // parameter ident
@@ -210,6 +190,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
         } func_nd.children.push_back(std::move(dispatch()));
     } forwardStream();
 
+    std::cout << "function leaving at: " << m_Stream.p_CurTk.value << std::endl;
     ScopeIndex--;
     return std::make_unique<Function>(std::move(func_nd));
 }
@@ -219,23 +200,6 @@ std::unique_ptr<Var> Parser::parseVar() {
     Var var_node;
     var_node.is_const = m_Stream.p_CurTk.value[0] == 'c';
     var_node.var_ident = m_Stream.next().value;
-
-
-    // add an error if the variable already exists
-    if (isASymbol(var_node.var_ident)) {
-        auto stream_state = m_Stream.getStreamState();
-        EnablePanicMode = true;
-
-        m_ExceptionHandler.newException(
-            ERROR,
-            stream_state.Line,
-            stream_state.Col - (var_node.var_ident.size()),
-            stream_state.Col,
-            "Redefinition of an existing variable"
-        );
-    } else {
-        // SymbolTable.back()[var_node.var_ident] = {.is_const = var_node.is_const};
-    }
 
 
     auto p_token = m_Stream.peek();
@@ -263,11 +227,16 @@ std::unique_ptr<Node> Parser::parseCall() {
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")
         return call_node;
 
-    while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")) {
+    while (true) {
+        if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")
+            break;
         parseExpr(&call_node->args, true);
     }
 
+    std::cout << "loop breaking at " << m_Stream.p_CurTk.value << std::endl;
     forwardStream();
+    std::cout << "loop breaking at " << m_Stream.p_CurTk.value << std::endl;
+
     return call_node;
 }
 
@@ -346,7 +315,7 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
             case IDENT:
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
                     output.emplace_back(parseCall());
-                    break;
+                    continue;
                 }
                 output.emplace_back(std::make_unique<Ident>(Ident(m_Stream.p_CurTk.value)));
                 break;

@@ -15,10 +15,10 @@
 #include <include/SwirlConfig.h>
 
 bool SW_DEBUG = false;
-std::string SW_FED_FILE_PATH;
-std::string SW_OUTPUT;
-std::string SW_FED_FILE_SOURCE;
-std::string SW_COMPLETE_FED_FILE_PATH;
+std::string SW_FED_FILE_PATH{};
+std::string SW_OUTPUT{};
+std::string SW_FED_FILE_SOURCE{};
+std::string SW_COMPLETE_FED_FILE_PATH{};
 
 std::unordered_map<std::size_t, std::string> LineTable{};
 
