@@ -52,15 +52,17 @@ static std::vector<std::unordered_map<std::string, TableEntry>> SymbolTable{};
 // this struct must be instatiated BEFORE IRBuilder::SetInsertPoint is called
 struct NewScope {
     llvm::IRBuilderBase::InsertPoint IP;
+    bool prev_ls_cache{};
 
      NewScope() {
+         prev_ls_cache = IsLocalScope;
          IsLocalScope = true;
          SymbolTable.emplace_back();
          // IP = Builder.saveIP();
      }
 
     ~NewScope() {
-         IsLocalScope = false;
+         IsLocalScope = prev_ls_cache;
          SymbolTable.pop_back();
          //
          // if (IP.getBlock() != nullptr)
@@ -217,7 +219,6 @@ llvm::Value* Condition::codegen() {
         throw std::runtime_error("condition is null");
 
     std::vector false_blocks = {else_block};
-
     Builder.CreateCondBr(if_cond, if_block, else_block);
     {
         NewScope _;
@@ -225,25 +226,39 @@ llvm::Value* Condition::codegen() {
 
         for (auto& child : if_children)
             child->codegen();
-        Builder.CreateBr(merge_block);
-    }
 
-    for (auto& [cond, children] : elif_children) {
-        NewScope _;
-        Builder.SetInsertPoint(false_blocks.back());
-        false_blocks.push_back(llvm::BasicBlock::Create(Context, "elif", parent));
-        Builder.CreateCondBr(cond.codegen(), false_blocks.at(false_blocks.size() - 2), false_blocks.back());
-
-        for (const auto& child : children)
-            child->codegen();
-
-        if (!children.empty())
+        if (elif_children.empty())
             Builder.CreateBr(merge_block);
     }
 
+    // elif(s)
+    for (std::size_t i = 1; auto& [cond, children] : elif_children) {
+        if (i == 1) {
+            Builder.SetInsertPoint(if_block);
+            else_block->setName("elif");
+            false_blocks.push_back(llvm::BasicBlock::Create(Context, "elif", parent));
+            Builder.CreateCondBr(cond.codegen(), else_block, false_blocks.back());
+            Builder.SetInsertPoint(else_block);
+        } else {
+            Builder.SetInsertPoint(false_blocks.at(false_blocks.size() - 2));
+            false_blocks.push_back(llvm::BasicBlock::Create(Context, "elif", parent));
+            Builder.CreateCondBr(cond.codegen(), false_blocks.at(false_blocks.size() - 2), false_blocks.back());
+            Builder.SetInsertPoint(false_blocks.at(false_blocks.size() - 2));
+        }
+
+        for (auto& child : children)
+            child->codegen();
+
+        if (i == elif_children.size())
+            Builder.CreateBr(merge_block);
+        i++;
+    }
+
+    // else
     {
         NewScope _;
         Builder.SetInsertPoint(false_blocks.back());
+        false_blocks.back()->setName("else");
 
         for (const auto& child : else_children)
             child->codegen();
