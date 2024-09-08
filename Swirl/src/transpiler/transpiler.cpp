@@ -56,15 +56,15 @@ struct NewScope {
      NewScope() {
          IsLocalScope = true;
          SymbolTable.emplace_back();
-         IP = Builder.saveIP();
+         // IP = Builder.saveIP();
      }
 
     ~NewScope() {
          IsLocalScope = false;
          SymbolTable.pop_back();
-
-         if (IP.getBlock() != nullptr)
-            Builder.restoreIP(IP);
+         //
+         // if (IP.getBlock() != nullptr)
+         //    Builder.restoreIP(IP);
      }
 
     llvm::IRBuilderBase::InsertPoint getInsertPoint() const {
@@ -234,13 +234,23 @@ llvm::Value* Condition::codegen() {
         false_blocks.push_back(llvm::BasicBlock::Create(Context, "elif", parent));
         Builder.CreateCondBr(cond.codegen(), false_blocks.at(false_blocks.size() - 2), false_blocks.back());
 
-        for (const auto& child : children) {
+        for (const auto& child : children)
             child->codegen();
-        }
+
+        if (!children.empty())
+            Builder.CreateBr(merge_block);
+    }
+
+    {
+        NewScope _;
+        Builder.SetInsertPoint(false_blocks.back());
+
+        for (const auto& child : else_children)
+            child->codegen();
         Builder.CreateBr(merge_block);
     }
 
-    // TODO: handle else
+    Builder.SetInsertPoint(merge_block);
     return nullptr;
 }
 
@@ -255,9 +265,8 @@ llvm::Value* FuncCall::codegen() {
     std::vector<llvm::Value*> arguments{};
     arguments.reserve(args.size());
 
-    for (auto& item : args) {
+    for (auto& item : args)
         arguments.push_back(item.codegen());
-    }
 
     if (!func->getReturnType()->isVoidTy())
         return Builder.CreateCall(func, arguments, ident);
