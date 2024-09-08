@@ -262,7 +262,8 @@ struct FuncCall: Node {
 struct Condition : Node {
     Expression bool_expr{};
     std::vector<std::unique_ptr<Node>> if_children{};
-    std::vector<std::vector<std::unique_ptr<Node>>> else_childrens{};
+    std::vector<std::tuple<Expression, std::vector<std::unique_ptr<Node>>>> elif_children;
+    std::vector<std::unique_ptr<Node>> else_children{};
 
     const std::vector<std::unique_ptr<Node>>& getExprValue() override {
         return bool_expr.expr;

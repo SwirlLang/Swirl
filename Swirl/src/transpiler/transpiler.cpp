@@ -49,7 +49,7 @@ static std::vector<std::unordered_map<std::string, TableEntry>> SymbolTable{};
 // std::unordered_map<std::string, std::variant<llvm::GlobalVariable*, llvm::Function*>> GlobalValueTable{};
 
 
-// this class must be instatiated BEFORE SetInsertPoint is called
+// this struct must be instatiated BEFORE IRBuilder::SetInsertPoint is called
 struct NewScope {
     llvm::IRBuilderBase::InsertPoint IP;
 
@@ -65,6 +65,10 @@ struct NewScope {
 
          if (IP.getBlock() != nullptr)
             Builder.restoreIP(IP);
+     }
+
+    llvm::IRBuilderBase::InsertPoint getInsertPoint() const {
+         return IP;
      }
 };
 
@@ -205,20 +209,35 @@ llvm::Value* Assignment::codegen() {
 llvm::Value* Condition::codegen() {
     const auto parent = Builder.GetInsertBlock()->getParent();
     const auto if_block = llvm::BasicBlock::Create(Context, "if", parent);
-    const auto else_block = llvm::BasicBlock::Create(Context, "else");
-    const auto condition = this->bool_expr.codegen();
+    const auto else_block = llvm::BasicBlock::Create(Context, "else", parent);
+    const auto merge_block = llvm::BasicBlock::Create(Context, "merge", parent);
 
-    NewScope _;
-
-    if (!condition)
+    const auto if_cond = this->bool_expr.codegen();
+    if (!if_cond)
         throw std::runtime_error("condition is null");
 
-    Builder.CreateCondBr(condition, if_block, else_block);
+    std::vector false_blocks = {else_block};
 
-    if (!this->if_children.empty()) {
+    Builder.CreateCondBr(if_cond, if_block, else_block);
+    {
+        NewScope _;
         Builder.SetInsertPoint(if_block);
-        for (const auto& child : this->if_children)
+
+        for (auto& child : if_children)
             child->codegen();
+        Builder.CreateBr(merge_block);
+    }
+
+    for (auto& [cond, children] : elif_children) {
+        NewScope _;
+        Builder.SetInsertPoint(false_blocks.back());
+        false_blocks.push_back(llvm::BasicBlock::Create(Context, "elif", parent));
+        Builder.CreateCondBr(cond.codegen(), false_blocks.at(false_blocks.size() - 2), false_blocks.back());
+
+        for (const auto& child : children) {
+            child->codegen();
+        }
+        Builder.CreateBr(merge_block);
     }
 
     // TODO: handle else
@@ -227,10 +246,7 @@ llvm::Value* Condition::codegen() {
 
 
 llvm::Value* FuncCall::codegen() {
-    llvm::Type* returnType = type_registry[type];
     std::vector<llvm::Type*> paramTypes;
-    llvm::FunctionType* functionType = llvm::FunctionType::get(returnType, paramTypes, false);
-    llvm::Function* myFunction = llvm::Function::Create(functionType, llvm::GlobalValue::InternalLinkage, "c", LModule.get());
 
     llvm::Function* func = LModule->getFunction(ident);
     if (!func)
@@ -243,8 +259,11 @@ llvm::Value* FuncCall::codegen() {
         arguments.push_back(item.codegen());
     }
 
-    llvm::Value* ret = Builder.CreateCall(func, arguments, ident);
-    return ret;
+    if (!func->getReturnType()->isVoidTy())
+        return Builder.CreateCall(func, arguments, ident);
+
+    Builder.CreateCall(func, arguments);
+    return nullptr;
 }
 
 void Var::print() {
@@ -253,7 +272,7 @@ void Var::print() {
 
 void Condition::print() {
     std::cout <<
-        std::format("Condition: if-children-size: {}, else-children-size: {}", if_children.size(), else_childrens.size())
+        std::format("Condition: if-children-size: {}, else-children-size: {}", if_children.size(), elif_children.size())
     << std::endl;
 
     std::cout << "IF-children:" << std::endl;
@@ -261,13 +280,14 @@ void Condition::print() {
         std::cout << "\t";
         a->print();
     }
+
     std::cout << "ELSE-children:" << std::endl;
-    for (const auto& a : else_childrens) {
-        for (const auto& a : if_children) {
-            std::cout << "\t";
-            a->print();
-        }
-    }
+    // for (const auto& a : elif_children) {
+    //     for (const auto& a : if_children) {
+    //         std::cout << "\t";
+    //         a->print();
+    //     }
+    // }
 }
 
 
@@ -310,6 +330,7 @@ llvm::Value* Var::codegen() {
 }
 
 void printIR() {
+    llvm::verifyModule(*LModule.get(), &llvm::errs());
     const auto ln1 = "--------------------[IR]--------------------\n";
     llvm::outs().write(ln1, strlen(ln1));
     LModule->print(llvm::outs(), nullptr);

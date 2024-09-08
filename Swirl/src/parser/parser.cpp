@@ -252,16 +252,32 @@ std::unique_ptr<Condition> Parser::parseCondition() {
     forwardStream();
 
     // handle `else(s)`
-    if (!(m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "else"))
+    if (!(m_Stream.p_CurTk.type == KEYWORD && (m_Stream.p_CurTk.value == "else" || m_Stream.p_CurTk.value == "elif")))
         return std::make_unique<Condition>(std::move(cnd));
 
-    while (m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "else") {
-        cnd.else_childrens.emplace_back();
+    if (m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "elif") {
+        while (m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "elif") {
+            forwardStream();
+
+            std::tuple<Expression, std::vector<std::unique_ptr<Node>>> children{};
+            parseExpr(&std::get<0>(children));
+
+            forwardStream();
+            while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}")) {
+                std::get<1>(children).push_back(dispatch());
+            } forwardStream();
+
+            cnd.elif_children.emplace_back(std::move(children));
+        }
+    }
+
+    if (m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "else") {
         forwardStream(2);
         while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}")) {
-            cnd.else_childrens.back().push_back(dispatch());
+            cnd.else_children.push_back(dispatch());
         } forwardStream();
     }
+
     return std::make_unique<Condition>(std::move(cnd));
 }
 
