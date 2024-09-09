@@ -42,6 +42,7 @@ struct TableEntry {
     llvm::Value* ptr{};
     llvm::Type* type{};
     bool is_const = false;
+    bool is_param = false;
 };
 
 llvm::IntegerType* IntegralTypeState = llvm::Type::getInt32Ty(Context);
@@ -90,14 +91,15 @@ llvm::Value* StrLit::codegen() {
 llvm::Value* Ident::codegen() {
     for (auto& entry: SymbolTable | std::views::reverse) {
         if (entry.contains(this->value)) {
-            const auto [ptr, type, _] = entry[this->value];
+            const auto [ptr, type, _, is_param] = entry[this->value];
+            if (is_param) return ptr;
             return Builder.CreateLoad(type, ptr);
         }
     } throw std::runtime_error("Invalid ident");
 }
 
 void Function::print() {
-    std::cout << std::format("Function: {}", ident) << std::endl;
+    std::cout << std::format("func: {}", ident) << std::endl;
     for (const auto& a : children) {
         std::cout << "\t";
         a->print();
@@ -123,7 +125,7 @@ llvm::Value* Function::codegen() {
         const auto param = func->getArg(i);
 
         param->setName(p_name);
-        SymbolTable.back()[p_name] = {param, param_types[i]};
+        SymbolTable.back()[p_name] = {.ptr = param, .type = param_types[i], .is_param = true};
     }
 
     for (const auto& child : this->children)
@@ -233,6 +235,7 @@ llvm::Value* Condition::codegen() {
 
     // elif(s)
     for (std::size_t i = 1; auto& [cond, children] : elif_children) {
+        NewScope _;
         if (i == 1) {
             Builder.SetInsertPoint(if_block);
             else_block->setName("elif");
