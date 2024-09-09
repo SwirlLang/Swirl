@@ -224,8 +224,10 @@ std::unique_ptr<Node> Parser::parseCall() {
     call_node->ident = m_Stream.p_CurTk.value;
     forwardStream(2);
 
-    if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")
+    if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")") {
+        forwardStream();
         return call_node;
+    }
 
     while (true) {
         if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")
