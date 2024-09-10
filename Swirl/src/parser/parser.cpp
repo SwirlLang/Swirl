@@ -28,16 +28,6 @@ extern std::unordered_map<std::string, int> operators;
 
 extern void printIR();
 
-void pushToModule(std::unique_ptr<Node> node, const bool isParent = false) {
-    if (!ScopeTrack.empty()) node->setParent(ScopeTrack.top());
-    ParsedModule.emplace_back(std::move(node));
-    if (isParent) {
-        ScopeTrack.push(ParsedModule.back().get());
-    }
-}
-
-
-
 Parser::Parser(TokenStream& tks) : m_Stream(tks) {}
 Parser::~Parser() = default;
 
@@ -96,6 +86,9 @@ std::unique_ptr<Node> Parser::dispatch() {
                     ret->scope_id = ScopeIndex;
                     return std::move(ret);
                 }
+
+                if (m_Stream.p_CurTk.value == "return")
+                    return parseRet();
             case IDENT:
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(")
                     return parseCall();
@@ -180,14 +173,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     // parses the function's children and the return statement
     forwardStream();
     while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}")) {
-        if (m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "return") {
-            m_Stream.next();
-            if (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ";")) {
-                std::cout << "passing control at " << m_Stream.p_CurTk.value << std::endl;
-                parseExpr(&func_nd.return_val);
-                std::cout << func_nd.return_val.expr.size() << std::endl;
-            } continue;
-        } func_nd.children.push_back(std::move(dispatch()));
+        func_nd.children.push_back(std::move(dispatch()));
     } forwardStream();
 
     std::cout << "function leaving at: " << m_Stream.p_CurTk.value << std::endl;
@@ -200,7 +186,6 @@ std::unique_ptr<Var> Parser::parseVar() {
     Var var_node;
     var_node.is_const = m_Stream.p_CurTk.value[0] == 'c';
     var_node.var_ident = m_Stream.next().value;
-
 
     auto p_token = m_Stream.peek();
     if (p_token.type == PUNC && p_token.value == ":") {
@@ -240,6 +225,18 @@ std::unique_ptr<Node> Parser::parseCall() {
     std::cout << "loop breaking at " << m_Stream.p_CurTk.value << std::endl;
 
     return call_node;
+}
+
+std::unique_ptr<ReturnStatement> Parser::parseRet() {
+    std::cout << "parsing return" << std::endl;
+    ReturnStatement ret;
+
+    forwardStream();
+    if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ";")
+        return std::make_unique<ReturnStatement>(std::move(ret));
+
+    parseExpr(&ret.value);
+    return std::make_unique<ReturnStatement>(std::move(ret));
 }
 
 std::unique_ptr<Condition> Parser::parseCondition() {
