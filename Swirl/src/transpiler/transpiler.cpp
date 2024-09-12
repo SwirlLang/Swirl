@@ -27,15 +27,22 @@ llvm::LLVMContext Context;
 llvm::IRBuilder<> Builder(Context);
 
 auto LModule = std::make_unique<llvm::Module>(SW_OUTPUT, Context);
-bool IsLocalScope = false;
+
+namespace states {
+    bool IsLocalScope      = false;
+    bool ChildHasReturned  = false;
+    llvm::IntegerType* IntegralTypeState = llvm::Type::getInt32Ty(Context);
+}
+
 
 std::unordered_map<std::string, llvm::Type*> type_registry = {
-        {"i64",   llvm::Type::getInt64Ty(Context)},
-        {"i32",   llvm::Type::getInt32Ty(Context)},
-        {"i128",  llvm::Type::getInt128Ty(Context)},
-        {"f32", llvm::Type::getFloatTy(Context)},
-        {"bool",  llvm::Type::getInt1Ty(Context)},
-        {"void",  llvm::Type::getVoidTy(Context)}
+    {"i64",   llvm::Type::getInt64Ty(Context)},
+    {"i32",   llvm::Type::getInt32Ty(Context)},
+    {"i128",  llvm::Type::getInt128Ty(Context)},
+    {"f32",   llvm::Type::getFloatTy(Context)},
+    {"f64",   llvm::Type::getDoubleTy(Context)},
+    {"bool",  llvm::Type::getInt1Ty(Context)},
+    {"void",  llvm::Type::getVoidTy(Context)}
 };
 
 struct TableEntry {
@@ -45,7 +52,7 @@ struct TableEntry {
     bool is_param = false;
 };
 
-llvm::IntegerType* IntegralTypeState = llvm::Type::getInt32Ty(Context);
+
 static std::vector<std::unordered_map<std::string, TableEntry>> SymbolTable{};
 // std::unordered_map<std::string, std::variant<llvm::GlobalVariable*, llvm::Function*>> GlobalValueTable{};
 
@@ -56,15 +63,16 @@ struct NewScope {
     bool prev_ls_cache{};
 
      NewScope() {
-         prev_ls_cache = IsLocalScope;
-         IsLocalScope = true;
+         prev_ls_cache = states::IsLocalScope;
+         states::IsLocalScope = true;
          SymbolTable.emplace_back();
          // IP = Builder.saveIP();
      }
 
     ~NewScope() {
-         IsLocalScope = prev_ls_cache;
+         states::IsLocalScope = prev_ls_cache;
          SymbolTable.pop_back();
+         states::ChildHasReturned = false;
          //
          // if (IP.getBlock() != nullptr)
          //    Builder.restoreIP(IP);
@@ -75,9 +83,18 @@ struct NewScope {
      }
 };
 
+void codegenChildrenUntilRet(std::vector<std::unique_ptr<Node>>& children) {
+    for (const auto& child : children) {
+        if (child->getType() == ND_RET) {
+            child->codegen();
+            states::ChildHasReturned = true;
+            return;
+        } child->codegen();
+    }
+}
 
 llvm::Value* IntLit::codegen() {
-    return llvm::ConstantInt::get(IntegralTypeState, getValue(), 10);
+    return llvm::ConstantInt::get(states::IntegralTypeState, getValue(), 10);
 }
 
 llvm::Value* FloatLit::codegen() {
@@ -96,14 +113,6 @@ llvm::Value* Ident::codegen() {
             return Builder.CreateLoad(type, ptr);
         }
     } throw std::runtime_error("Invalid ident");
-}
-
-void Function::print() {
-    std::cout << std::format("func: {}", ident) << std::endl;
-    for (const auto& a : children) {
-        std::cout << "\t";
-        a->print();
-    }
 }
 
 llvm::Value* Function::codegen() {
@@ -128,23 +137,29 @@ llvm::Value* Function::codegen() {
         SymbolTable.back()[p_name] = {.ptr = param, .type = param_types[i], .is_param = true};
     }
 
-    for (const auto& child : this->children)
-        child->codegen();
+    // for (const auto& child : this->children)
+    //     child->codegen();
 
-    if (!return_val.expr.empty()) {
-        const auto cache = IntegralTypeState;
-
-        if (const auto t = type_registry[ret_type]; t->isIntegerTy())
-            IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(t);
-
-        Builder.CreateRet(return_val.codegen());
-        IntegralTypeState = cache;
-    }
-    else Builder.CreateRetVoid();
-
+    codegenChildrenUntilRet(children);
     return func;
 }
 
+llvm::Value* ReturnStatement::codegen() {
+    if (!value.expr.empty()) {
+        const auto cache = states::IntegralTypeState;
+        const auto ret = value.codegen();
+
+        if (ret->getType()->isIntegerTy())
+            states::IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(ret->getType());
+
+        Builder.CreateRet(ret);
+        states::IntegralTypeState = cache;
+        return nullptr;
+    }
+
+    Builder.CreateRetVoid();
+    return nullptr;
+}
 
 llvm::Value* Expression::codegen() {
     std::stack<llvm::Value*> eval{};
@@ -226,10 +241,11 @@ llvm::Value* Condition::codegen() {
         NewScope _;
         Builder.SetInsertPoint(if_block);
 
-        for (auto& child : if_children)
-            child->codegen();
+        // for (auto& child : if_children)
+        //     child->codegen();
+        codegenChildrenUntilRet(if_children);
 
-        if (elif_children.empty())
+        if (!states::ChildHasReturned)
             Builder.CreateBr(merge_block);
     }
 
@@ -249,10 +265,11 @@ llvm::Value* Condition::codegen() {
             Builder.SetInsertPoint(false_blocks.at(false_blocks.size() - 2));
         }
 
-        for (auto& child : children)
-            child->codegen();
+        // for (auto& child : children)
+        //     child->codegen();
+        codegenChildrenUntilRet(children);
 
-        if (i == elif_children.size())
+        if (i == elif_children.size() && !states::ChildHasReturned)
             Builder.CreateBr(merge_block);
         i++;
     }
@@ -263,9 +280,12 @@ llvm::Value* Condition::codegen() {
         Builder.SetInsertPoint(false_blocks.back());
         false_blocks.back()->setName("else");
 
-        for (const auto& child : else_children)
-            child->codegen();
-        Builder.CreateBr(merge_block);
+        // for (const auto& child : else_children)
+        //     child->codegen();
+        codegenChildrenUntilRet(else_children);
+
+        if (!states::ChildHasReturned)
+            Builder.CreateBr(merge_block);
     }
 
     Builder.SetInsertPoint(merge_block);
@@ -293,9 +313,45 @@ llvm::Value* FuncCall::codegen() {
     return nullptr;
 }
 
-void Var::print() {
-    std::cout << std::format("Var: {}", var_ident) << std::endl;
+
+llvm::Value* Var::codegen() {
+    auto type_iter = type_registry.find(var_type);
+    if (type_iter == type_registry.end()) throw std::runtime_error("undefined type");
+
+    const auto state_cache = states::IntegralTypeState;
+    if (type_iter->second->isIntegerTy())
+        states::IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(type_iter->second);
+
+    llvm::Value* ret;
+    llvm::Value* init = nullptr;
+
+    if (initialized)
+        init = value.codegen();
+
+    if (!states::IsLocalScope) {
+        auto* var = new llvm::GlobalVariable(
+                *LModule, type_iter->second, is_const, llvm::GlobalVariable::InternalLinkage,
+                nullptr, var_ident
+                );
+
+        if (init) {
+            auto* val = llvm::dyn_cast<llvm::Constant>(init);
+            var->setInitializer(val);
+        }
+
+        ret = var;
+    } else {
+        llvm::AllocaInst* var_alloca = Builder.CreateAlloca(type_iter->second, nullptr, var_ident);
+        // * is_volatile is false
+        if (init) Builder.CreateStore(init, var_alloca);
+        SymbolTable.back()[var_ident] = {var_alloca, type_registry[var_type]};
+        ret = var_alloca;
+    }
+
+    states::IntegralTypeState = state_cache;
+    return ret;
 }
+
 
 void Condition::print() {
     std::cout <<
@@ -317,43 +373,16 @@ void Condition::print() {
     // }
 }
 
+void Var::print() {
+    std::cout << std::format("Var: {}", var_ident) << std::endl;
+}
 
-llvm::Value* Var::codegen() {
-    auto type_iter = type_registry.find(var_type);
-    if (type_iter == type_registry.end()) throw std::runtime_error("undefined type");
-
-    const auto state_cache = IntegralTypeState;
-    if (type_iter->second->isIntegerTy())
-        IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(type_iter->second);
-
-    llvm::Value* ret;
-    llvm::Value* init = nullptr;
-
-    if (initialized)
-        init = value.codegen();
-
-    if (!IsLocalScope) {
-        auto* var = new llvm::GlobalVariable(
-                *LModule, type_iter->second, is_const, llvm::GlobalVariable::InternalLinkage,
-                nullptr, var_ident
-                );
-
-        if (init) {
-            auto* val = llvm::dyn_cast<llvm::Constant>(init);
-            var->setInitializer(val);
-        }
-
-        ret = var;
-    } else {
-        llvm::AllocaInst* var_alloca = Builder.CreateAlloca(type_iter->second, nullptr, var_ident);
-        // * is_volatile is false
-        if (init) Builder.CreateStore(init, var_alloca);
-        SymbolTable.back()[var_ident] = {var_alloca, type_registry[var_type]};
-        ret = var_alloca;
+void Function::print() {
+    std::cout << std::format("func: {}", ident) << std::endl;
+    for (const auto& a : children) {
+        std::cout << "\t";
+        a->print();
     }
-
-    IntegralTypeState = state_cache;
-    return ret;
 }
 
 void printIR() {

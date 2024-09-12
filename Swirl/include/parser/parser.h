@@ -21,14 +21,12 @@ enum NodeType {
     ND_STR,         //  6
     ND_CALL,        //  7
     ND_IDENT,       //  8
-    ND_FUNC         //  9
+    ND_FUNC,        //  9
+    ND_RET,         // 10
+    ND_ASSIGN,      // 11
+    ND_COND         // 12
 };
 
-
-struct SymInfo {
-    llvm::AllocaInst* inst_ptr    = nullptr;
-    std::size_t       scope_depth = 0;
-};
 
 // A common base class for all the nodes
 struct Node {
@@ -47,36 +45,21 @@ struct Node {
     std::string value{};
     std::size_t scope_id{};
 
-    Node*  parent  = nullptr;
-    symt_t symbol_table{};
-
     virtual bool hasScopes() { return false; }
     virtual const std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
     virtual Param getParamInstance() { return Param{}; }
-    virtual void setParent(Node* pr) { }
-    virtual Node* getParent() const { return nullptr; }
-    virtual std::string getValue() const { throw std::runtime_error("getValue called on base node"); };
-    virtual NodeType getType() const { throw std::runtime_error("getType called on base node"); };
-    virtual std::vector<Param> getParams() const { throw std::runtime_error("getParams called on base getParams"); };
+    virtual std::string getValue() const { throw std::runtime_error("getValue called on base node"); }
+    virtual NodeType getType() const { throw std::runtime_error("getType called on base node"); }
+    virtual std::vector<Param> getParams() const { throw std::runtime_error("getParams called on base getParams"); }
     virtual llvm::Value* codegen() { throw std::runtime_error("unimplemented Node::codegen"); }
     virtual int8_t getArity() { throw std::runtime_error("getArity called on base Node instance "); }
-    virtual const symt_t& getSymt() const { return symbol_table; }
     virtual std::size_t getScopeID() const { return scope_id; }
     virtual void print() { throw std::runtime_error("debug called on base Node"); }
-
-    virtual std::optional<inst_ptr_t> lookupSymbol(std::string_view name) {
-        if (hasScopes()) {
-            for (const auto& [key, val]: getSymt()) {
-            }
-        }
-
-        return std::nullopt;
-    }
     virtual ~Node() = default;
 };
 
 
-struct Op: Node {
+struct Op final : Node {
     std::string value;
     int8_t arity = 2;  // the no. of operands the operator requires, binary by default
 
@@ -93,7 +76,7 @@ struct Op: Node {
     }
 };
 
-struct Expression: Node {
+struct Expression final : Node {
     std::vector<std::unique_ptr<Node>> expr{};
 
     Expression() = default;
@@ -122,13 +105,25 @@ struct Expression: Node {
     llvm::Value* codegen() override;
 };
 
-struct Assignment : Node {
+struct Assignment final : Node {
     Expression value{};
     std::string ident{};
-    llvm::Value *codegen() override;
+    llvm::Value* codegen() override;
+
+    NodeType getType() const override {
+        return ND_ASSIGN;
+    }
 };
 
-struct IntLit: Node {
+struct ReturnStatement final : Node {
+    Expression value{};
+    llvm::Value* codegen() override;
+    NodeType getType() const override {
+        return ND_RET;
+    }
+};
+
+struct IntLit final : Node {
     std::string value;
 
     explicit IntLit(std::string val): value(std::move(val)) {}
@@ -145,7 +140,7 @@ struct IntLit: Node {
 };
 
 
-struct FloatLit : Node {
+struct FloatLit final : Node {
     std::string value = 0;
 
     explicit FloatLit(std::string val): value(std::move(val)) {}
@@ -162,7 +157,7 @@ struct FloatLit : Node {
 };
 
 
-struct StrLit: Node {
+struct StrLit final : Node {
     std::string value;
 
     explicit StrLit(std::string  val): value(std::move(val)) {}
@@ -178,7 +173,7 @@ struct StrLit: Node {
     llvm::Value *codegen() override;
 };
 
-struct Ident: Node {
+struct Ident final : Node {
     std::string value;
 
     explicit Ident(std::string  val): value(std::move(val)) {}
@@ -194,7 +189,7 @@ struct Ident: Node {
     llvm::Value* codegen() override;
 };
 
-struct Var: Node {
+struct Var final : Node {
     std::string var_ident;
     std::string var_type;
     Expression value;
@@ -207,8 +202,6 @@ struct Var: Node {
 
     std::string getValue() const override { return var_ident; }
     NodeType getType() const override { return ND_VAR; }
-    Node* getParent() const override { return parent; }
-    void setParent(Node* pr) override { parent = pr; }
 
     void print() override;
 
@@ -216,10 +209,9 @@ struct Var: Node {
     llvm::Value* codegen() override;
 };
 
-struct Function: Node {
+struct Function final : Node {
     std::string ident;
     std::string ret_type = "void";
-    Expression return_val{};
 
     std::vector<Param> params{};
     std::vector<std::unique_ptr<Node>> children{};
@@ -227,6 +219,7 @@ struct Function: Node {
     NodeType getType() const override {
         return ND_FUNC;
     }
+
 
     std::string getValue() const override {
         return ident;
@@ -245,7 +238,7 @@ struct Function: Node {
     llvm::Value* codegen() override;
 };
 
-struct FuncCall: Node {
+struct FuncCall final : Node {
     std::vector<Expression> args;
     std::string ident;
     std::string type = "void";
@@ -253,13 +246,11 @@ struct FuncCall: Node {
     Node* parent = nullptr;
 
     NodeType getType() const override { return ND_CALL; }
-    void setParent(Node* pr) override { parent = pr; }
-    Node* getParent() const override { return parent; }
 
     llvm::Value* codegen() override;
 };
 
-struct Condition : Node {
+struct Condition final : Node {
     Expression bool_expr{};
     std::vector<std::unique_ptr<Node>> if_children{};
     std::vector<std::tuple<Expression, std::vector<std::unique_ptr<Node>>>> elif_children;
@@ -273,6 +264,9 @@ struct Condition : Node {
         return true;
     }
 
+    NodeType getType() const override {
+        return ND_COND;
+    }
     void print() override;
     llvm::Value* codegen() override;
 };
@@ -295,6 +289,8 @@ public:
     std::unique_ptr<Node> parseCall();
     std::unique_ptr<Node> dispatch();
     std::unique_ptr<Var> parseVar();
+    std::unique_ptr<ReturnStatement> parseRet();
+
     void forwardStream(uint8_t n);
     void parseExpr(std::variant<std::vector<Expression>*, Expression*>, bool isCall = false);
     void parseLoop(TokenType);
