@@ -24,7 +24,8 @@ enum NodeType {
     ND_FUNC,        //  9
     ND_RET,         // 10
     ND_ASSIGN,      // 11
-    ND_COND         // 12
+    ND_COND,        // 12
+    ND_WHILE        // 13
 };
 
 
@@ -139,7 +140,6 @@ struct IntLit final : Node {
     llvm::Value *codegen() override;
 };
 
-
 struct FloatLit final : Node {
     std::string value = 0;
 
@@ -250,6 +250,17 @@ struct FuncCall final : Node {
     llvm::Value* codegen() override;
 };
 
+struct WhileLoop final : Node {
+    Expression condition{};
+    std::vector<std::unique_ptr<Node>> children{};
+
+    NodeType getType() const override {
+        return ND_WHILE;
+    }
+
+    llvm::Value *codegen() override;
+};
+
 struct Condition final : Node {
     Expression bool_expr{};
     std::vector<std::unique_ptr<Node>> if_children{};
@@ -289,11 +300,11 @@ public:
     std::unique_ptr<Node> parseCall();
     std::unique_ptr<Node> dispatch();
     std::unique_ptr<Var> parseVar();
+    std::unique_ptr<WhileLoop> parseWhile();
     std::unique_ptr<ReturnStatement> parseRet();
 
     void forwardStream(uint8_t n);
     void parseExpr(std::variant<std::vector<Expression>*, Expression*>, bool isCall = false);
-    void parseLoop(TokenType);
     void parse();
 //    void appendAST(Node&);
     inline void next(bool swsFlg = false, bool snsFlg = false);

@@ -11,7 +11,7 @@
 #include <parser/parser.h>
 
 
-bool EnablePanicMode = false; // whether the parser is in panik
+bool EnablePanicMode = false;  // whether the parser is in panik
 
 struct TypeInfo {
     bool is_const = false;
@@ -87,12 +87,15 @@ std::unique_ptr<Node> Parser::dispatch() {
                     return std::move(ret);
                 }
 
+                if (m_Stream.p_CurTk.value == "while") {
+                    return parseWhile();
+                }
+
                 if (m_Stream.p_CurTk.value == "return")
                     return parseRet();
             case IDENT:
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(")
                     return parseCall();
-
                 if (m_Stream.peek().type == OP && m_Stream.peek().value == "=") {
                     auto assignment = std::make_unique<Assignment>();
                     assignment->ident = m_Stream.p_CurTk.value;
@@ -228,7 +231,6 @@ std::unique_ptr<Node> Parser::parseCall() {
 }
 
 std::unique_ptr<ReturnStatement> Parser::parseRet() {
-    std::cout << "parsing return" << std::endl;
     ReturnStatement ret;
 
     forwardStream();
@@ -280,6 +282,19 @@ std::unique_ptr<Condition> Parser::parseCondition() {
     return std::make_unique<Condition>(std::move(cnd));
 }
 
+
+std::unique_ptr<WhileLoop> Parser::parseWhile() {
+    WhileLoop loop{};
+    forwardStream();
+
+    parseExpr(&loop.condition);
+    forwardStream();
+    while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}")) {
+        loop.children.push_back(dispatch());
+    } forwardStream();
+
+    return std::make_unique<WhileLoop>(std::move(loop));
+}
 
 /* This method is an adaptation of the `Shunting Yard Algorithm`. */
 void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, bool isCall) {
@@ -395,5 +410,4 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
     // NOTE: this function propagates the stream at the token right after the expression
     std::cout << "expr leaving at: " << m_Stream.p_CurTk.value << std::endl;
 }
-
 

@@ -163,6 +163,7 @@ llvm::Value* ReturnStatement::codegen() {
 
 llvm::Value* Expression::codegen() {
     std::stack<llvm::Value*> eval{};
+
     static std::unordered_map<std::string, std::function<llvm::Value*(llvm::Value*, llvm::Value*)>> op_table
     = {
             // Standard Arithmetic Operators
@@ -292,6 +293,32 @@ llvm::Value* Condition::codegen() {
     return nullptr;
 }
 
+llvm::Value *WhileLoop::codegen() {
+    const auto parent = Builder.GetInsertBlock()->getParent();
+    const auto last_inst = Builder.GetInsertBlock()->getTerminator();
+
+    const auto cond_block  = llvm::BasicBlock::Create(Context, "while_cond", parent);
+    const auto body_block  = llvm::BasicBlock::Create(Context, "while_body", parent);
+    const auto merge_block = llvm::BasicBlock::Create(Context, "merge", parent);
+
+    if (last_inst == nullptr)
+        Builder.CreateBr(cond_block);
+
+    const auto expr  = condition.codegen();
+
+    Builder.SetInsertPoint(cond_block);
+    Builder.CreateCondBr(expr, body_block, merge_block);
+
+    {
+        NewScope _;
+        Builder.SetInsertPoint(body_block);
+        codegenChildrenUntilRet(children);
+        Builder.CreateBr(cond_block);
+    }
+
+    Builder.SetInsertPoint(merge_block);
+    return nullptr;
+}
 
 llvm::Value* FuncCall::codegen() {
     std::vector<llvm::Type*> paramTypes;
