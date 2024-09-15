@@ -26,7 +26,6 @@ extern std::unordered_map<std::string, int> operators;
 extern std::unordered_map<std::size_t, std::string> LineTable;
 
 class TokenStream {
-private:
     struct StreamState {
         std::size_t Line, Pos, Col;
     };
@@ -63,7 +62,7 @@ private:
     }
 
     static bool isOpChar(char _chr) {
-        return "+-/*><="sv.find(_chr) != std::string::npos;
+        return "+-/*><=&@"sv.find(_chr) != std::string::npos;
     }
 
     static bool isWhiteSpace(char _chr) {

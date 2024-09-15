@@ -49,7 +49,7 @@ const std::unordered_map<std::string, uint8_t> keywords = {
 
 // map, {operator, precedence}
 std::unordered_map<std::string, int> operators = {
-        {"&&", 0}, {"**", 3}, {"<",  9},
+        {"&&", 0}, {"@", 3}, {"<",  9},
         {"||", 0}, {">>", 4}, {"<=", 9},
         {"-",  1}, {"<<", 4}, {">",  9},
         {"+",  1}, {"&",  5}, {">=", 9},

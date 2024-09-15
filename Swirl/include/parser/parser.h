@@ -25,7 +25,10 @@ enum NodeType {
     ND_RET,         // 10
     ND_ASSIGN,      // 11
     ND_COND,        // 12
-    ND_WHILE        // 13
+    ND_WHILE,       // 13
+    ND_STRUCT,      // 14
+    ND_ADDR,        // 15
+    ND_DEREF,       // 16
 };
 
 
@@ -261,6 +264,38 @@ struct WhileLoop final : Node {
     llvm::Value *codegen() override;
 };
 
+
+struct Struct final : Node {
+    std::string ident{};
+    std::vector<std::unique_ptr<Node>> members{};
+
+    NodeType getType() const override {
+        return ND_STRUCT;
+    }
+
+    llvm::Value *codegen() override;
+};
+
+struct AddressOf final : Node {
+    std::string ident{};
+
+    NodeType getType() const override {
+        return ND_ADDR;
+    }
+
+    llvm::Value *codegen() override;
+};
+
+struct Dereference final : Node {
+    std::string ident{};
+
+    NodeType getType() const override {
+        return ND_DEREF;
+    }
+
+    llvm::Value *codegen() override;
+};
+
 struct Condition final : Node {
     Expression bool_expr{};
     std::vector<std::unique_ptr<Node>> if_children{};
@@ -302,6 +337,7 @@ public:
     std::unique_ptr<Var> parseVar();
     std::unique_ptr<WhileLoop> parseWhile();
     std::unique_ptr<ReturnStatement> parseRet();
+    std::unique_ptr<Struct> parseStruct();
 
     void forwardStream(uint8_t n);
     void parseExpr(std::variant<std::vector<Expression>*, Expression*>, bool isCall = false);
@@ -310,6 +346,17 @@ public:
     inline void next(bool swsFlg = false, bool snsFlg = false);
 
     ~Parser();
+
+    std::string parseType() {
+        std::string ret{};
+        ret = m_Stream.p_CurTk.value;
+        m_Stream.next();
+        if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "*") {
+            ret += "*";
+            m_Stream.next();
+        }
+        return ret;
+    }
 };
 
 #endif

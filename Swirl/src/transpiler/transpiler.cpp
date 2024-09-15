@@ -36,18 +36,28 @@ namespace states {
 
 
 std::unordered_map<std::string, llvm::Type*> type_registry = {
-    {"i64",   llvm::Type::getInt64Ty(Context)},
+    {"i8", llvm::Type::getInt8Ty(Context)},
     {"i32",   llvm::Type::getInt32Ty(Context)},
+    {"i64",   llvm::Type::getInt64Ty(Context)},
     {"i128",  llvm::Type::getInt128Ty(Context)},
     {"f32",   llvm::Type::getFloatTy(Context)},
     {"f64",   llvm::Type::getDoubleTy(Context)},
     {"bool",  llvm::Type::getInt1Ty(Context)},
-    {"void",  llvm::Type::getVoidTy(Context)}
+    {"void",  llvm::Type::getVoidTy(Context)},
+
+    {"i8*", llvm::PointerType::getInt8Ty(Context)},
+    {"i32*", llvm::PointerType::getInt32Ty(Context)},
+    {"i64*", llvm::PointerType::getInt64Ty(Context)},
+    {"i128*", llvm::PointerType::getInt128Ty(Context)},
+    {"f32*", llvm::PointerType::getFloatTy(Context)},
+    {"f64*", llvm::PointerType::getDoubleTy(Context)},
+    {"bool*", llvm::PointerType::getInt1Ty(Context)}
 };
 
 struct TableEntry {
     llvm::Value* ptr{};
     llvm::Type* type{};
+
     bool is_const = false;
     bool is_param = false;
 };
@@ -320,6 +330,27 @@ llvm::Value *WhileLoop::codegen() {
     return nullptr;
 }
 
+llvm::Value* AddressOf::codegen() {
+    for (auto& entry: SymbolTable | std::views::reverse) {
+        if (entry.contains(this->ident)) {
+            const auto [ptr, type, _, is_param] = entry[this->ident];
+            if (is_param) throw std::runtime_error("can't take address of a function parameter");
+            return ptr;
+        }
+    } throw std::runtime_error("addr-of: invalid ident: " + ident);
+}
+
+llvm::Value* Dereference::codegen() {
+    for (auto& entry: SymbolTable | std::views::reverse) {
+        if (entry.contains(this->ident)) {
+            const auto [ptr, type, _, is_param] = entry[this->ident];
+            if (is_param) return ptr;
+            return Builder.CreateLoad(type, ptr);
+        }
+    } throw std::runtime_error("Invalid ident");
+}
+
+
 llvm::Value* FuncCall::codegen() {
     std::vector<llvm::Type*> paramTypes;
 
@@ -362,15 +393,13 @@ llvm::Value* Var::codegen() {
                 );
 
         if (init) {
-            auto* val = llvm::dyn_cast<llvm::Constant>(init);
+            const auto val = llvm::dyn_cast<llvm::Constant>(init);
             var->setInitializer(val);
-        }
-
-        ret = var;
+        } ret = var;
     } else {
         llvm::AllocaInst* var_alloca = Builder.CreateAlloca(type_iter->second, nullptr, var_ident);
         // * is_volatile is false
-        if (init) Builder.CreateStore(init, var_alloca);
+        if (init != nullptr) Builder.CreateStore(init, var_alloca);
         SymbolTable.back()[var_ident] = {var_alloca, type_registry[var_type]};
         ret = var_alloca;
     }

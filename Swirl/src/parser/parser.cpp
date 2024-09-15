@@ -169,8 +169,8 @@ std::unique_ptr<Function> Parser::parseFunction() {
         func_nd.ret_type = m_Stream.p_CurTk.value;
 
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ":") {
-        func_nd.ret_type = m_Stream.next().value;
         forwardStream();
+        func_nd.ret_type = parseType();
     }
 
     // parses the function's children and the return statement
@@ -194,6 +194,11 @@ std::unique_ptr<Var> Parser::parseVar() {
     if (p_token.type == PUNC && p_token.value == ":") {
         m_Stream.next();
         var_node.var_type = m_Stream.next().value;
+
+        if (m_Stream.peek().type == OP && m_Stream.peek().value == "*") {
+            var_node.var_type += '*';
+            forwardStream();
+        }
     }
 
     p_token = m_Stream.peek();
@@ -282,6 +287,19 @@ std::unique_ptr<Condition> Parser::parseCondition() {
     return std::make_unique<Condition>(std::move(cnd));
 }
 
+// std::unique_ptr<Struct> Parser::parseStruct() {
+//     Struct ret;
+//     forwardStream();
+//
+//     ret.ident = m_Stream.p_CurTk.value;
+//     forwardStream();
+//
+//     while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}"))
+//         ret.members.push_back(dispatch());
+//     forwardStream();
+//
+//     return std::make_unique<Struct>(ret);
+// }
 
 std::unique_ptr<WhileLoop> Parser::parseWhile() {
     WhileLoop loop{};
@@ -335,6 +353,8 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
             }
         }
 
+        std::cout << std::boolalpha << "reached: " << (m_Stream.p_CurTk.type == OP) << std::endl;
+
         switch (m_Stream.p_CurTk.type) {
             case NUMBER:
                 output.emplace_back(std::make_unique<IntLit>(IntLit(m_Stream.p_CurTk.value)));
@@ -350,6 +370,20 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
                 output.emplace_back(std::make_unique<Ident>(Ident(m_Stream.p_CurTk.value)));
                 break;
             case OP:
+                if (m_Stream.p_CurTk.value == "&" && prev_token.type == OP) {
+                    AddressOf address_of{};
+                    address_of.ident = m_Stream.next().value;
+                    forwardStream();
+                    output.emplace_back(std::make_unique<AddressOf>(address_of));
+                    continue;
+                } if (m_Stream.p_CurTk.value == "@") {
+                    Dereference deref;
+                    deref.ident = m_Stream.next().value;
+                    forwardStream();
+                    output.emplace_back(std::make_unique<Dereference>(deref));
+                    continue;
+                }
+
                 // pop ops and push them into output till the top operator of the stack has greater or equal precedence
                 while (!ops.empty() && operators[m_Stream.p_CurTk.value] <= operators[ops.top().getValue()]) {
                     output.emplace_back(std::make_unique<Op>(ops.top()));
