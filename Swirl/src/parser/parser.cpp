@@ -71,7 +71,7 @@ std::unique_ptr<Node> Parser::dispatch() {
         switch (m_Stream.p_CurTk.type) {
             case KEYWORD:
                 if (m_Stream.p_CurTk.value == "const" || m_Stream.p_CurTk.value == "var") {
-                    auto ret = parseVar();
+                    auto ret = parseVar(false);
                     return std::move(ret);
                 }
                 if (m_Stream.p_CurTk.value == "fn") {
@@ -89,6 +89,11 @@ std::unique_ptr<Node> Parser::dispatch() {
 
                 if (m_Stream.p_CurTk.value == "while") {
                     return parseWhile();
+                }
+
+                if (m_Stream.p_CurTk.value == "volatile") {
+                    forwardStream();
+                    return parseVar(true);
                 }
 
                 if (m_Stream.p_CurTk.value == "return")
@@ -185,9 +190,10 @@ std::unique_ptr<Function> Parser::parseFunction() {
 }
 
 
-std::unique_ptr<Var> Parser::parseVar() {
+std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     Var var_node;
     var_node.is_const = m_Stream.p_CurTk.value[0] == 'c';
+    var_node.is_volatile = is_volatile;
     var_node.var_ident = m_Stream.next().value;
 
     auto p_token = m_Stream.peek();

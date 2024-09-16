@@ -200,6 +200,7 @@ struct Var final : Node {
 
     bool initialized = false;
     bool is_const    = false;
+    bool is_volatile = false;
 
     Var() = default;
 
@@ -334,7 +335,7 @@ public:
     std::unique_ptr<Condition> parseCondition();
     std::unique_ptr<Node> parseCall();
     std::unique_ptr<Node> dispatch();
-    std::unique_ptr<Var> parseVar();
+    std::unique_ptr<Var> parseVar(bool is_volatile = false);
     std::unique_ptr<WhileLoop> parseWhile();
     std::unique_ptr<ReturnStatement> parseRet();
     std::unique_ptr<Struct> parseStruct();

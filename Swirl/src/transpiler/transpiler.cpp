@@ -58,8 +58,9 @@ struct TableEntry {
     llvm::Value* ptr{};
     llvm::Type* type{};
 
-    bool is_const = false;
-    bool is_param = false;
+    bool is_const    = false;
+    bool is_param    = false;
+    bool is_volatile = false;
 };
 
 
@@ -118,9 +119,9 @@ llvm::Value* StrLit::codegen() {
 llvm::Value* Ident::codegen() {
     for (auto& entry: SymbolTable | std::views::reverse) {
         if (entry.contains(this->value)) {
-            const auto [ptr, type, _, is_param] = entry[this->value];
-            if (is_param) return ptr;
-            return Builder.CreateLoad(type, ptr);
+            const auto e = entry[this->value];
+            if (e.is_param) return e.ptr;
+            return Builder.CreateLoad(e.type, e.ptr);
         }
     } throw std::runtime_error("Invalid ident");
 }
@@ -225,14 +226,17 @@ llvm::Value* Expression::codegen() {
 
 llvm::Value* Assignment::codegen() {
     llvm::Value* ptr;
-    if (!std::ranges::any_of(SymbolTable | std::views::reverse, [this, &ptr](auto& entry) {
+    bool is_vola = false;
+
+    if (!std::ranges::any_of(SymbolTable | std::views::reverse, [&, this](auto& entry) {
         if (entry.contains(ident) && !entry[ident].is_const) {
             ptr = entry[ident].ptr;
+            is_vola = entry[ident].is_volatile;
             return true;
         } return false;
     })) throw std::runtime_error("assignment: variable not defined previously or is const");
 
-    Builder.CreateStore(value.codegen(), ptr);
+    Builder.CreateStore(value.codegen(), ptr, is_vola);
     return nullptr;
 }
 
@@ -333,9 +337,9 @@ llvm::Value *WhileLoop::codegen() {
 llvm::Value* AddressOf::codegen() {
     for (auto& entry: SymbolTable | std::views::reverse) {
         if (entry.contains(this->ident)) {
-            const auto [ptr, type, _, is_param] = entry[this->ident];
-            if (is_param) throw std::runtime_error("can't take address of a function parameter");
-            return ptr;
+            const auto sym_entry = entry[this->ident];
+            if (sym_entry.is_param) throw std::runtime_error("can't take address of a function parameter");
+            return sym_entry.ptr;
         }
     } throw std::runtime_error("addr-of: invalid ident: " + ident);
 }
@@ -343,9 +347,9 @@ llvm::Value* AddressOf::codegen() {
 llvm::Value* Dereference::codegen() {
     for (auto& entry: SymbolTable | std::views::reverse) {
         if (entry.contains(this->ident)) {
-            const auto [ptr, type, _, is_param] = entry[this->ident];
-            if (is_param) return ptr;
-            return Builder.CreateLoad(type, ptr);
+            const auto sym_entry = entry[this->ident];
+            if (sym_entry.is_param) return sym_entry.ptr;
+            return Builder.CreateLoad(sym_entry.type, sym_entry.ptr);
         }
     } throw std::runtime_error("Invalid ident");
 }
@@ -398,9 +402,14 @@ llvm::Value* Var::codegen() {
         } ret = var;
     } else {
         llvm::AllocaInst* var_alloca = Builder.CreateAlloca(type_iter->second, nullptr, var_ident);
-        // * is_volatile is false
-        if (init != nullptr) Builder.CreateStore(init, var_alloca);
-        SymbolTable.back()[var_ident] = {var_alloca, type_registry[var_type]};
+        if (init != nullptr) Builder.CreateStore(init, var_alloca, is_volatile);
+
+        TableEntry entry{};
+        entry.ptr = var_alloca;
+        entry.type = type_registry[var_type];
+        entry.is_volatile = is_volatile;
+
+        SymbolTable.back()[var_ident] = entry;
         ret = var_alloca;
     }
 
