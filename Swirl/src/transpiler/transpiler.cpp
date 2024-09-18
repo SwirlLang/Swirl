@@ -1,4 +1,5 @@
 #include <iostream>
+#include <llvm/Support/Casting.h>
 #include <string>
 #include <ranges>
 #include <unordered_map>
@@ -46,13 +47,14 @@ std::unordered_map<std::string, llvm::Type*> type_registry = {
     {"void",  llvm::Type::getVoidTy(Context)},
 
     {"i8*", llvm::PointerType::getInt8Ty(Context)},
-    {"i32*", llvm::PointerType::getInt32Ty(Context)},
+    {"i32*", llvm::PointerType::get(llvm::Type::getInt32Ty(Context), 1)},
     {"i64*", llvm::PointerType::getInt64Ty(Context)},
     {"i128*", llvm::PointerType::getInt128Ty(Context)},
     {"f32*", llvm::PointerType::getFloatTy(Context)},
     {"f64*", llvm::PointerType::getDoubleTy(Context)},
     {"bool*", llvm::PointerType::getInt1Ty(Context)}
 };
+
 
 struct TableEntry {
     llvm::Value* ptr{};
@@ -61,11 +63,15 @@ struct TableEntry {
     bool is_const    = false;
     bool is_param    = false;
     bool is_volatile = false;
+
+    // maps field-name to {index, type}, set to nullopt when ident is not a struct
+    std::optional<
+        std::unordered_map<std::string, std::pair<std::size_t, llvm::Type*>
+            >> fields = std::nullopt;
 };
 
 
-static std::vector<std::unordered_map<std::string, TableEntry>> SymbolTable{};
-// std::unordered_map<std::string, std::variant<llvm::GlobalVariable*, llvm::Function*>> GlobalValueTable{};
+static std::vector<std::unordered_map<std::string, TableEntry>> SymbolTable = {{}};
 
 
 // this struct must be instatiated BEFORE IRBuilder::SetInsertPoint is called
@@ -226,17 +232,7 @@ llvm::Value* Expression::codegen() {
 
 llvm::Value* Assignment::codegen() {
     llvm::Value* ptr;
-    bool is_vola = false;
-
-    if (!std::ranges::any_of(SymbolTable | std::views::reverse, [&, this](auto& entry) {
-        if (entry.contains(ident) && !entry[ident].is_const) {
-            ptr = entry[ident].ptr;
-            is_vola = entry[ident].is_volatile;
-            return true;
-        } return false;
-    })) throw std::runtime_error("assignment: variable not defined previously or is const");
-
-    Builder.CreateStore(value.codegen(), ptr, is_vola);
+    Builder.CreateStore(r_value.codegen(), l_value.codegen());
     return nullptr;
 }
 
@@ -307,7 +303,40 @@ llvm::Value* Condition::codegen() {
     return nullptr;
 }
 
-llvm::Value *WhileLoop::codegen() {
+llvm::Value* Struct::codegen() {
+    std::vector<llvm::Type*> types{};
+    std::vector<std::string> names{};
+
+    types.reserve(members.size());
+    names.reserve(members.size());
+
+    for (const auto& mem : members)
+        if (mem->getType() == ND_VAR) {
+            const auto field = dynamic_cast<Var*>(mem.get());
+            types.push_back(type_registry[field->var_type]);
+            names.push_back(field->var_ident);
+        }
+
+    auto* struct_ = llvm::StructType::get(Context);
+    struct_->setName(ident);
+    struct_->setBody(types);
+
+    if (!states::IsLocalScope)
+        type_registry[ident] = llvm::cast<llvm::Type>(struct_);
+    else {
+        TableEntry entry{};
+        for (std::size_t i = 0; const auto& item : types) {
+            entry.fields = {};
+            entry.fields.value()[names[i]] = std::pair{i, item};
+            i++;
+        }
+        SymbolTable.back()[ident] = entry;
+    }
+    return nullptr;
+}
+
+
+llvm::Value* WhileLoop::codegen() {
     const auto parent = Builder.GetInsertBlock()->getParent();
     const auto last_inst = Builder.GetInsertBlock()->getTerminator();
 

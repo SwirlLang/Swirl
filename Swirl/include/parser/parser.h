@@ -32,29 +32,21 @@ enum NodeType {
 };
 
 
+struct Var;
+
 // A common base class for all the nodes
 struct Node {
     using inst_ptr_t = llvm::AllocaInst*;
     using symt_t     = std::unordered_map<std::string, inst_ptr_t>;
-
-    struct Param {
-        std::string var_ident;
-        std::string var_type;
-        std::size_t symt_index;
-
-        bool initialized = false;
-        bool is_const    = false;
-    };
 
     std::string value{};
     std::size_t scope_id{};
 
     virtual bool hasScopes() { return false; }
     virtual const std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
-    virtual Param getParamInstance() { return Param{}; }
     virtual std::string getValue() const { throw std::runtime_error("getValue called on base node"); }
     virtual NodeType getType() const { throw std::runtime_error("getType called on base node"); }
-    virtual std::vector<Param> getParams() const { throw std::runtime_error("getParams called on base getParams"); }
+    virtual const std::vector<Var>& getParams() const { throw std::runtime_error("getParams called on base getParams"); }
     virtual llvm::Value* codegen() { throw std::runtime_error("unimplemented Node::codegen"); }
     virtual int8_t getArity() { throw std::runtime_error("getArity called on base Node instance "); }
     virtual std::size_t getScopeID() const { return scope_id; }
@@ -96,6 +88,16 @@ struct Expression final : Node {
         }
     }
 
+    Expression& operator=(Expression&& other) noexcept {
+        expr.clear();
+        expr.reserve(other.expr.size());
+        std::move(
+                std::make_move_iterator(other.expr.begin()),
+                std::make_move_iterator(other.expr.end()),
+                std::back_inserter(expr));
+        return *this;
+    }
+
     const std::vector<std::unique_ptr<Node>>& getExprValue() override { return expr; }
 
     std::string getValue() const override {
@@ -110,8 +112,9 @@ struct Expression final : Node {
 };
 
 struct Assignment final : Node {
-    Expression value{};
-    std::string ident{};
+    Expression l_value{};
+    Expression r_value{};
+
     llvm::Value* codegen() override;
 
     NodeType getType() const override {
@@ -217,7 +220,7 @@ struct Function final : Node {
     std::string ident;
     std::string ret_type = "void";
 
-    std::vector<Param> params{};
+    std::vector<Var> params{};
     std::vector<std::unique_ptr<Node>> children{};
 
     NodeType getType() const override {
@@ -229,7 +232,7 @@ struct Function final : Node {
         return ident;
     }
 
-    std::vector<Param> getParams() const override {
+    const std::vector<Var>& getParams() const override {
         return params;
     }
 
@@ -356,6 +359,8 @@ public:
             ret += "*";
             m_Stream.next();
         }
+
+        std::cout << "parseType leaving at: " << m_Stream.p_CurTk.value << std::endl;
         return ret;
     }
 };

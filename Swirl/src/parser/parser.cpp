@@ -1,17 +1,13 @@
 #include <iostream>
 #include <memory>
-#include <ranges>
-#include <string>
 #include <stack>
 #include <variant>
 #include <unordered_map>
 #include <unordered_set>
-#include <format>
 
 #include <parser/parser.h>
+#include <vector>
 
-
-bool EnablePanicMode = false;  // whether the parser is in panik
 
 struct TypeInfo {
     bool is_const = false;
@@ -87,6 +83,9 @@ std::unique_ptr<Node> Parser::dispatch() {
                     return std::move(ret);
                 }
 
+                if (m_Stream.p_CurTk.value == "struct")
+                    return parseStruct();
+
                 if (m_Stream.p_CurTk.value == "while") {
                     return parseWhile();
                 }
@@ -99,15 +98,52 @@ std::unique_ptr<Node> Parser::dispatch() {
                 if (m_Stream.p_CurTk.value == "return")
                     return parseRet();
             case IDENT:
-                if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(")
-                    return parseCall();
-                if (m_Stream.peek().type == OP && m_Stream.peek().value == "=") {
-                    auto assignment = std::make_unique<Assignment>();
-                    assignment->ident = m_Stream.p_CurTk.value;
+                if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
+                    auto nd = parseCall();
 
-                    forwardStream(2);
-                    parseExpr(&assignment->value);
-                    return assignment;
+                    // handle call assignments
+                    if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "=") {
+                        Assignment ass{};
+                        ass.l_value.expr.push_back(std::move(nd));
+                        forwardStream();
+                        parseExpr(&ass.r_value);
+
+                        return std::make_unique<Assignment>(std::move(ass));
+                    }
+
+                    return std::move(nd);
+                }
+
+                {
+                    Expression expr{};
+                    parseExpr(&expr);
+
+                    if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "=") {
+                        std::cout << "ass detected" << std::endl;
+                        Assignment ass{};
+                        ass.l_value = std::move(expr);
+
+                        forwardStream();
+                        parseExpr(&ass.r_value);
+                        return std::make_unique<Assignment>(std::move(ass));
+                    } continue;
+                }
+            case OP:
+                {
+                    std::cout << "free OP detected!" << std::endl;
+                    Expression expr{};
+                    parseExpr(&expr);
+
+                    std::cout << "reached" << std::endl;
+                    if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "=") {
+                        std::cout << "ass detected" << std::endl;
+                        Assignment ass{};
+                        ass.l_value = std::move(expr);
+
+                        forwardStream();
+                        parseExpr(&ass.r_value);
+                        return std::make_unique<Assignment>(std::move(ass));
+                    }  continue;
                 }
             default:
                 auto [line, _, col] = m_Stream.getStreamState();
@@ -146,18 +182,22 @@ std::unique_ptr<Function> Parser::parseFunction() {
     Function func_nd{};
     func_nd.ident = m_Stream.next().value;
 
+    std::cout << "parsing function: " << func_nd.ident << std::endl;
+
     // Check for errors
     forwardStream(2);
     static auto parse_params = [this] {
-        decltype(func_nd.getParamInstance()) param{};
+        Var param{};
         param.var_ident = m_Stream.p_CurTk.value; // parameter ident
 
         forwardStream(2);
-        param.var_type = m_Stream.p_CurTk.value;
+        param.var_type = parseType();
 
-        param.initialized = m_Stream.peek().type == PUNC && m_Stream.peek().value == "=";
-        m_Stream.next();
-        return param;
+        param.initialized = m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "=";
+        if (param.initialized)
+            parseExpr(&param.value);
+
+        return std::move(param);
     };
 
     if (m_Stream.p_CurTk.type != PUNC) {
@@ -170,15 +210,13 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     // current token == ')'
     m_Stream.next();
-    if (m_Stream.p_CurTk.type == IDENT)
-        func_nd.ret_type = m_Stream.p_CurTk.value;
 
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ":") {
         forwardStream();
         func_nd.ret_type = parseType();
     }
 
-    // parses the function's children and the return statement
+    // parse the children
     forwardStream();
     while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}")) {
         func_nd.children.push_back(std::move(dispatch()));
@@ -252,6 +290,7 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
     return std::make_unique<ReturnStatement>(std::move(ret));
 }
 
+
 std::unique_ptr<Condition> Parser::parseCondition() {
     Condition cnd;
     forwardStream();  // skip "if"
@@ -293,19 +332,21 @@ std::unique_ptr<Condition> Parser::parseCondition() {
     return std::make_unique<Condition>(std::move(cnd));
 }
 
-// std::unique_ptr<Struct> Parser::parseStruct() {
-//     Struct ret;
-//     forwardStream();
-//
-//     ret.ident = m_Stream.p_CurTk.value;
-//     forwardStream();
-//
-//     while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}"))
-//         ret.members.push_back(dispatch());
-//     forwardStream();
-//
-//     return std::make_unique<Struct>(ret);
-// }
+
+std::unique_ptr<Struct> Parser::parseStruct() {
+    forwardStream();
+    Struct ret{};
+
+    ret.ident = m_Stream.p_CurTk.value;
+    forwardStream(2);
+
+    while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}"))
+        ret.members.push_back(dispatch());
+    forwardStream();
+
+    return std::make_unique<Struct>(std::move(ret));
+}
+
 
 std::unique_ptr<WhileLoop> Parser::parseWhile() {
     WhileLoop loop{};
@@ -348,6 +389,8 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
                 break;
         }
 
+        if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "=") break;
+
         if (m_Stream.p_CurTk.type == KEYWORD || (prev_token.type != OP && (m_Stream.p_CurTk.type == IDENT)))
             break;
         // if (prev_token.type != OP && m_Stream.p_CurTk.type == IDENT) break;
@@ -358,8 +401,6 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
                 if (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")) { break; }
             }
         }
-
-        std::cout << std::boolalpha << "reached: " << (m_Stream.p_CurTk.type == OP) << std::endl;
 
         switch (m_Stream.p_CurTk.type) {
             case NUMBER:
@@ -450,4 +491,3 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
     // NOTE: this function propagates the stream at the token right after the expression
     std::cout << "expr leaving at: " << m_Stream.p_CurTk.value << std::endl;
 }
-
