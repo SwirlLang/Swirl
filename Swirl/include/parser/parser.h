@@ -287,6 +287,10 @@ struct AddressOf final : Node {
         return ND_ADDR;
     }
 
+    std::string getValue() const override {
+        return "&" + ident;
+    }
+
     llvm::Value *codegen() override;
 };
 
@@ -295,6 +299,10 @@ struct Dereference final : Node {
 
     NodeType getType() const override {
         return ND_DEREF;
+    }
+
+    std::string getValue() const override {
+        return "@" + ident;
     }
 
     llvm::Value *codegen() override;
@@ -360,7 +368,6 @@ public:
             m_Stream.next();
         }
 
-        std::cout << "parseType leaving at: " << m_Stream.p_CurTk.value << std::endl;
         return ret;
     }
 };

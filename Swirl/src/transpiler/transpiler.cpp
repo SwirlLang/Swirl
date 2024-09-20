@@ -129,7 +129,7 @@ llvm::Value* Ident::codegen() {
             if (e.is_param) return e.ptr;
             return Builder.CreateLoad(e.type, e.ptr);
         }
-    } throw std::runtime_error("Invalid ident");
+    } throw std::runtime_error("Invalid ident: " + this->value);
 }
 
 llvm::Value* Function::codegen() {
@@ -380,7 +380,7 @@ llvm::Value* Dereference::codegen() {
             if (sym_entry.is_param) return sym_entry.ptr;
             return Builder.CreateLoad(sym_entry.type, sym_entry.ptr);
         }
-    } throw std::runtime_error("Invalid ident");
+    } throw std::runtime_error("Deref: Invalid ident " + this->ident);
 }
 
 
@@ -429,6 +429,7 @@ llvm::Value* Var::codegen() {
             const auto val = llvm::dyn_cast<llvm::Constant>(init);
             var->setInitializer(val);
         } ret = var;
+        std::cout << "pushing global var: " << var_ident << std::endl;
     } else {
         llvm::AllocaInst* var_alloca = Builder.CreateAlloca(type_iter->second, nullptr, var_ident);
         if (init != nullptr) Builder.CreateStore(init, var_alloca, is_volatile);
@@ -437,7 +438,7 @@ llvm::Value* Var::codegen() {
         entry.ptr = var_alloca;
         entry.type = type_registry[var_type];
         entry.is_volatile = is_volatile;
-
+        std::cout << "pushing var: " << var_ident << std::endl;
         SymbolTable.back()[var_ident] = entry;
         ret = var_alloca;
     }

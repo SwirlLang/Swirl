@@ -130,13 +130,10 @@ std::unique_ptr<Node> Parser::dispatch() {
                 }
             case OP:
                 {
-                    std::cout << "free OP detected!" << std::endl;
                     Expression expr{};
                     parseExpr(&expr);
-
-                    std::cout << "reached" << std::endl;
                     if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "=") {
-                        std::cout << "ass detected" << std::endl;
+                        std::cout << "ass detected (OP)" << std::endl;
                         Assignment ass{};
                         ass.l_value = std::move(expr);
 
@@ -233,6 +230,8 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     var_node.is_const = m_Stream.p_CurTk.value[0] == 'c';
     var_node.is_volatile = is_volatile;
     var_node.var_ident = m_Stream.next().value;
+
+    std::cout << "var: " << var_node.var_ident << std::endl;
 
     auto p_token = m_Stream.peek();
     if (p_token.type == PUNC && p_token.value == ":") {
@@ -376,13 +375,10 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
     static const std::unordered_set invalid_prev_types{IDENT, NUMBER, KEYWORD, STRING};
 
     while (!m_Stream.eof()) {
-        Op top_elem;
-
-        // break once the expression ends
         if (m_Stream.p_CurTk.type == PUNC) {
-            if (m_Stream.p_CurTk.value == ",") {
+            if (m_Stream.p_CurTk.value == ","  || m_Stream.p_CurTk.value == ";") {
                 // for function parameters
-                m_Stream.next();
+                forwardStream();
                 break;
             }
             if (m_Stream.p_CurTk.value == "}")
@@ -422,15 +418,20 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
                     address_of.ident = m_Stream.next().value;
                     forwardStream();
                     output.emplace_back(std::make_unique<AddressOf>(address_of));
+
+                    if (m_Stream.p_CurTk.type == OP && (m_Stream.p_CurTk.value == "&" || m_Stream.p_CurTk.value == "@"))
+                        break;
                     continue;
                 } if (m_Stream.p_CurTk.value == "@") {
-                    Dereference deref;
+                    Dereference deref{};
                     deref.ident = m_Stream.next().value;
                     forwardStream();
                     output.emplace_back(std::make_unique<Dereference>(deref));
+
+                    if (m_Stream.p_CurTk.type == OP && (m_Stream.p_CurTk.value == "&" || m_Stream.p_CurTk.value == "@"))
+                        break;
                     continue;
                 }
-
                 // pop ops and push them into output till the top operator of the stack has greater or equal precedence
                 while (!ops.empty() && operators[m_Stream.p_CurTk.value] <= operators[ops.top().getValue()]) {
                     output.emplace_back(std::make_unique<Op>(ops.top()));
@@ -467,7 +468,14 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
         }
         ops_opr_consumed++;
         prev_token = m_Stream.p_CurTk;
+
         m_Stream.next();
+
+        if (
+            const auto [type, value, _] = m_Stream.p_CurTk;
+            (type == OP && (value == "@" || value == "&")) && !(prev_token.type == IDENT)
+            )
+            break;
     }
 
     while (!ops.empty()) {
@@ -483,10 +491,14 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
         expr.expr.push_back(std::move(n));
     }
 
-    if (std::holds_alternative<std::vector<Expression>*>(ptr))
-        std::get<std::vector<Expression> *>(ptr)->push_back(std::move(expr));
-    else
-        std::get<Expression*>(ptr)->expr = std::move(expr.expr);
+    std::cout << "EXPR: ";
+    for (const auto& a : expr.expr) {
+        std::cout << " " << a->getValue() << " ";
+    } std::cout << std::endl;
+
+    if (auto val = std::get_if<std::vector<Expression>*>(&ptr))
+         (*val)->push_back(std::move(expr));
+    else std::get<Expression*>(ptr)->expr = std::move(expr.expr);
 
     // NOTE: this function propagates the stream at the token right after the expression
     std::cout << "expr leaving at: " << m_Stream.p_CurTk.value << std::endl;
