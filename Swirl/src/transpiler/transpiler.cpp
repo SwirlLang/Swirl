@@ -18,6 +18,13 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/MC/TargetRegistry.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/raw_ostream.h>
+#include <llvm/Target/TargetMachine.h>
+#include <llvm/Target/TargetOptions.h>
+#include <llvm/TargetParser/Host.h>
 
 std::size_t ScopeDepth = 0;
 
@@ -447,6 +454,47 @@ llvm::Value* Var::codegen() {
     return ret;
 }
 
+void GenerateObjectFileLLVM() {
+    const auto target_triple = llvm::sys::getDefaultTargetTriple();
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
+    llvm::InitializeAllAsmPrinters();
+
+    std::string err{};
+    if (const auto target = llvm::TargetRegistry::lookupTarget(target_triple, err)) {
+        const auto cpu  = "generic";
+        const auto feat = "";
+
+        const llvm::TargetOptions opt;
+        const auto machine = target->createTargetMachine(target_triple, cpu, feat, opt, llvm::Reloc::PIC_);
+
+        LModule->setDataLayout(machine->createDataLayout());
+        LModule->setTargetTriple(target_triple);
+
+        std::error_code f_ec;
+        llvm::raw_fd_ostream dest(SW_OUTPUT, f_ec, llvm::sys::fs::OF_None);
+
+        if (f_ec) {
+            llvm::errs() << "Could not open output file! " << f_ec.message();
+            return;
+        }
+
+        llvm::legacy::PassManager pass{};
+
+        if ( constexpr auto file_type = llvm::CodeGenFileType::ObjectFile;
+             machine->addPassesToEmitFile(pass, dest, nullptr, file_type)
+            ) { llvm::errs() << "TargetMachine can't emit a file of this type";
+            return;
+        }
+
+        pass.run(*LModule);
+        dest.flush();
+    } else {
+        llvm::errs() << err;
+    }
+}
 
 void Condition::print() {
     std::cout <<

@@ -23,6 +23,7 @@ extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
 extern std::unordered_map<std::string, int> operators;
 
 extern void printIR();
+extern void GenerateObjectFileLLVM();
 
 Parser::Parser(TokenStream& tks) : m_Stream(tks) {}
 Parser::~Parser() = default;
@@ -142,6 +143,11 @@ std::unique_ptr<Node> Parser::dispatch() {
                         return std::make_unique<Assignment>(std::move(ass));
                     }  continue;
                 }
+            case PUNC:
+                if (m_Stream.p_CurTk.value == ";") {
+                    forwardStream();
+                    continue;
+                }
             default:
                 auto [line, _, col] = m_Stream.getStreamState();
                 std::cout << m_Stream.p_CurTk.value << ": " << type << std::endl;
@@ -172,6 +178,7 @@ void Parser::parse() {
     }
     // m_ExceptionHandler.raiseAll();
     printIR();
+    GenerateObjectFileLLVM();
 }
 
 
