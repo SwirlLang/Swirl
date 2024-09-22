@@ -332,8 +332,10 @@ llvm::Value* Struct::codegen() {
         type_registry[ident] = llvm::cast<llvm::Type>(struct_);
     else {
         TableEntry entry{};
+        entry.type = struct_;
+
+        entry.fields = std::unordered_map<std::string, std::pair<std::size_t, llvm::Type *>>{};
         for (std::size_t i = 0; const auto& item : types) {
-            entry.fields = {};
             entry.fields.value()[names[i]] = std::pair{i, item};
             i++;
         }
@@ -413,12 +415,22 @@ llvm::Value* FuncCall::codegen() {
 
 
 llvm::Value* Var::codegen() {
-    auto type_iter = type_registry.find(var_type);
-    if (type_iter == type_registry.end()) throw std::runtime_error("undefined type");
+    llvm::Type* type;
+
+    if (!type_registry.contains(var_type)) {
+        if (!std::ranges::any_of(SymbolTable, [&](auto& entry) {
+            if (entry.contains(var_type)) {
+                if (const TableEntry e = entry[var_type]; e.fields.has_value()) {
+                    type = e.type;
+                    return true;
+                }
+            } return false;
+        })) throw std::runtime_error("undefined type");
+    } else type = type_registry[var_type];
 
     const auto state_cache = states::IntegralTypeState;
-    if (type_iter->second->isIntegerTy())
-        states::IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(type_iter->second);
+    if (type->isIntegerTy())
+        states::IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(type);
 
     llvm::Value* ret;
     llvm::Value* init = nullptr;
@@ -428,7 +440,7 @@ llvm::Value* Var::codegen() {
 
     if (!states::IsLocalScope) {
         auto* var = new llvm::GlobalVariable(
-                *LModule, type_iter->second, is_const, llvm::GlobalVariable::InternalLinkage,
+                *LModule, type, is_const, llvm::GlobalVariable::InternalLinkage,
                 nullptr, var_ident
                 );
 
@@ -438,7 +450,7 @@ llvm::Value* Var::codegen() {
         } ret = var;
         std::cout << "pushing global var: " << var_ident << std::endl;
     } else {
-        llvm::AllocaInst* var_alloca = Builder.CreateAlloca(type_iter->second, nullptr, var_ident);
+        llvm::AllocaInst* var_alloca = Builder.CreateAlloca(type, nullptr, var_ident);
         if (init != nullptr) Builder.CreateStore(init, var_alloca, is_volatile);
 
         TableEntry entry{};
