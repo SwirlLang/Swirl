@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <stack>
+#include <utility>
 #include <variant>
 #include <unordered_map>
 #include <unordered_set>
@@ -16,16 +17,19 @@ struct TypeInfo {
 
 
 std::size_t ScopeIndex{};
-std::stack<Node*> ScopeTrack{};
 std::vector<std::unique_ptr<Node>> ParsedModule{};
 
+std::string Parser::ParseAsType::m_ParseAsType;
+std::stack<std::string> Parser::ParseAsType::m_Cache({""});
+
+
 extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
-extern std::unordered_map<std::string, int> operators;
+extern std::unordered_map<std::string, llvm::Type*> type_registry;
 
 extern void printIR();
 extern void GenerateObjectFileLLVM();
 
-Parser::Parser(TokenStream& tks) : m_Stream(tks) {}
+Parser::Parser(TokenStream  tks) : m_Stream(std::move(tks)) {}
 Parser::~Parser() = default;
 
 
@@ -196,11 +200,13 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
         forwardStream(2);
         param.var_type = parseType();
+        ParseAsType::setNewState(param.var_type);
 
         param.initialized = m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "=";
         if (param.initialized)
             parseExpr(&param.value);
 
+        ParseAsType::restoreCache();
         return std::move(param);
     };
 
@@ -226,8 +232,9 @@ std::unique_ptr<Function> Parser::parseFunction() {
         func_nd.children.push_back(std::move(dispatch()));
     } forwardStream();
 
+
     std::cout << "function leaving at: " << m_Stream.p_CurTk.value << std::endl;
-    ScopeIndex--;
+    m_LatestFunctRetType = func_nd.ret_type;
     return std::make_unique<Function>(std::move(func_nd));
 }
 
@@ -245,6 +252,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
         m_Stream.next();
         var_node.var_type = m_Stream.next().value;
 
+        ParseAsType::setNewState(var_node.var_type);
         if (m_Stream.peek().type == OP && m_Stream.peek().value == "*") {
             var_node.var_type += '*';
             forwardStream();
@@ -258,6 +266,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
         parseExpr(&var_node.value);
     }
 
+    if (!var_node.var_type.empty()) ParseAsType::restoreCache();
     return std::make_unique<Var>(std::move(var_node));
 }
 
@@ -292,7 +301,10 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ";")
         return std::make_unique<ReturnStatement>(std::move(ret));
 
+    ParseAsType::setNewState(m_LatestFunctRetType);
+    std::cout << "ret type latest: " << m_LatestFunctRetType << std::endl;
     parseExpr(&ret.value);
+    ParseAsType::restoreCache();
     return std::make_unique<ReturnStatement>(std::move(ret));
 }
 
@@ -407,8 +419,11 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
 
         switch (m_Stream.p_CurTk.type) {
             case NUMBER:
-                output.emplace_back(std::make_unique<IntLit>(IntLit(m_Stream.p_CurTk.value)));
-                break;
+                if (auto type = type_registry[ParseAsType::getCurrentState()]; type != nullptr && type->isIntegerTy()) {
+                    output.emplace_back(std::make_unique<IntLit>(IntLit(m_Stream.p_CurTk.value)));
+                } else {
+                    output.emplace_back(std::make_unique<FloatLit>(m_Stream.p_CurTk.value));
+                } break;
             case STRING:
                 output.emplace_back(std::make_unique<StrLit>(m_Stream.p_CurTk.value));
                 break;
@@ -479,8 +494,8 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
         m_Stream.next();
 
         if (
-            const auto [type, value, _] = m_Stream.p_CurTk;
-            (type == OP && (value == "@" || value == "&")) && !(prev_token.type == IDENT)
+            const auto [type, value, _, __] = m_Stream.p_CurTk;
+            type == OP && (value == "@" || value == "&") && prev_token.type != IDENT
             )
             break;
     }

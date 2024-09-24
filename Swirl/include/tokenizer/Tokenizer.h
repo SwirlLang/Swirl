@@ -53,15 +53,15 @@ class TokenStream {
         return ('A' <= chr && chr <= 'Z') || ('a' <= chr && chr <= 'z') || chr == '_';
     }
 
-    static bool isId(char chr) {
+    static bool isId(const char chr) {
         return isIdStart(chr) || isDigit(chr);
     }
 
-    static bool isPunctuation(char chr) {
+    static bool isPunctuation(const char chr) {
         return "();,{}[]"sv.find(chr) != std::string::npos;
     }
 
-    static bool isOpChar(char _chr) {
+    static bool isOpChar(const char _chr) {
         return "+-/*><=&@"sv.find(_chr) != std::string::npos;
     }
 
