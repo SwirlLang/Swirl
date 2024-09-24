@@ -46,25 +46,7 @@ namespace states {
 }
 
 
-std::unordered_map<std::string, llvm::Type*> type_registry = {
-    {"", nullptr},
-    {"i8", llvm::Type::getInt8Ty(Context)},
-    {"i32",   llvm::Type::getInt32Ty(Context)},
-    {"i64",   llvm::Type::getInt64Ty(Context)},
-    {"i128",  llvm::Type::getInt128Ty(Context)},
-    {"f32",   llvm::Type::getFloatTy(Context)},
-    {"f64",   llvm::Type::getDoubleTy(Context)},
-    {"bool",  llvm::Type::getInt1Ty(Context)},
-    {"void",  llvm::Type::getVoidTy(Context)},
-
-    {"i8*", llvm::PointerType::getInt8Ty(Context)},
-    {"i32*", llvm::PointerType::getInt32Ty(Context)},
-    {"i64*", llvm::PointerType::getInt64Ty(Context)},
-    {"i128*", llvm::PointerType::getInt128Ty(Context)},
-    {"f32*", llvm::PointerType::getFloatTy(Context)},
-    {"f64*", llvm::PointerType::getDoubleTy(Context)},
-    {"bool*", llvm::PointerType::getInt1Ty(Context)}
-};
+TypeRegistry_t type_registry{};
 
 
 struct TableEntry {
@@ -335,7 +317,7 @@ llvm::Value* Struct::codegen() {
     struct_->setBody(types);
 
     if (!states::IsLocalScope)
-        type_registry[ident] = llvm::cast<llvm::Type>(struct_);
+        type_registry.registerIdentAs(ident,  llvm::cast<llvm::Type>(struct_));
     else {
         TableEntry entry{};
         entry.type = struct_;
@@ -423,16 +405,14 @@ llvm::Value* FuncCall::codegen() {
 llvm::Value* Var::codegen() {
     llvm::Type* type{};
 
-    if (!type_registry.contains(var_type)) {
-        if (!std::ranges::any_of(SymbolTable, [&type, this](auto& entry) {
-            if (entry.contains(var_type)) {
-                if (const TableEntry e = entry[var_type]; e.fields.has_value()) {
-                    type = e.type;
-                    return true;
-                }
-            } return false;
-        })) throw std::runtime_error("undefined type");
-    } else type = type_registry[var_type];
+    std::ranges::any_of(SymbolTable, [&type, this](auto& entry) {
+        if (entry.contains(var_type)) {
+            if (const TableEntry e = entry[var_type]; e.fields.has_value()) {
+                type = e.type;
+                return true;
+            }
+        } return false;
+    }); type = type_registry[var_type];
 
     const auto state_cache = states::IntegralTypeState;
     if (type->isIntegerTy())

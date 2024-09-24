@@ -22,9 +22,9 @@ std::vector<std::unique_ptr<Node>> ParsedModule{};
 std::string Parser::ParseAsType::m_ParseAsType;
 std::stack<std::string> Parser::ParseAsType::m_Cache({""});
 
-
+class TypeRegistry_t;
 extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
-extern std::unordered_map<std::string, llvm::Type*> type_registry;
+extern TypeRegistry_t type_registry;
 
 extern void printIR();
 extern void GenerateObjectFileLLVM();
@@ -59,7 +59,7 @@ int minEditDistance(const std::string_view word1, const std::string_view word2) 
     return dp[m][n];
 }
 
-void Parser::forwardStream(const uint8_t n = 1) {
+void Parser::forwardStream(const uint8_t n) {
     for (uint8_t _ = 0; _ < n; _++)
         m_Stream.next();
 }
@@ -244,25 +244,20 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     var_node.is_const = m_Stream.p_CurTk.value[0] == 'c';
     var_node.is_volatile = is_volatile;
     var_node.var_ident = m_Stream.next().value;
+    forwardStream();  // [:, =]
 
     std::cout << "var: " << var_node.var_ident << std::endl;
 
-    auto p_token = m_Stream.peek();
-    if (p_token.type == PUNC && p_token.value == ":") {
-        m_Stream.next();
-        var_node.var_type = m_Stream.next().value;
+    if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ":") {
+        forwardStream();
 
-        ParseAsType::setNewState(var_node.var_type);
-        if (m_Stream.peek().type == OP && m_Stream.peek().value == "*") {
-            var_node.var_type += '*';
-            forwardStream();
-        }
+        var_node.var_type = parseType();
     }
 
-    p_token = m_Stream.peek();
-    if (p_token.type == OP && p_token.value == "=") {
+    if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "=") {
         var_node.initialized = true;
-        forwardStream(2);
+        forwardStream();
+        if (!var_node.var_type.empty()) ParseAsType::setNewState(var_node.var_type);
         parseExpr(&var_node.value);
     }
 

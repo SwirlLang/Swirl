@@ -33,6 +33,7 @@ enum NodeType {
 
 
 struct Var;
+extern llvm::LLVMContext Context;
 
 // A common base class for all the nodes
 struct Node {
@@ -330,6 +331,51 @@ struct Condition final : Node {
     llvm::Value* codegen() override;
 };
 
+class TypeRegistry_t {
+    std::unordered_map<std::string, llvm::Type*> type_registry = {
+        {"", nullptr},
+        {"i8", llvm::Type::getInt8Ty(Context)},
+        {"i32",   llvm::Type::getInt32Ty(Context)},
+        {"i64",   llvm::Type::getInt64Ty(Context)},
+        {"i128",  llvm::Type::getInt128Ty(Context)},
+        {"f32",   llvm::Type::getFloatTy(Context)},
+        {"f64",   llvm::Type::getDoubleTy(Context)},
+        {"bool",  llvm::Type::getInt1Ty(Context)},
+        {"void",  llvm::Type::getVoidTy(Context)},
+
+        {"i8*", llvm::PointerType::getInt8Ty(Context)},
+        {"i32*", llvm::PointerType::getInt32Ty(Context)},
+        {"i64*", llvm::PointerType::getInt64Ty(Context)},
+        {"i128*", llvm::PointerType::getInt128Ty(Context)},
+        {"f32*", llvm::PointerType::getFloatTy(Context)},
+        {"f64*", llvm::PointerType::getDoubleTy(Context)},
+        {"bool*", llvm::PointerType::getInt1Ty(Context)}
+    };
+
+public:
+    llvm::Type* operator[](const std::string& str) {
+        if (type_registry.contains(str))
+            return type_registry[str];
+        if (str.ends_with("*")) {
+            if (
+                const auto base_type = str.substr(0, str.find_first_of('*') + 1);
+                type_registry.contains(base_type)
+                ) {
+                llvm::Type* llvm_base_type = type_registry[base_type];
+                llvm::Type* ptr_type       = llvm_base_type;
+
+                std::size_t ptr_levels = std::count(str.begin(), str.end(), '*');
+                while (ptr_levels--) {
+                    ptr_type = llvm::PointerType::get(ptr_type, 1);
+                } return ptr_type;
+                }
+        } throw std::runtime_error("TypeRegistry: cannot resolve type: " + str);
+    }
+
+    void registerIdentAs(const std::string& ident, llvm::Type* type) {
+        type_registry[ident] = type;
+    }
+};
 
 class Parser {
     Token cur_rd_tok{};
@@ -375,7 +421,7 @@ public:
     std::unique_ptr<ReturnStatement> parseRet();
     std::unique_ptr<Struct> parseStruct();
 
-    void forwardStream(uint8_t n);
+    void forwardStream(uint8_t n = 1);
     void parseExpr(std::variant<std::vector<Expression>*, Expression*>, bool isCall = false);
     void parse();
 //    void appendAST(Node&);
@@ -384,14 +430,15 @@ public:
     ~Parser();
 
     std::string parseType() {
-        std::string ret{};
-        ret = m_Stream.p_CurTk.value;
-        m_Stream.next();
-        if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "*") {
-            ret += "*";
-            m_Stream.next();
+        std::string ret = m_Stream.p_CurTk.value;
+        forwardStream();
+
+        if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value.starts_with("*")) {
+            ret += m_Stream.p_CurTk.value;
+            forwardStream();
         }
 
+        std::cout << "ParseType returned: " << ret << std::endl;
         return ret;
     }
 };
