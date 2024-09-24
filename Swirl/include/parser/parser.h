@@ -7,6 +7,7 @@
 #include <llvm/IR/Value.h>
 #include <exception/ExceptionHandler.h>
 #include <llvm/IR/Instructions.h>
+#include <tokens/Tokens.h>
 
 #ifndef SWIRL_PARSER_H
 #define SWIRL_PARSER_H
@@ -74,6 +75,7 @@ struct Op final : Node {
 
 struct Expression final : Node {
     std::vector<std::unique_ptr<Node>> expr{};
+    CompTimeTypes deduced_type{};
 
     Expression() = default;
     Expression(Expression&& other) noexcept {
@@ -333,6 +335,29 @@ struct Condition final : Node {
 class Parser {
     Token cur_rd_tok{};
     ExceptionHandler m_ExceptionHandler{};
+    std::string m_LatestFunctRetType;
+
+    struct ParseAsType {
+        static void setNewState(const std::string& st) {
+            m_Cache.push(m_ParseAsType);
+            m_ParseAsType = st;
+        }
+
+        static std::string getCurrentState() {
+            return m_ParseAsType;
+        }
+
+        static void restoreCache() {
+            if (m_Cache.empty())
+                throw std::runtime_error("ill-formed stack: Parser::ParseAsType::m_Cache");
+            m_ParseAsType = m_Cache.top();
+            m_Cache.pop();
+        }
+
+        static std::string      m_ParseAsType;
+        static std::stack<std::string> m_Cache;
+    };
+
 
 public:
     TokenStream m_Stream;
@@ -340,7 +365,7 @@ public:
     bool m_AppendToScope = false;
     std::vector<std::string> registered_symbols{};
 
-    explicit Parser(TokenStream&);
+    explicit Parser(TokenStream );
 
     std::unique_ptr<Function> parseFunction();
     std::unique_ptr<Condition> parseCondition();

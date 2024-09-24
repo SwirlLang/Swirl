@@ -39,11 +39,14 @@ auto LModule = std::make_unique<llvm::Module>(SW_OUTPUT, Context);
 namespace states {
     bool IsLocalScope      = false;
     bool ChildHasReturned  = false;
-    llvm::IntegerType* IntegralTypeState = llvm::Type::getInt32Ty(Context);
+
+    llvm::IntegerType* IntegralTypeState    = llvm::Type::getInt32Ty(Context);
+    llvm::Type*        FloatTypeState       = llvm::Type::getFloatTy(Context);
 }
 
 
 std::unordered_map<std::string, llvm::Type*> type_registry = {
+    {"", nullptr},
     {"i8", llvm::Type::getInt8Ty(Context)},
     {"i32",   llvm::Type::getInt32Ty(Context)},
     {"i64",   llvm::Type::getInt64Ty(Context)},
@@ -54,7 +57,7 @@ std::unordered_map<std::string, llvm::Type*> type_registry = {
     {"void",  llvm::Type::getVoidTy(Context)},
 
     {"i8*", llvm::PointerType::getInt8Ty(Context)},
-    {"i32*", llvm::PointerType::get(llvm::Type::getInt32Ty(Context), 1)},
+    {"i32*", llvm::PointerType::getInt32Ty(Context)},
     {"i64*", llvm::PointerType::getInt64Ty(Context)},
     {"i128*", llvm::PointerType::getInt128Ty(Context)},
     {"f32*", llvm::PointerType::getFloatTy(Context)},
@@ -107,6 +110,7 @@ struct NewScope {
      }
 };
 
+
 void codegenChildrenUntilRet(std::vector<std::unique_ptr<Node>>& children) {
     for (const auto& child : children) {
         if (child->getType() == ND_RET) {
@@ -122,7 +126,7 @@ llvm::Value* IntLit::codegen() {
 }
 
 llvm::Value* FloatLit::codegen() {
-    return llvm::ConstantFP::get(llvm::Type::getFloatTy(Context), value);
+    return llvm::ConstantFP::get(states::FloatTypeState, value);
 }
 
 llvm::Value* StrLit::codegen() {
@@ -167,6 +171,7 @@ llvm::Value* Function::codegen() {
     codegenChildrenUntilRet(children);
     return func;
 }
+
 
 llvm::Value* ReturnStatement::codegen() {
     if (!value.expr.empty()) {
@@ -238,7 +243,6 @@ llvm::Value* Expression::codegen() {
 }
 
 llvm::Value* Assignment::codegen() {
-    llvm::Value* ptr;
     Builder.CreateStore(r_value.codegen(), l_value.codegen());
     return nullptr;
 }
@@ -415,10 +419,10 @@ llvm::Value* FuncCall::codegen() {
 
 
 llvm::Value* Var::codegen() {
-    llvm::Type* type;
+    llvm::Type* type{};
 
     if (!type_registry.contains(var_type)) {
-        if (!std::ranges::any_of(SymbolTable, [&](auto& entry) {
+        if (!std::ranges::any_of(SymbolTable, [&type, this](auto& entry) {
             if (entry.contains(var_type)) {
                 if (const TableEntry e = entry[var_type]; e.fields.has_value()) {
                     type = e.type;
@@ -431,6 +435,8 @@ llvm::Value* Var::codegen() {
     const auto state_cache = states::IntegralTypeState;
     if (type->isIntegerTy())
         states::IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(type);
+    else if (type->isFloatingPointTy())
+        states::FloatTypeState = type;
 
     llvm::Value* ret;
     llvm::Value* init = nullptr;
@@ -451,7 +457,9 @@ llvm::Value* Var::codegen() {
         std::cout << "pushing global var: " << var_ident << std::endl;
     } else {
         llvm::AllocaInst* var_alloca = Builder.CreateAlloca(type, nullptr, var_ident);
-        if (init != nullptr) Builder.CreateStore(init, var_alloca, is_volatile);
+        if (init != nullptr) {
+            Builder.CreateStore(init, var_alloca, is_volatile);
+        }
 
         TableEntry entry{};
         entry.ptr = var_alloca;
