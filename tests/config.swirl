@@ -1,0 +1,23 @@
+config {
+    style: src("$HOME/style.swirl");
+    use_semicolons: false;
+
+    keywords {
+        function: "func";
+    }
+}
+
+
+EXPR
+KEYWORD
+FUNCTION
+IF
+SWITCH
+VAR
+ID
+
+VAR {
+    <KEYWORD="VAR"> [ID] = [EXPR]
+
+}
+

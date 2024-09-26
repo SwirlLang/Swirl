@@ -22,6 +22,7 @@ std::vector<std::unique_ptr<Node>> ParsedModule{};
 std::string Parser::ParseAsType::m_ParseAsType;
 std::stack<std::string> Parser::ParseAsType::m_Cache({""});
 
+
 class TypeRegistry_t;
 extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
 extern TypeRegistry_t type_registry;
@@ -34,8 +35,8 @@ Parser::~Parser() = default;
 
 
 int minEditDistance(const std::string_view word1, const std::string_view word2) {
-    std::size_t m = word1.size();
-    std::size_t n = word2.size();
+    const std::size_t m = word1.size();
+    const std::size_t n = word2.size();
 
     std::vector dp(m + 1, std::vector(n + 1, 0));
 
@@ -91,9 +92,8 @@ std::unique_ptr<Node> Parser::dispatch() {
                 if (m_Stream.p_CurTk.value == "struct")
                     return parseStruct();
 
-                if (m_Stream.p_CurTk.value == "while") {
+                if (m_Stream.p_CurTk.value == "while")
                     return parseWhile();
-                }
 
                 if (m_Stream.p_CurTk.value == "volatile") {
                     forwardStream();
@@ -151,6 +151,8 @@ std::unique_ptr<Node> Parser::dispatch() {
                 if (m_Stream.p_CurTk.value == ";") {
                     forwardStream();
                     continue;
+                } if (m_Stream.p_CurTk.value == "}") {
+                    return std::make_unique<Node>();
                 }
             default:
                 auto [line, _, col] = m_Stream.getStreamState();
@@ -170,15 +172,15 @@ void Parser::parse() {
     //     std::cout << m_Stream.p_CurTk.value << " peek: " << m_Stream.peek().value << std::endl;
     //     m_Stream.next();
     // }
-    forwardStream();
 
+    forwardStream();
     while (!m_Stream.eof()) {
         ParsedModule.emplace_back(dispatch());
     }
 
     for ( auto & a : ParsedModule) {
         // a->print();
-        a->codegen();
+        a->llvmCodegen(TODO);
     }
     // m_ExceptionHandler.raiseAll();
     printIR();
@@ -223,7 +225,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ":") {
         forwardStream();
-        func_nd.ret_type = parseType();
+        m_LatestFunctRetType = func_nd.ret_type = parseType();
     }
 
     // parse the children
@@ -234,7 +236,6 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
 
     std::cout << "function leaving at: " << m_Stream.p_CurTk.value << std::endl;
-    m_LatestFunctRetType = func_nd.ret_type;
     return std::make_unique<Function>(std::move(func_nd));
 }
 
@@ -250,18 +251,18 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
 
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ":") {
         forwardStream();
-
         var_node.var_type = parseType();
     }
 
     if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "=") {
         var_node.initialized = true;
         forwardStream();
+
         if (!var_node.var_type.empty()) ParseAsType::setNewState(var_node.var_type);
         parseExpr(&var_node.value);
+        if (!var_node.var_type.empty()) ParseAsType::restoreCache();
     }
 
-    if (!var_node.var_type.empty()) ParseAsType::restoreCache();
     return std::make_unique<Var>(std::move(var_node));
 }
 
@@ -297,7 +298,9 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
         return std::make_unique<ReturnStatement>(std::move(ret));
 
     ParseAsType::setNewState(m_LatestFunctRetType);
-    std::cout << "ret type latest: " << m_LatestFunctRetType << std::endl;
+    ret.parent_ret_type = m_LatestFunctRetType;
+    std::cout << "Latest func ret type: " << m_LatestFunctRetType << std::endl;
+
     parseExpr(&ret.value);
     ParseAsType::restoreCache();
     return std::make_unique<ReturnStatement>(std::move(ret));

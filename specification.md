@@ -58,8 +58,8 @@ func genericFunc<T>(T a, T b) {
 
 | type   | About                    |
 |--------|--------------------------|
-| string | Instance of Swirl::String|
-| int    | 64 bit Int               |
+| string | Instance of Swirl::StrLit|
+| int    | 64 bit IntLit               |
 | float  | double                   |
 | bool   | unsigned 8 bit int       | 
 

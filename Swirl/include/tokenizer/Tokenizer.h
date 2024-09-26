@@ -45,11 +45,11 @@ class TokenStream {
         return keywords.contains(_str);
     }
 
-    static bool isDigit(char chr) {
+    static bool isDigit(const char chr) {
         return ('0' <= chr && chr <= '9');
     }
 
-    static bool isIdStart(char chr) {
+    static bool isIdStart(const char chr) {
         return ('A' <= chr && chr <= 'Z') || ('a' <= chr && chr <= 'z') || chr == '_';
     }
 
@@ -65,17 +65,24 @@ class TokenStream {
         return "+-/*><=&@"sv.find(_chr) != std::string::npos;
     }
 
-    static bool isWhiteSpace(char _chr) {
+    static bool isWhiteSpace(const char _chr) {
         return " \t\n"sv.find(_chr) != std::string::npos;
     }
 
-    /* Read and return the characters until the given boolean function evaluates to true. */
-    std::string readWhile(const std::function<bool (char)>& delimiter) {
+    std::string readWhile(const std::function<bool (char)>& delimiter, int limit = -1) {
         std::string ret;
-        while (!m_Stream.eof()) {
-            if (delimiter(m_Stream.peek())) {
-                ret += m_Stream.next();
-            } else { break; }
+        if (limit < 0)
+            while (!m_Stream.eof()) {
+                if (delimiter(m_Stream.peek()))
+                    ret += m_Stream.next();
+                else break;
+            }
+        else {
+            while (limit-- && !m_Stream.eof()) {
+                if (delimiter(m_Stream.peek()))
+                    ret += m_Stream.next();
+                else break;
+            } std::cout << "READ OPERATOR: " << ret << std::endl;
         }
         return ret;
     }
@@ -87,7 +94,7 @@ class TokenStream {
 
         m_Stream.next();
         while (!m_Stream.eof()) {
-            char chr = m_Stream.next();
+            const char chr = m_Stream.next();
             if (is_escaped) {
                 switch (chr) {
                     case 'n': ret += '\n'; break;
@@ -102,19 +109,17 @@ class TokenStream {
                     default: ret += '\\'; ret += chr; break;
                 }
                 is_escaped = false;
-            } else if (chr == '\\') {
-                is_escaped = true;
             }
-            else if (chr == _end)
-                break;
-            else
-                ret += chr;
+
+            else if (chr == '\\') is_escaped = true;
+            else if (chr == _end) break;
+            else ret += chr;
         }
 
         return ret;
     }
 
-    Token readString(char del = '"') {
+    Token readString(const char del = '"') {
         m_Ret = readEscaped(del);
         m_Ret.pop_back();
         m_Ret.insert(0, "\"");
@@ -131,9 +136,16 @@ class TokenStream {
         };
     }
 
+    Token readOperator() {
+        if (
+            const std::string op_s = readWhile(isOpChar, 1);
+            operators.contains(op_s + m_Stream.peek())) {
+        }
+    }
+
     Token readNumber(const char* neg = "") {
         static uint8_t has_decim = false;
-        std::string number = readWhile([](char ch) -> bool {
+        const std::string number = readWhile([](const char ch) -> bool {
             if (ch == '.') {
                 if (has_decim) return false;
                 has_decim = true;
@@ -149,24 +161,26 @@ class TokenStream {
     Token readNextTok() {
         setReturnPoint();
 
-        if (m_Stream.eof()) {return {NONE, "null", m_Stream.Line};}
+        if (m_Stream.eof())
+            return {NONE, "null", m_Stream.Line};
 
-        auto chr = m_Stream.peek();
-
-        switch (chr) {
+        switch (const auto chr = m_Stream.peek()) {
             case '"':
                 return readString();
             case '\'':
                 return readString('\'');
             default:
-                if (isDigit(chr)) return readNumber();
+                if (isDigit(chr))   return readNumber();
                 if (isIdStart(chr)) return readIdent();
 
                 m_Ret = std::string(1, m_Stream.next());
 
                 if (isOpChar(chr)) {
-                    m_Rax = chr + readWhile(isOpChar);
-                    if (m_Rax == "//") {
+                    m_Rax = (chr == '@' || chr == '&')
+                            ? chr + readWhile(isOpChar, 1)
+                            : chr + readWhile(isOpChar);
+
+                    if (m_Rax.starts_with("//")) {
                         return {
                             COMMENT,
                             readWhile([](char ch) {
@@ -199,7 +213,7 @@ public:
     Token p_PeekTk{_NONE, ""};
 
 
-    explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Stream(_stream), m_Debug(_debug) {}
+    explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Debug(_debug), m_Stream(_stream) {}
 
     void setReturnPoint() {
         m_Cache.Line = m_Stream.Line;
@@ -215,7 +229,7 @@ public:
 
 
     /* An abstraction over readNextTok. */
-    Token next(bool _modifyCurTk = true) {
+    Token next(const bool _modifyCurTk = true) {
         Token cur_tk = readNextTok();
 
         // discard all the junk
@@ -248,7 +262,7 @@ public:
     }
 
 
-    StreamState getStreamState() {
+    StreamState getStreamState() const {
         return StreamState{
             .Line  = m_Stream.Line,
             .Pos   = m_Stream.Pos,

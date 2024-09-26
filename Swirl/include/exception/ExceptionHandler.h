@@ -34,7 +34,7 @@ public:
                       const std::string& msg
                       );
 
-    void raiseAll();
+    void raiseAll() const;
 };
 
 #endif

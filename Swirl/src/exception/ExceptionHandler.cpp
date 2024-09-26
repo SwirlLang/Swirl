@@ -47,13 +47,12 @@ void ExceptionHandler::newException(EXCEPTION_TYPE type, std::size_t line, std::
     }
 }
 
-void ExceptionHandler::raiseAll() {
+void ExceptionHandler::raiseAll() const {
     if (m_HasErrors) {
         std::cerr << m_Errors << std::endl;
         std::cerr << "\n" << NumberOfErrors << " error(s) in total detected." << std::endl;
         std::exit(1);
-    } else {
-        // TODO: Warnings
     }
+    // TODO: Warnings
 }
 

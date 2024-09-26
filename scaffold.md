@@ -1,35 +1,35 @@
-# Scaffolding
+# Syntactic Outline
 
-### Basically like C, but with additions including but not limited to:
-- Scopes can return values
-- Pattern Matching
-- Generics
-- Range based loops
-- Rust inspired traits like system to allow dynamic dispatch
-- Increased type + memory safety (RAII || Reference counting?)
-- Modules based "include" system
+## Vars - 
+```
+var  a = 0;         // type deduced (int)
+int b = 0;        // explicit type
+const int c = 0; // constant int
 
+const int WIDTH = 720, HEIGHT = 480;  // multiple vars with the same type
+``` 
 
-<hr>
+## Functions
+```
+fn main(int a, int b) {
+    int a = 12;
+    return 0; 
+}
+```
+<hr/>
 
-Syntactic sample:
-```cpp
-
-// generics, with constraints (if any)
-int func<T: constraint1 | constraint2> (T x, T y) {
-    return x + y;
+```
+extern "C" {
+    printf,
+    scanf,
+    getline,
+    fprintf,
+    flush,
+    newline,
+    libccall
 };
 
 
-int main() {
-    int var = 12 *  {
-        return 12 & 1;
-    };  // rogue scopes are akin to functions, var = 0
-    
-
-    const str my_string = "hello world";
-    
-    for (i : 1..12) {
-    }
+fn main() {
 }
 ```

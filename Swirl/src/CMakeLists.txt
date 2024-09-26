@@ -1,6 +1,6 @@
 file(GLOB src
     cli/cli.cpp
-    transpiler/builtins.txt
+        backend/builtins.txt
     exception_handler/ExceptionHandler.cpp
     parser/class/ClassParser.cpp
     parser/functions/FunctionParser.cpp
@@ -14,7 +14,7 @@ file(GLOB src
     # utils/logger.cpp
     utils/utils.cpp
     builtins/builtins.txt
-    transpiler/transpiler.cpp
+        backend/LLVMBackend.cpp
     parser/parser.cpp
     exception/exception.cpp
 )

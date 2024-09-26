@@ -6,11 +6,8 @@
 #include <unordered_map>
 
 #include <cli/cli.h>
-#include <pre-processor/pre-processor.h>
-#include <swirl.typedefs/swirl_t.h>
 #include <tokenizer/InputStream.h>
 #include <tokenizer/Tokenizer.h>
-#include <transpiler/transpiler.h>
 #include <parser/parser.h>
 #include <include/SwirlConfig.h>
 
