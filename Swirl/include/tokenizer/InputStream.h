@@ -21,6 +21,8 @@ public:
     /** @brief returns the next value and discards it */
     char next();
 
+    char getCurrentChar() const;
+
     /** @brief returns true if no more chars are left in the m_Stream */
     bool eof() const;
 
@@ -37,6 +39,7 @@ public:
 
 private:
     std::string_view m_Source{};
+    char m_CurrentChar{};
 };
 
 #endif

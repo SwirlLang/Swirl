@@ -397,6 +397,7 @@ public:
             forwardStream();
         }
 
+        std::cout << "ParseType leaving at -> " << m_Stream.p_CurTk.value << ": " << m_Stream.p_CurTk.type << std::endl;
         return ret;
     }
 };

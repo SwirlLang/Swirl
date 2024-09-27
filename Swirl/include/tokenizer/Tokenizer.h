@@ -2,6 +2,7 @@
 #include <map>
 #include <array>
 #include <cstdint>
+#include <utility>
 #include <vector>
 #include <cstring>
 #include <functional>
@@ -18,7 +19,6 @@
 
 #define SWIRL_TokenStream_H
 
-
 using namespace std::string_view_literals;
 
 extern const std::unordered_map<std::string, uint8_t> keywords;
@@ -26,9 +26,6 @@ extern std::unordered_map<std::string, int> operators;
 extern std::unordered_map<std::size_t, std::string> LineTable;
 
 class TokenStream {
-    struct StreamState {
-        std::size_t Line, Pos, Col;
-    };
 
     int                         m_Pcnt  = 0;       // paren counter
     bool                        m_Debug  = false;  // Debug flag
@@ -41,12 +38,17 @@ class TokenStream {
     StreamState                 m_Cache{};
     InputStream                 m_Stream;          // InputStream instance
 
+
     static bool isKeyword(const std::string& _str) {
         return keywords.contains(_str);
     }
 
     static bool isDigit(const char chr) {
         return ('0' <= chr && chr <= '9');
+    }
+
+    static bool isNumeric(const char chr) {
+        return isDigit(chr) || chr == 'x' || chr == '_' || chr == '.';
     }
 
     static bool isIdStart(const char chr) {
@@ -57,10 +59,6 @@ class TokenStream {
         return isIdStart(chr) || isDigit(chr);
     }
 
-    static bool isPunctuation(const char chr) {
-        return "();,{}[]"sv.find(chr) != std::string::npos;
-    }
-
     static bool isOpChar(const char _chr) {
         return "+-/*><=&@"sv.find(_chr) != std::string::npos;
     }
@@ -69,30 +67,11 @@ class TokenStream {
         return " \t\n"sv.find(_chr) != std::string::npos;
     }
 
-    std::string readWhile(const std::function<bool (char)>& delimiter, int limit = -1) {
-        std::string ret;
-        if (limit < 0)
-            while (!m_Stream.eof()) {
-                if (delimiter(m_Stream.peek()))
-                    ret += m_Stream.next();
-                else break;
-            }
-        else {
-            while (limit-- && !m_Stream.eof()) {
-                if (delimiter(m_Stream.peek()))
-                    ret += m_Stream.next();
-                else break;
-            } std::cout << "READ OPERATOR: " << ret << std::endl;
-        }
-        return ret;
-    }
-
     /* Used to start reading a stream of characters till the `_end` char is hit. */
-    std::string readEscaped(char _end) {
+    std::string readEscaped(const char _end) {
         bool is_escaped = false;
         std::string ret;
 
-        m_Stream.next();
         while (!m_Stream.eof()) {
             const char chr = m_Stream.next();
             if (is_escaped) {
@@ -119,101 +98,115 @@ class TokenStream {
         return ret;
     }
 
-    Token readString(const char del = '"') {
-        m_Ret = readEscaped(del);
-        m_Ret.pop_back();
-        m_Ret.insert(0, "\"");
-        m_Ret.append("\"");
-        return {STRING, m_Ret, m_Stream.Line};
-    }
-
-    Token readIdent() {
-        m_Rax = readWhile(isId);
+    Token readString(const char del) {
+        auto str = readEscaped(del);
+        m_Stream.next();  // escape the '"'
         return {
-                isKeyword(m_Rax) ? KEYWORD : IDENT,
-                m_Rax,
-                m_Stream.Line
+            STRING,
+            std::move(str),
+            getStreamState()
         };
     }
 
+    // reads until `pred` evaluates to false
+    std::string readWhile(const std::function<bool (char ch)>& pred) {
+        std::string ret(1, m_Stream.getCurrentChar());
+
+        while (pred(m_Stream.peek()))
+            ret += m_Stream.next();
+        // std::cout << std::format("{}", ret[0]) << " <----- " << std::endl;
+        return ret;
+    }
+
     Token readOperator() {
-        if (
-            const std::string op_s = readWhile(isOpChar, 1);
-            operators.contains(op_s + m_Stream.peek())) {
+        if (const auto pot_op = std::string(1, m_Stream.getCurrentChar()) + m_Stream.peek(); operators.contains(pot_op)) {
+            m_Stream.next();
+            return {
+                OP,
+                pot_op,
+                getStreamState()
+            };
         }
+
+        Token tok = {
+            OP,
+            std::string(1, m_Stream.getCurrentChar()),
+            getStreamState()
+        };
+
+        m_Stream.next();
+        return tok;
     }
 
-    Token readNumber(const char* neg = "") {
-        static uint8_t has_decim = false;
-        const std::string number = readWhile([](const char ch) -> bool {
-            if (ch == '.') {
-                if (has_decim) return false;
-                has_decim = true;
-                return true;
-            } return isDigit(ch);
-        });
-        has_decim = false;
-        m_Ret = number;
-        return {NUMBER, neg + m_Ret, m_Stream.Line};
-    }
-
-    /* Consume the next token from the m_Stream. */
     Token readNextTok() {
-        setReturnPoint();
-
         if (m_Stream.eof())
-            return {NONE, "null", m_Stream.Line};
+            return {NONE, "", m_Stream.Line};
 
-        switch (const auto chr = m_Stream.peek()) {
+        switch (const char ch = m_Stream.next()) {
             case '"':
-                return readString();
+                return readString('"');
             case '\'':
                 return readString('\'');
             default:
-                if (isDigit(chr))   return readNumber();
-                if (isIdStart(chr)) return readIdent();
-
-                m_Ret = std::string(1, m_Stream.next());
-
-                if (isOpChar(chr)) {
-                    m_Rax = (chr == '@' || chr == '&')
-                            ? chr + readWhile(isOpChar, 1)
-                            : chr + readWhile(isOpChar);
-
-                    if (m_Rax.starts_with("//")) {
+                if (isIdStart(ch)) {
+                    auto val = readWhile(isId);
+                    return {
+                        keywords.contains(val) ? KEYWORD : IDENT,
+                        std::move(val),
+                        getStreamState()
+                    };
+                }
+                if (isOpChar(ch)) {
+                    Token op = readOperator();
+                    if (op.value == "//") {
                         return {
                             COMMENT,
-                            readWhile([](char ch) {
-                                return ch == '\n';
-                            })
+                            readWhile([](const char c) {
+                                return c != '\n';
+                            }),
+                            getStreamState()
                         };
                     }
 
-                    return {
-                        OP,
-                        m_Rax,
-                        m_Stream.Line
-                    };
+                    return op;
                 }
 
-                return {
+                if (isDigit(ch)) {
+                    auto val = readWhile(isNumeric);
+                    return {
+                        NUMBER,
+                        std::move(val),
+                        getStreamState(),
+                        val.find('.') != std::string::npos ? CT_FLOAT : CT_INT
+                    };
+                }
+                Token punc = {
                     PUNC,
-                    m_Ret,
-                    m_Stream.Line
+                    std::string(1, ch),
+                    getStreamState()
                 };
+
+                if (punc.value == ".") {
+                    if (isDigit(m_Stream.peek())) {
+                        m_Stream.next();
+                        return {
+                            NUMBER,
+                            "0." + readWhile(isNumeric),
+                            getStreamState(),
+                            CT_FLOAT
+                        };
+                    }
+                }
+                return punc;
         }
-
-
-        throw std::runtime_error("No valid token");
     }
 
-
 public:
-    Token p_CurTk{_NONE, ""};
-    Token p_PeekTk{_NONE, ""};
+    Token p_CurTk{UNINIT, ""};
+    Token p_PeekTk{UNINIT, ""};
 
 
-    explicit TokenStream(InputStream& _stream, bool _debug = false) : m_Debug(_debug), m_Stream(_stream) {}
+    explicit TokenStream(InputStream _stream, const bool _debug = false) : m_Debug(_debug), m_Stream(std::move(_stream)) {}
 
     void setReturnPoint() {
         m_Cache.Line = m_Stream.Line;

@@ -10,8 +10,14 @@ char InputStream::peek() const {
     return m_Source.at(Pos);
 }
 
+char InputStream::getCurrentChar() const {
+    return m_CurrentChar;
+};
+
 char InputStream::next() {
-    const char chr = m_Source.at(Pos++);
+    const char chr = m_Source.at(Pos);
+    m_CurrentChar = chr;
+    Pos++;
 
     if (chr == '\n') {
         prev_col_state = Col;

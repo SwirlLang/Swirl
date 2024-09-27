@@ -60,6 +60,8 @@ void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<
 }
 
 llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
+    if (getValue().starts_with("0x"))
+        return llvm::ConstantInt::get(instance.IntegralTypeState, getValue().substr(2), 16);  // edge-case of "0x" unhandled
     return llvm::ConstantInt::get(instance.IntegralTypeState, getValue(), 10);
 }
 

@@ -167,7 +167,7 @@ std::unique_ptr<Node> Parser::dispatch() {
 void Parser::parse() {
     // uncomment to check the stream's output for debugging
     // while (!m_Stream.eof()) {
-    //     std::cout << m_Stream.p_CurTk.value << " peek: " << m_Stream.peek().value << std::endl;
+    //     std::cout << m_Stream.p_CurTk.value << ": " << to_string(m_Stream.p_CurTk.type) << " peek: " << m_Stream.peek().value << std::endl;
     //     m_Stream.next();
     // }
 

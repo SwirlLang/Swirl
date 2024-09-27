@@ -3,39 +3,50 @@
 
 #include <string>
 
+struct StreamState {
+    std::size_t Line, Pos, Col;
+};
+
 enum CompTimeTypes {
-    CT_INT,
-    CT_INT64,
-    CT_INT128,
-
     CT_FLOAT,
-    CT_DOUBLE,
-
+    CT_INT,
     CT_BOOL,
-    CT_UNDEDUCED,    // mark the type to be deduced
-    CT_DO_NOT_CARE   // do not give a shit
 };
 
 enum TokenType {
-    KEYWORD,
-    IDENT,
-    OP,
-    STRING,
-    PUNC,
-    NUMBER,
-    MACRO,
-    COMMENT,
+    KEYWORD, // 0
+    IDENT, // 1
+    OP, // 2
+    STRING, // 3
+    PUNC, // 4
+    NUMBER, // 5
+    COMMENT, // 6
 
-    NONE,
-    _NONE // to be used in the parser, "" will be replaced with this
+    NONE, // 7
+    UNINIT // 8
 };
+
+inline const char* to_string(TokenType e) {
+    switch (e) {
+        case KEYWORD: return "KEYWORD";
+        case IDENT: return "IDENT";
+        case OP: return "OP";
+        case STRING: return "STRING";
+        case PUNC: return "PUNC";
+        case NUMBER: return "NUMBER";
+        case COMMENT: return "COMMENT";
+        case NONE: return "NONE";
+        case UNINIT: return "UNINIT";
+        default: return "unknown";
+    }
+}
 
 struct Token {
     TokenType type;
     std::string value;
-    std::size_t at_line;
+    StreamState location;
 
-    CompTimeTypes data_type = CT_UNDEDUCED;
+    CompTimeTypes data_type{};
 };
 
 #endif //SWIRL_TOKENS_H
