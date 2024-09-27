@@ -48,7 +48,7 @@ struct Node {
     virtual bool hasScopes() { return false; }
     virtual const std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
     virtual std::string getValue() const { throw std::runtime_error("getValue called on base node"); }
-    virtual NodeType getType() const { throw std::runtime_error("getType called on base node"); }
+    virtual NodeType getType() const { return ND_INVALID; }
     virtual const std::vector<Var>& getParams() const { throw std::runtime_error("getParams called on base getParams"); }
     virtual llvm::Value* llvmCodegen(LLVMBackend& instance) { return nullptr; }
     virtual int8_t getArity() { throw std::runtime_error("getArity called on base Node instance "); }
@@ -338,7 +338,8 @@ struct Condition final : Node {
 class Parser {
     Token cur_rd_tok{};
     ExceptionHandler m_ExceptionHandler{};
-    std::string m_LatestFunctRetType;
+    std::string m_LatestFunctRetType{};
+    LLVMBackend m_LLVMInstance;
 
     struct ParseAsType {
         static void setNewState(const std::string& st) {

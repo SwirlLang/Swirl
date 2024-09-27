@@ -72,7 +72,12 @@ public:
                 } return ptr_type;
             }
         } else {
-            // TODO struct types non-global scopes
+            for (auto& scope : SymbolTable) {
+                if (scope.contains(str)) {
+                    if (scope[str].fields.has_value())
+                        return scope[str].type;
+                }
+            }
         }
 
         throw std::runtime_error("TypeRegistry: cannot resolve type: " + str);

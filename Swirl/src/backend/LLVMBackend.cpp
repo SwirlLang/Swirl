@@ -455,6 +455,10 @@ void Condition::print() {
     // }
 }
 
+void printIR(LLVMBackend& instance) {
+    instance.LModule->print(llvm::outs(), nullptr);
+}
+
 void Var::print() {
     std::cout << std::format("Var: {}", var_ident) << std::endl;
 }

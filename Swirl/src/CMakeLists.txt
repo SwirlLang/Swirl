@@ -4,7 +4,6 @@ file(GLOB src
     exception_handler/ExceptionHandler.cpp
     parser/class/ClassParser.cpp
     parser/functions/FunctionParser.cpp
-    pre-processor/pre-processor.cpp
     swirl.complex-nums/Complex.cpp
     swirl.integer/Int.cpp
     swirl.map/Map.c

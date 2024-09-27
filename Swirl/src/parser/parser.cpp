@@ -23,14 +23,13 @@ std::string Parser::ParseAsType::m_ParseAsType;
 std::stack<std::string> Parser::ParseAsType::m_Cache({""});
 
 
-class TypeRegistry_t;
 extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
-extern TypeRegistry_t type_registry;
+extern std::string SW_OUTPUT;
 
-extern void printIR();
-extern void GenerateObjectFileLLVM();
+extern void printIR(LLVMBackend& instance);
+extern void GenerateObjectFileLLVM(LLVMBackend&);
 
-Parser::Parser(TokenStream  tks) : m_Stream(std::move(tks)) {}
+Parser::Parser(TokenStream  tks) : m_Stream{std::move(tks)}, m_LLVMInstance{SW_OUTPUT} {}
 Parser::~Parser() = default;
 
 
@@ -40,12 +39,11 @@ int minEditDistance(const std::string_view word1, const std::string_view word2) 
 
     std::vector dp(m + 1, std::vector(n + 1, 0));
 
-    for (int i = 0; i <= m; ++i) {
+    for (int i = 0; i <= m; ++i)
         dp[i][0] = i;
-    }
-    for (int j = 0; j <= n; ++j) {
+
+    for (int j = 0; j <= n; ++j)
         dp[0][j] = j;
-    }
 
     for (int i = 1; i <= m; ++i) {
         for (int j = 1; j <= n; ++j) {
@@ -178,13 +176,14 @@ void Parser::parse() {
         ParsedModule.emplace_back(dispatch());
     }
 
-    for ( auto & a : ParsedModule) {
+    for (const auto & a : ParsedModule) {
         // a->print();
-        a->llvmCodegen(TODO);
+        a->llvmCodegen(m_LLVMInstance);
     }
+
     // m_ExceptionHandler.raiseAll();
-    printIR();
-    GenerateObjectFileLLVM();
+    printIR(m_LLVMInstance);
+    GenerateObjectFileLLVM(m_LLVMInstance);
 }
 
 
@@ -417,7 +416,7 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
 
         switch (m_Stream.p_CurTk.type) {
             case NUMBER:
-                if (auto type = type_registry[ParseAsType::getCurrentState()]; type != nullptr && type->isIntegerTy()) {
+                if (auto type = m_LLVMInstance.SymManager.lookupType(ParseAsType::getCurrentState()); type != nullptr && type->isIntegerTy()) {
                     output.emplace_back(std::make_unique<IntLit>(IntLit(m_Stream.p_CurTk.value)));
                 } else {
                     output.emplace_back(std::make_unique<FloatLit>(m_Stream.p_CurTk.value));
@@ -491,11 +490,8 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
 
         m_Stream.next();
 
-        if (
-            const auto [type, value, _, __] = m_Stream.p_CurTk;
-            type == OP && (value == "@" || value == "&") && prev_token.type != IDENT
-            )
-            break;
+        if (const auto [type, value, _, __] = m_Stream.p_CurTk;
+            type == OP && (value == "@" || value == "&") && prev_token.type != IDENT) break;
     }
 
     while (!ops.empty()) {
