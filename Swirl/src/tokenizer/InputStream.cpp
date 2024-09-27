@@ -4,22 +4,19 @@
 
 std::size_t prev_col_state = 0;
 
+InputStream::InputStream(const std::string_view _source): m_Source(_source) {}
 
-InputStream::InputStream(std::string& _source): m_Source(_source) {}
-
-char InputStream::peek() {
+char InputStream::peek() const {
     return m_Source.at(Pos);
 }
 
 char InputStream::next() {
-    char chr = m_Source.at(Pos++);
+    const char chr = m_Source.at(Pos++);
 
     if (chr == '\n') {
         prev_col_state = Col;
 
         LineMap[Line] = m_CurrentLine;
-        // TODO: an alternative to mapping each line
-
         m_CurrentLine.clear();
         Line++;
         Col = 0;
@@ -30,16 +27,6 @@ char InputStream::next() {
     }
 
     return chr;
-}
-
-void InputStream::backoff() {
-    char chr = m_Source.at(--Pos);
-    if (chr == '\n') {
-        Line--;
-        Col = prev_col_state;
-    } else {
-        Col--;
-    }
 }
 
 void InputStream::setReturnPoint() {
@@ -54,7 +41,7 @@ void InputStream::reset() {
     Col = Pos = 0; Line = 1;
 }
 
-bool InputStream::eof() {
+bool InputStream::eof() const {
     return Pos == m_Source.size();
 }
 

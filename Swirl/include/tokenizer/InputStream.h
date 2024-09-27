@@ -13,19 +13,16 @@ public:
     std::size_t Pos = 0, Line = 1, Col = 0;
     std::unordered_map<std::size_t, std::string> LineMap{};
 
-    explicit InputStream(std::string& _source);
+    explicit InputStream(std::string_view _source);
 
     /** @brief Returns the next value without discarding it */
-    char peek();
+    char peek() const;
 
     /** @brief returns the next value and discards it */
     char next();
 
-    /** @brief back off by one char **/
-    void backoff();
-
     /** @brief returns true if no more chars are left in the m_Stream */
-    bool eof();
+    bool eof() const;
 
     /** @brief saves the current state */
     void setReturnPoint();
@@ -39,7 +36,7 @@ public:
     std::string getCurrentLine() const;
 
 private:
-    std::string m_Source{};
+    std::string_view m_Source{};
 };
 
 #endif
