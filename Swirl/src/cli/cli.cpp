@@ -19,7 +19,7 @@ std::string cli::get_flag_value(std::string_view flag) {
 }
 
 std::string cli::generate_help() {
-	size_t max_width = 0;
+	std::size_t max_width = 0;
 	std::for_each(m_flags -> cbegin(), m_flags -> cend(), [&](const Argument& arg) {
 		auto& [v1, v2] = arg.flags;
 		if (v1.size() + v2.size() + 2 > max_width) max_width = v1.size() + v2.size() + 3;

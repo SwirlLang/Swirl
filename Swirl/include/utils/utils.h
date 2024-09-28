@@ -10,3 +10,12 @@
 #else
 #define PATH_SEP "/"
 #endif
+
+/**
+ * @brief Get the working directory of the _path
+ *
+ * @param _path
+ *
+ * @return std::string
+ */
+std::string getWorkingDirectory(const std::string& _path);
