@@ -11,7 +11,7 @@
 
 struct TableEntry {
     llvm::Value* ptr{};
-    llvm::Type* type{};
+    llvm::Type*  type{};
 
     bool is_const    = false;
     bool is_param    = false;
@@ -82,7 +82,6 @@ public:
 
         throw std::runtime_error("TypeRegistry: cannot resolve type: " + str);
     }
-
 
     void registerGlobalType(const std::string& ident, llvm::Type* type) {
         type_registry[ident] = type;

@@ -48,7 +48,7 @@ class TokenStream {
     }
 
     static bool isNumeric(const char chr) {
-        return isDigit(chr) || chr == 'x' || chr == '_' || chr == '.';
+        return isDigit(chr) || chr == 'x' || chr == '_' || chr == '.' || chr == 'o';
     }
 
     static bool isIdStart(const char chr) {

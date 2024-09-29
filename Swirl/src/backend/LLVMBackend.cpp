@@ -29,7 +29,6 @@ std::size_t ScopeDepth = 0;
 
 extern std::string SW_OUTPUT;
 
-
 // this struct must be instatiated BEFORE IRinstance.Builder::SetInsertPoint is called
 struct NewScope {
     bool prev_ls_cache{};
@@ -48,7 +47,6 @@ struct NewScope {
      }
 };
 
-
 void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<Node>>& children) {
     for (const auto& child : children) {
         if (child->getType() == ND_RET) {
@@ -62,6 +60,8 @@ void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<
 llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
     if (getValue().starts_with("0x"))
         return llvm::ConstantInt::get(instance.IntegralTypeState, getValue().substr(2), 16);  // edge-case of "0x" unhandled
+    if (getValue().starts_with("0o"))
+        return llvm::ConstantInt::get(instance.IntegralTypeState, getValue().substr(2), 8);  // edge-case of "0o" unhandled
     return llvm::ConstantInt::get(instance.IntegralTypeState, getValue(), 10);
 }
 
@@ -70,9 +70,8 @@ llvm::Value* FloatLit::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
-    return llvm::ConstantDataArray::getString(instance.Context, value, true);
+    return llvm::ConstantDataArray::getString(instance.Context, value, false);
 }
-
 
 llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
         const auto e = instance.SymManager.lookupSymbol(this->value);
@@ -112,16 +111,8 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
     if (!value.expr.empty()) {
-        const auto cache = instance.IntegralTypeState;
         const auto ret = value.llvmCodegen(instance);
-
-        if (instance.SymManager.lookupType(this->parent_ret_type)->isIntegerTy())
-            instance.IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(instance.SymManager.lookupType(this->parent_ret_type));
-        else if (instance.SymManager.lookupType(this->parent_ret_type)->isFloatingPointTy())
-            instance.FloatTypeState = instance.SymManager.lookupType(this->parent_ret_type);
-
         instance.Builder.CreateRet(ret);
-        instance.IntegralTypeState = cache;
         return nullptr;
     }
 
@@ -131,6 +122,15 @@ llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
     std::stack<llvm::Value*> eval{};
+
+    std::cout << "Expression type: " << expr_type << std::endl;
+    if (expr_type.empty()) throw std::runtime_error("Expr::codegen: undeduced expr type");
+    llvm::Type* e_type = instance.SymManager.lookupType(this->expr_type);
+
+    if (e_type->isIntegerTy())
+        instance.setIntegralTypeState(e_type);
+    else if (e_type->isFloatingPointTy())
+        instance.setFloatTypeState(e_type);
 
     static std::unordered_map<std::string, std::function<llvm::Value*(llvm::Value*, llvm::Value*)>> op_table
     = {
@@ -177,11 +177,18 @@ llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
         }
     }
 
+    if (e_type->isIntegerTy())
+        instance.restoreIntegralTypeState();
+    else if (e_type->isFloatingPointTy())
+        instance.restoreFloatTypeState();
+
     if (eval.empty()) throw std::runtime_error("expr-codegen: eval stack is empty");
     return eval.top();
 }
 
 llvm::Value* Assignment::llvmCodegen(LLVMBackend& instance) {
+    llvm::Value* l_value_expr{};
+
     instance.Builder.CreateStore(r_value.llvmCodegen(instance), l_value.llvmCodegen(instance));
     return nullptr;
 }
@@ -353,12 +360,6 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     llvm::Type* type{};
     type = instance.SymManager.lookupType(var_type);
 
-    const auto state_cache = instance.IntegralTypeState;
-    if (type->isIntegerTy())
-        instance.IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(type);
-    else if (type->isFloatingPointTy())
-        instance.FloatTypeState = type;
-
     llvm::Value* ret;
     llvm::Value* init = nullptr;
 
@@ -391,7 +392,6 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
         ret = var_alloca;
     }
 
-    instance.IntegralTypeState = state_cache;
     return ret;
 }
 

@@ -32,10 +32,7 @@ enum NodeType {
     ND_DEREF,       // 16
 };
 
-
 struct Var;
-extern llvm::LLVMContext Context;
-
 
 // A common base class for all the nodes
 struct Node {
@@ -77,11 +74,13 @@ struct Op final : Node {
 
 struct Expression final : Node {
     std::vector<std::unique_ptr<Node>> expr{};
-    CompTimeTypes deduced_type{};
+    std::string expr_type{};
 
     Expression() = default;
     Expression(Expression&& other) noexcept {
         expr.reserve(other.expr.size());
+        this->expr_type = std::move(other.expr_type);
+
         std::move(
                 std::make_move_iterator(other.expr.begin()),
                 std::make_move_iterator(other.expr.end()),
@@ -116,7 +115,8 @@ struct Expression final : Node {
 };
 
 struct Assignment final : Node {
-    Expression l_value{};
+    Expression  l_value{};
+    std::string op{};
     Expression r_value{};
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
@@ -234,7 +234,6 @@ struct Function final : Node {
         return ND_FUNC;
     }
 
-
     std::string getValue() const override {
         return ident;
     }
@@ -300,6 +299,7 @@ struct AddressOf final : Node {
     llvm::Value *llvmCodegen(LLVMBackend& instance) override;
 };
 
+
 struct Dereference final : Node {
     std::string ident{};
 
@@ -311,8 +311,9 @@ struct Dereference final : Node {
         return "@" + ident;
     }
 
-    llvm::Value *llvmCodegen(LLVMBackend& instance) override;
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 };
+
 
 struct Condition final : Node {
     Expression bool_expr{};
@@ -331,6 +332,7 @@ struct Condition final : Node {
     NodeType getType() const override {
         return ND_COND;
     }
+
     void print() override;
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -341,35 +343,14 @@ class Parser {
     std::string m_LatestFunctRetType{};
     LLVMBackend m_LLVMInstance;
 
-    struct ParseAsType {
-        static void setNewState(const std::string& st) {
-            m_Cache.push(m_ParseAsType);
-            m_ParseAsType = st;
-        }
-
-        static std::string getCurrentState() {
-            return m_ParseAsType;
-        }
-
-        static void restoreCache() {
-            if (m_Cache.empty())
-                throw std::runtime_error("ill-formed stack: Parser::ParseAsType::m_Cache");
-            m_ParseAsType = m_Cache.top();
-            m_Cache.pop();
-        }
-
-        static std::string      m_ParseAsType;
-        static std::stack<std::string> m_Cache;
-    };
-
-
 public:
     TokenStream m_Stream;
-//    AbstractSyntaxTree* m_AST;
+
     bool m_AppendToScope = false;
+    bool m_TokenToScope  = false;
     std::vector<std::string> registered_symbols{};
 
-    explicit Parser(TokenStream );
+    explicit Parser(TokenStream);
 
     std::unique_ptr<Function> parseFunction();
     std::unique_ptr<Condition> parseCondition();
@@ -381,7 +362,7 @@ public:
     std::unique_ptr<Struct> parseStruct();
 
     void forwardStream(uint8_t n = 1);
-    void parseExpr(std::variant<std::vector<Expression>*, Expression*>, bool isCall = false);
+    void parseExpr(std::variant<std::vector<Expression>*, Expression*>, bool isCall = false, std::optional<std::string> as_type = std::nullopt);
     void parse();
 //    void appendAST(Node&);
     inline void next(bool swsFlg = false, bool snsFlg = false);

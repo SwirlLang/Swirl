@@ -5,9 +5,9 @@
 #include <variant>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include <parser/parser.h>
-#include <vector>
 
 
 struct TypeInfo {
@@ -15,12 +15,8 @@ struct TypeInfo {
     std::optional<llvm::Value*> gen_val = std::nullopt;
 };
 
-
 std::size_t ScopeIndex{};
 std::vector<std::unique_ptr<Node>> ParsedModule{};
-
-std::string Parser::ParseAsType::m_ParseAsType;
-std::stack<std::string> Parser::ParseAsType::m_Cache({""});
 
 
 extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
@@ -29,7 +25,8 @@ extern std::string SW_OUTPUT;
 extern void printIR(LLVMBackend& instance);
 extern void GenerateObjectFileLLVM(LLVMBackend&);
 
-Parser::Parser(TokenStream  tks) : m_Stream{std::move(tks)}, m_LLVMInstance{SW_OUTPUT} {}
+
+Parser::Parser(TokenStream tks): m_LLVMInstance{SW_OUTPUT}, m_Stream{std::move(tks)} {}
 Parser::~Parser() = default;
 
 
@@ -62,6 +59,7 @@ void Parser::forwardStream(const uint8_t n) {
     for (uint8_t _ = 0; _ < n; _++)
         m_Stream.next();
 }
+
 
 std::unique_ptr<Node> Parser::dispatch() {
     while (!m_Stream.eof()) {
@@ -100,13 +98,15 @@ std::unique_ptr<Node> Parser::dispatch() {
 
                 if (m_Stream.p_CurTk.value == "return")
                     return parseRet();
+
             case IDENT:
                 if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
                     auto nd = parseCall();
 
                     // handle call assignments
-                    if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "=") {
+                    if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value.ends_with("=")) {
                         Assignment ass{};
+                        ass.op = m_Stream.p_CurTk.value;
                         ass.l_value.expr.push_back(std::move(nd));
                         forwardStream();
                         parseExpr(&ass.r_value);
@@ -201,13 +201,11 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
         forwardStream(2);
         param.var_type = parseType();
-        ParseAsType::setNewState(param.var_type);
 
         param.initialized = m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "=";
         if (param.initialized)
             parseExpr(&param.value);
 
-        ParseAsType::restoreCache();
         return std::move(param);
     };
 
@@ -257,9 +255,9 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
         var_node.initialized = true;
         forwardStream();
 
-        if (!var_node.var_type.empty()) ParseAsType::setNewState(var_node.var_type);
-        parseExpr(&var_node.value);
-        if (!var_node.var_type.empty()) ParseAsType::restoreCache();
+        parseExpr(&var_node.value, false, var_node.var_type);
+        var_node.value.expr_type = var_node.var_type;
+        std::cout << "type found: " << var_node.value.expr_type << std::endl;
     }
 
     return std::make_unique<Var>(std::move(var_node));
@@ -296,12 +294,11 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ";")
         return std::make_unique<ReturnStatement>(std::move(ret));
 
-    ParseAsType::setNewState(m_LatestFunctRetType);
     ret.parent_ret_type = m_LatestFunctRetType;
     std::cout << "Latest func ret type: " << m_LatestFunctRetType << std::endl;
 
-    parseExpr(&ret.value);
-    ParseAsType::restoreCache();
+    ret.value.expr_type = m_LatestFunctRetType;
+    parseExpr(&ret.value, false, m_LatestFunctRetType);
     return std::make_unique<ReturnStatement>(std::move(ret));
 }
 
@@ -377,7 +374,7 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
 }
 
 /* This method is an adaptation of the `Shunting Yard Algorithm`. */
-void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, bool isCall) {
+void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, bool isCall, std::optional<std::string> as_type) {
     // TODO: remove overcomplexity
 
     bool kill_yourself = false;
@@ -402,7 +399,6 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
         }
 
         if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "=") break;
-
         if (m_Stream.p_CurTk.type == KEYWORD || (prev_token.type != OP && (m_Stream.p_CurTk.type == IDENT)))
             break;
         // if (prev_token.type != OP && m_Stream.p_CurTk.type == IDENT) break;
@@ -416,7 +412,7 @@ void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, 
 
         switch (m_Stream.p_CurTk.type) {
             case NUMBER:
-                if (auto type = m_LLVMInstance.SymManager.lookupType(ParseAsType::getCurrentState()); type != nullptr && type->isIntegerTy()) {
+                if (as_type->starts_with("i")) {
                     output.emplace_back(std::make_unique<IntLit>(IntLit(m_Stream.p_CurTk.value)));
                 } else {
                     output.emplace_back(std::make_unique<FloatLit>(m_Stream.p_CurTk.value));

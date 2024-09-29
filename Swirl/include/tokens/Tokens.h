@@ -3,16 +3,6 @@
 
 #include <string>
 
-struct StreamState {
-    std::size_t Line, Pos, Col;
-};
-
-enum CompTimeTypes {
-    CT_FLOAT,
-    CT_INT,
-    CT_BOOL,
-};
-
 enum TokenType {
     KEYWORD, // 0
     IDENT, // 1
@@ -26,7 +16,7 @@ enum TokenType {
     UNINIT // 8
 };
 
-inline const char* to_string(TokenType e) {
+inline const char* to_string(const TokenType e) {
     switch (e) {
         case KEYWORD: return "KEYWORD";
         case IDENT: return "IDENT";
@@ -41,12 +31,21 @@ inline const char* to_string(TokenType e) {
     }
 }
 
+enum CompTimeTypes {
+    CT_FLOAT,
+    CT_INT,
+    CT_BOOL,
+};
+
+struct StreamState {
+    std::size_t Line, Pos, Col;
+};
+
 struct Token {
     TokenType type;
     std::string value;
     StreamState location;
 
-    CompTimeTypes data_type{};
+    CompTimeTypes meta_ti{};
 };
-
-#endif //SWIRL_TOKENS_H
+#endif // SWIRL_TOKENS_H
