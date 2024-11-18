@@ -71,6 +71,9 @@ SwNode Parser::dispatch() {
         const std::string value = m_Stream.p_CurTk.value;
 
 
+        float a = 0;
+        // double* b = &a;
+
         switch (m_Stream.p_CurTk.type) {
             case KEYWORD:
                 if (m_Stream.p_CurTk.value == "const" || m_Stream.p_CurTk.value == "var") {
