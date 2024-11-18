@@ -1,22 +1,20 @@
 #include <iostream>
 #include <memory>
-#include <stack>
 #include <utility>
-#include <variant>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
+#include <optional>
+#include <functional>
 
 #include <parser/parser.h>
 
+#include "Tester.hpp"
 
-struct TypeInfo {
-    bool is_const = false;
-    std::optional<llvm::Value*> gen_val = std::nullopt;
-};
+
+using SwNode = std::unique_ptr<Node>;
 
 std::size_t ScopeIndex{};
-std::vector<std::unique_ptr<Node>> ParsedModule{};
+std::vector<SwNode> ParsedModule{};
 
 
 extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
@@ -25,6 +23,10 @@ extern std::string SW_OUTPUT;
 extern void printIR(LLVMBackend& instance);
 extern void GenerateObjectFileLLVM(LLVMBackend&);
 
+struct TypeInfo {
+    bool is_const = false;
+    std::optional<llvm::Value*> gen_val = std::nullopt;
+};
 
 Parser::Parser(TokenStream tks): m_LLVMInstance{SW_OUTPUT}, m_Stream{std::move(tks)} {}
 Parser::~Parser() = default;
@@ -55,16 +57,19 @@ int minEditDistance(const std::string_view word1, const std::string_view word2) 
     return dp[m][n];
 }
 
-void Parser::forwardStream(const uint8_t n) {
+Token Parser::forwardStream(const uint8_t n) {
+    Token ret = m_Stream.p_CurTk;
     for (uint8_t _ = 0; _ < n; _++)
         m_Stream.next();
+    return std::move(ret);
 }
 
 
-std::unique_ptr<Node> Parser::dispatch() {
+SwNode Parser::dispatch() {
     while (!m_Stream.eof()) {
-        const TokenType type = m_Stream.p_CurTk.type;
-        const auto value = m_Stream.p_CurTk.value;
+        const TokenType type  = m_Stream.p_CurTk.type;
+        const std::string value = m_Stream.p_CurTk.value;
+
 
         switch (m_Stream.p_CurTk.type) {
             case KEYWORD:
@@ -100,7 +105,8 @@ std::unique_ptr<Node> Parser::dispatch() {
                     return parseRet();
 
             case IDENT:
-                if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
+                if (const Token p_tk = m_Stream.peek();
+                    p_tk.type == PUNC && p_tk.value == "(") {
                     auto nd = parseCall();
 
                     // handle call assignments
@@ -109,7 +115,7 @@ std::unique_ptr<Node> Parser::dispatch() {
                         ass.op = m_Stream.p_CurTk.value;
                         ass.l_value.expr.push_back(std::move(nd));
                         forwardStream();
-                        parseExpr(&ass.r_value);
+                        ass.r_value = parseExpr("");
 
                         return std::make_unique<Assignment>(std::move(ass));
                     }
@@ -118,8 +124,7 @@ std::unique_ptr<Node> Parser::dispatch() {
                 }
 
                 {
-                    Expression expr{};
-                    parseExpr(&expr);
+                    Expression expr = parseExpr("");
 
                     if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "=") {
                         std::cout << "ass detected" << std::endl;
@@ -127,21 +132,20 @@ std::unique_ptr<Node> Parser::dispatch() {
                         ass.l_value = std::move(expr);
 
                         forwardStream();
-                        parseExpr(&ass.r_value);
+                        ass.r_value = parseExpr("");
                         return std::make_unique<Assignment>(std::move(ass));
                     } continue;
                 }
             case OP:
                 {
-                    Expression expr{};
-                    parseExpr(&expr);
+                    Expression expr = parseExpr("");
                     if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "=") {
                         std::cout << "ass detected (OP)" << std::endl;
                         Assignment ass{};
                         ass.l_value = std::move(expr);
 
                         forwardStream();
-                        parseExpr(&ass.r_value);
+                        ass.r_value = parseExpr("");
                         return std::make_unique<Assignment>(std::move(ass));
                     }  continue;
                 }
@@ -150,6 +154,7 @@ std::unique_ptr<Node> Parser::dispatch() {
                     forwardStream();
                     continue;
                 } if (m_Stream.p_CurTk.value == "}") {
+                    std::cout << "Warning: emtpy node returned" << std::endl;
                     return std::make_unique<Node>();
                 }
             default:
@@ -170,6 +175,8 @@ void Parser::parse() {
     //     std::cout << m_Stream.p_CurTk.value << ": " << to_string(m_Stream.p_CurTk.type) << " peek: " << m_Stream.peek().value << std::endl;
     //     m_Stream.next();
     // }
+    // Tester::testTokenStream();
+
 
     forwardStream();
     while (!m_Stream.eof()) {
@@ -204,7 +211,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
         param.initialized = m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "=";
         if (param.initialized)
-            parseExpr(&param.value);
+            param.value = parseExpr("");
 
         return std::move(param);
     };
@@ -255,7 +262,9 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
         var_node.initialized = true;
         forwardStream();
 
-        parseExpr(&var_node.value, false, var_node.var_type);
+        var_node.value = parseExpr(var_node.var_type);
+        var_node.value.expr_type = var_node.var_type;
+        std::cout << "PrattParseExpr Leaving at: " << m_Stream.p_CurTk.value << std::endl;
         var_node.value.expr_type = var_node.var_type;
         std::cout << "type found: " << var_node.value.expr_type << std::endl;
     }
@@ -264,7 +273,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
 }
 
 
-std::unique_ptr<Node> Parser::parseCall() {
+SwNode Parser::parseCall() {
     auto call_node = std::make_unique<FuncCall>();
     call_node->ident = m_Stream.p_CurTk.value;
     forwardStream(2);
@@ -277,7 +286,9 @@ std::unique_ptr<Node> Parser::parseCall() {
     while (true) {
         if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")
             break;
-        parseExpr(&call_node->args, true);
+
+        call_node->args.emplace_back();
+        call_node->args.back() = parseExpr({});
     }
 
     std::cout << "loop breaking at " << m_Stream.p_CurTk.value << std::endl;
@@ -298,7 +309,8 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
     std::cout << "Latest func ret type: " << m_LatestFunctRetType << std::endl;
 
     ret.value.expr_type = m_LatestFunctRetType;
-    parseExpr(&ret.value, false, m_LatestFunctRetType);
+    ret.value = parseExpr({});
+    ret.value.expr_type = ret.parent_ret_type;
     return std::make_unique<ReturnStatement>(std::move(ret));
 }
 
@@ -306,7 +318,7 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
 std::unique_ptr<Condition> Parser::parseCondition() {
     Condition cnd;
     forwardStream();  // skip "if"
-    parseExpr(&cnd.bool_expr);
+    cnd.bool_expr = parseExpr({});
     forwardStream();  // skip the opening brace
 
     ScopeIndex--;
@@ -322,8 +334,8 @@ std::unique_ptr<Condition> Parser::parseCondition() {
         while (m_Stream.p_CurTk.type == KEYWORD && m_Stream.p_CurTk.value == "elif") {
             forwardStream();
 
-            std::tuple<Expression, std::vector<std::unique_ptr<Node>>> children{};
-            parseExpr(&std::get<0>(children));
+            std::tuple<Expression, std::vector<SwNode>> children{};
+            std::get<0>(children) = parseExpr({});
 
             forwardStream();
             while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}")) {
@@ -359,12 +371,11 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     return std::make_unique<Struct>(std::move(ret));
 }
 
-
 std::unique_ptr<WhileLoop> Parser::parseWhile() {
     WhileLoop loop{};
     forwardStream();
 
-    parseExpr(&loop.condition);
+    loop.condition = parseExpr("bool");
     forwardStream();
     while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}")) {
         loop.children.push_back(dispatch());
@@ -373,145 +384,130 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
     return std::make_unique<WhileLoop>(std::move(loop));
 }
 
-/* This method is an adaptation of the `Shunting Yard Algorithm`. */
-void Parser::parseExpr(std::variant<std::vector<Expression>*, Expression*> ptr, bool isCall, std::optional<std::string> as_type) {
-    // TODO: remove overcomplexity
 
-    bool kill_yourself = false;
-    std::stack<Op> ops{};  // our operator stack
-    std::vector<std::unique_ptr<Node> > output{}; // the final postfix (RPN) form
-
-    int paren_counter = 0;
-    int ops_opr_consumed = 0;
-
-    Token prev_token = {OP, "="};
-    static const std::unordered_set invalid_prev_types{IDENT, NUMBER, KEYWORD, STRING};
-
-    while (!m_Stream.eof()) {
-        if (m_Stream.p_CurTk.type == PUNC) {
-            if (m_Stream.p_CurTk.value == ","  || m_Stream.p_CurTk.value == ";") {
-                // for function parameters
-                forwardStream();
-                break;
-            }
-            if (m_Stream.p_CurTk.value == "}")
-                break;
-        }
-
-        if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "=") break;
-        if (m_Stream.p_CurTk.type == KEYWORD || (prev_token.type != OP && (m_Stream.p_CurTk.type == IDENT)))
-            break;
-        // if (prev_token.type != OP && m_Stream.p_CurTk.type == IDENT) break;
-
-        if (ops_opr_consumed > 1) {
-            if (m_Stream.p_CurTk.type == KEYWORD) break;
-            if ((invalid_prev_types.contains(prev_token.type) && m_Stream.p_CurTk.type != OP)) {
-                if (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ")")) { break; }
-            }
-        }
-
+Expression Parser::parseExpr(std::string_view type) {
+    const
+    std::function<SwNode()> parse_component = [this, &type] -> SwNode {
         switch (m_Stream.p_CurTk.type) {
-            case NUMBER:
-                if (as_type->starts_with("i")) {
-                    output.emplace_back(std::make_unique<IntLit>(IntLit(m_Stream.p_CurTk.value)));
-                } else {
-                    output.emplace_back(std::make_unique<FloatLit>(m_Stream.p_CurTk.value));
-                } break;
-            case STRING:
-                output.emplace_back(std::make_unique<StrLit>(m_Stream.p_CurTk.value));
-                break;
+            case NUMBER: {
+                if (m_Stream.p_CurTk.meta_ti == CT_FLOAT) {
+                    auto ret = std::make_unique<FloatLit>(m_Stream.p_CurTk.value);
+                    forwardStream();
+                    return std::move(ret);
+                }
+                auto ret = std::make_unique<IntLit>(m_Stream.p_CurTk.value);
+                forwardStream();
+                return std::move(ret);
+            }
             case IDENT:
-                if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
-                    output.emplace_back(parseCall());
-                    continue;
-                }
-                output.emplace_back(std::make_unique<Ident>(Ident(m_Stream.p_CurTk.value)));
-                break;
-            case OP:
-                if (m_Stream.p_CurTk.value == "&" && prev_token.type == OP) {
-                    AddressOf address_of{};
-                    address_of.ident = m_Stream.next().value;
+                if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(")
+                    return parseCall();
+                return std::make_unique<Ident>(forwardStream().value);
+            default: {
+                if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "(") {
                     forwardStream();
-                    output.emplace_back(std::make_unique<AddressOf>(address_of));
-
-                    if (m_Stream.p_CurTk.type == OP && (m_Stream.p_CurTk.value == "&" || m_Stream.p_CurTk.value == "@"))
-                        break;
-                    continue;
-                } if (m_Stream.p_CurTk.value == "@") {
-                    Dereference deref{};
-                    deref.ident = m_Stream.next().value;
+                    auto ret = std::make_unique<Expression>(parseExpr({}));
+                    ret->expr_type = type;
                     forwardStream();
-                    output.emplace_back(std::make_unique<Dereference>(deref));
+                    return std::move(ret);
+                } return dispatch();
+            }
+        }
+    };
 
-                    if (m_Stream.p_CurTk.type == OP && (m_Stream.p_CurTk.value == "&" || m_Stream.p_CurTk.value == "@"))
-                        break;
-                    continue;
-                }
-                // pop ops and push them into output till the top operator of the stack has greater or equal precedence
-                while (!ops.empty() && operators[m_Stream.p_CurTk.value] <= operators[ops.top().getValue()]) {
-                    output.emplace_back(std::make_unique<Op>(ops.top()));
-                    ops.pop();
-                }
-                ops.emplace(m_Stream.p_CurTk.value);
-                break;
-            case PUNC:
-                if (m_Stream.p_CurTk.value == "(") {
-                    paren_counter++;
-                    ops.emplace("(");
-                    break;
-                } if (m_Stream.p_CurTk.value == ")") {
-                    paren_counter--;
-                    if (isCall && paren_counter == -1) {
-                        kill_yourself = true;
-                        break;
-                    }
-                    while (ops.top().getValue() != "(") {
-                        output.emplace_back(std::make_unique<Op>(ops.top()));
-                        ops.pop();
-                    }
-                    ops.pop();
-                    break;
-                }
-                break;
-            default:
-                break;
+    const
+    std::function<std::optional<SwNode>()> parse_prefix = [&, this] -> std::optional<SwNode> {
+        // assumption: current token is an OP
+        if (m_Stream.p_CurTk.type == OP) {
+            Op op(m_Stream.p_CurTk.value);
+            op.arity = 1;
+            forwardStream();
+            if (auto next_op = parse_prefix()) {
+                op.operands.push_back(std::move(*next_op));
+                return std::make_unique<Op>(std::move(op));
+            } return std::nullopt;
+        }
+        return parse_component();
+    };
+
+    const
+    std::function<SwNode(SwNode, int)> handle_binary = [&, this](SwNode prev, const int last_prec = -1) {
+        // assumption: current token is an OP
+        SwNode op = std::make_unique<Op>(m_Stream.p_CurTk.value);
+        const int current_prec = operators.at(m_Stream.p_CurTk.value);
+
+        op->setArity(2);
+        forwardStream();  // we are onto the rhs
+
+        if (last_prec < 0) {
+            auto rhs = m_Stream.p_CurTk.type == OP ? parse_prefix().value() : parse_component();
+            op->getMutOperands().push_back(std::move(prev));
+            op->getMutOperands().push_back(std::move(rhs));
+
+            // if there's another operator...
+            if (m_Stream.p_CurTk.type == OP) {
+                if (!op) throw std::invalid_argument("Invalid operation");
+                op = handle_binary(std::move(op), current_prec);
+            }
         }
 
-        if (kill_yourself) {
-            kill_yourself = false;
-            break;
+        else if (current_prec < last_prec) {
+            auto rhs = m_Stream.p_CurTk.type == OP ? parse_prefix().value() : parse_component();
+
+            if (!rhs || !prev) throw std::invalid_argument("rhs || prev: Invalid operation");
+            op->getMutOperands().push_back(std::move(prev));
+            op->getMutOperands().push_back(std::move(rhs));
+
+
+            if (m_Stream.p_CurTk.type == OP)
+                op = handle_binary(std::move(op), current_prec);
+
+            return std::move(op);
         }
-        ops_opr_consumed++;
-        prev_token = m_Stream.p_CurTk;
 
-        m_Stream.next();
+        else if (current_prec >= last_prec) {
+            SwNode tmp_operand = std::move(prev->getMutOperands().back());
+            prev->getMutOperands().pop_back();
 
-        if (const auto [type, value, _, __] = m_Stream.p_CurTk;
-            type == OP && (value == "@" || value == "&") && prev_token.type != IDENT) break;
+            // prepare the higher-precedence Op and push it as an operand
+            auto rhs = m_Stream.p_CurTk.type == OP ? parse_prefix().value() : parse_component();
+
+            if (!tmp_operand || !rhs) throw std::invalid_argument("rhs || prev: Invalid operation");
+
+            op->getMutOperands().push_back(std::move(tmp_operand));
+            op->getMutOperands().push_back(std::move(rhs));
+
+            prev->getMutOperands().push_back(std::move(op));
+
+            if (m_Stream.p_CurTk.type == OP) {
+                op = handle_binary(std::move(prev), current_prec);
+                return std::move(op);
+            }
+            return std::move(prev);
+        }
+
+        return std::move(op);
+    };
+
+
+    Expression ret;
+    if (m_Stream.p_CurTk.type == OP) {
+        auto op = parse_prefix().value();
+
+        if (m_Stream.p_CurTk.type == OP) {
+            ret.expr.push_back(handle_binary(std::move(op), -1));
+            return std::move(ret);
+        }
+
+        ret.expr.push_back(std::move(op));
+        return std::move(ret);
+    } else {
+        auto tmp = parse_component();
+        if (m_Stream.p_CurTk.type == OP) {
+            ret.expr.push_back(handle_binary(std::move(tmp), -1));
+            return std::move(ret);
+        }
+        ret.expr.push_back(std::move(tmp));
+        return std::move(ret);
     }
-
-    while (!ops.empty()) {
-        output.emplace_back(std::make_unique<Op>(ops.top()));
-        ops.pop();
-    }
-
-    Expression expr{};
-    expr.expr.reserve(output.size());
-    for (auto& nd: output) {
-        auto n = std::make_unique<Node>();
-        n = std::move(nd);
-        expr.expr.push_back(std::move(n));
-    }
-
-    std::cout << "EXPR: ";
-    for (const auto& a : expr.expr) {
-        std::cout << " " << a->getValue() << " ";
-    } std::cout << std::endl;
-
-    if (auto val = std::get_if<std::vector<Expression>*>(&ptr))
-         (*val)->push_back(std::move(expr));
-    else std::get<Expression*>(ptr)->expr = std::move(expr.expr);
-
-    // NOTE: this function propagates the stream at the token right after the expression
-    std::cout << "expr leaving at: " << m_Stream.p_CurTk.value << std::endl;
 }

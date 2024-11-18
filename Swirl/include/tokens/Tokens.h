@@ -41,6 +41,7 @@ struct StreamState {
     std::size_t Line, Pos, Col;
 };
 
+
 struct Token {
     TokenType type;
     std::string value;

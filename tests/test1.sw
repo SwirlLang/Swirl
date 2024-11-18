@@ -1,10 +1,9 @@
-fn main() : f32 {
-    struct T {
-        var a: i32 = 2333;
-        var b: i64 = 2333;
-        var c: i32 = 0000001;
-    }
 
-    var b: T;
+fn meow(): i32 {
+    var a: i32 = -(5 / -2)
+    var b: i32* = -+-a
 }
+
+
+
 

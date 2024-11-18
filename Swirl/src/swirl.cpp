@@ -11,6 +11,7 @@
 #include <parser/parser.h>
 #include <include/SwirlConfig.h>
 
+
 bool SW_DEBUG = false;
 std::string SW_FED_FILE_PATH{};
 std::string SW_OUTPUT{};
@@ -115,12 +116,13 @@ int main(int argc, const char** argv) {
     SW_FED_FILE_SOURCE += "\n";
 
     if ( !SW_FED_FILE_SOURCE.empty() ) {
-        InputStream is(SW_FED_FILE_SOURCE);
-        TokenStream tk(is, _debug);
+        InputStream is{SW_FED_FILE_SOURCE};
+        TokenStream tk{is, _debug};
         // preProcess(SW_FED_FILE_SOURCE, tk, cache_dir);
 
         Parser parser(tk);
         parser.parse();
         // Transpile(parser.m_AST->chl, cache_dir + SW_OUTPUT + ".cpp", compiled_source);
+
     }
 }

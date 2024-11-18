@@ -26,11 +26,7 @@ extern std::unordered_map<std::string, int> operators;
 extern std::unordered_map<std::size_t, std::string> LineTable;
 
 class TokenStream {
-
-    int                         m_Pcnt  = 0;       // paren counter
     bool                        m_Debug  = false;  // Debug flag
-    bool                        m_rdfs   = false;  // deprecated string interpolation flag
-    bool                        m_trackp = false;  // track parentheses flag
     std::string                 m_Ret;             // temporary cache
     std::string                 m_Rax;             // temporary cache
     Token                       m_lastTok{};
@@ -114,7 +110,6 @@ class TokenStream {
 
         while (pred(m_Stream.peek()))
             ret += m_Stream.next();
-        // std::cout << std::format("{}", ret[0]) << " <----- " << std::endl;
         return ret;
     }
 
@@ -134,13 +129,12 @@ class TokenStream {
             getStreamState()
         };
 
-        m_Stream.next();
         return tok;
     }
 
     Token readNextTok() {
         if (m_Stream.eof())
-            return {NONE, "", m_Stream.Line};
+            return {NONE, "TOKEN:EOF", m_Stream.Line};
 
         switch (const char ch = m_Stream.next()) {
             case '"':
@@ -246,7 +240,7 @@ public:
         
         if (m_Stream.eof()) {
             restoreCache();
-            return {NONE, "NULL", m_Stream.Line};  // Return token with type NONE and empty value
+            return {NONE, "NULL", m_Stream.Line};
         }
 
         p_PeekTk = next(false);

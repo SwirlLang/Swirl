@@ -1,5 +1,4 @@
 #include <iostream>
-#include <llvm/Support/Casting.h>
 #include <string>
 #include <ranges>
 #include <unordered_map>
@@ -22,14 +21,15 @@
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/TargetParser/Host.h>
 #include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Support/Casting.h>
 #include <llvm/IR/LegacyPassManagers.h>
 #include <llvm/IR/Verifier.h>
 
-std::size_t ScopeDepth = 0;
+
 
 extern std::string SW_OUTPUT;
 
-// this struct must be instatiated BEFORE IRinstance.Builder::SetInsertPoint is called
+// this struct must be instantiated BEFORE IRinstance.Builder::SetInsertPoint is called
 struct NewScope {
     bool prev_ls_cache{};
     LLVMBackend& instance;
@@ -47,6 +47,7 @@ struct NewScope {
      }
 };
 
+
 void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<Node>>& children) {
     for (const auto& child : children) {
         if (child->getType() == ND_RET) {
@@ -57,12 +58,32 @@ void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<
     }
 }
 
+
+llvm::Value* llvmValueToFloat(llvm::Value* val, llvm::Type* dest, LLVMBackend& instance) {
+    if (val->getType()->isSingleValueType())
+        return instance.Builder.CreateSIToFP(val, dest);
+    return instance.Builder.CreateUIToFP(val, dest);
+}
+
+llvm::Value* llvmValueToIntegral(llvm::Value* val, llvm::Type* dest, LLVMBackend& instance) {
+    if (dest->isSingleValueType())
+        return instance.Builder.CreateFPToSI(val, dest);
+    return instance.Builder.CreateFPToUI(val, dest);
+}
+
 llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
+    llvm::Value* ret;
     if (getValue().starts_with("0x"))
-        return llvm::ConstantInt::get(instance.IntegralTypeState, getValue().substr(2), 16);  // edge-case of "0x" unhandled
+        ret = llvm::ConstantInt::get(instance.IntegralTypeState, getValue().substr(2), 16);  // edge-case of "0x" unhandled
     if (getValue().starts_with("0o"))
-        return llvm::ConstantInt::get(instance.IntegralTypeState, getValue().substr(2), 8);  // edge-case of "0o" unhandled
-    return llvm::ConstantInt::get(instance.IntegralTypeState, getValue(), 10);
+        ret = llvm::ConstantInt::get(instance.IntegralTypeState, getValue().substr(2), 8);  // edge-case of "0o" unhandled
+    ret = llvm::ConstantInt::get(instance.IntegralTypeState, getValue(), 10);
+
+    // TODO: handle octal and hexal radices
+    if (instance.LatestBoundIsFloating) {
+        ret = llvm::ConstantFP::get(instance.FloatTypeState, getValue());
+    }
+    return ret;
 }
 
 llvm::Value* FloatLit::llvmCodegen(LLVMBackend& instance) {
@@ -120,78 +141,86 @@ llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
     return nullptr;
 }
 
+
+llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
+    using SwNode = std::unique_ptr<Node>;
+    using NodesVec = std::vector<SwNode>;
+
+    // Maps {operator, arity} to the corresponding operator 'function'
+    static std::unordered_map<std::pair<std::string, uint8_t>, std::function<llvm::Value*(NodesVec&)>, PairHash>
+    OpTable = {
+        {{"+", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            return operands.back()->llvmCodegen(instance);
+        }},
+
+        {{"-", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            return instance.Builder.CreateNeg(operands.back()->llvmCodegen(instance));
+        }},
+
+        {{"+", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            return instance.Builder.CreateAdd(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
+        }},
+
+        {{"-", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            return instance.Builder.CreateSub(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
+        }},
+
+        {{"*", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            return instance.Builder.CreateMul(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
+        }},
+
+        {{"&", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            auto lookup = instance.SymManager.lookupSymbol(operands.at(0)->getValue());
+            return lookup.ptr;
+        }},
+
+        {{"/", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            const auto op1 = operands.at(0)->llvmCodegen(instance);
+            const auto op2 = operands.at(1)->llvmCodegen(instance);
+
+            if (instance.LatestBoundIsFloating) {
+                return instance.Builder.CreateFDiv(op1, op2);
+            } {
+                if (instance.IntegralTypeState->isSingleValueType())
+                    return instance.Builder.CreateSDiv(op1, op2);
+                return instance.Builder.CreateUDiv(op1, op2);
+            }
+        }},
+    };
+
+    return OpTable[{this->value, arity}](operands);
+}
+
+
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
     std::stack<llvm::Value*> eval{};
 
-    std::cout << "Expression type: " << expr_type << std::endl;
-    if (expr_type.empty()) throw std::runtime_error("Expr::codegen: undeduced expr type");
-    llvm::Type* e_type = instance.SymManager.lookupType(this->expr_type);
+    if (expr_type.empty()) throw std::runtime_error("Expr::codegen: un-deduced expr type");
+    llvm::Type* e_type = instance.SymManager.lookupType(expr_type);
 
     if (e_type->isIntegerTy())
         instance.setIntegralTypeState(e_type);
     else if (e_type->isFloatingPointTy())
         instance.setFloatTypeState(e_type);
 
-    static std::unordered_map<std::string, std::function<llvm::Value*(llvm::Value*, llvm::Value*)>> op_table
-    = {
-            // Standard Arithmetic Operators
-        {"+", [&](llvm::Value* a, llvm::Value* b) { return instance.Builder.CreateAdd(a, b); }},
-        {"-", [&](llvm::Value* a, llvm::Value* b) { return instance.Builder.CreateSub(a, b); }},
-        {"*", [&](llvm::Value* a, llvm::Value* b) { return instance.Builder.CreateMul(a, b); }},
-        {"/",
-            [&](llvm::Value *a, llvm::Value *b) {
-                if (a->getType()->isIntegerTy())
-                    a = instance.Builder.CreateSIToFP(a, llvm::Type::getFloatTy(instance.Context));
-                if (b->getType()->isIntegerTy()) {
-                    b = instance.Builder.CreateSIToFP(b, llvm::Type::getFloatTy(instance.Context));
-                }
-                return instance.Builder.CreateFDiv(a, b);
-            },
-        },
-
-        // Boolean operators
-        {"==", [&](llvm::Value* a, llvm::Value* b) {
-            if (a->getType()->isIntegerTy() || b->getType()->isIntegerTy())
-                return instance.Builder.CreateICmp(llvm::CmpInst::ICMP_EQ, a, b);
-
-            if (a->getType()->isFloatingPointTy() && b->getType()->isFloatingPointTy())
-                return instance.Builder.CreateFCmp(llvm::CmpInst::FCMP_OEQ, a, b);
-
-            throw std::runtime_error("undefined operation '==' on the type");
-        }}
-    };
-
-    for (const std::unique_ptr<Node>& nd : expr) {
-        if (nd->getType() != ND_OP) {
-            eval.push(nd->llvmCodegen(instance));
-        }
-        else {
-            if (nd->getArity() == 2) {
-                if (eval.size() < 2) { throw std::runtime_error("Not enough operands on eval stack"); }
-                llvm::Value* op2 = eval.top();
-                eval.pop();
-                llvm::Value* op1 = eval.top();
-                eval.pop();
-                eval.push(op_table[nd->getValue()](op1, op2));
-            }
-        }
-    }
+    const auto val = expr.back()->llvmCodegen(instance);
 
     if (e_type->isIntegerTy())
         instance.restoreIntegralTypeState();
     else if (e_type->isFloatingPointTy())
         instance.restoreFloatTypeState();
 
-    if (eval.empty()) throw std::runtime_error("expr-codegen: eval stack is empty");
-    return eval.top();
+    // if (eval.empty()) throw std::runtime_error("expr-codegen: eval stack is empty");
+    return val;
 }
+
 
 llvm::Value* Assignment::llvmCodegen(LLVMBackend& instance) {
     llvm::Value* l_value_expr{};
-
     instance.Builder.CreateStore(r_value.llvmCodegen(instance), l_value.llvmCodegen(instance));
     return nullptr;
 }
+
 
 llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
     const auto parent = instance.Builder.GetInsertBlock()->getParent();

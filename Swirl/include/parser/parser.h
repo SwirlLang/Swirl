@@ -44,35 +44,23 @@ struct Node {
 
     virtual bool hasScopes() { return false; }
     virtual const std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
-    virtual std::string getValue() const { throw std::runtime_error("getValue called on base node"); }
-    virtual NodeType getType() const { return ND_INVALID; }
-    virtual const std::vector<Var>& getParams() const { throw std::runtime_error("getParams called on base getParams"); }
+    [[nodiscard]] virtual std::string getValue() const { throw std::runtime_error("getValue called on base node"); }
+    [[nodiscard]] virtual NodeType getType() const { return ND_INVALID; }
+    [[nodiscard]] virtual const std::vector<Var>& getParams() const { throw std::runtime_error("getParams called on base getParams"); }
     virtual llvm::Value* llvmCodegen(LLVMBackend& instance) { return nullptr; }
     virtual int8_t getArity() { throw std::runtime_error("getArity called on base Node instance "); }
-    virtual std::size_t getScopeID() const { return scope_id; }
+    [[nodiscard]] virtual std::size_t getScopeID() const { return scope_id; }
     virtual void print() { throw std::runtime_error("debug called on base Node"); }
+
+    virtual void setArity(int8_t val) { throw std::runtime_error("setArity called on base Node instance"); }
+    virtual std::vector<std::unique_ptr<Node>>& getMutOperands() { throw std::runtime_error("getMutOperands called on base node"); }
+
     virtual ~Node() = default;
 };
 
 
-struct Op final : Node {
-    std::string value;
-    int8_t arity = 2;  // the no. of operands the operator requires, binary by default
 
-    Op() = default;
-    explicit Op(std::string val): value(std::move(val)) {}
-
-    std::string getValue() const override {
-        return value;
-    }
-
-    int8_t getArity() override { return arity; }
-    [[nodiscard]] NodeType getType() const override {
-        return ND_OP;
-    }
-};
-
-struct Expression final : Node {
+struct Expression : Node {
     std::vector<std::unique_ptr<Node>> expr{};
     std::string expr_type{};
 
@@ -103,16 +91,45 @@ struct Expression final : Node {
 
     const std::vector<std::unique_ptr<Node>>& getExprValue() override { return expr; }
 
-    std::string getValue() const override {
+    [[nodiscard]] std::string getValue() const override {
         throw std::runtime_error("getValue called on expression");
     }
 
-    NodeType getType() const override {
+    [[nodiscard]] NodeType getType() const override {
         return ND_EXPR;
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 };
+
+struct Op final : Expression {
+    std::string value;
+    int8_t arity = 2;  // the no. of operands the operator requires, binary by default
+    std::vector<std::unique_ptr<Node>> operands;
+
+    Op() = default;
+    explicit Op(std::string val): value(std::move(val)) {}
+
+    [[nodiscard]] std::string getValue() const override {
+        return value;
+    }
+
+    void setArity(const int8_t val) override {
+        arity = val;
+    }
+
+    std::vector<std::unique_ptr<Node>>& getMutOperands() override {
+        return operands;
+    }
+
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+
+    int8_t getArity() override { return arity; }
+    [[nodiscard]] NodeType getType() const override {
+        return ND_OP;
+    }
+};
+
 
 struct Assignment final : Node {
     Expression  l_value{};
@@ -138,7 +155,7 @@ struct ReturnStatement final : Node {
 
 };
 
-struct IntLit final : Node {
+struct IntLit final : Expression {
     std::string value;
 
     explicit IntLit(std::string val): value(std::move(val)) {}
@@ -154,8 +171,8 @@ struct IntLit final : Node {
     llvm::Value *llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct FloatLit final : Node {
-    std::string value = 0;
+struct FloatLit final : Expression {
+    std::string value;
 
     explicit FloatLit(std::string val): value(std::move(val)) {}
 
@@ -170,7 +187,7 @@ struct FloatLit final : Node {
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct StrLit final : Node {
+struct StrLit final : Expression {
     std::string value;
 
     explicit StrLit(std::string  val): value(std::move(val)) {}
@@ -186,7 +203,7 @@ struct StrLit final : Node {
     llvm::Value *llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct Ident final : Node {
+struct Ident final : Expression {
     std::string value;
 
     explicit Ident(std::string  val): value(std::move(val)) {}
@@ -205,6 +222,7 @@ struct Ident final : Node {
 struct Var final : Node {
     std::string var_ident;
     std::string var_type;
+
     Expression value;
     Node* parent = nullptr;
 
@@ -214,8 +232,8 @@ struct Var final : Node {
 
     Var() = default;
 
-    std::string getValue() const override { return var_ident; }
-    NodeType getType() const override { return ND_VAR; }
+    [[nodiscard]] std::string getValue() const override { return var_ident; }
+    [[nodiscard]] NodeType    getType()  const override { return ND_VAR; }
 
     void print() override;
 
@@ -230,11 +248,11 @@ struct Function final : Node {
     std::vector<Var> params{};
     std::vector<std::unique_ptr<Node>> children{};
 
-    NodeType getType() const override {
+    [[nodiscard]] NodeType getType() const override {
         return ND_FUNC;
     }
 
-    std::string getValue() const override {
+    [[nodiscard]] std::string getValue() const override {
         return ident;
     }
 
@@ -251,14 +269,15 @@ struct Function final : Node {
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct FuncCall final : Node {
+struct FuncCall final : Expression {
     std::vector<Expression> args;
     std::string ident;
     std::string type = "void";
-    std::string getValue() const override { return ident; }
+
+    [[nodiscard]] std::string getValue() const override { return ident; }
     Node* parent = nullptr;
 
-    NodeType     getType() const override { return ND_CALL; }
+    [[nodiscard]] NodeType     getType() const override { return ND_CALL; }
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 };
 
@@ -266,7 +285,7 @@ struct WhileLoop final : Node {
     Expression condition{};
     std::vector<std::unique_ptr<Node>> children{};
 
-    NodeType getType() const override {
+    [[nodiscard]] NodeType getType() const override {
         return ND_WHILE;
     }
 
@@ -285,7 +304,7 @@ struct Struct final : Node {
     llvm::Value *llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct AddressOf final : Node {
+struct AddressOf final : Expression {
     std::string ident{};
 
     NodeType getType() const override {
@@ -345,7 +364,6 @@ class Parser {
 
 public:
     TokenStream m_Stream;
-
     bool m_AppendToScope = false;
     bool m_TokenToScope  = false;
     std::vector<std::string> registered_symbols{};
@@ -361,11 +379,12 @@ public:
     std::unique_ptr<ReturnStatement> parseRet();
     std::unique_ptr<Struct> parseStruct();
 
-    void forwardStream(uint8_t n = 1);
-    void parseExpr(std::variant<std::vector<Expression>*, Expression*>, bool isCall = false, std::optional<std::string> as_type = std::nullopt);
+    Token forwardStream(uint8_t n = 1);
+    // void parseExpr(std::variant<std::vector<Expression>*, Expression*>, bool isCall = false, std::optional<std::string> as_type = std::nullopt);
+    Expression parseExpr(std::string_view type);
+
     void parse();
 //    void appendAST(Node&);
-    inline void next(bool swsFlg = false, bool snsFlg = false);
 
     ~Parser();
 
@@ -373,12 +392,9 @@ public:
         std::string ret = m_Stream.p_CurTk.value;
         forwardStream();
 
-        if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value.starts_with("*")) {
-            ret += m_Stream.p_CurTk.value;
-            forwardStream();
-        }
-
-        std::cout << "ParseType leaving at -> " << m_Stream.p_CurTk.value << ": " << m_Stream.p_CurTk.type << std::endl;
+        while (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "*")
+            ret += forwardStream().value;
+        std::cout << "ParseType leaving at -> " << m_Stream.p_CurTk.value << ": " << to_string(m_Stream.p_CurTk.type) << std::endl;
         return ret;
     }
 };
