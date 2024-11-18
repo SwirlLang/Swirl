@@ -14,3 +14,4 @@ std::string getWorkingDirectory(const std::string& _path) {
     return _path.substr(0, _path.find_last_of(PATH_SEP));
 }
 
+

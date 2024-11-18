@@ -8,8 +8,6 @@
 
 #include <parser/parser.h>
 
-#include "Tester.hpp"
-
 
 using SwNode = std::unique_ptr<Node>;
 
@@ -70,6 +68,9 @@ SwNode Parser::dispatch() {
         const TokenType type  = m_Stream.p_CurTk.type;
         const std::string value = m_Stream.p_CurTk.value;
 
+
+        float a = 0;
+        // double* b = &a;
 
         switch (m_Stream.p_CurTk.type) {
             case KEYWORD:

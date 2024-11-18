@@ -26,6 +26,7 @@ struct TableEntry {
 
 class SymbolManager {
     llvm::LLVMContext& m_Context;
+    const int m_AddrSpace = 1;
 
     std::unordered_map<std::string, llvm::Type*> type_registry = {
         {"", nullptr},
@@ -38,13 +39,13 @@ class SymbolManager {
         {"bool",  llvm::Type::getInt1Ty(m_Context)},
         {"void",  llvm::Type::getVoidTy(m_Context)},
 
-        {"i8*", llvm::PointerType::getInt8Ty(m_Context)},
-        {"i32*", llvm::PointerType::getInt32Ty(m_Context)},
-        {"i64*", llvm::PointerType::getInt64Ty(m_Context)},
-        {"i128*", llvm::PointerType::getInt128Ty(m_Context)},
-        {"f32*", llvm::PointerType::getFloatTy(m_Context)},
-        {"f64*", llvm::PointerType::getDoubleTy(m_Context)},
-        {"bool*", llvm::PointerType::getInt1Ty(m_Context)}
+        {"i8*", llvm::PointerType::get(llvm::Type::getInt8Ty(m_Context), m_AddrSpace)},
+        {"i32*", llvm::PointerType::get(llvm::Type::getInt32Ty(m_Context), m_AddrSpace)},
+        {"i64*", llvm::PointerType::get(llvm::Type::getInt64Ty(m_Context), m_AddrSpace)},
+        {"i128*", llvm::PointerType::get(llvm::Type::getInt128Ty(m_Context), m_AddrSpace)},
+        {"f32*", llvm::PointerType::get(llvm::Type::getFloatTy(m_Context), m_AddrSpace)},
+        {"f64*", llvm::PointerType::get(llvm::Type::getDoubleTy(m_Context), m_AddrSpace)},
+        {"bool*", llvm::PointerType::get(llvm::Type::getInt1Ty(m_Context), m_AddrSpace)}
     };
 
      std::vector<std::unordered_map<std::string, TableEntry>> SymbolTable = {{}};
@@ -67,9 +68,11 @@ public:
                 llvm::Type* ptr_type       = llvm_base_type;
 
                 std::size_t ptr_levels = std::ranges::count(str, '*');
+                std::cout << ptr_type << " <-- " << ptr_levels << std::endl;
                 while (ptr_levels--) {
                     ptr_type = llvm::PointerType::get(ptr_type, 1);
-                } return ptr_type;
+                }
+                return ptr_type;
             }
         } else {
             for (auto& scope : SymbolTable) {

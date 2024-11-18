@@ -28,8 +28,6 @@ enum NodeType {
     ND_COND,        // 12
     ND_WHILE,       // 13
     ND_STRUCT,      // 14
-    ND_ADDR,        // 15
-    ND_DEREF,       // 16
 };
 
 struct Var;
@@ -302,35 +300,6 @@ struct Struct final : Node {
     }
 
     llvm::Value *llvmCodegen(LLVMBackend& instance) override;
-};
-
-struct AddressOf final : Expression {
-    std::string ident{};
-
-    NodeType getType() const override {
-        return ND_ADDR;
-    }
-
-    std::string getValue() const override {
-        return "&" + ident;
-    }
-
-    llvm::Value *llvmCodegen(LLVMBackend& instance) override;
-};
-
-
-struct Dereference final : Node {
-    std::string ident{};
-
-    NodeType getType() const override {
-        return ND_DEREF;
-    }
-
-    std::string getValue() const override {
-        return "@" + ident;
-    }
-
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 };
 
 

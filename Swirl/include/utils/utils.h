@@ -19,7 +19,6 @@ struct PairHash {
         auto h1 = std::hash<T1>{}(p.first);
         auto h2 = std::hash<T2>{}(p.second);
 
-        // Combine the two hash values
-        return h1 ^ (h2 << 1); // Or use a different combination method, e.g., XOR or a prime multiplier
+        return h1 ^ (h2 << 1);
     }
 };

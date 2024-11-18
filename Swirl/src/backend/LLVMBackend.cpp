@@ -169,6 +169,13 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return instance.Builder.CreateMul(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
         }},
 
+        {{"*", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            const auto entry = instance.SymManager.lookupSymbol(operands.at(0)->getValue());
+            if (entry.is_param)
+                return entry.ptr;
+            return instance.Builder.CreateLoad(entry.ptr->getType(), entry.ptr);
+        }},
+
         {{"&", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
             auto lookup = instance.SymManager.lookupSymbol(operands.at(0)->getValue());
             return lookup.ptr;
@@ -349,18 +356,6 @@ llvm::Value* WhileLoop::llvmCodegen(LLVMBackend& instance) {
 
     instance.Builder.SetInsertPoint(merge_block);
     return nullptr;
-}
-
-llvm::Value* AddressOf::llvmCodegen(LLVMBackend& instance) {
-    const auto sym_entry = instance.SymManager.lookupSymbol(this->ident);
-    if (sym_entry.is_param) throw std::runtime_error("can't take address of a function parameter");
-    return sym_entry.ptr;
-}
-
-llvm::Value* Dereference::llvmCodegen(LLVMBackend& instance) {
-    const auto sym_entry = instance.SymManager.lookupSymbol(this->ident);
-    if (sym_entry.is_param) return sym_entry.ptr;
-    return instance.Builder.CreateLoad(sym_entry.type, sym_entry.ptr);
 }
 
 
