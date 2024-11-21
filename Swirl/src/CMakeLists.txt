@@ -14,7 +14,7 @@ file(GLOB src
     utils/utils.cpp
     builtins/builtins.txt
         backend/LLVMBackend.cpp
-    parser/parser.cpp
+        parser/Parser.cpp
     exception/exception.cpp
 )
 

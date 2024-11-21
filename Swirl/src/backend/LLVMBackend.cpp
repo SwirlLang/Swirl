@@ -3,7 +3,7 @@
 #include <ranges>
 #include <unordered_map>
 
-#include <parser/parser.h>
+#include <parser/Parser.h>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Function.h>
@@ -75,9 +75,9 @@ llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
     llvm::Value* ret;
     if (getValue().starts_with("0x"))
         ret = llvm::ConstantInt::get(instance.IntegralTypeState, getValue().substr(2), 16);  // edge-case of "0x" unhandled
-    if (getValue().starts_with("0o"))
+    else if (getValue().starts_with("0o"))
         ret = llvm::ConstantInt::get(instance.IntegralTypeState, getValue().substr(2), 8);  // edge-case of "0o" unhandled
-    ret = llvm::ConstantInt::get(instance.IntegralTypeState, getValue(), 10);
+    else ret = llvm::ConstantInt::get(instance.IntegralTypeState, getValue(), 10);
 
     // TODO: handle octal and hexal radices
     if (instance.LatestBoundIsFloating) {
@@ -105,9 +105,9 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
 
     param_types.reserve(params.size());
     for (const auto& param : params)
-        param_types.push_back(instance.SymManager.lookupType(param.var_type));
+        param_types.push_back(instance.SymManager.lookupType(param.var_type).type);
 
-    llvm::FunctionType* f_type = llvm::FunctionType::get(instance.SymManager.lookupType(this->ret_type), param_types, false);
+    llvm::FunctionType* f_type = llvm::FunctionType::get(instance.SymManager.lookupType(this->ret_type).type, param_types, false);
     llvm::Function*     func   = llvm::Function::Create(f_type, llvm::GlobalValue::InternalLinkage, ident, instance.LModule.get());
 
     llvm::BasicBlock*   BB     = llvm::BasicBlock::Create(instance.Context, "", func);
@@ -145,6 +145,7 @@ llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
     using SwNode = std::unique_ptr<Node>;
     using NodesVec = std::vector<SwNode>;
+
 
     // Maps {operator, arity} to the corresponding operator 'function'
     static std::unordered_map<std::pair<std::string, uint8_t>, std::function<llvm::Value*(NodesVec&)>, PairHash>
@@ -193,6 +194,24 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
                 return instance.Builder.CreateUDiv(op1, op2);
             }
         }},
+
+
+        {{".", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            auto entry = instance.SymManager.lookupSymbol(operands.at(0)->getValue());  // LHS symT entry
+            auto aggregate_t = instance.SymManager.lookupType(entry.bound_type);
+
+            // member index and type pair
+            auto [member_index, member_type] = aggregate_t.fields->at(operands.at(1)->getValue());
+            auto field_ptr = instance.Builder.CreateGEP(
+                entry.type, entry.ptr, {IntLit{"0"}.llvmCodegen(instance), IntLit{std::to_string(member_index)}.llvmCodegen(instance)});
+
+            if (instance.IsAssignmentLHS)
+                return field_ptr;
+            return instance.Builder.CreateLoad(instance.SymManager.lookupType(member_type).type, field_ptr);
+        }}
+
+        // {{">", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        // }}
     };
 
     return OpTable[{this->value, arity}](operands);
@@ -202,29 +221,35 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
     std::stack<llvm::Value*> eval{};
 
-    if (expr_type.empty()) throw std::runtime_error("Expr::codegen: un-deduced expr type");
-    llvm::Type* e_type = instance.SymManager.lookupType(expr_type);
+    llvm::Type* e_type;
+    if (!expr_type.empty()) {
+        e_type = instance.SymManager.lookupType(expr_type).type;
 
-    if (e_type->isIntegerTy())
-        instance.setIntegralTypeState(e_type);
-    else if (e_type->isFloatingPointTy())
-        instance.setFloatTypeState(e_type);
+        if (e_type->isIntegerTy())
+            instance.setIntegralTypeState(e_type);
+        else if (e_type->isFloatingPointTy())
+            instance.setFloatTypeState(e_type);
+    }
 
     const auto val = expr.back()->llvmCodegen(instance);
 
-    if (e_type->isIntegerTy())
-        instance.restoreIntegralTypeState();
-    else if (e_type->isFloatingPointTy())
-        instance.restoreFloatTypeState();
+    if (!expr_type.empty()) {
+        if (e_type->isIntegerTy())
+            instance.restoreIntegralTypeState();
+        else if (e_type->isFloatingPointTy())
+            instance.restoreFloatTypeState();
+    }
 
-    // if (eval.empty()) throw std::runtime_error("expr-codegen: eval stack is empty");
     return val;
 }
 
 
 llvm::Value* Assignment::llvmCodegen(LLVMBackend& instance) {
-    llvm::Value* l_value_expr{};
-    instance.Builder.CreateStore(r_value.llvmCodegen(instance), l_value.llvmCodegen(instance));
+    instance.IsAssignmentLHS = true;
+    const auto lv = l_value.llvmCodegen(instance);
+    instance.IsAssignmentLHS = false;
+
+    instance.Builder.CreateStore(r_value.llvmCodegen(instance), lv);
     return nullptr;
 }
 
@@ -297,31 +322,47 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Value* Struct::llvmCodegen(LLVMBackend& instance) {
-    std::vector<llvm::Type*> types{};
-    std::vector<std::string> names{};
+    std::vector<llvm::Type*> types;
+    std::vector<std::string> names;
+    std::vector<std::string> type_names;
 
     types.reserve(members.size());
     names.reserve(members.size());
+    type_names.reserve(members.size());
 
     for (const auto& mem : members)
         if (mem->getType() == ND_VAR) {
             const auto field = dynamic_cast<Var*>(mem.get());
-            types.push_back(instance.SymManager.lookupType(field->var_type));
+            types.push_back(instance.SymManager.lookupType(field->var_type).type);
             names.push_back(field->var_ident);
+            type_names.push_back(field->var_type);
         }
 
     auto* struct_ = llvm::StructType::get(instance.Context);
     struct_->setName(ident);
     struct_->setBody(types);
 
-    if (!instance.IsLocalScope)
-        instance.SymManager.registerGlobalType(ident,  llvm::cast<llvm::Type>(struct_));
+    if (!instance.IsLocalScope) {
+        TableEntry entry;
+        entry.type = struct_;
+        entry.is_type = true;
+
+        entry.fields = std::unordered_map<std::string, std::pair<std::size_t, std::string>>{};
+        for (std::size_t i = 0; const auto& item : type_names) {
+            entry.fields.value()[names[i]] = std::pair{i, item};
+            i++;
+        }
+
+        instance.SymManager.registerGlobalType(ident,  std::move(entry));
+    }
+
     else {
         TableEntry entry{};
         entry.type = struct_;
+        entry.is_type = true;
 
-        entry.fields = std::unordered_map<std::string, std::pair<std::size_t, llvm::Type *>>{};
-        for (std::size_t i = 0; const auto& item : types) {
+        entry.fields = std::unordered_map<std::string, std::pair<std::size_t, std::string>>{};
+        for (std::size_t i = 0; const auto& item : type_names) {
             entry.fields.value()[names[i]] = std::pair{i, item};
             i++;
         }
@@ -381,8 +422,7 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
-    llvm::Type* type{};
-    type = instance.SymManager.lookupType(var_type);
+    llvm::Type* type = instance.SymManager.lookupType(var_type).type;
 
     llvm::Value* ret;
     llvm::Value* init = nullptr;
@@ -391,6 +431,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
         init = value.llvmCodegen(instance);
 
     if (!instance.IsLocalScope) {
+        // TODO
         auto* var = new llvm::GlobalVariable(
                 *instance.LModule, type, is_const, llvm::GlobalVariable::InternalLinkage,
                 nullptr, var_ident
@@ -400,7 +441,6 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
             const auto val = llvm::dyn_cast<llvm::Constant>(init);
             var->setInitializer(val);
         } ret = var;
-        std::cout << "pushing global var: " << var_ident << std::endl;
     } else {
         llvm::AllocaInst* var_alloca = instance.Builder.CreateAlloca(type, nullptr, var_ident);
         if (init != nullptr) {
@@ -409,10 +449,11 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
 
         TableEntry entry{};
         entry.ptr = var_alloca;
-        entry.type = instance.SymManager.lookupType(var_type);
+        entry.type = instance.SymManager.lookupType(var_type).type;
         entry.is_volatile = is_volatile;
-        std::cout << "pushing var: " << var_ident << std::endl;
-        instance.SymManager.back()[var_ident] = entry;
+        entry.bound_type = var_type;
+
+        instance.SymManager.back()[var_ident] = std::move(entry);
         ret = var_alloca;
     }
 

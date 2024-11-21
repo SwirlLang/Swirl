@@ -6,12 +6,11 @@
 #include <optional>
 #include <functional>
 
-#include <parser/parser.h>
+#include <parser/Parser.h>
 
 
 using SwNode = std::unique_ptr<Node>;
 
-std::size_t ScopeIndex{};
 std::vector<SwNode> ParsedModule{};
 
 
@@ -21,10 +20,6 @@ extern std::string SW_OUTPUT;
 extern void printIR(LLVMBackend& instance);
 extern void GenerateObjectFileLLVM(LLVMBackend&);
 
-struct TypeInfo {
-    bool is_const = false;
-    std::optional<llvm::Value*> gen_val = std::nullopt;
-};
 
 Parser::Parser(TokenStream tks): m_LLVMInstance{SW_OUTPUT}, m_Stream{std::move(tks)} {}
 Parser::~Parser() = default;
@@ -62,7 +57,6 @@ Token Parser::forwardStream(const uint8_t n) {
     return std::move(ret);
 }
 
-
 SwNode Parser::dispatch() {
     while (!m_Stream.eof()) {
         const TokenType type  = m_Stream.p_CurTk.type;
@@ -79,15 +73,11 @@ SwNode Parser::dispatch() {
                     return std::move(ret);
                 }
                 if (m_Stream.p_CurTk.value == "fn") {
-                    ScopeIndex++;
                     auto ret = parseFunction();
-                    ret->scope_id = ScopeIndex;
                     return std::move(ret);
                 }
                 if (m_Stream.p_CurTk.value == "if") {
-                    ScopeIndex++;
                     auto ret = parseCondition();
-                    ret->scope_id = ScopeIndex;
                     return std::move(ret);
                 }
 
@@ -138,6 +128,7 @@ SwNode Parser::dispatch() {
                     } continue;
                 }
             case OP:
+                assignment_lhs:
                 {
                     Expression expr = parseExpr("");
                     if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "=") {
@@ -145,12 +136,15 @@ SwNode Parser::dispatch() {
                         Assignment ass{};
                         ass.l_value = std::move(expr);
 
-                        forwardStream();
+                        forwardStream();  // skip "="
                         ass.r_value = parseExpr("");
                         return std::make_unique<Assignment>(std::move(ass));
                     }  continue;
                 }
             case PUNC:
+                if (m_Stream.p_CurTk.value == "(")
+                    goto assignment_lhs;
+
                 if (m_Stream.p_CurTk.value == ";") {
                     forwardStream();
                     continue;
@@ -176,7 +170,6 @@ void Parser::parse() {
     //     std::cout << m_Stream.p_CurTk.value << ": " << to_string(m_Stream.p_CurTk.type) << " peek: " << m_Stream.peek().value << std::endl;
     //     m_Stream.next();
     // }
-    // Tester::testTokenStream();
 
 
     forwardStream();
@@ -230,7 +223,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ":") {
         forwardStream();
-        m_LatestFunctRetType = func_nd.ret_type = parseType();
+        m_LatestFuncRetType = func_nd.ret_type = parseType();
     }
 
     // parse the children
@@ -306,11 +299,11 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ";")
         return std::make_unique<ReturnStatement>(std::move(ret));
 
-    ret.parent_ret_type = m_LatestFunctRetType;
-    std::cout << "Latest func ret type: " << m_LatestFunctRetType << std::endl;
+    ret.parent_ret_type = m_LatestFuncRetType;
+    std::cout << "Latest func ret type: " << m_LatestFuncRetType << std::endl;
 
-    ret.value.expr_type = m_LatestFunctRetType;
-    ret.value = parseExpr({});
+    ret.value.expr_type = m_LatestFuncRetType;
+    ret.value = parseExpr(m_LatestFuncRetType);
     ret.value.expr_type = ret.parent_ret_type;
     return std::make_unique<ReturnStatement>(std::move(ret));
 }
@@ -319,10 +312,9 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
 std::unique_ptr<Condition> Parser::parseCondition() {
     Condition cnd;
     forwardStream();  // skip "if"
-    cnd.bool_expr = parseExpr({});
+    cnd.bool_expr = parseExpr("bool");
     forwardStream();  // skip the opening brace
-
-    ScopeIndex--;
+    
     while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}"))
         cnd.if_children.push_back(std::move(dispatch()));
     forwardStream();
@@ -431,6 +423,11 @@ Expression Parser::parseExpr(std::string_view type) {
         return parse_component();
     };
 
+
+    const auto continue_parsing = [this]() -> bool {
+        return m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value != "=";
+    };
+
     const
     std::function<SwNode(SwNode, int)> handle_binary = [&, this](SwNode prev, const int last_prec = -1) {
         // assumption: current token is an OP
@@ -446,7 +443,7 @@ Expression Parser::parseExpr(std::string_view type) {
             op->getMutOperands().push_back(std::move(rhs));
 
             // if there's another operator...
-            if (m_Stream.p_CurTk.type == OP) {
+            if (continue_parsing()) {
                 if (!op) throw std::invalid_argument("Invalid operation");
                 op = handle_binary(std::move(op), current_prec);
             }
@@ -460,7 +457,7 @@ Expression Parser::parseExpr(std::string_view type) {
             op->getMutOperands().push_back(std::move(rhs));
 
 
-            if (m_Stream.p_CurTk.type == OP)
+            if (continue_parsing())
                 op = handle_binary(std::move(op), current_prec);
 
             return std::move(op);
@@ -480,7 +477,7 @@ Expression Parser::parseExpr(std::string_view type) {
 
             prev->getMutOperands().push_back(std::move(op));
 
-            if (m_Stream.p_CurTk.type == OP) {
+            if (continue_parsing()) {
                 op = handle_binary(std::move(prev), current_prec);
                 return std::move(op);
             }
@@ -490,12 +487,11 @@ Expression Parser::parseExpr(std::string_view type) {
         return std::move(op);
     };
 
-
     Expression ret;
     if (m_Stream.p_CurTk.type == OP) {
         auto op = parse_prefix().value();
 
-        if (m_Stream.p_CurTk.type == OP) {
+        if (continue_parsing()) {
             ret.expr.push_back(handle_binary(std::move(op), -1));
             return std::move(ret);
         }
@@ -504,7 +500,7 @@ Expression Parser::parseExpr(std::string_view type) {
         return std::move(ret);
     } else {
         auto tmp = parse_component();
-        if (m_Stream.p_CurTk.type == OP) {
+        if (continue_parsing()) {
             ret.expr.push_back(handle_binary(std::move(tmp), -1));
             return std::move(ret);
         }

@@ -48,5 +48,9 @@ struct Token {
     StreamState location;
 
     CompTimeTypes meta_ti{};
+
+    bool operator==(const Token& other) const {
+        return type == other.type && value == other.value;
+    }
 };
 #endif // SWIRL_TOKENS_H

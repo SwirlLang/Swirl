@@ -8,7 +8,7 @@
 #include <cli/cli.h>
 #include <tokenizer/InputStream.h>
 #include <tokenizer/Tokenizer.h>
-#include <parser/parser.h>
+#include <parser/Parser.h>
 #include <include/SwirlConfig.h>
 
 
@@ -47,13 +47,28 @@ const std::unordered_map<std::string, uint8_t> keywords = {
 
 // map, {operator, precedence}
 std::unordered_map<std::string, int> operators = {
-        {"&&", 0}, {"@", 3}, {"<",  9},
-        {"||", 0}, {">>", 4}, {"<=", 9},
-        {"-",  1}, {"<<", 4}, {">",  9},
-        {"+",  1}, {"&",  5}, {">=", 9},
-        {"*",  2}, {"^",  6}, {"==", 10},
-        {"/",  2}, {"|",  7}, {"!=", 10},
-        {"%",  2}, {"~",  8}, {"//", -1}
+    {"=", 0},
+
+    // Logical Operators
+    {"||", 0},
+    {"&&", 1},
+    {"!=", 2},
+    {"==", 2},
+
+    // Relational Operators
+    {">", 4},
+    {"<", 4},
+    {"<=", 4},
+    {">=", 4},
+
+    // Arithmetic Operators
+    {"+", 8},
+    {"-", 8},
+    {"*", 16},
+    {"/", 16},
+
+    // Misc
+    {".", 32}
 };
 
 

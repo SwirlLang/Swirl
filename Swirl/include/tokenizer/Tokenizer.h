@@ -8,6 +8,7 @@
 #include <functional>
 #include <string_view>
 #include <unordered_map>
+#include <valarray>
 
 #include <tokenizer/InputStream.h>
 #include <utils/utils.h>
@@ -19,6 +20,7 @@
 
 #define SWIRL_TokenStream_H
 
+
 using namespace std::string_view_literals;
 
 extern const std::unordered_map<std::string, uint8_t> keywords;
@@ -27,12 +29,12 @@ extern std::unordered_map<std::size_t, std::string> LineTable;
 
 class TokenStream {
     bool                        m_Debug  = false;  // Debug flag
-    std::string                 m_Ret;             // temporary cache
-    std::string                 m_Rax;             // temporary cache
-    Token                       m_lastTok{};
-    Token                       m_Cur{};
-    StreamState                 m_Cache{};
+    StreamState                 m_Cache;           // For caching stream state
     InputStream                 m_Stream;          // InputStream instance
+    struct {
+        Token particular_tok;
+        bool  only_type{};
+    }                           m_Filter;
 
 
     static bool isKeyword(const std::string& _str) {
@@ -56,7 +58,7 @@ class TokenStream {
     }
 
     static bool isOpChar(const char _chr) {
-        return "+-/*><=&@"sv.find(_chr) != std::string::npos;
+        return "+-/*><=&@."sv.find(_chr) != std::string::npos;
     }
 
     static bool isWhiteSpace(const char _chr) {
@@ -195,6 +197,7 @@ class TokenStream {
         }
     }
 
+    inline Token filterTok() {}
 public:
     Token p_CurTk{UNINIT, ""};
     Token p_PeekTk{UNINIT, ""};
@@ -234,6 +237,23 @@ public:
         return cur_tk;
     }
 
+
+    // `expect` shall be called before `next`
+    template <typename... Tks> requires (std::same_as<Tks, TokenType> && ...)
+    void expect(const Tks&... args) {
+        if (not ((args == peek().type) || ...)) {
+            m_Filter.only_type = true;
+            m_Filter.particular_tok.type = std::get<0>(std::tie(args...));
+        }
+    }
+
+    template <typename... Tks> requires (std::same_as<Tks, Token> && ...)
+    void expect(const Tks&... args) {
+        if (not ((args == peek()) || ...)) {
+
+        }
+    }
+
     /* Return the next token from the m_Stream without consuming it. */
     Token peek() {
         setReturnPoint();
@@ -247,7 +267,6 @@ public:
         restoreCache();
         return p_PeekTk;
     }
-
 
     StreamState getStreamState() const {
         return StreamState{

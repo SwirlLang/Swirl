@@ -15,15 +15,16 @@ public:
     std::unique_ptr<llvm::Module> LModule;
     SymbolManager SymManager;
 
-    // ----------------[states]-------------------
+    // ----------------[contextual-states]-------------------
     bool IsLocalScope;
     bool ChildHasReturned;
     bool LatestBoundIsIntegral;
     bool LatestBoundIsFloating;
+    bool IsAssignmentLHS;
 
     llvm::Type*        FloatTypeState;
     llvm::IntegerType* IntegralTypeState;
-    // ------------------------------------------
+    // -------------------------------------------------------
 
 
     explicit LLVMBackend(const std::string& mod_name)
@@ -34,6 +35,7 @@ public:
           , ChildHasReturned{false}
           , LatestBoundIsIntegral(false)
           , LatestBoundIsFloating(false)
+          , IsAssignmentLHS(false)
           , FloatTypeState{llvm::Type::getFloatTy(Context)}
           , IntegralTypeState{llvm::Type::getInt32Ty(Context)}
           , m_Cache(nullptr) {}
