@@ -58,7 +58,7 @@ class TokenStream {
     }
 
     static bool isOpChar(const char _chr) {
-        return "+-/*><=&@."sv.find(_chr) != std::string::npos;
+        return "+-/*><=&@|."sv.find(_chr) != std::string::npos;
     }
 
     static bool isWhiteSpace(const char _chr) {

@@ -195,12 +195,13 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             }
         }},
 
-
         {{".", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
             auto entry = instance.SymManager.lookupSymbol(operands.at(0)->getValue());  // LHS symT entry
             auto aggregate_t = instance.SymManager.lookupType(entry.bound_type);
 
+
             // member index and type pair
+            std::cout << "MEMBER NAME: " << operands.at(1)->getValue() << std::endl;
             auto [member_index, member_type] = aggregate_t.fields->at(operands.at(1)->getValue());
             auto field_ptr = instance.Builder.CreateGEP(
                 entry.type, entry.ptr, {IntLit{"0"}.llvmCodegen(instance), IntLit{std::to_string(member_index)}.llvmCodegen(instance)});

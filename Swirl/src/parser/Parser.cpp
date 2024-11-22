@@ -429,8 +429,11 @@ Expression Parser::parseExpr(std::string_view type) {
     };
 
     const
-    std::function<SwNode(SwNode, int)> handle_binary = [&, this](SwNode prev, const int last_prec = -1) {
+    std::function<SwNode(SwNode, int, bool)> handle_binary =
+        [&, this](SwNode prev, const int last_prec = -1, bool is_left_associative = false) {
         // assumption: current token is an OP
+
+        is_left_associative = m_Stream.p_CurTk.value == ".";
         SwNode op = std::make_unique<Op>(m_Stream.p_CurTk.value);
         const int current_prec = operators.at(m_Stream.p_CurTk.value);
 
@@ -445,11 +448,11 @@ Expression Parser::parseExpr(std::string_view type) {
             // if there's another operator...
             if (continue_parsing()) {
                 if (!op) throw std::invalid_argument("Invalid operation");
-                op = handle_binary(std::move(op), current_prec);
+                op = handle_binary(std::move(op), current_prec, is_left_associative);
             }
         }
 
-        else if (current_prec < last_prec) {
+        else if (current_prec < last_prec || is_left_associative) {
             auto rhs = m_Stream.p_CurTk.type == OP ? parse_prefix().value() : parse_component();
 
             if (!rhs || !prev) throw std::invalid_argument("rhs || prev: Invalid operation");
@@ -458,7 +461,7 @@ Expression Parser::parseExpr(std::string_view type) {
 
 
             if (continue_parsing())
-                op = handle_binary(std::move(op), current_prec);
+                op = handle_binary(std::move(op), current_prec, is_left_associative);
 
             return std::move(op);
         }
@@ -478,7 +481,7 @@ Expression Parser::parseExpr(std::string_view type) {
             prev->getMutOperands().push_back(std::move(op));
 
             if (continue_parsing()) {
-                op = handle_binary(std::move(prev), current_prec);
+                op = handle_binary(std::move(prev), current_prec, is_left_associative);
                 return std::move(op);
             }
             return std::move(prev);
@@ -492,7 +495,7 @@ Expression Parser::parseExpr(std::string_view type) {
         auto op = parse_prefix().value();
 
         if (continue_parsing()) {
-            ret.expr.push_back(handle_binary(std::move(op), -1));
+            ret.expr.push_back(handle_binary(std::move(op), -1, false));
             return std::move(ret);
         }
 
@@ -501,7 +504,7 @@ Expression Parser::parseExpr(std::string_view type) {
     } else {
         auto tmp = parse_component();
         if (continue_parsing()) {
-            ret.expr.push_back(handle_binary(std::move(tmp), -1));
+            ret.expr.push_back(handle_binary(std::move(tmp), -1, false));
             return std::move(ret);
         }
         ret.expr.push_back(std::move(tmp));
