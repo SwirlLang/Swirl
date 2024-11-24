@@ -9,10 +9,10 @@
 
 
 struct TableEntry {
+    bool is_type{};
     llvm::Value* ptr{};
     llvm::Type*  type{};
 
-    bool is_type     = false;
     bool is_const    = false;
     bool is_param    = false;
     bool is_volatile = false;
@@ -21,7 +21,7 @@ struct TableEntry {
     std::string bound_type;
 
     /// maps field-name to {index, type}, set to nullopt when ident is not an aggregate, where index is related to the
-    /// position of the element in the aggregate
+    /// position of the field in the aggregate and type is its bound type
     std::optional<
         std::unordered_map<std::string, std::pair<std::size_t, std::string>
             >> fields = std::nullopt;
@@ -32,7 +32,9 @@ class SymbolManager {
     llvm::LLVMContext& m_Context;
     const int m_AddrSpace = 1;
 
-     std::vector<std::unordered_map<std::string, TableEntry>> SymbolTable = {
+    using SymbolMap_t = std::unordered_map<std::string, TableEntry>;
+
+     std::vector<SymbolMap_t> SymbolTable = {
          {
              {"i8", TableEntry{.is_type = true, .type = llvm::Type::getInt8Ty(m_Context)}},
              {"i32", TableEntry{.is_type = true, .type = llvm::Type::getInt32Ty(m_Context)}},
@@ -57,14 +59,15 @@ class SymbolManager {
 public:
     explicit SymbolManager(llvm::LLVMContext& ctx): m_Context(ctx) {}
 
-    TableEntry lookupType(const std::string& str) {
+    TableEntry& lookupType(const std::string& str) {
         if (SymbolTable.front().contains(str))
             return SymbolTable.front().at(str);
 
-        for (std::unordered_map entry : SymbolTable | std::views::drop(1) | std::views::reverse) {
+        for (SymbolMap_t& entry : SymbolTable | std::views::drop(1) | std::views::reverse)
             if (entry.contains(str))
                 return entry.at(str);
-        } throw std::runtime_error("TypeRegistry: cannot resolve type: " + str);
+
+        throw std::runtime_error("TypeRegistry: cannot resolve type: " + str);
     }
 
 
@@ -73,10 +76,14 @@ public:
     }
 
     TableEntry& lookupSymbol(const std::string& ident) {
-        for (auto& e : SymbolTable | std::views::reverse) {
-            if (e.contains(ident))
-                return e[ident];
-        } throw std::runtime_error("SymbolManager: cannot resolve symbol: " + ident);
+        if (SymbolTable.front().contains(ident))
+            return SymbolTable.front().at(ident);
+
+        for (SymbolMap_t& entry : SymbolTable | std::views::drop(1) | std::views::reverse)
+            if (entry.contains(ident))
+                return entry.at(ident);
+
+        throw std::runtime_error("SymbolManager: cannot resolve symbol: " + ident);
     }
 
 

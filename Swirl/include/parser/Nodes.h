@@ -85,7 +85,7 @@ struct Expression : Node {
     const std::vector<std::unique_ptr<Node>>& getExprValue() override { return expr; }
 
     [[nodiscard]] std::string getValue() const override {
-        throw std::runtime_error("getValue called on expression");
+        return expr.at(0)->getValue();
     }
 
     [[nodiscard]] NodeType getType() const override {

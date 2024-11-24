@@ -433,7 +433,7 @@ Expression Parser::parseExpr(std::string_view type) {
         [&, this](SwNode prev, const int last_prec = -1, bool is_left_associative = false) {
         // assumption: current token is an OP
 
-        is_left_associative = m_Stream.p_CurTk.value == ".";
+        is_left_associative = m_Stream.p_CurTk.value == "." || m_Stream.p_CurTk.value == "-";
         SwNode op = std::make_unique<Op>(m_Stream.p_CurTk.value);
         const int current_prec = operators.at(m_Stream.p_CurTk.value);
 

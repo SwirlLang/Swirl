@@ -95,9 +95,10 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
-        const auto e = instance.SymManager.lookupSymbol(this->value);
-        if (e.is_param) return e.ptr;
-        return instance.Builder.CreateLoad(e.type, e.ptr);
+    const auto e = instance.SymManager.lookupSymbol(this->value);
+    if (e.is_param) return e.ptr;
+    if (instance.IsAssignmentLHS) return e.ptr;
+    return instance.Builder.CreateLoad(e.type, e.ptr);
 }
 
 llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
@@ -195,20 +196,90 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             }
         }},
 
+
+        {{"==", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            auto op1 = operands.at(0)->llvmCodegen(instance);
+            auto op2 = operands.at(1)->llvmCodegen(instance);
+
+            llvm::Type* type1 = op1->getType();
+            llvm::Type* type2 = op2->getType();
+
+            if (type1->isFloatingPointTy() || type2->isFloatingPointTy()) {
+                if (type1 != type2) {
+                    if (type1->getPrimitiveSizeInBits() < type2->getPrimitiveSizeInBits()) {
+                        op1 = instance.Builder.CreateFPExt(op1, type2);
+                    } else {
+                        op2 = instance.Builder.CreateFPExt(op2, type1);
+                    }
+                } return instance.Builder.CreateFCmpOEQ(op1, op2);
+            }
+
+            if (type1->isIntegerTy() && type2->isIntegerTy()) {
+                const auto i_size1 = type1->getIntegerBitWidth();
+                const auto i_size2 = type2->getIntegerBitWidth();
+
+                if (i_size1 != i_size2) {
+                    if (i_size1 < i_size2) {
+                        op1 = instance.Builder.CreateZExtOrBitCast(op1, type2);
+                    } else {
+                        op2 = instance.Builder.CreateZExtOrBitCast(op2, type1);
+                    }
+                } return instance.Builder.CreateICmpEQ(op1, op2);
+            }
+
+            if (type1->isFloatingPointTy() && type2->isIntegerTy()) {
+                op2 = instance.Builder.CreateSIToFP(op2, type1);
+                return instance.Builder.CreateFCmpOEQ(op1, op2);
+            }
+
+            if (type1->isIntegerTy() && type2->isFloatingPointTy()) {
+                op1 = instance.Builder.CreateSIToFP(op1, type2);
+                return instance.Builder.CreateFCmpOEQ(op1, op2);
+            }
+
+            throw std::runtime_error("Unsupported types for equality comparison");
+        }},
+
         {{".", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-            auto entry = instance.SymManager.lookupSymbol(operands.at(0)->getValue());  // LHS symT entry
-            auto aggregate_t = instance.SymManager.lookupType(entry.bound_type);
+            static std::string BoundType;  // used to propagate the bound type up the recursion hierarchy
+            static int recursion_depth = 0;
+
+            if (operands.front()->getValue() == ".") {
+                recursion_depth++;
+                llvm::Value* op1 = OpTable[{".", 2}](operands.at(0)->getMutOperands());
+                auto struct_type = instance.SymManager.lookupType(BoundType);  // dependent struct type
+
+                auto [index, bound_type] = struct_type.fields->at(operands.at(1)->getValue());
+                const auto mem_type = instance.SymManager.lookupType(bound_type).type;
+
+                const auto field_ptr = instance.Builder.CreateStructGEP(
+                    struct_type.type,
+                    op1,
+                    index
+                );
+
+                if (instance.IsAssignmentLHS)
+                    return field_ptr;
+                return instance.Builder.CreateLoad(mem_type, field_ptr);
+            }
+
+            TableEntry op1_symbol = instance.SymManager.lookupSymbol(operands.at(0)->getValue());
+            TableEntry struct_t   = instance.SymManager.lookupType(op1_symbol.bound_type);
+
+            auto [index, mem_bound_type] = struct_t.fields->at(operands.at(1)->getValue());
+            auto member_ty = instance.SymManager.lookupType(mem_bound_type).type;
+            BoundType = mem_bound_type;
 
 
-            // member index and type pair
-            std::cout << "MEMBER NAME: " << operands.at(1)->getValue() << std::endl;
-            auto [member_index, member_type] = aggregate_t.fields->at(operands.at(1)->getValue());
-            auto field_ptr = instance.Builder.CreateGEP(
-                entry.type, entry.ptr, {IntLit{"0"}.llvmCodegen(instance), IntLit{std::to_string(member_index)}.llvmCodegen(instance)});
+            auto field_ptr = instance.Builder.CreateStructGEP(
+                struct_t.type,
+                operands.front()->llvmCodegen(instance),
+                index
+                );
 
             if (instance.IsAssignmentLHS)
                 return field_ptr;
-            return instance.Builder.CreateLoad(instance.SymManager.lookupType(member_type).type, field_ptr);
+            return instance.Builder.CreateLoad(member_ty, field_ptr);
         }}
 
         // {{">", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
@@ -222,7 +293,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
     std::stack<llvm::Value*> eval{};
 
-    llvm::Type* e_type;
+    llvm::Type* e_type{};
     if (!expr_type.empty()) {
         e_type = instance.SymManager.lookupType(expr_type).type;
 
@@ -235,6 +306,7 @@ llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
     const auto val = expr.back()->llvmCodegen(instance);
 
     if (!expr_type.empty()) {
+        // ReSharper disable once CppDFANullDereference
         if (e_type->isIntegerTy())
             instance.restoreIntegralTypeState();
         else if (e_type->isFloatingPointTy())

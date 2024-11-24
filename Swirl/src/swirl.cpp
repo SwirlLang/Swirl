@@ -5,10 +5,6 @@
 #include <filesystem>
 #include <unordered_map>
 
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/mman.h>
-
 #include <cli/cli.h>
 #include <tokenizer/InputStream.h>
 #include <tokenizer/Tokenizer.h>
