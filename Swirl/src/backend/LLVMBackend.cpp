@@ -83,7 +83,10 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
     const auto e = instance.SymManager.lookupSymbol(this->value);
     if (e.is_param) return e.ptr;
-    if (instance.IsAssignmentLHS) return e.ptr;
+    if (instance.IsAssignmentLHS) {
+
+        return e.ptr;
+    }
     return instance.Builder.CreateLoad(e.type, e.ptr);
 }
 
@@ -113,6 +116,8 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
     //     child->codegen();
 
     codegenChildrenUntilRet(instance, children);
+    if (!instance.Builder.GetInsertBlock()->back().isTerminator())
+        instance.Builder.CreateRetVoid();
     return func;
 }
 
@@ -318,9 +323,9 @@ llvm::Value* Assignment::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
-    const auto parent = instance.Builder.GetInsertBlock()->getParent();
-    const auto if_block = llvm::BasicBlock::Create(instance.Context, "if", parent);
-    const auto else_block = llvm::BasicBlock::Create(instance.Context, "else", parent);
+    const auto parent      = instance.Builder.GetInsertBlock()->getParent();
+    const auto if_block    = llvm::BasicBlock::Create(instance.Context, "if", parent);
+    const auto else_block  = llvm::BasicBlock::Create(instance.Context, "else", parent);
     const auto merge_block = llvm::BasicBlock::Create(instance.Context, "merge", parent);
 
     const auto if_cond = bool_expr.llvmCodegen(instance);
@@ -425,9 +430,8 @@ llvm::Value* WhileLoop::llvmCodegen(LLVMBackend& instance) {
     if (last_inst == nullptr)
         instance.Builder.CreateBr(cond_block);
 
-    const auto expr  = condition.llvmCodegen(instance);
-
     instance.Builder.SetInsertPoint(cond_block);
+    const auto expr  = condition.llvmCodegen(instance);
     instance.Builder.CreateCondBr(expr, body_block, merge_block);
 
     {
