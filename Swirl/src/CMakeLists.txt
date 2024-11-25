@@ -1,21 +1,10 @@
 file(GLOB src
-    cli/cli.cpp
-        backend/builtins.txt
-    exception_handler/ExceptionHandler.cpp
-    parser/class/ClassParser.cpp
-    parser/functions/FunctionParser.cpp
-    swirl.complex-nums/Complex.cpp
-    swirl.integer/Int.cpp
-    swirl.map/Map.c
-    swirl.string/String.cpp
-    tokenizer/TokenStream.cpp
-    tokenizer/InputStream.cpp
-    # utils/logger.cpp
-    utils/utils.cpp
-    builtins/builtins.txt
+        cli/cli.cpp
+        tokenizer/TokenStream.cpp
+        tokenizer/InputStream.cpp
+        utils/utils.cpp
         backend/LLVMBackend.cpp
         parser/Parser.cpp
-    exception/exception.cpp
 )
 
 target_sources(${PROJECT_NAME} PRIVATE ${src})

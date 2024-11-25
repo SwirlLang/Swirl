@@ -1,24 +1,14 @@
+#pragma once
 #include <iostream>
-#include <map>
-#include <array>
 #include <cstdint>
 #include <utility>
-#include <vector>
-#include <cstring>
 #include <functional>
 #include <string_view>
 #include <unordered_map>
-#include <valarray>
 
 #include <tokenizer/InputStream.h>
 #include <utils/utils.h>
 #include <tokens/Tokens.h>
-
-
-#ifndef SWIRL_TokenStream_H
-#define SWIRL_TokenStream_H
-
-#define SWIRL_TokenStream_H
 
 
 using namespace std::string_view_literals;
@@ -197,7 +187,6 @@ class TokenStream {
         }
     }
 
-    inline Token filterTok() {}
 public:
     Token p_CurTk{UNINIT, ""};
     Token p_PeekTk{UNINIT, ""};
@@ -238,22 +227,6 @@ public:
     }
 
 
-    // `expect` shall be called before `next`
-    template <typename... Tks> requires (std::same_as<Tks, TokenType> && ...)
-    void expect(const Tks&... args) {
-        if (not ((args == peek().type) || ...)) {
-            m_Filter.only_type = true;
-            m_Filter.particular_tok.type = std::get<0>(std::tie(args...));
-        }
-    }
-
-    template <typename... Tks> requires (std::same_as<Tks, Token> && ...)
-    void expect(const Tks&... args) {
-        if (not ((args == peek()) || ...)) {
-
-        }
-    }
-
     /* Return the next token from the m_Stream without consuming it. */
     Token peek() {
         setReturnPoint();
@@ -280,5 +253,3 @@ public:
         return p_CurTk.type == NONE;
     }
 };
-
-#endif

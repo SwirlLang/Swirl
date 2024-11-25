@@ -8,10 +8,9 @@ add_definitions(${LLVM_DEFINITIONS})
 
 configure_file(include/SwirlConfig.h.in include/SwirlConfig.h)
 
-# specify the C++ standard
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(CMAKE_CXX_COMPILER "clang++")
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # for windows
 if (WIN32)
@@ -22,9 +21,7 @@ option(BUILD_STDLIB "Build the standard library" OFF)
 include_directories("include")
 include_directories("${PROJECT_BINARY_DIR}")
 
-add_executable(swirl src/swirl.cpp
-        src/exception/ExceptionHandler.cpp)
-add_compile_options(-O0)
+add_executable(swirl src/swirl.cpp)
 
 llvm_config(swirl USE_SHARED irreader support core)
 

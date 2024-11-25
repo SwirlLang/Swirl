@@ -1,6 +1,5 @@
 #pragma once
 #include <utility>
-#include <variant>
 #include <stack>
 
 #include <llvm/IR/Value.h>
@@ -29,10 +28,7 @@ struct Var;
 
 // A common base class for all the nodes
 struct Node {
-    using inst_ptr_t = llvm::AllocaInst*;
-    using symt_t     = std::unordered_map<std::string, inst_ptr_t>;
-
-    std::string value{};
+    std::string value;
     std::size_t scope_id{};
 
     virtual bool hasScopes() { return false; }
@@ -54,8 +50,8 @@ struct Node {
 
 
 struct Expression : Node {
-    std::vector<std::unique_ptr<Node>> expr{};
-    std::string expr_type{};
+    std::vector<std::unique_ptr<Node>> expr;
+    std::string expr_type;
 
     Expression() = default;
     Expression(Expression&& other) noexcept {
@@ -66,10 +62,6 @@ struct Expression : Node {
                 std::make_move_iterator(other.expr.begin()),
                 std::make_move_iterator(other.expr.end()),
                 std::back_inserter(expr));
-
-        for (const auto& nd : expr) {
-//            std::cout << "moving : " << nd->getValue() << std::endl;
-        }
     }
 
     Expression& operator=(Expression&& other) noexcept {
@@ -125,24 +117,24 @@ struct Op final : Expression {
 
 
 struct Assignment final : Node {
-    Expression  l_value{};
-    std::string op{};
-    Expression r_value{};
+    Expression  l_value;
+    std::string op;
+    Expression r_value;
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 
-    NodeType getType() const override {
+    [[nodiscard]] NodeType getType() const override {
         return ND_ASSIGN;
     }
 };
 
 struct ReturnStatement final : Node {
-    Expression value{};
-    std::string parent_ret_type{};
+    Expression value;
+    std::string parent_ret_type;
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 
-    NodeType getType() const override {
+    [[nodiscard]] NodeType getType() const override {
         return ND_RET;
     }
 
@@ -153,11 +145,11 @@ struct IntLit final : Expression {
 
     explicit IntLit(std::string val): value(std::move(val)) {}
 
-    std::string getValue() const override {
+    [[nodiscard]] std::string getValue() const override {
         return value;
     }
 
-    NodeType getType() const override {
+    [[nodiscard]] NodeType getType() const override {
         return ND_INT;
     }
 
@@ -169,11 +161,11 @@ struct FloatLit final : Expression {
 
     explicit FloatLit(std::string val): value(std::move(val)) {}
 
-    std::string getValue() const override {
+    [[nodiscard]] std::string getValue() const override {
         return value;
     }
 
-    NodeType getType() const override {
+    [[nodiscard]] NodeType getType() const override {
         return ND_FLOAT;
     }
 
@@ -185,11 +177,11 @@ struct StrLit final : Expression {
 
     explicit StrLit(std::string  val): value(std::move(val)) {}
 
-    std::string getValue() const override {
+    [[nodiscard]] std::string getValue() const override {
         return value;
     }
 
-    NodeType getType() const override {
+    [[nodiscard]] NodeType getType() const override {
         return ND_STR;
     }
 
@@ -201,11 +193,11 @@ struct Ident final : Expression {
 
     explicit Ident(std::string  val): value(std::move(val)) {}
 
-    std::string getValue() const override {
+    [[nodiscard]] std::string getValue() const override {
         return value;
     }
 
-    NodeType getType() const override {
+    [[nodiscard]] NodeType getType() const override {
         return ND_IDENT;
     }
 
@@ -228,7 +220,6 @@ struct Var final : Node {
     [[nodiscard]] std::string getValue() const override { return var_ident; }
     [[nodiscard]] NodeType    getType()  const override { return ND_VAR; }
 
-    void print() override;
 
     std::vector<std::unique_ptr<Node>>& getExprValue() override { return value.expr; }
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
@@ -249,7 +240,7 @@ struct Function final : Node {
         return ident;
     }
 
-    const std::vector<Var>& getParams() const override {
+    [[nodiscard]] const std::vector<Var>& getParams() const override {
         return params;
     }
 
@@ -257,7 +248,7 @@ struct Function final : Node {
         return true;
     }
 
-    void print() override;
+    
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -290,7 +281,7 @@ struct Struct final : Node {
     std::string ident{};
     std::vector<std::unique_ptr<Node>> members{};
 
-    NodeType getType() const override {
+    [[nodiscard]] NodeType getType() const override {
         return ND_STRUCT;
     }
 
@@ -312,10 +303,10 @@ struct Condition final : Node {
         return true;
     }
 
-    NodeType getType() const override {
+    [[nodiscard]] NodeType getType() const override {
         return ND_COND;
     }
 
-    void print() override;
+    
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 };

@@ -22,18 +22,16 @@
 #include <llvm/TargetParser/Host.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/Casting.h>
-#include <llvm/IR/LegacyPassManagers.h>
-#include <llvm/IR/Verifier.h>
 
 
 
 extern std::string SW_OUTPUT;
 
-// this struct must be instantiated BEFORE IRinstance.Builder::SetInsertPoint is called
-struct NewScope {
+class NewScope {
     bool prev_ls_cache{};
     LLVMBackend& instance;
 
+public:
      explicit NewScope(LLVMBackend& inst): instance(inst) {
          prev_ls_cache = inst.IsLocalScope;
          inst.IsLocalScope = true;
@@ -48,6 +46,7 @@ struct NewScope {
 };
 
 
+
 void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<Node>>& children) {
     for (const auto& child : children) {
         if (child->getType() == ND_RET) {
@@ -58,18 +57,6 @@ void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<
     }
 }
 
-
-llvm::Value* llvmValueToFloat(llvm::Value* val, llvm::Type* dest, LLVMBackend& instance) {
-    if (val->getType()->isSingleValueType())
-        return instance.Builder.CreateSIToFP(val, dest);
-    return instance.Builder.CreateUIToFP(val, dest);
-}
-
-llvm::Value* llvmValueToIntegral(llvm::Value* val, llvm::Type* dest, LLVMBackend& instance) {
-    if (dest->isSingleValueType())
-        return instance.Builder.CreateFPToSI(val, dest);
-    return instance.Builder.CreateFPToUI(val, dest);
-}
 
 llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
     llvm::Value* ret;
@@ -111,7 +98,7 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
     llvm::FunctionType* f_type = llvm::FunctionType::get(instance.SymManager.lookupType(this->ret_type).type, param_types, false);
     llvm::Function*     func   = llvm::Function::Create(f_type, llvm::GlobalValue::InternalLinkage, ident, instance.LModule.get());
 
-    llvm::BasicBlock*   BB     = llvm::BasicBlock::Create(instance.Context, "", func);
+    llvm::BasicBlock*   BB     = llvm::BasicBlock::Create(instance.Context, "entry", func);
     NewScope _(instance);
     instance.Builder.SetInsertPoint(BB);
 
@@ -280,11 +267,15 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             if (instance.IsAssignmentLHS)
                 return field_ptr;
             return instance.Builder.CreateLoad(member_ty, field_ptr);
-        }}
+        }},
 
+        {{"||", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            return instance.Builder.CreateLogicalOr(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
+        }}
         // {{">", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
         // }}
     };
+
 
     return OpTable[{this->value, arity}](operands);
 }
@@ -333,64 +324,42 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
     const auto else_block = llvm::BasicBlock::Create(instance.Context, "else", parent);
     const auto merge_block = llvm::BasicBlock::Create(instance.Context, "merge", parent);
 
-    const auto if_cond = this->bool_expr.llvmCodegen(instance);
-    if (!if_cond)
-        throw std::runtime_error("condition is null");
-
-    std::vector false_blocks = {else_block};
+    const auto if_cond = bool_expr.llvmCodegen(instance);
     instance.Builder.CreateCondBr(if_cond, if_block, else_block);
-    {
-        NewScope _(instance);
-        instance.Builder.SetInsertPoint(if_block);
 
-        // for (auto& child : if_children)
-        //     child->codegen();
+    {
+        NewScope if_scp{instance};
+        instance.Builder.SetInsertPoint(if_block);
         codegenChildrenUntilRet(instance, if_children);
 
-        if (!instance.ChildHasReturned)
+        if (!instance.Builder.GetInsertBlock()->back().isTerminator())
             instance.Builder.CreateBr(merge_block);
     }
 
-    // elif(s)
-    for (std::size_t i = 1; auto& [cond, children] : elif_children) {
-        NewScope _(instance);
-        if (i == 1) {
-            instance.Builder.SetInsertPoint(if_block);
-            else_block->setName("elif");
-            false_blocks.push_back(llvm::BasicBlock::Create(instance.Context, "elif", parent));
-            instance.Builder.CreateCondBr(cond.llvmCodegen(instance), else_block, false_blocks.back());
-            instance.Builder.SetInsertPoint(else_block);
-        } else {
-            instance.Builder.SetInsertPoint(false_blocks.at(false_blocks.size() - 2));
-            false_blocks.push_back(llvm::BasicBlock::Create(instance.Context, "elif", parent));
-            instance.Builder.CreateCondBr(cond.llvmCodegen(instance), false_blocks.at(false_blocks.size() - 2), false_blocks.back());
-            instance.Builder.SetInsertPoint(false_blocks.at(false_blocks.size() - 2));
+    {
+        NewScope else_scp{instance};
+        instance.Builder.SetInsertPoint(else_block);
+
+        for (auto& [condition, children] : elif_children) {
+            NewScope elif_scp{instance};
+            const auto cnd = condition.llvmCodegen(instance);
+            auto elif_block = llvm::BasicBlock::Create(instance.Context, "elif", parent);
+            auto next_elif  = llvm::BasicBlock::Create(instance.Context, "next_elif", parent);
+
+            instance.Builder.CreateCondBr(cnd, elif_block, next_elif);
+            instance.Builder.SetInsertPoint(elif_block);
+            codegenChildrenUntilRet(instance, children);
+            if (!instance.Builder.GetInsertBlock()->back().isTerminator())
+                instance.Builder.CreateBr(merge_block);
+            instance.Builder.SetInsertPoint(next_elif);
         }
 
-        // for (auto& child : children)
-        //     child->codegen();
-        codegenChildrenUntilRet(instance, children);
-
-        if (i == elif_children.size() && !instance.ChildHasReturned)
-            instance.Builder.CreateBr(merge_block);
-        i++;
-    }
-
-    // else
-    {
-        NewScope _(instance);
-        instance.Builder.SetInsertPoint(false_blocks.back());
-        false_blocks.back()->setName("else");
-
-        // for (const auto& child : else_children)
-        //     child->codegen();
         codegenChildrenUntilRet(instance, else_children);
-
-        if (!instance.ChildHasReturned)
+        if (!instance.Builder.GetInsertBlock()->back().isTerminator())
             instance.Builder.CreateBr(merge_block);
+        instance.Builder.SetInsertPoint(merge_block);
     }
 
-    instance.Builder.SetInsertPoint(merge_block);
     return nullptr;
 }
 
@@ -533,7 +502,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     return ret;
 }
 
-void GenerateObjectFileLLVM(LLVMBackend& instance) {
+void GenerateObjectFileLLVM(const LLVMBackend& instance) {
     const auto target_triple = llvm::sys::getDefaultTargetTriple();
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -541,7 +510,7 @@ void GenerateObjectFileLLVM(LLVMBackend& instance) {
     llvm::InitializeAllAsmParsers();
     llvm::InitializeAllAsmPrinters();
 
-    std::string err{};
+    std::string err;
     if (const auto target = llvm::TargetRegistry::lookupTarget(target_triple, err)) {
         const auto cpu  = "generic";
         const auto feat = "";
@@ -575,38 +544,6 @@ void GenerateObjectFileLLVM(LLVMBackend& instance) {
     }
 }
 
-void Condition::print() {
-    std::cout <<
-        std::format("Condition: if-children-size: {}, else-children-size: {}", if_children.size(), elif_children.size())
-    << std::endl;
-
-    std::cout << "IF-children:" << std::endl;
-    for (const auto& a : if_children) {
-        std::cout << "\t";
-        a->print();
-    }
-
-    std::cout << "ELSE-children:" << std::endl;
-    // for (const auto& a : elif_children) {
-    //     for (const auto& a : if_children) {
-    //         std::cout << "\t";
-    //         a->print();
-    //     }
-    // }
-}
-
-void printIR(LLVMBackend& instance) {
+void printIR(const LLVMBackend& instance) {
     instance.LModule->print(llvm::outs(), nullptr);
-}
-
-void Var::print() {
-    std::cout << std::format("Var: {}", var_ident) << std::endl;
-}
-
-void Function::print() {
-    std::cout << std::format("func: {}", ident) << std::endl;
-    for (const auto& a : children) {
-        std::cout << "\t";
-        a->print();
-    }
 }

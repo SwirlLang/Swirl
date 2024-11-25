@@ -4,13 +4,11 @@
 #include <parser/Nodes.h>
 #include <backend/LLVMBackend.h>
 #include <tokenizer/Tokenizer.h>
-#include <exception/ExceptionHandler.h>
 #include <tokens/Tokens.h>
 
 
 class Parser {
     Token cur_rd_tok{};
-    ExceptionHandler m_ExceptionHandler{};
     std::string m_LatestFuncRetType{};
     LLVMBackend m_LLVMInstance;
 

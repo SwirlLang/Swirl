@@ -17,8 +17,8 @@ std::vector<SwNode> ParsedModule{};
 extern const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops;
 extern std::string SW_OUTPUT;
 
-extern void printIR(LLVMBackend& instance);
-extern void GenerateObjectFileLLVM(LLVMBackend&);
+extern void printIR(const LLVMBackend& instance);
+extern void GenerateObjectFileLLVM(const LLVMBackend&);
 
 
 Parser::Parser(TokenStream tks): m_LLVMInstance{SW_OUTPUT}, m_Stream{std::move(tks)} {}
@@ -61,10 +61,6 @@ SwNode Parser::dispatch() {
     while (!m_Stream.eof()) {
         const TokenType type  = m_Stream.p_CurTk.type;
         const std::string value = m_Stream.p_CurTk.value;
-
-
-        float a = 0;
-        // double* b = &a;
 
         switch (m_Stream.p_CurTk.type) {
             case KEYWORD:
@@ -182,7 +178,6 @@ void Parser::parse() {
         a->llvmCodegen(m_LLVMInstance);
     }
 
-    // m_ExceptionHandler.raiseAll();
     printIR(m_LLVMInstance);
     GenerateObjectFileLLVM(m_LLVMInstance);
 }
