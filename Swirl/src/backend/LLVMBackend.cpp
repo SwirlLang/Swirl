@@ -46,7 +46,6 @@ public:
 };
 
 
-
 void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<Node>>& children) {
     for (const auto& child : children) {
         if (child->getType() == ND_RET) {
@@ -281,14 +280,13 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 }
 
 
-llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
-    std::stack<llvm::Value*> eval{};
 
+llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
     llvm::Type* e_type{};
     if (!expr_type.empty()) {
         e_type = instance.SymManager.lookupType(expr_type).type;
 
-        if (e_type->isIntegerTy())
+        if (e_type->isIntegerTy() && e_type != llvm::Type::getInt1Ty(instance.Context))
             instance.setIntegralTypeState(e_type);
         else if (e_type->isFloatingPointTy())
             instance.setFloatTypeState(e_type);
@@ -296,9 +294,10 @@ llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
 
     const auto val = expr.back()->llvmCodegen(instance);
 
+
     if (!expr_type.empty()) {
         // ReSharper disable once CppDFANullDereference
-        if (e_type->isIntegerTy())
+        if (e_type->isIntegerTy() && e_type != llvm::Type::getInt1Ty(instance.Context))
             instance.restoreIntegralTypeState();
         else if (e_type->isFloatingPointTy())
             instance.restoreFloatTypeState();
@@ -343,6 +342,7 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
         for (auto& [condition, children] : elif_children) {
             NewScope elif_scp{instance};
             const auto cnd = condition.llvmCodegen(instance);
+
             auto elif_block = llvm::BasicBlock::Create(instance.Context, "elif", parent);
             auto next_elif  = llvm::BasicBlock::Create(instance.Context, "next_elif", parent);
 
