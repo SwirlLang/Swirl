@@ -1,11 +1,11 @@
 #pragma once
-#include <iostream>
 #include <cstdint>
 #include <utility>
 #include <functional>
 #include <string_view>
 #include <unordered_map>
 
+#include <definitions.h>
 #include <tokenizer/InputStream.h>
 #include <utils/utils.h>
 #include <tokens/Tokens.h>
@@ -13,8 +13,6 @@
 
 using namespace std::string_view_literals;
 
-extern const std::unordered_map<std::string, uint8_t> keywords;
-extern std::unordered_map<std::string, int> operators;
 extern std::unordered_map<std::size_t, std::string> LineTable;
 
 class TokenStream {
@@ -22,8 +20,9 @@ class TokenStream {
     StreamState                 m_Cache;           // For caching stream state
     InputStream                 m_Stream;          // InputStream instance
     struct {
-        Token particular_tok;
+        bool  is_active{};
         bool  only_type{};
+        std::vector<Token> expected_tokens;
     }                           m_Filter;
 
 
@@ -206,6 +205,13 @@ public:
         m_Stream.Col  = m_Cache.Col;
     }
 
+    void expect(std::initializer_list<TokenType>&& types) {
+        m_Filter.is_active = true;
+        m_Filter.only_type = true;
+        for (const auto type : types) {
+            m_Filter.expected_tokens.emplace_back(Token{.type = type});
+        }
+    }
 
     /* An abstraction over readNextTok. */
     Token next(const bool _modifyCurTk = true) {

@@ -1,9 +1,4 @@
-
 fn meow(): i32 {
-    var a: i32 = -(5 / -2)
-    var b: i32* = -+-a
+    var b: i64 = 344;
+    var a = 1 + b;
 }
-
-
-
-

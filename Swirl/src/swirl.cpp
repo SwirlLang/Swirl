@@ -1,7 +1,8 @@
 #include <iostream>
-#include <algorithm>
+#include <fstream>
 #include <string>
 #include <vector>
+#include <thread>
 #include <filesystem>
 #include <unordered_map>
 
@@ -18,57 +19,15 @@ std::string SW_OUTPUT{};
 std::string SW_FED_FILE_SOURCE{};
 std::string SW_COMPLETE_FED_FILE_PATH{};
 
-std::unordered_map<std::size_t, std::string> LineTable{};
+std::thread::id MAIN_THREAD_ID = std::this_thread::get_id();
 
+std::unordered_map<std::size_t, std::string> LineTable{};
 
 const std::vector<Argument> application_flags = {
     {{"-h","--help"}, "Show the help message", false, {}},
     {{"-o", "--output"}, "Output file name", true, {}},
     {{"-d", "--debug"}, "Log the steps of compilation", false, {}},
     {{"-v", "--version"}, "Show the version of Swirl", false, {}}
-};
-
-const std::unordered_map<std::string, uint8_t> valid_expr_bin_ops = {
-    {"+", 0},   {"-", 1},  {"*", 2},  {"/", 3},  {"%", 4},   {"==", 5},
-    {"!=", 6},  {">", 7},  {"<", 8},  {">=", 9}, {"<=", 10}, {"&&", 11},
-    {"||", 12}, {"&", 13}, {"|", 14}, {"^", 15}, {"<<", 16}, {">>", 17},
-};
-
-const std::unordered_map<std::string, uint8_t> keywords = {
-    {"return", 1},  {"if", 2},      {"else", 3},
-    {"for", 4},       {"while", 5},   {"is", 6},      {"in", 7},
-    {"or", 8},        {"and", 9},     {"class", 10},  {"public", 11},
-    {"private", 12},  {"const", 15},  {"static", 16}, {"break", 17},
-    {"continue", 18}, {"elif", 19},   {"global", 20}, {"importc", 21},
-    {"typedef", 22},  {"import", 23}, {"export", 24}, {"from", 25},
-    {"var", 26},      {"fn", 27}, {"volatile", 28}, {"struct", 29}
-};
-
-
-// map, {operator, precedence}
-std::unordered_map<std::string, int> operators = {
-    {"=", 0},
-
-    // Logical Operators
-    {"||", 0},
-    {"&&", 1},
-    {"!=", 2},
-    {"==", 2},
-
-    // Relational Operators
-    {">", 4},
-    {"<", 4},
-    {"<=", 4},
-    {">=", 4},
-
-    // Arithmetic Operators
-    {"+", 8},
-    {"-", 8},
-    {"*", 16},
-    {"/", 16},
-
-    // Misc
-    {".", 32}
 };
 
 
@@ -137,6 +96,7 @@ int main(int argc, const char** argv) {
 
         Parser parser(tk);
         parser.parse();
+        parser.callBackend();
         // Transpile(parser.m_AST->chl, cache_dir + SW_OUTPUT + ".cpp", compiled_source);
 
     }

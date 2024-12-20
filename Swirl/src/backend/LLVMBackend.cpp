@@ -1,4 +1,3 @@
-#include <iostream>
 #include <string>
 #include <ranges>
 #include <unordered_map>
@@ -22,8 +21,9 @@
 #include <llvm/TargetParser/Host.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/Casting.h>
+#include <llvm/IR/Verifier.h>
 
-
+// ReSharper disable all CppUseStructuredBinding
 
 extern std::string SW_OUTPUT;
 
@@ -35,12 +35,12 @@ public:
      explicit NewScope(LLVMBackend& inst): instance(inst) {
          prev_ls_cache = inst.IsLocalScope;
          inst.IsLocalScope = true;
-         inst.SymManager.emplace_back();
+         inst.SymManager.newScope();
      }
 
     ~NewScope() {
          instance.IsLocalScope = prev_ls_cache;
-         instance.SymManager.pop_back();
+         instance.SymManager.destroyLastScope();
          instance.ChildHasReturned = false;
      }
 };
@@ -48,7 +48,7 @@ public:
 
 void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<Node>>& children) {
     for (const auto& child : children) {
-        if (child->getType() == ND_RET) {
+        if (child->getNodeType() == ND_RET) {
             child->llvmCodegen(instance);
             instance.ChildHasReturned = true;
             return;
@@ -59,15 +59,15 @@ void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<
 
 llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
     llvm::Value* ret;
-    if (getValue().starts_with("0x"))
-        ret = llvm::ConstantInt::get(instance.IntegralTypeState, getValue().substr(2), 16);  // edge-case of "0x" unhandled
-    else if (getValue().starts_with("0o"))
-        ret = llvm::ConstantInt::get(instance.IntegralTypeState, getValue().substr(2), 8);  // edge-case of "0o" unhandled
-    else ret = llvm::ConstantInt::get(instance.IntegralTypeState, getValue(), 10);
+    if (value.starts_with("0x"))
+        ret = llvm::ConstantInt::get(instance.IntegralTypeState, value.substr(2), 16);  // edge-case of "0x" unhandled
+    else if (value.starts_with("0o"))
+        ret = llvm::ConstantInt::get(instance.IntegralTypeState, value.substr(2), 8);  // edge-case of "0o" unhandled
+    else ret = llvm::ConstantInt::get(instance.IntegralTypeState, value, 10);
 
     // TODO: handle octal and hexal radices
     if (instance.LatestBoundIsFloating) {
-        ret = llvm::ConstantFP::get(instance.FloatTypeState, getValue());
+        ret = llvm::ConstantFP::get(instance.FloatTypeState, value);
     }
     return ret;
 }
@@ -81,35 +81,27 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
-    const auto e = instance.SymManager.lookupSymbol(this->value);
+    const auto e = instance.SymManager.lookupDecl(this->value);
     if (e.is_param) return e.ptr;
-    if (instance.IsAssignmentLHS) {
-
-        return e.ptr;
-    }
-    return instance.Builder.CreateLoad(e.type, e.ptr);
+    if (instance.IsAssignmentLHS) return e.ptr;
+    return instance.Builder.CreateLoad(e.swirl_type->llvmCodegen(instance), e.ptr);
 }
 
 llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
-    std::vector<llvm::Type*> param_types;
+    const auto fn_sw_type = dynamic_cast<FunctionType*>(instance.SymManager.lookupType(ident));
 
-    param_types.reserve(params.size());
-    for (const auto& param : params)
-        param_types.push_back(instance.SymManager.lookupType(param.var_type).type);
+    auto*               fn_type  = llvm::dyn_cast<llvm::FunctionType>(fn_sw_type->llvmCodegen(instance));
+    llvm::Function*     func     = llvm::Function::Create(fn_type, llvm::GlobalValue::InternalLinkage, ident->toString(), instance.LModule.get());
+    llvm::BasicBlock*   entry_bb = llvm::BasicBlock::Create(instance.Context, "entry", func);
 
-    llvm::FunctionType* f_type = llvm::FunctionType::get(instance.SymManager.lookupType(this->ret_type).type, param_types, false);
-    llvm::Function*     func   = llvm::Function::Create(f_type, llvm::GlobalValue::InternalLinkage, ident, instance.LModule.get());
-
-    llvm::BasicBlock*   BB     = llvm::BasicBlock::Create(instance.Context, "entry", func);
     NewScope _(instance);
-    instance.Builder.SetInsertPoint(BB);
+    instance.Builder.SetInsertPoint(entry_bb);
 
     for (int i = 0; i < params.size(); i++) {
         const auto p_name = params[i].var_ident;
         const auto param = func->getArg(i);
 
-        param->setName(p_name);
-        instance.SymManager.back()[p_name] = {.ptr = param, .type = param_types[i], .is_param = true};
+        param->setName(p_name->toString());
     }
 
     // for (const auto& child : this->children)
@@ -140,7 +132,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
 
     // Maps {operator, arity} to the corresponding operator 'function'
-    static std::unordered_map<std::pair<std::string, uint8_t>, std::function<llvm::Value*(NodesVec&)>, PairHash>
+    static std::unordered_map<std::pair<std::string, uint8_t>, std::function<llvm::Value*(NodesVec&)>>
     OpTable = {
         {{"+", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
             return operands.back()->llvmCodegen(instance);
@@ -163,14 +155,14 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         }},
 
         {{"*", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
-            const auto entry = instance.SymManager.lookupSymbol(operands.at(0)->getValue());
+            const auto entry = instance.SymManager.lookupDecl(operands.at(0)->getIdentInfo());
             if (entry.is_param)
                 return entry.ptr;
             return instance.Builder.CreateLoad(entry.ptr->getType(), entry.ptr);
         }},
 
         {{"&", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
-            auto lookup = instance.SymManager.lookupSymbol(operands.at(0)->getValue());
+            auto lookup = instance.SymManager.lookupDecl(operands.at(0)->getIdentInfo());
             return lookup.ptr;
         }},
 
@@ -232,19 +224,23 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         }},
 
         {{".", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-            static std::string BoundType;  // used to propagate the bound type up the recursion hierarchy
-            static int recursion_depth = 0;
+            static Type* BoundType;  // used to propagate the bound type up the recursion hierarchy
+            static int   recursion_depth = 0;
 
-            if (operands.front()->getValue() == ".") {
+            if (operands.front()->getIdentInfo()->toString() == ".") {
                 recursion_depth++;
                 llvm::Value* op1 = OpTable[{".", 2}](operands.at(0)->getMutOperands());
-                auto struct_type = instance.SymManager.lookupType(BoundType);  // dependent struct type
+                // auto struct_t = instance.SymManager.lookupType(BoundType->getIdent());  // dependent struct type
+                // auto* struct_type = struct_t->llvmCodegen(instance);
 
-                auto [index, bound_type] = struct_type.fields->at(operands.at(1)->getValue());
-                const auto mem_type = instance.SymManager.lookupType(bound_type).type;
+                auto struct_entry   = instance.SymManager.lookupType(BoundType->getIdent());
+                auto* struct_swtype = dynamic_cast<StructType*>(struct_entry);
+
+                auto [index, bound_type] = struct_swtype->fields.at(operands.at(1)->getIdentInfo());
+                llvm::Type* mem_type = bound_type->llvmCodegen(instance);
 
                 const auto field_ptr = instance.Builder.CreateStructGEP(
-                    struct_type.type,
+                    struct_swtype->llvmCodegen(instance),
                     op1,
                     index
                 );
@@ -254,16 +250,18 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
                 return instance.Builder.CreateLoad(mem_type, field_ptr);
             }
 
-            TableEntry op1_symbol = instance.SymManager.lookupSymbol(operands.at(0)->getValue());
-            TableEntry struct_t   = instance.SymManager.lookupType(op1_symbol.bound_type);
+            const TableEntry op1_symbol = instance.SymManager.lookupDecl(operands.at(0)->getIdentInfo());
+            Type* struct_entry  = op1_symbol.swirl_type;
 
-            auto [index, mem_bound_type] = struct_t.fields->at(operands.at(1)->getValue());
-            auto member_ty = instance.SymManager.lookupType(mem_bound_type).type;
+            auto* struct_t = dynamic_cast<StructType*>(struct_entry);
+
+            auto [index, mem_bound_type] = struct_t->fields.at(operands.at(1)->getIdentInfo());
+            llvm::Type* member_ty = instance.SymManager.lookupType(mem_bound_type->getIdent())->llvmCodegen(instance);
             BoundType = mem_bound_type;
 
 
-            auto field_ptr = instance.Builder.CreateStructGEP(
-                struct_t.type,
+            const auto field_ptr = instance.Builder.CreateStructGEP(
+                struct_t->llvmCodegen(instance),
                 operands.front()->llvmCodegen(instance),
                 index
                 );
@@ -287,26 +285,22 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
-    llvm::Type* e_type{};
-    if (!expr_type.empty()) {
-        e_type = instance.SymManager.lookupType(expr_type).type;
+    llvm::Type* e_type = nullptr;
 
-        if (e_type->isIntegerTy() && e_type != llvm::Type::getInt1Ty(instance.Context))
-            instance.setIntegralTypeState(e_type);
-        else if (e_type->isFloatingPointTy())
-            instance.setFloatTypeState(e_type);
-    }
+    // ReSharper disable once CppDFANullDereference
+    e_type = expr_type->llvmCodegen(instance);
+    if (e_type->isIntegerTy() && e_type != llvm::Type::getInt1Ty(instance.Context))
+        instance.setIntegralTypeState(e_type);
+    else if (e_type->isFloatingPointTy())
+        instance.setFloatTypeState(e_type);
 
     const auto val = expr.back()->llvmCodegen(instance);
 
-
-    if (!expr_type.empty()) {
-        // ReSharper disable once CppDFANullDereference
-        if (e_type->isIntegerTy() && e_type != llvm::Type::getInt1Ty(instance.Context))
-            instance.restoreIntegralTypeState();
-        else if (e_type->isFloatingPointTy())
-            instance.restoreFloatTypeState();
-    }
+    // ReSharper disable once CppDFANullDereference
+    if (e_type->isIntegerTy() && e_type != llvm::Type::getInt1Ty(instance.Context))
+        instance.restoreIntegralTypeState();
+    else if (e_type->isFloatingPointTy())
+        instance.restoreFloatTypeState();
 
     return val;
 }
@@ -368,53 +362,28 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
     return nullptr;
 }
 
+// useless
 llvm::Value* Struct::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Type*> types;
     std::vector<std::string> names;
-    std::vector<std::string> type_names;
+    std::vector<Type*> type_names;
 
     types.reserve(members.size());
     names.reserve(members.size());
     type_names.reserve(members.size());
 
     for (const auto& mem : members)
-        if (mem->getType() == ND_VAR) {
+        if (mem->getNodeType() == ND_VAR) {
             const auto field = dynamic_cast<Var*>(mem.get());
-            types.push_back(instance.SymManager.lookupType(field->var_type).type);
-            names.push_back(field->var_ident);
+            types.push_back(instance.SymManager.lookupType(field->var_type->getIdent())->llvmCodegen(instance));
+            names.push_back(field->var_ident->toString());
             type_names.push_back(field->var_type);
         }
 
     auto* struct_ = llvm::StructType::get(instance.Context);
-    struct_->setName(ident);
+    struct_->setName(ident->toString());
     struct_->setBody(types);
 
-    if (!instance.IsLocalScope) {
-        TableEntry entry;
-        entry.type = struct_;
-        entry.is_type = true;
-
-        entry.fields = std::unordered_map<std::string, std::pair<std::size_t, std::string>>{};
-        for (std::size_t i = 0; const auto& item : type_names) {
-            entry.fields.value()[names[i]] = std::pair{i, item};
-            i++;
-        }
-
-        instance.SymManager.registerGlobalType(ident,  std::move(entry));
-    }
-
-    else {
-        TableEntry entry{};
-        entry.type = struct_;
-        entry.is_type = true;
-
-        entry.fields = std::unordered_map<std::string, std::pair<std::size_t, std::string>>{};
-        for (std::size_t i = 0; const auto& item : type_names) {
-            entry.fields.value()[names[i]] = std::pair{i, item};
-            i++;
-        }
-        instance.SymManager.back()[ident] = entry;
-    }
     return nullptr;
 }
 
@@ -449,7 +418,7 @@ llvm::Value* WhileLoop::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Type*> paramTypes;
 
-    llvm::Function* func = instance.LModule->getFunction(ident);
+    llvm::Function* func = instance.LModule->getFunction(ident->toString());
     if (!func)
         throw std::runtime_error("No such function defined");
 
@@ -460,7 +429,7 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
         arguments.push_back(item.llvmCodegen(instance));
 
     if (!func->getReturnType()->isVoidTy())
-        return instance.Builder.CreateCall(func, arguments, ident);
+        return instance.Builder.CreateCall(func, arguments, ident->toString());
 
     instance.Builder.CreateCall(func, arguments);
     return nullptr;
@@ -468,7 +437,7 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
-    llvm::Type* type = instance.SymManager.lookupType(var_type).type;
+    llvm::Type* type = var_type->llvmCodegen(instance);
 
     llvm::Value* ret;
     llvm::Value* init = nullptr;
@@ -480,27 +449,22 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
         // TODO
         auto* var = new llvm::GlobalVariable(
                 *instance.LModule, type, is_const, llvm::GlobalVariable::InternalLinkage,
-                nullptr, var_ident
+                nullptr, var_ident->toString()
                 );
 
         if (init) {
             const auto val = llvm::dyn_cast<llvm::Constant>(init);
             var->setInitializer(val);
         } ret = var;
+        instance.SymManager.lookupDecl(this->var_ident).ptr = var;
     } else {
-        llvm::AllocaInst* var_alloca = instance.Builder.CreateAlloca(type, nullptr, var_ident);
+        llvm::AllocaInst* var_alloca = instance.Builder.CreateAlloca(type, nullptr, var_ident->toString());
         if (init != nullptr) {
             instance.Builder.CreateStore(init, var_alloca, is_volatile);
         }
 
-        TableEntry entry{};
-        entry.ptr = var_alloca;
-        entry.type = instance.SymManager.lookupType(var_type).type;
-        entry.is_volatile = is_volatile;
-        entry.bound_type = var_type;
-
-        instance.SymManager.back()[var_ident] = std::move(entry);
         ret = var_alloca;
+        instance.SymManager.lookupDecl(this->var_ident).ptr = var_alloca;
     }
 
     return ret;
@@ -549,5 +513,6 @@ void GenerateObjectFileLLVM(const LLVMBackend& instance) {
 }
 
 void printIR(const LLVMBackend& instance) {
+    llvm::verifyModule(*instance.LModule);
     instance.LModule->print(llvm::outs(), nullptr);
 }

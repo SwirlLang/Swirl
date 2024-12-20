@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
-#include <Managers/SymbolManager.h>
+
+#include <managers/SymbolManager.h>
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
@@ -16,29 +17,24 @@ public:
     SymbolManager SymManager;
 
     // ----------------[contextual-states]-------------------
-    bool IsLocalScope;
-    bool ChildHasReturned;
-    bool LatestBoundIsIntegral;
-    bool LatestBoundIsFloating;
-    bool IsAssignmentLHS;
+    bool IsLocalScope = false;
+    bool ChildHasReturned = false;
+    bool LatestBoundIsIntegral = false;
+    bool LatestBoundIsFloating = false;
+    bool IsAssignmentLHS = false;
 
     llvm::Type*        FloatTypeState;
     llvm::IntegerType* IntegralTypeState;
     // -------------------------------------------------------
 
 
-    explicit LLVMBackend(const std::string& mod_name)
-        : Builder{Context}
-          , LModule{std::make_unique<llvm::Module>(mod_name, Context)}
-          , SymManager{Context}
-          , IsLocalScope{false}
-          , ChildHasReturned{false}
-          , LatestBoundIsIntegral(false)
-          , LatestBoundIsFloating(false)
-          , IsAssignmentLHS(false)
-          , FloatTypeState{llvm::Type::getFloatTy(Context)}
-          , IntegralTypeState{llvm::Type::getInt32Ty(Context)}
-          , m_Cache(nullptr) {}
+    explicit LLVMBackend(const std::string& mod_name, SymbolManager sym_man)
+            : Builder{Context}
+            , LModule{std::make_unique<llvm::Module>(mod_name, Context)}
+            , SymManager(std::move(sym_man))
+            , FloatTypeState{llvm::Type::getFloatTy(Context)}
+            , IntegralTypeState{llvm::Type::getInt32Ty(Context)} {}
+
 
     void setIntegralTypeState(llvm::Type* state) {
         m_Cache = IntegralTypeState;
@@ -71,5 +67,5 @@ public:
     }
 
 private:
-    llvm::Type* m_Cache;
+    llvm::Type* m_Cache = nullptr;
 };
