@@ -105,15 +105,16 @@ public:
         return checkExistence(id, m_DeclTable);
     }
 
+    template <bool create_new = false>
     IdentInfo* getIDInfoFor(const std::string& id) {
-        for (const auto& [decls, type] : std::views::zip(m_DeclTable, m_TypeTable) | std::views::take(m_ScopeInt + 1)) {
-            if (auto decl_id = decls.getIDInfoFor(id); decl_id.has_value())
-                return decl_id.value();
-            if (auto type_id = type.getIDInfoFor(id); type_id.has_value())
-                return type_id.value();
-        }
-
-        throw std::runtime_error("SymbolManager::getIDInfoFor: No decl found");
+        if constexpr (!create_new) {
+            for (const auto& [decls, type] : std::views::zip(m_DeclTable, m_TypeTable) | std::views::take(m_ScopeInt + 1)) {
+                if (auto decl_id = decls.getIDInfoFor(id); decl_id.has_value())
+                    return decl_id.value();
+                if (auto type_id = type.getIDInfoFor(id); type_id.has_value())
+                    return type_id.value();
+            } throw std::runtime_error("SymbolManager::getIDInfoFor: No decl found");
+        } return m_TypeTable.at(m_ScopeInt).getNewIDInfo(id);
     }
 
     void newScope() {

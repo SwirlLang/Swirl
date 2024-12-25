@@ -104,7 +104,7 @@ SwNode Parser::dispatch() {
 
                     if (m_Stream.p_CurTk.type == OP && m_Stream.p_CurTk.value == "=") {
                         std::cout << "ass detected" << std::endl;
-                        Assignment ass{};
+                        Assignment ass;
                         ass.l_value = std::move(expr);
 
                         forwardStream();
@@ -129,7 +129,6 @@ SwNode Parser::dispatch() {
             case PUNC:
                 if (m_Stream.p_CurTk.value == "(")
                     goto assignment_lhs;
-
                 if (m_Stream.p_CurTk.value == ";") {
                     forwardStream();
                     continue;
@@ -178,16 +177,17 @@ void Parser::callBackend() {
 
 std::unique_ptr<Function> Parser::parseFunction() {
     Function func_nd{};
-    std::string func_ident = m_Stream.next().value;
+    const std::string func_ident = m_Stream.next().value;
 
     forwardStream(2);
-
     auto function_t = std::make_unique<FunctionType>();
     function_t->ident = func_nd.ident;
 
-    static auto parse_params = [this, &function_t] {
-        Var param{};
-        param.var_ident = SymbolTable.getIDInfoFor(m_Stream.p_CurTk.value); // parameter ident
+    SymbolTable.newScope();
+
+    static auto parse_params = [&, this] {
+        Var param;
+        const std::string var_name = m_Stream.p_CurTk.value;
 
         forwardStream(2);
         param.var_type = parseType();
@@ -197,6 +197,13 @@ std::unique_ptr<Function> Parser::parseFunction() {
             param.value = parseExpr();
 
         function_t->param_types.push_back(param.var_type);
+
+        TableEntry param_entry;
+        param_entry.swirl_type = param.var_type;
+        param_entry.is_param = true;
+
+        param.var_ident = SymbolTable.registerDecl(var_name, param_entry);
+
         return std::move(param);
     };
 
@@ -213,18 +220,18 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ":") {
         forwardStream();
-        m_LatestFuncRetType = func_nd.ret_type = parseType();
+        m_LatestFuncRetType = parseType();
+        func_nd.ret_type = m_LatestFuncRetType;
         function_t->ret_type = func_nd.ret_type;
     }
 
-    TableEntry entry{};
+    TableEntry entry;
     entry.swirl_type = function_t.get();
     func_nd.ident = SymbolTable.registerDecl(func_ident, entry);
     SymbolTable.registerType(func_nd.ident, function_t.release());
 
     // parse the children
     forwardStream();
-    SymbolTable.newScope();
     while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}")) {
         func_nd.children.push_back(std::move(dispatch()));
     } forwardStream();
@@ -357,7 +364,7 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     forwardStream();
     Struct ret{};
 
-    ret.ident = SymbolTable.getIDInfoFor(m_Stream.p_CurTk.value);
+    ret.ident = SymbolTable.getIDInfoFor<true>(m_Stream.p_CurTk.value);
 
     auto struct_t = std::make_unique<StructType>();
     struct_t->ident = ret.ident;
@@ -381,7 +388,6 @@ std::unique_ptr<Struct> Parser::parseStruct() {
 
     forwardStream();
     SymbolTable.destroyLastScope();
-
     SymbolTable.registerType(ret.ident, struct_t.release());
     return std::make_unique<Struct>(std::move(ret));
 }

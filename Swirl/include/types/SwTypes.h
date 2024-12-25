@@ -7,7 +7,7 @@
 
 class IdentInfo;
 class  LLVMBackend;
-
+struct Var;
 
 struct Type {
     enum SwTypes {
@@ -60,6 +60,7 @@ struct FunctionType final : Type {
 struct StructType final : Type {
     IdentInfo* ident;
 
+    // std::unordered_map<IdentInfo*, std::unique_ptr<Var>> fields;
     std::map<IdentInfo*, std::pair<std::size_t, Type*>> fields;
 
     SwTypes getSwType() override { return STRUCT; }

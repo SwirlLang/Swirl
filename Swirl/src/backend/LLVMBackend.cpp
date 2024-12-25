@@ -82,8 +82,8 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
     const auto e = instance.SymManager.lookupDecl(this->value);
-    if (e.is_param) return e.ptr;
-    if (instance.IsAssignmentLHS) return e.ptr;
+    if (e.is_param) { return e.ptr; }
+    if (instance.IsAssignmentLHS) { return e.ptr; }
     return instance.Builder.CreateLoad(e.swirl_type->llvmCodegen(instance), e.ptr);
 }
 
@@ -100,8 +100,9 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
     for (int i = 0; i < params.size(); i++) {
         const auto p_name = params[i].var_ident;
         const auto param = func->getArg(i);
-
         param->setName(p_name->toString());
+
+        instance.SymManager.lookupDecl(p_name).ptr = func->getArg(i);
     }
 
     // for (const auto& child : this->children)
@@ -227,9 +228,10 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             static Type* BoundType;  // used to propagate the bound type up the recursion hierarchy
             static int   recursion_depth = 0;
 
-            if (operands.front()->getIdentInfo()->toString() == ".") {
+            if (operands.front()->getNodeType() == ND_OP && dynamic_cast<Op*>(operands.front().get())->value == ".") {
                 recursion_depth++;
-                llvm::Value* op1 = OpTable[{".", 2}](operands.at(0)->getMutOperands());
+                llvm::Value* op1 = OpTable[{".", 2}](operands.front()->getMutOperands());
+                
                 // auto struct_t = instance.SymManager.lookupType(BoundType->getIdent());  // dependent struct type
                 // auto* struct_type = struct_t->llvmCodegen(instance);
 
@@ -256,7 +258,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             auto* struct_t = dynamic_cast<StructType*>(struct_entry);
 
             auto [index, mem_bound_type] = struct_t->fields.at(operands.at(1)->getIdentInfo());
-            llvm::Type* member_ty = instance.SymManager.lookupType(mem_bound_type->getIdent())->llvmCodegen(instance);
+            llvm::Type* member_ty = mem_bound_type->llvmCodegen(instance);
             BoundType = mem_bound_type;
 
 
@@ -364,25 +366,25 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
 
 // useless
 llvm::Value* Struct::llvmCodegen(LLVMBackend& instance) {
-    std::vector<llvm::Type*> types;
-    std::vector<std::string> names;
-    std::vector<Type*> type_names;
-
-    types.reserve(members.size());
-    names.reserve(members.size());
-    type_names.reserve(members.size());
-
-    for (const auto& mem : members)
-        if (mem->getNodeType() == ND_VAR) {
-            const auto field = dynamic_cast<Var*>(mem.get());
-            types.push_back(instance.SymManager.lookupType(field->var_type->getIdent())->llvmCodegen(instance));
-            names.push_back(field->var_ident->toString());
-            type_names.push_back(field->var_type);
-        }
-
-    auto* struct_ = llvm::StructType::get(instance.Context);
-    struct_->setName(ident->toString());
-    struct_->setBody(types);
+    // std::vector<llvm::Type*> types;
+    // std::vector<std::string> names;
+    // std::vector<Type*> type_names;
+    //
+    // types.reserve(members.size());
+    // names.reserve(members.size());
+    // type_names.reserve(members.size());
+    //
+    // for (const auto& mem : members)
+    //     if (mem->getNodeType() == ND_VAR) {
+    //         const auto field = dynamic_cast<Var*>(mem.get());
+    //         types.push_back(instance.SymManager.lookupType(field->var_type->getIdent())->llvmCodegen(instance));
+    //         names.push_back(field->var_ident->toString());
+    //         type_names.push_back(field->var_type);
+    //     }
+    //
+    // auto* struct_ = llvm::StructType::get(instance.Context);
+    // struct_->setName(ident->toString());
+    // struct_->setBody(types);
 
     return nullptr;
 }
@@ -513,6 +515,6 @@ void GenerateObjectFileLLVM(const LLVMBackend& instance) {
 }
 
 void printIR(const LLVMBackend& instance) {
-    llvm::verifyModule(*instance.LModule);
+    llvm::verifyModule(*instance.LModule, &llvm::errs());
     instance.LModule->print(llvm::outs(), nullptr);
 }

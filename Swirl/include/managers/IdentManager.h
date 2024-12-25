@@ -4,7 +4,6 @@
 #include <utility>
 #include <unordered_map>
 
-
 class IdentInfo {
     std::string id;
     friend class IdentManager;
