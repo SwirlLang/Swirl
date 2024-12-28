@@ -43,7 +43,7 @@ struct Node {
 
     virtual const std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
 
-    virtual llvm::Value* llvmCodegen(LLVMBackend& instance) { return nullptr; }
+    virtual llvm::Value* llvmCodegen(LLVMBackend& instance) { throw std::runtime_error("llvmCodegen called on Node instance"); }
 
     virtual int8_t getArity() { throw std::runtime_error("getArity called on base Node instance "); }
 
@@ -60,7 +60,7 @@ struct Node {
 
 struct Expression : Node {
     std::vector<std::unique_ptr<Node>> expr;
-    Type* expr_type{};
+    Type* expr_type = nullptr;
 
     Expression() = default;
     Expression(Expression&& other) noexcept {
@@ -110,7 +110,6 @@ struct Op final : Expression {
 
     Op() = default;
     explicit Op(std::string val): value(std::move(val)) {}
-
 
     void setArity(const int8_t val) override {
         arity = val;
@@ -194,10 +193,10 @@ struct StrLit final : Expression {
     llvm::Value *llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct Ident final : Expression {
+struct Ident final : Node {
     IdentInfo* value;
 
-    explicit Ident(IdentInfo*  val): value(val) {}
+    explicit Ident(IdentInfo* val): value(val) {}
 
     IdentInfo* getIdentInfo() override {
         return value;
@@ -235,10 +234,11 @@ struct Var final : Node {
 
 struct Function final : Node {
     IdentInfo* ident = nullptr;
-    Type* ret_type = nullptr;
+    Type*  ret_type = nullptr;
+    Type** reg_ret_type = nullptr;
 
-    std::vector<Var> params{};
-    std::vector<std::unique_ptr<Node>> children{};
+    std::vector<Var> params;
+    std::vector<std::unique_ptr<Node>> children;
 
     IdentInfo* getIdentInfo() override {
         return ident;
@@ -250,6 +250,11 @@ struct Function final : Node {
 
     bool hasScopes() override {
         return true;
+    }
+
+    void updateRetTypeTo(Type* to) {
+        *reg_ret_type = to;
+        ret_type = to;
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;

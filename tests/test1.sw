@@ -1,4 +1,3 @@
-fn meow(): i32 {
-    var b: i64 = 344;
-    var a = 1 + b;
+fn procedure(a: i32, b: i64) {
+    return a + b;
 }

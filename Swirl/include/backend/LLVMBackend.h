@@ -23,8 +23,9 @@ public:
     bool LatestBoundIsFloating = false;
     bool IsAssignmentLHS = false;
 
-    llvm::Type*        FloatTypeState;
-    llvm::IntegerType* IntegralTypeState;
+    Type*              LatestBoundType = nullptr;
+    llvm::Type*        FloatTypeState = nullptr;
+    llvm::IntegerType* IntegralTypeState = nullptr;
     // -------------------------------------------------------
 
 

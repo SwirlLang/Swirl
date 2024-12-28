@@ -12,11 +12,7 @@
 class Parser {
     TokenStream  m_Stream;
     ErrorManager m_ErrorMan;
-    Type*        m_LatestFuncRetType = nullptr;
-
-    bool m_AppendToScope = false;
-    bool m_TokenToScope  = false;
-
+    Function*    m_LatestFuncNode = nullptr;
 
 public:
     SymbolManager SymbolTable;

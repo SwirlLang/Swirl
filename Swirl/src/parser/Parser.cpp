@@ -53,6 +53,7 @@ SwNode Parser::dispatch() {
 
         switch (m_Stream.p_CurTk.type) {
             case KEYWORD:
+                // pattern matching in C++ when?
                 if (m_Stream.p_CurTk.value == "const" || m_Stream.p_CurTk.value == "var") {
                     auto ret = parseVar(false);
                     return std::move(ret);
@@ -77,8 +78,9 @@ SwNode Parser::dispatch() {
                     return parseVar(true);
                 }
 
-                if (m_Stream.p_CurTk.value == "return")
+                if (m_Stream.p_CurTk.value == "return") {
                     return parseRet();
+                }
 
             case IDENT:
                 if (const Token p_tk = m_Stream.peek();
@@ -165,7 +167,7 @@ void Parser::parse() {
 void Parser::callBackend() {
     SymbolTable.lockNewScpEmplace();
     LLVMBackend llvm_instance{"deme", std::move(SymbolTable)};
-    for (const auto & a : ParsedModule) {
+    for (const auto& a : ParsedModule) {
         // a->print();
         a->llvmCodegen(llvm_instance);
     }
@@ -174,14 +176,23 @@ void Parser::callBackend() {
     GenerateObjectFileLLVM(llvm_instance);
 }
 
+/// returns whether `t1` is implicitly convertible to `t2`
+bool implicitlyConvertible(Type* t1, Type* t2) {
+    // TODO: handled signed-ness
+    if (t1->isIntegral() && t2->isIntegral()) {
+        return t1->getBitWidth() <= t2->getBitWidth();
+    }
+    return false;
+}
 
 std::unique_ptr<Function> Parser::parseFunction() {
-    Function func_nd{};
+    Function func_nd;
     const std::string func_ident = m_Stream.next().value;
 
     forwardStream(2);
     auto function_t = std::make_unique<FunctionType>();
     function_t->ident = func_nd.ident;
+    func_nd.reg_ret_type = &function_t->ret_type;
 
     SymbolTable.newScope();
 
@@ -195,7 +206,6 @@ std::unique_ptr<Function> Parser::parseFunction() {
         param.initialized = m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "=";
         if (param.initialized)
             param.value = parseExpr();
-
         function_t->param_types.push_back(param.var_type);
 
         TableEntry param_entry;
@@ -211,17 +221,16 @@ std::unique_ptr<Function> Parser::parseFunction() {
         while (m_Stream.p_CurTk.value != ")" && m_Stream.p_CurTk.type != PUNC) {
             func_nd.params.push_back(parse_params());
             if (m_Stream.p_CurTk.value == ",")
-                m_Stream.next();
+                forwardStream();
         }
     }
 
     // current token == ')'
-    m_Stream.next();
+    forwardStream();
 
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ":") {
         forwardStream();
-        m_LatestFuncRetType = parseType();
-        func_nd.ret_type = m_LatestFuncRetType;
+        func_nd.ret_type = parseType();
         function_t->ret_type = func_nd.ret_type;
     }
 
@@ -230,21 +239,26 @@ std::unique_ptr<Function> Parser::parseFunction() {
     func_nd.ident = SymbolTable.registerDecl(func_ident, entry);
     SymbolTable.registerType(func_nd.ident, function_t.release());
 
+    // WARNING: func_nd has been MOVED here!!
+    auto ret = std::make_unique<Function>(std::move(func_nd));
+    // ReSharper disable once CppDFALocalValueEscapesFunction
+    m_LatestFuncNode = ret.get();
+
     // parse the children
     forwardStream();
     while (!(m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == "}")) {
-        func_nd.children.push_back(std::move(dispatch()));
+        ret->children.push_back(dispatch());
     } forwardStream();
     SymbolTable.destroyLastScope();
 
-    return std::make_unique<Function>(std::move(func_nd));
+    return std::move(ret);
 }
 
 std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     Var var_node;
     var_node.is_const = m_Stream.p_CurTk.value[0] == 'c';
     var_node.is_volatile = is_volatile;
-    std::string var_ident = m_Stream.next().value;
+    const std::string var_ident = m_Stream.next().value;
     forwardStream();  // [:, =]
 
 
@@ -304,11 +318,19 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
     if (m_Stream.p_CurTk.type == PUNC && m_Stream.p_CurTk.value == ";")
         return std::make_unique<ReturnStatement>(std::move(ret));
 
-    ret.parent_ret_type = m_LatestFuncRetType;
+    ret.value = parseExpr();
+    if (m_LatestFuncNode->ret_type == nullptr) {
+        m_LatestFuncNode->updateRetTypeTo(ret.value.expr_type);
+        ret.parent_ret_type = ret.value.expr_type;
+    }
+    else {
+        if (!implicitlyConvertible(ret.value.expr_type, m_LatestFuncNode->ret_type)) {
+            throw std::runtime_error("returned value type-mismatch");
+        }
+        ret.value.expr_type = m_LatestFuncNode->ret_type;
+        ret.parent_ret_type = m_LatestFuncNode->ret_type;
+    }
 
-    ret.value.expr_type = m_LatestFuncRetType;
-    ret.value = parseExpr(m_LatestFuncRetType);
-    ret.value.expr_type = ret.parent_ret_type;
     return std::make_unique<ReturnStatement>(std::move(ret));
 }
 
@@ -571,6 +593,7 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
         ret.expr_type = deduced_type;
         return std::move(ret);
 
+        
     } else {
         auto tmp = parse_component();
         if (continue_parsing()) {

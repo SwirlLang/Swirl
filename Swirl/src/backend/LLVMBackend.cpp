@@ -80,11 +80,20 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
     return llvm::ConstantDataArray::getString(instance.Context, value, false);
 }
 
+
 llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
     const auto e = instance.SymManager.lookupDecl(this->value);
-    if (e.is_param) { return e.ptr; }
+    // if (e.is_param) { return e.ptr; }
     if (instance.IsAssignmentLHS) { return e.ptr; }
-    return instance.Builder.CreateLoad(e.swirl_type->llvmCodegen(instance), e.ptr);
+
+    // TODO: signdness!
+    if (instance.LatestBoundType != e.swirl_type) {
+        if (instance.LatestBoundType->isIntegral()) {
+            return instance.Builder.CreateZExtOrTrunc(e.ptr, instance.LatestBoundType->llvmCodegen(instance));
+        }
+    }
+
+    return e.is_param ? e.ptr : instance.Builder.CreateLoad(instance.LatestBoundType->llvmCodegen(instance), e.ptr);
 }
 
 llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
@@ -117,11 +126,12 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
     if (!value.expr.empty()) {
-        const auto ret = value.llvmCodegen(instance);
+        llvm::Value* ret = value.llvmCodegen(instance);
         instance.Builder.CreateRet(ret);
         return nullptr;
     }
 
+    std::println("value.expr is empty!!!!!!!");
     instance.Builder.CreateRetVoid();
     return nullptr;
 }
@@ -288,6 +298,8 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
     llvm::Type* e_type = nullptr;
+
+    instance.LatestBoundType = this->expr_type;
 
     // ReSharper disable once CppDFANullDereference
     e_type = expr_type->llvmCodegen(instance);
