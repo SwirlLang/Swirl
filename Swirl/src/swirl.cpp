@@ -4,24 +4,19 @@
 #include <vector>
 #include <thread>
 #include <filesystem>
-#include <unordered_map>
 
 #include <cli/cli.h>
-#include <tokenizer/InputStream.h>
-#include <tokenizer/Tokenizer.h>
 #include <parser/Parser.h>
 #include <include/SwirlConfig.h>
 
 
-bool SW_DEBUG = false;
-std::string SW_FED_FILE_PATH{};
-std::string SW_OUTPUT{};
-std::string SW_FED_FILE_SOURCE{};
-std::string SW_COMPLETE_FED_FILE_PATH{};
+std::string SW_FED_FILE_PATH;
+std::string SW_OUTPUT;
+std::string SW_FED_FILE_SOURCE;
+std::string SW_COMPLETE_FED_FILE_PATH;
 
 std::thread::id MAIN_THREAD_ID = std::this_thread::get_id();
 
-std::unordered_map<std::size_t, std::string> LineTable{};
 
 const std::vector<Argument> application_flags = {
     {{"-h","--help"}, "Show the help message", false, {}},
@@ -59,24 +54,11 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    std::ifstream fed_file_src_buf(SW_FED_FILE_PATH);
-
-    std::size_t line = 1;
-    for (std::string cur_ln; std::getline(fed_file_src_buf, cur_ln); line++) {
-        SW_FED_FILE_SOURCE += cur_ln + '\n';
-        LineTable[line] = cur_ln;
-    }
-
-//    SW_FED_FILE_SOURCE = {
-//            std::istreambuf_iterator<char>(fed_file_src_buf),
-//            {}
-//    };
-
-    fed_file_src_buf.close();
+    std::ifstream file_stream(SW_FED_FILE_PATH);
+    SW_FED_FILE_SOURCE = {std::istreambuf_iterator(file_stream), std::istreambuf_iterator<char>{}};
+    file_stream.close();
 
     std::string cache_dir = getWorkingDirectory(SW_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP;
-
-    bool _debug = app.contains_flag("-d");
 
     std::string file_name = SW_FED_FILE_PATH.substr(SW_FED_FILE_PATH.find_last_of("/\\") + 1);
     std::string out_dir = SW_FED_FILE_PATH.replace(SW_FED_FILE_PATH.find(file_name),file_name.length(),"");
@@ -90,14 +72,8 @@ int main(int argc, const char** argv) {
     SW_FED_FILE_SOURCE += "\n";
 
     if ( !SW_FED_FILE_SOURCE.empty() ) {
-        InputStream is{SW_FED_FILE_SOURCE};
-        TokenStream tk{is, _debug};
-        // preProcess(SW_FED_FILE_SOURCE, tk, cache_dir);
-
-        Parser parser(tk);
+        Parser parser(SW_FED_FILE_SOURCE);
         parser.parse();
         parser.callBackend();
-        // Transpile(parser.m_AST->chl, cache_dir + SW_OUTPUT + ".cpp", compiled_source);
-
     }
 }

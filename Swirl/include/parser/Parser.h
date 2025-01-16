@@ -4,21 +4,21 @@
 #include <parser/Nodes.h>
 #include <types/SwTypes.h>
 #include <backend/LLVMBackend.h>
-#include <tokenizer/Tokenizer.h>
-#include <tokens/Tokens.h>
+#include <tokenizer/TokenStream.h>
+#include <tokenizer/Tokens.h>
 #include <managers/ErrorManager.h>
 
 
 class Parser {
     TokenStream  m_Stream;
-    ErrorManager m_ErrorMan;
     Function*    m_LatestFuncNode = nullptr;
+    ErrorManager m_ErrMan;
 
 public:
     SymbolManager SymbolTable;
     std::vector<std::unique_ptr<Node>> ParsedModule;
 
-    explicit Parser(TokenStream);
+    explicit Parser(std::string);
 
     std::unique_ptr<Node> parseCall();
     std::unique_ptr<Node> dispatch();

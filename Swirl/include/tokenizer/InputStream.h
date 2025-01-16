@@ -1,19 +1,20 @@
-#include <iostream>
+#pragma once
 #include <unordered_map>
-#include <vector>
-
-#ifndef INPUT_STREAM_H_Swirl
-#define INPUT_STREAM_H_Swirl
-
 
 class InputStream {
     std::tuple<size_t, size_t, size_t> cache;
-    std::string m_CurrentLine{};
+    std::string m_CurrentLine;
+    std::string m_Source;
+
+    struct m_LineMeta_t { std::size_t from{}, line_size{}; };
+    std::unordered_map<std::size_t, m_LineMeta_t> m_LineTable;
+
+
 public:
     std::size_t Pos = 0, Line = 1, Col = 0;
     std::unordered_map<std::size_t, std::string> LineMap{};
 
-    explicit InputStream(std::string_view _source);
+    explicit InputStream(std::string);
 
     /** @brief Returns the next value without discarding it */
     char peek() const;
@@ -35,11 +36,9 @@ public:
     /** @brief resets the state of the m_Stream */
     void reset();
 
+    std::string getLineAt(std::size_t);
     std::string getCurrentLine() const;
 
 private:
-    std::string_view m_Source{};
     char m_CurrentChar{};
 };
-
-#endif

@@ -13,11 +13,19 @@ struct Type {
     enum SwTypes {
         FUNCTION,
         STRUCT,
+
         I8,
         I16,
         I32,
         I64,
         I128,
+
+        U8,
+        U16,
+        U32,
+        U64,
+        U128,
+
         F32,
         F64,
         BOOL,
@@ -33,6 +41,7 @@ struct Type {
 
     virtual bool     isIntegral() { return false; }
     virtual bool     isFloatingPoint() { return false; }
+    virtual bool     isUnsigned() { return false; }
     virtual int      getBitWidth() { return -1; }
 
     virtual bool operator==(Type* other) { return getSwType() == other->getSwType(); }
@@ -97,7 +106,7 @@ struct PointerType final : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct TypeI8 final : Type {
+struct TypeI8 : Type {
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getSwType() override { return I8; }
 
@@ -107,17 +116,7 @@ struct TypeI8 final : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct TypeI32 final : Type {
-    [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes getSwType() override { return I32; }
-
-    bool isIntegral() override { return true; }
-    int  getBitWidth() override { return 32; }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
-};
-
-struct TypeI16 final : Type {
+struct TypeI16 : Type {
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getSwType() override { return I16; }
 
@@ -127,7 +126,18 @@ struct TypeI16 final : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct TypeI64 final : Type {
+struct TypeI32 : Type {
+    [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
+    SwTypes getSwType() override { return I32; }
+
+    bool isIntegral() override { return true; }
+    int  getBitWidth() override { return 32; }
+
+    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
+};
+
+
+struct TypeI64 : Type {
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getSwType() override { return I64; }
 
@@ -137,7 +147,7 @@ struct TypeI64 final : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct TypeI128 final : Type {
+struct TypeI128 : Type {
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getSwType() override { return I128; }
 
@@ -145,6 +155,31 @@ struct TypeI128 final : Type {
     int  getBitWidth() override { return 128; }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
+};
+
+struct TypeU8 final : TypeI8 {
+    SwTypes getSwType() override { return U8; }
+    bool isUnsigned() override { return true; }
+};
+
+struct TypeU16 final : TypeI16 {
+    SwTypes getSwType() override { return U16; }
+    bool isUnsigned() override { return true; }
+};
+
+struct TypeU32 final : TypeI32 {
+    SwTypes getSwType() override { return U32; }
+    bool isUnsigned() override { return true; }
+};
+
+struct TypeU64 final : TypeI64 {
+    SwTypes getSwType() override { return U64; }
+    bool isUnsigned() override { return true; }
+};
+
+struct TypeU128 final : TypeI128 {
+    SwTypes getSwType() override { return U128; }
+    bool isUnsigned() override { return true; }
 };
 
 struct TypeF32 final : Type {

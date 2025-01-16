@@ -1,6 +1,4 @@
-#ifndef SWIRL_TOKENS_H
-#define SWIRL_TOKENS_H
-
+#pragma once
 #include <string>
 
 enum TokenType {
@@ -31,26 +29,24 @@ inline const char* to_string(const TokenType e) {
     }
 }
 
-enum CompTimeTypes {
+enum TokenMeta {
     CT_FLOAT,
     CT_INT,
-    CT_BOOL,
 };
 
 struct StreamState {
-    std::size_t Line, Pos, Col;
+    std::size_t Line{}, Pos{}, Col{};
 };
 
 
 struct Token {
-    TokenType type;
+    TokenType type{};
     std::string value;
     StreamState location;
 
-    CompTimeTypes meta_ti{};
+    TokenMeta meta{};
 
     bool operator==(const Token& other) const {
         return type == other.type && value == other.value;
     }
 };
-#endif // SWIRL_TOKENS_H

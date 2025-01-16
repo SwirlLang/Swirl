@@ -60,21 +60,31 @@ class SymbolManager {
     std::vector<Scope> m_TypeTable;
     std::vector<Scope> m_DeclTable;
 
+
 public:
     SymbolManager() {
         // global scope
         m_TypeTable.emplace_back();
         m_DeclTable.emplace_back();
 
-        // register default types in the global scope
+        // register built-in types in the global scope
         registerType(m_TypeTable.front().getNewIDInfo("i8"),   new TypeI8{});
         registerType(m_TypeTable.front().getNewIDInfo("i16"),  new TypeI16{});
         registerType(m_TypeTable.front().getNewIDInfo("i32"),  new TypeI32{});
         registerType(m_TypeTable.front().getNewIDInfo("i64"),  new TypeI64{});
         registerType(m_TypeTable.front().getNewIDInfo("i128"), new TypeI128{});
 
+        registerType(m_TypeTable.front().getNewIDInfo("u8"),   new TypeU8{});
+        registerType(m_TypeTable.front().getNewIDInfo("u16"),  new TypeU16{});
+        registerType(m_TypeTable.front().getNewIDInfo("u32"),  new TypeU32{});
+        registerType(m_TypeTable.front().getNewIDInfo("u64"),  new TypeU64{});
+        registerType(m_TypeTable.front().getNewIDInfo("u128"), new TypeU128{});
+
+
         registerType(m_TypeTable.front().getNewIDInfo("f32"),  new TypeF32{});
         registerType(m_TypeTable.front().getNewIDInfo("f64"),  new TypeF64{});
+
+        registerType(m_TypeTable.front().getNewIDInfo("bool"), new TypeBool{});
     }
 
     TableEntry& lookupDecl(IdentInfo* id) {

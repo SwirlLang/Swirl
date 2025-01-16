@@ -2,10 +2,12 @@
 #include <memory>
 
 #include <managers/SymbolManager.h>
+#include <managers/ErrorManager.h>
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+
 
 
 class LLVMBackend {
@@ -14,7 +16,8 @@ public:
     llvm::IRBuilder<> Builder;
 
     std::unique_ptr<llvm::Module> LModule;
-    SymbolManager SymManager;
+    SymbolManager SymMan;
+    ErrorManager  ErrMan;
 
     // ----------------[contextual-states]-------------------
     bool IsLocalScope = false;
@@ -29,10 +32,11 @@ public:
     // -------------------------------------------------------
 
 
-    explicit LLVMBackend(const std::string& mod_name, SymbolManager sym_man)
+    explicit LLVMBackend(const std::string& mod_name, SymbolManager sym_man, ErrorManager em)
             : Builder{Context}
             , LModule{std::make_unique<llvm::Module>(mod_name, Context)}
-            , SymManager(std::move(sym_man))
+            , SymMan(std::move(sym_man))
+            , ErrMan(std::move(em))
             , FloatTypeState{llvm::Type::getFloatTy(Context)}
             , IntegralTypeState{llvm::Type::getInt32Ty(Context)} {}
 
