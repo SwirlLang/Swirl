@@ -4,7 +4,8 @@
 
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Instructions.h>
-#include <backend/LLVMBackend.h>
+
+class LLVMBackend;
 
 enum NodeType {
     ND_INVALID,     //  0
@@ -27,6 +28,7 @@ enum NodeType {
 
 struct Var;
 class IdentInfo;
+struct Type;
 
 
 // A common base class for all the nodes

@@ -18,22 +18,21 @@ char InputStream::getCurrentChar() const {
 char InputStream::next() {
     const char chr = m_Source.at(Pos);
     m_CurrentChar = chr;
-    Pos++;
 
     static std::size_t line_size = 0;
+    m_LineTable[Line] = {.from = Pos - line_size, .line_size = line_size + 1};  // TODO
+    Pos++;
 
     if (chr == '\n') {
         prev_col_state = Col;
-        m_LineTable[Line] = {.from = Pos - line_size, .line_size = line_size};
-        std::println("adding line: {} ", Line);
         line_size = 0;
         m_CurrentLine.clear();
         Line++;
         Col = 0;
 
     } else {
-        Col++;
         line_size++;
+        Col++;
         m_CurrentLine += chr;
     }
 

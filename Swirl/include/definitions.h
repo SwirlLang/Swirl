@@ -1,19 +1,17 @@
 #pragma once
 #include <string>
 #include <cstdint>
+#include <filesystem>
 #include <unordered_map>
 
 
-// /// maps {previous-node's type, current node's type} to the corresponding deducted type
-// inline const std::unordered_map<std::pair<Type::SwTypes, Type::SwTypes>, Type*> DeductionGuide =
-// {
-//     {{Type::F32, Type::F64}, new TypeF64{}},
-//     {{Type::F64, Type::F32}, new TypeF64{}},
-//
-//     {{Type::I32, Type::I64}, new TypeI64{}},
-//     {{Type::I64, Type::I32}, new TypeI64{}},
-// };
-
+consteval std::filesystem::path getSpmPkgInstallDir() {
+#if defined(_WIN32) || defined(_WIN64)
+    return "%APPDATA%\\local\\spm\\packages";
+#elif defined(__linux__) || defined (__APPLE__)
+    return "~/.spm/packages";
+#endif
+}
 
 inline const std::unordered_map<std::string, uint8_t> keywords = {
     {"return", 1},  {"if", 2},      {"else", 3},

@@ -10,7 +10,7 @@
 #include <parser/Nodes.h>
 #include <parser/Parser.h>
 #include <definitions.h>
-#include <filesystem>
+#include <backend/LLVMBackend.h>
 
 
 using SwNode = std::unique_ptr<Node>;
@@ -23,8 +23,8 @@ extern void GenerateObjectFileLLVM(const LLVMBackend&);
 
 Parser::~Parser() = default;
 
-Parser::Parser(std::string src): m_Stream{std::move(src)}, m_ErrMan{m_Stream} {
-    m_Stream.ErrMan = &m_ErrMan;
+Parser::Parser(std::string src): m_Stream{std::move(src)}, ErrMan{m_Stream} {
+    m_Stream.ErrMan = &ErrMan;
 }
 
 Token Parser::forwardStream(const uint8_t n) {
@@ -108,7 +108,6 @@ SwNode Parser::dispatch() {
                     Expression expr = parseExpr();
 
                     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "=") {
-                        std::cout << "ass detected" << std::endl;
                         Assignment ass;
                         ass.l_value = std::move(expr);
 
@@ -122,7 +121,6 @@ SwNode Parser::dispatch() {
                 {
                     Expression expr = parseExpr();
                     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "=") {
-                        std::cout << "ass detected (OP)" << std::endl;
                         Assignment ass{};
                         ass.l_value = std::move(expr);
 
@@ -138,7 +136,6 @@ SwNode Parser::dispatch() {
                     forwardStream();
                     continue;
                 } if (m_Stream.CurTok.value == "}") {
-                    std::cout << "Warning: emtpy node returned" << std::endl;
                     return std::make_unique<Node>();
                 }
             default:
@@ -148,7 +145,6 @@ SwNode Parser::dispatch() {
                 throw std::runtime_error("dispatch: nothing found");
         }
     }
-
     throw std::runtime_error("dispatch: this wasn't supposed to happen");
 }
 
@@ -162,19 +158,18 @@ void Parser::parse() {
 
     forwardStream();
     while (!m_Stream.eof()) {
-        ParsedModule.emplace_back(dispatch());
+        AST.emplace_back(dispatch());
     }
 }
 
 
-
 void Parser::callBackend() {
     SymbolTable.lockNewScpEmplace();
-    LLVMBackend llvm_instance{"deme", std::move(SymbolTable), std::move(m_ErrMan)};  // TODO
-    for (const auto& a : ParsedModule) {
-        // a->print();
-        a->llvmCodegen(llvm_instance);
-    }
+    runPendingVerifications();
+    ErrMan.raiseAll();
+
+    LLVMBackend llvm_instance{std::move(AST), "deme", std::move(SymbolTable), std::move(ErrMan)};  // TODO
+    llvm_instance.startGeneration();
 
     printIR(llvm_instance);
     GenerateObjectFileLLVM(llvm_instance);
@@ -197,10 +192,8 @@ std::unique_ptr<Function> Parser::parseFunction() {
     m_Stream.expectTokens({Token{PUNC, "("}});
     forwardStream(2);
     auto function_t = std::make_unique<FunctionType>();
-    function_t->ident = func_nd.ident;
     func_nd.reg_ret_type = &function_t->ret_type;
 
-    SymbolTable.newScope();
 
     static auto parse_params = [&, this] {
         Var param;
@@ -223,6 +216,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
         return std::move(param);
     };
 
+    SymbolTable.newScope();
     if (m_Stream.CurTok.type != PUNC) {
         while (m_Stream.CurTok.value != ")" && m_Stream.CurTok.type != PUNC) {
             func_nd.params.push_back(parse_params());
@@ -230,6 +224,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
                 forwardStream();
         }
     }
+    SymbolTable.destroyLastScope();
 
     // current token == ')'
     forwardStream();
@@ -243,6 +238,8 @@ std::unique_ptr<Function> Parser::parseFunction() {
     TableEntry entry;
     entry.swirl_type = function_t.get();
     func_nd.ident = SymbolTable.registerDecl(func_ident, entry);
+    function_t->ident = func_nd.ident;
+
     SymbolTable.registerType(func_nd.ident, function_t.release());
 
     // WARNING: func_nd has been MOVED here!!
@@ -252,6 +249,10 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     // parse the children
     forwardStream();
+    SymbolTable.lockNewScpEmplace();
+    SymbolTable.newScope();
+    SymbolTable.unlockNewScpEmplace();
+
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
         ret->children.push_back(dispatch());
     } forwardStream();
@@ -294,9 +295,10 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     return std::make_unique<Var>(std::move(var_node));
 }
 
-SwNode Parser::parseCall() {
+std::unique_ptr<FuncCall> Parser::parseCall() {
     auto call_node = std::make_unique<FuncCall>();
-    call_node->ident = SymbolTable.getIDInfoFor(m_Stream.CurTok.value);
+    auto str_ident = m_Stream.CurTok.value;
+    // call_node->ident = SymbolTable.getIDInfoFor(m_Stream.CurTok.value);
     forwardStream(2);
 
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ")") {
@@ -305,12 +307,19 @@ SwNode Parser::parseCall() {
     }
 
     while (true) {
-        if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ")")
-            break;
+        if (m_Stream.CurTok.type == PUNC) {
+            if (m_Stream.CurTok.value == ",")
+                forwardStream();
+            if (m_Stream.CurTok.value == ")")
+                break;
+        }
 
-        call_node->args.emplace_back();
-        call_node->args.back() = parseExpr({});
+        call_node->args.emplace_back(parseExpr({}));
     }
+
+    VerificationQueue.emplace([str_ident, ptr = call_node.get(), this] {
+        ptr->ident = SymbolTable.getIDInfoFor(str_ident);
+    });
 
     forwardStream();
 
@@ -594,7 +603,7 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
             ret.expr_type = deduced_type;
             return std::move(ret);
         }
-
+        
         ret.expr.push_back(std::move(op));
         ret.expr_type = deduced_type;
         return std::move(ret);

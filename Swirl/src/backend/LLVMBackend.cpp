@@ -2,7 +2,9 @@
 #include <ranges>
 #include <unordered_map>
 
+
 #include <parser/Parser.h>
+#include <backend/LLVMBackend.h>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Function.h>
@@ -22,6 +24,8 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Transforms/Utils/BasicBlockUtils.h>
+
 
 // ReSharper disable all CppUseStructuredBinding
 
@@ -51,7 +55,7 @@ void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<
             child->llvmCodegen(instance);
             instance.ChildHasReturned = true;
             return;
-        } child->llvmCodegen(instance);
+        } if (child->getNodeType() != ND_INVALID) child->llvmCodegen(instance);
     }
 }
 
@@ -404,7 +408,7 @@ llvm::Value* Struct::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* WhileLoop::llvmCodegen(LLVMBackend& instance) {
     const auto parent = instance.Builder.GetInsertBlock()->getParent();
     const auto last_inst = instance.Builder.GetInsertBlock()->getTerminator();
-
+    
     const auto cond_block  = llvm::BasicBlock::Create(instance.Context, "while_cond", parent);
     const auto body_block  = llvm::BasicBlock::Create(instance.Context, "while_body", parent);
     const auto merge_block = llvm::BasicBlock::Create(instance.Context, "merge", parent);
@@ -432,8 +436,10 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Type*> paramTypes;
 
     llvm::Function* func = instance.LModule->getFunction(ident->toString());
-    if (!func)
-        throw std::runtime_error("No such function defined");
+    if (!func) {
+        instance.codegenTheFunction(ident);
+        func = instance.LModule->getFunction(ident->toString());
+    }
 
     std::vector<llvm::Value*> arguments{};
     arguments.reserve(args.size());

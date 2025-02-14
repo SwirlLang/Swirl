@@ -117,6 +117,7 @@ public:
 
     template <bool create_new = false>
     IdentInfo* getIDInfoFor(const std::string& id) {
+
         if constexpr (!create_new) {
             for (const auto& [decls, type] : std::views::zip(m_DeclTable, m_TypeTable) | std::views::take(m_ScopeInt + 1)) {
                 if (auto decl_id = decls.getIDInfoFor(id); decl_id.has_value())
@@ -137,6 +138,10 @@ public:
 
     void lockNewScpEmplace() {
         m_LockEmplace = true;
+    }
+
+    void unlockNewScpEmplace() {
+        m_LockEmplace = false;
     }
 
     void destroyLastScope() {

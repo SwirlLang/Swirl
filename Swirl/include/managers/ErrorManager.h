@@ -17,7 +17,7 @@ public:
     void newError(const std::string& message, std::optional<StreamState> at = std::nullopt) {
         m_IsErroneous = true;
         if (!at.has_value()) at = m_TokStream.getStreamState();
-        m_Message += m_TokStream.m_Stream.getLineAt(at->Line) + std::string(at->Col - 1, ' ') + "^ " + message + LINE;
+        m_Message += m_TokStream.m_Stream.getLineAt(at->Line) + '\n' + std::string(at->Col - 1, ' ') + "^ " + message + LINE;
     }
 
     void newWarning(const std::string& message, std::optional<StreamState> at = std::nullopt) {
@@ -26,16 +26,17 @@ public:
         m_Message += m_TokStream.m_Stream.getLineAt(at->Line) + std::string(at->Col - 1, ' ') + "^ " + message + LINE;
     }
 
+
     void newSafetyError(const std::string& message, std::optional<StreamState> at = std::nullopt) {
         m_IsErroneous = true;
         if (!at.has_value()) at = m_TokStream.getStreamState();
         m_Message += m_TokStream.m_Stream.getLineAt(at->Line) + std::string(at->Col - 1, ' ') + "^ " + message + LINE;
     }
 
-    ~ErrorManager() {
+    void raiseAll() {
         if (m_IsErroneous) {
             std::println(stderr, "{}", m_Message);
-            if (std::this_thread::get_id() != MAIN_THREAD_ID) {
+            if (std::this_thread::get_id() == MAIN_THREAD_ID) {
                 std::exit(1);
             }
         }
