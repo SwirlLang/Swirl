@@ -2,7 +2,7 @@
 <img width=150 src="https://raw.githubusercontent.com/SwirlLang/branding/main/logos/logo-transparent.png">
 
 # Swirl Programming Language
-A high level, statically typed, compiled programming language.
+A modern, beginner-friendly language that combines power, performance, and simplicity.
 
 [Website](https://swirl-lang.netlify.app) |
 [Docs](https://swirl-lang.netlify.app/docs) |
@@ -15,7 +15,6 @@ A high level, statically typed, compiled programming language.
 
 </div>
 <div align="center">
-The ambition of Swirl is to be a modern programming language combining and its own ideas and the best features and practices of beloved programming languages in a unique way.
 
 To get a general idea, take a look at the [scaffold](https://github.com/SwirlLang/Swirl/blob/main/scaffold.md).
 </div>
