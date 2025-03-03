@@ -1,6 +1,9 @@
 #pragma once
 #include <memory>
+#include <mutex>
 #include <queue>
+#include <shared_mutex>
+#include <utility>
 
 #include <parser/Nodes.h>
 #include <types/SwTypes.h>
@@ -10,9 +13,16 @@
 #include <managers/SymbolManager.h>
 
 
+inline std::size_t getNewModuleUID() {
+    static std::size_t uid = 0;
+    return uid++;
+}
+
 class Parser {
     TokenStream  m_Stream;
     Function*    m_LatestFuncNode = nullptr;
+    bool         m_LastSymWasExported = false;
+    std::size_t  m_ModuleUID = getNewModuleUID();  // unique id for the parser-instance per-module
 
 public:
     ErrorManager  ErrMan;
@@ -23,6 +33,18 @@ public:
 
     explicit Parser(std::string);
 
+    Parser(const Parser&) = delete;
+    Parser& operator=(const Parser&) = delete;
+
+    Parser(Parser&& other) noexcept
+    : m_Stream(std::move(other.m_Stream))
+    , m_LatestFuncNode(other.m_LatestFuncNode)
+    , m_LastSymWasExported(other.m_LastSymWasExported)
+    , ErrMan(std::move(other.ErrMan))
+    , SymbolTable(std::move(other.SymbolTable))
+    , AST(std::move(other.AST))
+    , VerificationQueue(std::move(other.VerificationQueue)) {}
+    
     std::unique_ptr<Node> dispatch();
     std::unique_ptr<FuncCall> parseCall();
     std::unique_ptr<Function> parseFunction();
@@ -38,6 +60,7 @@ public:
 
     void parse();
     void callBackend();
+    void handleImports();
 
     void runPendingVerifications() {
         while (!VerificationQueue.empty()) {
@@ -45,7 +68,26 @@ public:
             VerificationQueue.pop();
         }
     }
+};
 
-    ~Parser();
 
+class ModuleMap_t {
+    std::unordered_map<std::filesystem::path, Parser> m_ModuleMap;
+    std::shared_mutex m_Mutex;
+    
+public:
+    Parser& get(const std::filesystem::path& m) {
+        std::shared_lock guard(m_Mutex);
+        return m_ModuleMap.at(m);
+    }
+    
+    void insert(const std::filesystem::path& key, Parser parser) {
+        std::lock_guard guard(m_Mutex);
+        m_ModuleMap.emplace(key, std::move(parser));
+    }
+
+    bool contains(const std::filesystem::path& mod) {
+        std::shared_lock guard(m_Mutex);
+        return m_ModuleMap.contains(mod);
+    } 
 };

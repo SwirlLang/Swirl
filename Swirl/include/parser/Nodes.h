@@ -221,6 +221,7 @@ struct Var final : Node {
     bool initialized = false;
     bool is_const    = false;
     bool is_volatile = false;
+    bool is_exported = false;
 
     Var() = default;
 
@@ -238,6 +239,8 @@ struct Function final : Node {
     IdentInfo* ident = nullptr;
     Type*  ret_type = nullptr;
     Type** reg_ret_type = nullptr;
+
+    bool is_exported = false;
 
     std::vector<Var> params;
     std::vector<std::unique_ptr<Node>> children;

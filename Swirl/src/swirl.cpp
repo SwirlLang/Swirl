@@ -1,3 +1,4 @@
+#include "utils/utils.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -17,13 +18,14 @@ std::string SW_COMPLETE_FED_FILE_PATH;
 
 
 std::thread::id MAIN_THREAD_ID = std::this_thread::get_id();
-
+std::optional<ThreadPool_t> ThreadPool = std::nullopt;
 
 const std::vector<Argument> application_flags = {
     {{"-h","--help"}, "Show the help message", false, {}},
     {{"-o", "--output"}, "Output file name", true, {}},
     {{"-d", "--debug"}, "Log the steps of compilation", false, {}},
-    {{"-v", "--version"}, "Show the version of Swirl", false, {}}
+    {{"-v", "--version"}, "Show the version of Swirl", false, {}},
+    {{"-t", "--threads"}, "No. of threads to use (beside the mainthread).", true}
 };
 
 
@@ -70,6 +72,10 @@ int main(int argc, const char** argv) {
     if (app.contains_flag("-o"))
         SW_OUTPUT = app.get_flag_value("-o");
 
+    if (app.contains_flag("-j")) {
+        ThreadPool.emplace(std::stoi(app.get_flag_value("-j")));
+    } else { ThreadPool.emplace(std::thread::hardware_concurrency() / 2); }
+
     SW_FED_FILE_SOURCE += "\n";
 
     if ( !SW_FED_FILE_SOURCE.empty() ) {
@@ -77,4 +83,6 @@ int main(int argc, const char** argv) {
         parser.parse();
         parser.callBackend();
     }
+
+    ThreadPool->shutdown();
 }

@@ -17,11 +17,16 @@ if (WIN32)
     set(CMAKE_CXX_STANDARD_LIBRARIES "-static-libgcc -static-libstdc++ -static")
 endif (WIN32)
 
+
 option(BUILD_STDLIB "Build the standard library" OFF)
 include_directories("include")
 include_directories("${PROJECT_BINARY_DIR}")
 
-add_executable(swirl src/swirl.cpp)
+file(GLOB_RECURSE SOURCES "src/*.cpp")
+
+add_executable(swirl src/swirl.cpp
+        "${SOURCES}"
+)
 
 llvm_config(swirl USE_SHARED irreader support core)
 

@@ -1,5 +1,6 @@
-#include <iostream>
+#include <filesystem>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 #include <unordered_map>
 #include <vector>
@@ -9,21 +10,29 @@
 #include <utils/utils.h>
 #include <parser/Nodes.h>
 #include <parser/Parser.h>
+#include <tokenizer/Tokens.h>
 #include <definitions.h>
 #include <backend/LLVMBackend.h>
+#include <managers/ErrorManager.h>
+#include <managers/SymbolManager.h>
 
 
 using SwNode = std::unique_ptr<Node>;
 
+extern std::string     SW_OUTPUT;
+extern std::string     SW_FED_FILE_PATH;
+extern std::thread::id MAIN_THREAD_ID;
 
-extern std::string SW_OUTPUT;
+extern std::optional<ThreadPool_t> ThreadPool;
 
 extern void printIR(const LLVMBackend& instance);
 extern void GenerateObjectFileLLVM(const LLVMBackend&);
 
-Parser::~Parser() = default;
+ModuleMap_t ModuleMap;
 
-Parser::Parser(std::string src): m_Stream{std::move(src)}, ErrMan{m_Stream} {
+
+Parser::Parser(std::string src): m_Stream{std::move(src)}, ErrMan{&m_Stream} {
+    SymbolTable.ModuleUID = m_ModuleUID;
     m_Stream.ErrMan = &ErrMan;
 }
 
@@ -52,15 +61,26 @@ Type* Parser::parseType() {
 SwNode Parser::dispatch() {
     while (!m_Stream.eof()) {
         const TokenType type  = m_Stream.CurTok.type;
-        const std::string value = m_Stream.CurTok.value;
-
+        const std::string value = m_Stream.CurTok.value;    
+        
+        // pattern matching in C++ when?
         switch (m_Stream.CurTok.type) {
             case KEYWORD:
-                // pattern matching in C++ when?
                 if (m_Stream.CurTok.value == "const" || m_Stream.CurTok.value == "var") {
                     auto ret = parseVar(false);
                     return std::move(ret);
                 }
+
+                if (m_Stream.CurTok.value == "export") {
+                    m_LastSymWasExported = true;
+                    forwardStream();
+                    continue;
+                }
+
+                if (m_Stream.CurTok.value == "import") {
+                    handleImports();
+                }
+
                 if (m_Stream.CurTok.value == "fn") {
                     auto ret = parseFunction();
                     return std::move(ret);
@@ -140,14 +160,38 @@ SwNode Parser::dispatch() {
                 }
             default:
                 auto [line, _, col] = m_Stream.getStreamState();
-                std::cout << m_Stream.CurTok.value << ": " << type << std::endl;
-                std::cout << "Line: " << line << " Col: " << col << std::endl;
+                std::println("{}: {}\n Line: {}; Col: {}", m_Stream.CurTok.value, to_string(type), line, col);
                 throw std::runtime_error("dispatch: nothing found");
         }
     }
     throw std::runtime_error("dispatch: this wasn't supposed to happen");
 }
 
+
+void Parser::handleImports() {
+    forwardStream();  // skip 'import'
+
+    const static std::filesystem::path main_file{SW_FED_FILE_PATH};
+    const static auto relative_dir = main_file.parent_path();
+
+    if (m_Stream.CurTok.type == STRING) {
+        const auto mod_path = relative_dir / m_Stream.CurTok.value;
+        if (!std::filesystem::exists(mod_path)) {
+            throw std::runtime_error("import of a non-existent file!");
+        }
+        
+        // do nothing if the module is already being parsed
+        if (ModuleMap.contains(mod_path)) {
+            return;
+        }
+        
+        Parser mod_parser{mod_path};
+        ModuleMap.insert(mod_path, std::move(mod_parser));
+        ThreadPool->addTask([mod_path] { ModuleMap.get(mod_path).parse(); });
+    }
+    
+    forwardStream();
+}
 
 void Parser::parse() {
     // uncomment to check the stream's output for debugging
@@ -170,7 +214,7 @@ void Parser::callBackend() {
 
     LLVMBackend llvm_instance{std::move(AST), "deme", std::move(SymbolTable), std::move(ErrMan)};  // TODO
     llvm_instance.startGeneration();
-
+    
     printIR(llvm_instance);
     GenerateObjectFileLLVM(llvm_instance);
 }
@@ -186,6 +230,10 @@ bool implicitlyConvertible(Type* t1, Type* t2) {
 
 std::unique_ptr<Function> Parser::parseFunction() {
     Function func_nd;
+    
+    func_nd.is_exported = m_LastSymWasExported;
+    m_LastSymWasExported = false;
+
     m_Stream.expectTypes({IDENT});
     const std::string func_ident = m_Stream.next().value;
 
@@ -241,7 +289,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     function_t->ident = func_nd.ident;
 
     SymbolTable.registerType(func_nd.ident, function_t.release());
-
+    
     // WARNING: func_nd has been MOVED here!!
     auto ret = std::make_unique<Function>(std::move(func_nd));
     // ReSharper disable once CppDFALocalValueEscapesFunction
@@ -265,6 +313,9 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     Var var_node;
     var_node.is_const = m_Stream.CurTok.value[0] == 'c';
     var_node.is_volatile = is_volatile;
+    var_node.is_exported = m_LastSymWasExported;
+    m_LastSymWasExported = false;
+
     const std::string var_ident = m_Stream.next().value;
     forwardStream();  // [:, =]
 

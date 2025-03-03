@@ -10,6 +10,8 @@ consteval std::filesystem::path getSpmPkgInstallDir() {
     return "%APPDATA%\\local\\spm\\packages";
 #elif defined(__linux__) || defined (__APPLE__)
     return "~/.spm/packages";
+#else 
+    #error "getSpmPkgInstallDir: unable to determine current platform!";
 #endif
 }
 

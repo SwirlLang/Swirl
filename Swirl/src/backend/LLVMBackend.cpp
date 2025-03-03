@@ -1,3 +1,4 @@
+#include <llvm/IR/GlobalVariable.h>
 #include <string>
 #include <ranges>
 #include <unordered_map>
@@ -72,7 +73,7 @@ llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
     if (instance.LatestBoundIsFloating) {
         ret = llvm::ConstantFP::get(instance.FloatTypeState, value);
     }
-    return ret;
+    return ret; 
 }
 
 llvm::Value* FloatLit::llvmCodegen(LLVMBackend& instance) {
@@ -102,8 +103,10 @@ llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
     const auto fn_sw_type = dynamic_cast<FunctionType*>(instance.SymMan.lookupType(ident));
 
+    auto linkage = this->is_exported ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
+
     auto*               fn_type  = llvm::dyn_cast<llvm::FunctionType>(fn_sw_type->llvmCodegen(instance));
-    llvm::Function*     func     = llvm::Function::Create(fn_type, llvm::GlobalValue::InternalLinkage, ident->toString(), instance.LModule.get());
+    llvm::Function*     func     = llvm::Function::Create(fn_type, linkage, ident->toString(), instance.LModule.get());
     llvm::BasicBlock*   entry_bb = llvm::BasicBlock::Create(instance.Context, "entry", func);
 
     NewScope _(instance);
@@ -461,13 +464,15 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     llvm::Value* ret;
     llvm::Value* init = nullptr;
 
+    auto linkage = this->is_exported ? llvm::GlobalVariable::ExternalLinkage : llvm::GlobalVariable::InternalLinkage;
+
     if (initialized)
         init = value.llvmCodegen(instance);
 
     if (!instance.IsLocalScope) {
         // TODO
         auto* var = new llvm::GlobalVariable(
-                *instance.LModule, type, is_const, llvm::GlobalVariable::InternalLinkage,
+                *instance.LModule, type, is_const, linkage,
                 nullptr, var_ident->toString()
                 );
 
