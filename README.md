@@ -1,5 +1,5 @@
 <div align=center>
-<img width=500 src="https://raw.githubusercontent.com/SwirlLang/branding/main/logos/wordmark-logo-transparent.png">
+<img width=150 src="https://raw.githubusercontent.com/SwirlLang/branding/main/logos/logo-transparent.png">
 
 # Swirl Programming Language
 A high level, statically typed, compiled programming language.
