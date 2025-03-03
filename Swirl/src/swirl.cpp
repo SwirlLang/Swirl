@@ -64,7 +64,7 @@ int main(int argc, const char** argv) {
     std::string cache_dir = getWorkingDirectory(SW_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP;
 
     std::string file_name = SW_FED_FILE_PATH.substr(SW_FED_FILE_PATH.find_last_of("/\\") + 1);
-    std::string out_dir = SW_FED_FILE_PATH.replace(SW_FED_FILE_PATH.find(file_name),file_name.length(),"");
+    std::string out_dir = SW_FED_FILE_PATH.substr().replace(SW_FED_FILE_PATH.find(file_name),file_name.length(),"");
     file_name = file_name.substr(0, file_name.find_last_of('.'));
 
     SW_OUTPUT = file_name;
@@ -79,7 +79,7 @@ int main(int argc, const char** argv) {
     SW_FED_FILE_SOURCE += "\n";
 
     if ( !SW_FED_FILE_SOURCE.empty() ) {
-        Parser parser(SW_FED_FILE_SOURCE);
+        Parser parser(SW_FED_FILE_PATH);
         parser.parse();
         parser.callBackend();
     }

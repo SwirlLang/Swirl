@@ -1,4 +1,5 @@
 #pragma once
+#include <filesystem>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -23,15 +24,18 @@ class Parser {
     Function*    m_LatestFuncNode = nullptr;
     bool         m_LastSymWasExported = false;
     std::size_t  m_ModuleUID = getNewModuleUID();  // unique id for the parser-instance per-module
-
+    
+    std::filesystem::path m_FilePath;
+    std::filesystem::path m_RelativeDir;
+    
 public:
     ErrorManager  ErrMan;
-    SymbolManager SymbolTable;
+    SymbolManager SymbolTable{m_ModuleUID};
 
     std::vector<std::unique_ptr<Node>> AST;
     std::queue<std::function<void()>>  VerificationQueue;
 
-    explicit Parser(std::string);
+    explicit Parser(const std::filesystem::path&);
 
     Parser(const Parser&) = delete;
     Parser& operator=(const Parser&) = delete;

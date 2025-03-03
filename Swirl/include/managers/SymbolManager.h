@@ -77,8 +77,8 @@ class SymbolManager {
     inline static bool m_InstanceExists = false;
 
 public:
-    std::size_t ModuleUID = 0;
-    SymbolManager() {
+    std::size_t ModuleUID;
+    SymbolManager(std::size_t uid) : ModuleUID(uid) {
         std::lock_guard guard(m_SymMutex);
 
         // global scope

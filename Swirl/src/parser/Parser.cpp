@@ -1,5 +1,7 @@
 #include <filesystem>
+#include <iterator>
 #include <memory>
+#include <fstream>
 #include <stdexcept>
 #include <utility>
 #include <unordered_map>
@@ -31,10 +33,23 @@ extern void GenerateObjectFileLLVM(const LLVMBackend&);
 ModuleMap_t ModuleMap;
 
 
-Parser::Parser(std::string src): m_Stream{std::move(src)}, ErrMan{&m_Stream} {
-    SymbolTable.ModuleUID = m_ModuleUID;
-    m_Stream.ErrMan = &ErrMan;
+std::string readFile(const std::filesystem::path& path) {
+    std::ifstream file;
+    file.open(path);
+    
+    std::string ret{std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
+    file.close();
+    return std::move(ret);
 }
+
+Parser::Parser(const std::filesystem::path& path)
+    : m_Stream{readFile(path)}
+    , ErrMan{&m_Stream}
+    , m_FilePath{path} {
+    m_Stream.ErrMan = &ErrMan;
+    m_RelativeDir = path.parent_path();
+}
+
 
 Token Parser::forwardStream(const uint8_t n) {
     Token ret = m_Stream.CurTok;
@@ -171,11 +186,11 @@ SwNode Parser::dispatch() {
 void Parser::handleImports() {
     forwardStream();  // skip 'import'
 
-    const static std::filesystem::path main_file{SW_FED_FILE_PATH};
-    const static auto relative_dir = main_file.parent_path();
 
     if (m_Stream.CurTok.type == STRING) {
-        const auto mod_path = relative_dir / m_Stream.CurTok.value;
+        const auto mod_path = m_RelativeDir / m_Stream.CurTok.value;
+        assert(m_Stream.CurTok.value == "dir/mod.sw");
+
         if (!std::filesystem::exists(mod_path)) {
             throw std::runtime_error("import of a non-existent file!");
         }
@@ -186,7 +201,7 @@ void Parser::handleImports() {
         }
         
         Parser mod_parser{mod_path};
-        ModuleMap.insert(mod_path, std::move(mod_parser));
+        ModuleMap.insert(mod_path, std::move(mod_parser)); // MOVED!!
         ThreadPool->addTask([mod_path] { ModuleMap.get(mod_path).parse(); });
     }
     
@@ -546,7 +561,7 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
                     deduceType(&deduced_type, fn_ret_type);
                     return std::move(call_node);
                 }
-
+ 
                 auto id_node = std::make_unique<Ident>(SymbolTable.getIDInfoFor(forwardStream().value));
                 Type* id_type = SymbolTable.lookupDecl(id_node->value).swirl_type;
                 deduceType(&deduced_type, id_type);
