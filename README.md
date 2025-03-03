@@ -34,7 +34,7 @@ swirl hello.sw && ./hello
 ``` -->
 
 ## Contributing to Swirl
-We welcome contributions to Swirl! To start contributing to Swirl, fork the repository, create a new branch, make the changes, and submit a pull request. Read the [Docs](https://swirl-lang.vercel.app/docs) for more info.
+We welcome contributions to Swirl! To start contributing to Swirl, fork the repository, create a new branch, make the changes, and submit a pull request. Read the [Docs](https://swirl-lang.netlify.app/docs) for more info.
 
 ## Issues and feature request
 
