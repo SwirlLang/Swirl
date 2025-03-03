@@ -4,8 +4,8 @@
 # Swirl Programming Language
 A high level, statically typed, compiled programming language.
 
-[Website](https://swirl-lang.vercel.app) |
-[Docs](https://swirl-lang.vercel.app/docs) |
+[Website](https://swirl-lang.netlify.app) |
+[Docs](https://swirl-lang.netlify.app/docs) |
 [Contributing](./CONTRIBUTING.md)  
 
 [![vscode extension](https://img.shields.io/visual-studio-marketplace/v/MrinmoyHaloi.swirl-lang-support?color=blue&label=VSCode%20Extension&logo=visualstudiocode&logoColor=blue&style=flat-square)](https://marketplace.visualstudio.com/items?itemName=MrinmoyHaloi.swirl-lang-support)
