@@ -1,11 +1,12 @@
 #pragma once
-#include <mutex>
-#include <shared_mutex>
+#include "utils/utils.h"
+#include <future>
+#include <memory>
 #include <string>
 #include <ranges>
 #include <unordered_map>
 
-#include <definitions.h>    
+#include <definitions.h>
 #include <types/SwTypes.h>
 #include <types/TypeManager.h>
 #include <managers/IdentManager.h>
@@ -17,7 +18,6 @@ struct TableEntry {
     bool is_const    = false;
     bool is_param    = false;
     bool is_volatile = false;
-    bool is_exported = false;
 
     llvm::Value* ptr        = nullptr;
     llvm::Type*  llvm_type  = nullptr;
@@ -28,19 +28,15 @@ struct TableEntry {
 class Scope {
     std::unordered_map<IdentInfo*, TableEntry> m_SymT;
     IdentManager m_IDMan;
-    std::size_t m_ModuleUID;
 
 public:
-    Scope(std::size_t mod_uid): m_ModuleUID(mod_uid) {}
+    Scope() = default;
 
     TableEntry& get(IdentInfo* id) {
         return m_SymT.at(id);
     }
 
-    template <bool add_mod_id = true>
     IdentInfo* getNewIDInfo(const std::string& name) {
-        // if constexpr (add_mod_id)
-        //     return m_IDMan.createNew(std::to_string(m_ModuleUID) + '@' + name);
         return m_IDMan.createNew(name);
     }
 
@@ -61,114 +57,119 @@ public:
 
 
 class SymbolManager {
-    using Module_t = std::vector<Scope>;
-     
     bool m_LockEmplace = false;
     std::size_t m_ScopeInt = 0;
-    
-    inline static IdentManager m_BuiltinIDMan; // specifically for built-in symbols
 
-    inline static TypeManager m_TypeManager;
-    
-    inline static std::vector<Module_t> m_TypeTable;
-    inline static std::vector<Module_t> m_DeclTable;
+    TypeManager m_TypeManager;
+    std::vector<Scope> m_TypeTable;
+    std::vector<Scope> m_DeclTable;
 
-    inline static std::recursive_mutex m_SymMutex;
-    inline static bool m_InstanceExists = false;
+    std::size_t m_ModuleUID;
+
+    std::unordered_map<
+        std::string,                            
+        std::vector<
+            std::promise<std::pair<IdentInfo*, TableEntry*>
+                >>> m_TESubscribers; // TE = TableEntry
 
 public:
-    std::size_t ModuleUID;
-    SymbolManager(std::size_t uid) : ModuleUID(uid) {
-        std::lock_guard guard(m_SymMutex);
-
+    SymbolManager(std::size_t uid): m_ModuleUID{uid} {
         // global scope
         m_TypeTable.emplace_back();
-        m_TypeTable.front().emplace_back(ModuleUID);
-
         m_DeclTable.emplace_back();
-        m_DeclTable.front().emplace_back(ModuleUID);
 
-        if (!m_InstanceExists) {
-            m_InstanceExists = true;
+        // register built-in types in the global scope
+        registerType(m_TypeTable.front().getNewIDInfo("i8"),   new TypeI8{});
+        registerType(m_TypeTable.front().getNewIDInfo("i16"),  new TypeI16{});
+        registerType(m_TypeTable.front().getNewIDInfo("i32"),  new TypeI32{});
+        registerType(m_TypeTable.front().getNewIDInfo("i64"),  new TypeI64{});
+        registerType(m_TypeTable.front().getNewIDInfo("i128"), new TypeI128{});
 
-            // register built-in types in the global scope
-            registerType(m_BuiltinIDMan.createNew("i8"),   new TypeI8{});
-            registerType(m_BuiltinIDMan.createNew("i16"),  new TypeI16{});
-            registerType(m_BuiltinIDMan.createNew("i32"),  new TypeI32{});
-            registerType(m_BuiltinIDMan.createNew("i64"),  new TypeI64{});
-            registerType(m_BuiltinIDMan.createNew("i128"), new TypeI128{});
+        registerType(m_TypeTable.front().getNewIDInfo("u8"),   new TypeU8{});
+        registerType(m_TypeTable.front().getNewIDInfo("u16"),  new TypeU16{});
+        registerType(m_TypeTable.front().getNewIDInfo("u32"),  new TypeU32{});
+        registerType(m_TypeTable.front().getNewIDInfo("u64"),  new TypeU64{});
+        registerType(m_TypeTable.front().getNewIDInfo("u128"), new TypeU128{});
 
-            registerType(m_BuiltinIDMan.createNew("u8"),   new TypeU8{});
-            registerType(m_BuiltinIDMan.createNew("u16"),  new TypeU16{});
-            registerType(m_BuiltinIDMan.createNew("u32"),  new TypeU32{});
-            registerType(m_BuiltinIDMan.createNew("u64"),  new TypeU64{});
-            registerType(m_BuiltinIDMan.createNew("u128"), new TypeU128{});
+        registerType(m_TypeTable.front().getNewIDInfo("f32"),  new TypeF32{});
+        registerType(m_TypeTable.front().getNewIDInfo("f64"),  new TypeF64{});
 
-            registerType(m_BuiltinIDMan.createNew("f32"),  new TypeF32{});
-            registerType(m_BuiltinIDMan.createNew("f64"),  new TypeF64{});
-            registerType(m_BuiltinIDMan.createNew("bool"), new TypeBool{});
-        }
+        registerType(m_TypeTable.front().getNewIDInfo("bool"), new TypeBool{});
     }
 
     TableEntry& lookupDecl(IdentInfo* id) {
-        std::lock_guard guard(m_SymMutex);
-        return lookup(id, m_DeclTable[ModuleUID]);
+        return lookup(id, m_DeclTable);
     }
 
     Type* lookupType(IdentInfo* id) {
-        std::lock_guard guard(m_SymMutex);
         return m_TypeManager.getFor({.ident = id});
     }
 
     Type* lookupType(const std::string& id) {
-        std::lock_guard guard(m_SymMutex);
         return m_TypeManager.getFor({.ident = getIDInfoFor(id)});
     }
 
     void registerType(IdentInfo* id, Type* type) {
-        std::lock_guard guard(m_SymMutex);
         m_TypeManager.registerType({.ident = id}, type);
     }
 
     IdentInfo* registerDecl(const std::string& name, const TableEntry& entry) {
-        std::lock_guard guard(m_SymMutex);
-        return m_DeclTable[ModuleUID].at(m_ScopeInt).registerNew(name, entry);
+        auto ret = m_DeclTable.at(m_ScopeInt).registerNew(name, entry);
+        
+        if (m_TESubscribers.contains(name)) {
+            for (auto& subscriber : m_TESubscribers[name]) {
+                subscriber.set_value({ret, &m_DeclTable[m_ScopeInt].get(ret)});
+            }
+        } m_TESubscribers.erase(name);
+        return ret;
     }
 
     bool typeExists(IdentInfo* id) const {
-        std::lock_guard guard(m_SymMutex);
-        return checkExistence(id, m_TypeTable[ModuleUID]);
+        return checkExistence(id, m_TypeTable);
     }
 
     bool declExists(IdentInfo* id) const {
-        std::lock_guard guard(m_SymMutex);
-        return checkExistence(id, m_DeclTable[ModuleUID]);
+        return checkExistence(id, m_DeclTable);
+    }
+    
+
+    std::future<std::pair<IdentInfo*, TableEntry*>> subscribeForTableEntry(const std::string& id) {
+        static std::mutex function_guard;
+
+        auto bound = [this, &id] {
+            fulfillPromisesIfExists(id);
+        };
+
+        LockGuard_t _{function_guard, bound};
+        
+        if (m_TESubscribers.contains(id)) {
+            m_TESubscribers[id].emplace_back();
+            return m_TESubscribers[id].back().get_future();
+        } 
+
+        m_TESubscribers.insert({id, {}});
+        m_TESubscribers[id].emplace_back();
+        return m_TESubscribers[id].back().get_future();
     }
 
+
     template <bool create_new = false>
-    IdentInfo* getIDInfoFor(const std::string& id)  {
-        std::lock_guard guard(m_SymMutex);
-
-        if (m_BuiltinIDMan.contains(id))
-            return m_BuiltinIDMan.fetch(id);
-
+    IdentInfo* getIDInfoFor(const std::string& id) {
         if constexpr (!create_new) {
-            for (const auto& [decls, type] : std::views::zip(m_DeclTable[ModuleUID], m_TypeTable[ModuleUID]) | std::views::take(m_ScopeInt + 1)) {
+            for (const auto& [decls, type] : std::views::zip(m_DeclTable, m_TypeTable) | std::views::take(m_ScopeInt + 1)) {
                 if (auto decl_id = decls.getIDInfoFor(id); decl_id.has_value())
                     return decl_id.value();
                 if (auto type_id = type.getIDInfoFor(id); type_id.has_value())
                     return type_id.value();
-            } throw std::runtime_error("SymbolManager::getIDInfoFor: not found for: " + id);
-        } return m_TypeTable[ModuleUID].at(m_ScopeInt).getNewIDInfo(id);
+            } throw std::runtime_error("SymbolManager::getIDInfoFor: No decl found");
+        } return m_TypeTable.at(m_ScopeInt).getNewIDInfo(id);
     }
 
     void newScope() {
-        std::lock_guard guard(m_SymMutex);
-
         m_ScopeInt++;
         if (!m_LockEmplace) {
-            m_DeclTable[ModuleUID].emplace_back(ModuleUID);
-            m_TypeTable[ModuleUID].emplace_back(ModuleUID);
+            m_DeclTable.emplace_back();
+            m_TypeTable.emplace_back();
         }
     }
 
@@ -181,11 +182,19 @@ public:
     }
 
     void destroyLastScope() {
-        std::lock_guard guard(m_SymMutex);
         m_ScopeInt--;
     }
 
+
 private:
+    void fulfillPromisesIfExists(const std::string& name) {
+        if (auto id = m_DeclTable.front().getIDInfoFor(name)) {
+            for (auto& subscriber : m_TESubscribers[name]) {
+                subscriber.set_value({id.value(), &m_DeclTable.front().get(id.value())});
+            } m_TESubscribers.erase(name);
+        }
+    }
+
     TableEntry& lookup(IdentInfo* id, std::vector<Scope>& at) {
         if (at.front().contains(id))
             return at.front().get(id);
@@ -197,6 +206,7 @@ private:
 
         throw std::runtime_error("SymbolManager::lookup: id not found");
     }
+
 
     bool checkExistence(IdentInfo* id, const std::vector<Scope>& at) const {
         if (at.front().contains(id))

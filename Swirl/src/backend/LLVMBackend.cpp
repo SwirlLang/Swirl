@@ -1,3 +1,4 @@
+#include <cassert>
 #include <llvm/IR/GlobalVariable.h>
 #include <string>
 #include <ranges>

@@ -28,6 +28,11 @@ class Parser {
     std::filesystem::path m_FilePath;
     std::filesystem::path m_RelativeDir;
     
+    struct ParsedIdent {
+        std::string name;
+        fs::path    mod_path;
+    };
+
 public:
     ErrorManager  ErrMan;
     SymbolManager SymbolTable{m_ModuleUID};
@@ -50,13 +55,16 @@ public:
     , VerificationQueue(std::move(other.VerificationQueue)) {}
     
     std::unique_ptr<Node> dispatch();
-    std::unique_ptr<FuncCall> parseCall();
     std::unique_ptr<Function> parseFunction();
     std::unique_ptr<Condition> parseCondition();
     std::unique_ptr<WhileLoop> parseWhile();
     std::unique_ptr<ReturnStatement> parseRet();
     std::unique_ptr<Struct> parseStruct();
+
     std::unique_ptr<Var> parseVar(bool is_volatile = false);
+    std::unique_ptr<FuncCall> parseCall(std::optional<ParsedIdent> _ = std::nullopt);
+
+    ParsedIdent parseIdent();
 
     Token forwardStream(uint8_t n = 1);
     Expression parseExpr(std::optional<Type*> bound_type = std::nullopt);

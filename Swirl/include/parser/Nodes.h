@@ -1,4 +1,5 @@
 #pragma once
+#include <filesystem>
 #include <utility>
 #include <vector>
 
@@ -268,7 +269,10 @@ struct Function final : Node {
 struct FuncCall final : Expression {
     std::vector<Expression> args;
     IdentInfo* ident = nullptr;
-    std::string type = "void";
+    Type*      signature = nullptr;  // supposed to hold the signature of the callee
+
+    // a flag, if set, indicates existence in another module to the backend
+    std::filesystem::path module_path;
 
     Node* parent = nullptr;
 

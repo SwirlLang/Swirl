@@ -2,6 +2,7 @@
 #include <iterator>
 #include <memory>
 #include <fstream>
+#include <print>
 #include <stdexcept>
 #include <utility>
 #include <unordered_map>
@@ -29,6 +30,7 @@ extern std::optional<ThreadPool_t> ThreadPool;
 
 extern void printIR(const LLVMBackend& instance);
 extern void GenerateObjectFileLLVM(const LLVMBackend&);
+
 
 ModuleMap_t ModuleMap;
 
@@ -100,6 +102,7 @@ SwNode Parser::dispatch() {
                     auto ret = parseFunction();
                     return std::move(ret);
                 }
+
                 if (m_Stream.CurTok.value == "if") {
                     auto ret = parseCondition();
                     return std::move(ret);
@@ -121,6 +124,13 @@ SwNode Parser::dispatch() {
                 }
 
             case IDENT:
+                {
+                    auto id = parseIdent();
+                    if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
+                        return parseCall(std::move(id));
+                    }
+                }
+
                 if (const Token p_tk = m_Stream.peek();
                     p_tk.type == PUNC && p_tk.value == "(") {
                     auto nd = parseCall();
@@ -189,7 +199,6 @@ void Parser::handleImports() {
 
     if (m_Stream.CurTok.type == STRING) {
         const auto mod_path = m_RelativeDir / m_Stream.CurTok.value;
-        assert(m_Stream.CurTok.value == "dir/mod.sw");
 
         if (!std::filesystem::exists(mod_path)) {
             throw std::runtime_error("import of a non-existent file!");
@@ -292,7 +301,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     // current token == ')'
     forwardStream();
 
-    if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ":") {
+    if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();
         func_nd.ret_type = parseType();
         function_t->ret_type = func_nd.ret_type;
@@ -335,7 +344,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     forwardStream();  // [:, =]
 
 
-    if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ":") {
+    if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();
         var_node.var_type = parseType();
     }
@@ -361,34 +370,44 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     return std::make_unique<Var>(std::move(var_node));
 }
 
-std::unique_ptr<FuncCall> Parser::parseCall() {
+std::unique_ptr<FuncCall> Parser::parseCall(const std::optional<ParsedIdent> ident) {
     auto call_node = std::make_unique<FuncCall>();
-    auto str_ident = m_Stream.CurTok.value;
+
+    auto str_ident = ident->name;
     // call_node->ident = SymbolTable.getIDInfoFor(m_Stream.CurTok.value);
-    forwardStream(2);
+    forwardStream();
 
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ")") {
         forwardStream();
-        return call_node;
     }
+    else {
+        while (true) {
+            if (m_Stream.CurTok.type == PUNC) {
+                if (m_Stream.CurTok.value == ",")
+                    forwardStream();
+                if (m_Stream.CurTok.value == ")")
+                    break;
+            }
 
-    while (true) {
-        if (m_Stream.CurTok.type == PUNC) {
-            if (m_Stream.CurTok.value == ",")
-                forwardStream();
-            if (m_Stream.CurTok.value == ")")
-                break;
+            call_node->args.emplace_back(parseExpr({}));
         }
-
-        call_node->args.emplace_back(parseExpr({}));
     }
 
-    VerificationQueue.emplace([str_ident, ptr = call_node.get(), this] {
-        ptr->ident = SymbolTable.getIDInfoFor(str_ident);
+    VerificationQueue.emplace([str_ident, ptr = call_node.get(), mod_path = ident->mod_path, this] {
+        if (mod_path.empty()) {
+            ptr->ident = SymbolTable.getIDInfoFor(str_ident);
+        } else {
+            auto future = ModuleMap.get(mod_path).SymbolTable.subscribeForTableEntry(str_ident);
+            std::pair<IdentInfo*, TableEntry*> entry = future.get();
+
+            ptr->ident = entry.first;
+            ptr->signature = entry.second->swirl_type;
+
+            // TODO: match the signature against the arguments' types
+        }
     });
 
     forwardStream();
-
     return call_node;
 }
 
@@ -462,6 +481,19 @@ std::unique_ptr<Condition> Parser::parseCondition() {
     return std::make_unique<Condition>(std::move(cnd));
 }
 
+Parser::ParsedIdent Parser::parseIdent() {
+    ParsedIdent ret;  
+
+    // assuming current token is an ident
+    if (m_Stream.peek().type == OP && m_Stream.peek().value == "::") {
+        ret.mod_path = m_RelativeDir / m_Stream.CurTok.value;
+        forwardStream(2);
+    }
+    ret.name = m_Stream.CurTok.value;
+    forwardStream();
+    
+    return std::move(ret);
+}
 
 std::unique_ptr<Struct> Parser::parseStruct() {
     forwardStream();
@@ -555,8 +587,9 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
             }
 
             case IDENT: {
-                if (m_Stream.peek().type == PUNC && m_Stream.peek().value == "(") {
-                    auto call_node = parseCall();
+                auto id = parseIdent();   
+                if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
+                    auto call_node = parseCall(std::move(id));
                     Type* fn_ret_type = dynamic_cast<FunctionType*>(SymbolTable.lookupDecl(call_node->getIdentInfo()).swirl_type)->ret_type;
                     deduceType(&deduced_type, fn_ret_type);
                     return std::move(call_node);

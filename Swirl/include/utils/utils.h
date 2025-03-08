@@ -6,6 +6,9 @@
 #include <functional>
 
 
+namespace fs = std::filesystem;
+
+
 #if defined(_WIN32)
 #define PATH_SEP "\\"
 #else
@@ -28,6 +31,23 @@ struct std::hash<std::pair<T1, T2>> {  // WHY?!?!!1
         return combineHashes(h1, h2);
     }
 };
+
+
+
+// a lock guard but with a destructor callback
+template <typename Mtx, typename Fn>
+class LockGuard_t {
+    std::lock_guard<Mtx> m_Guard;
+    Fn m_Callback;
+
+public:
+    LockGuard_t(Mtx& mutex, Fn callback): m_Guard{mutex}, m_Callback(callback) {}
+    
+    ~LockGuard_t() { m_Callback(); }
+};
+
+template <typename Mtx, typename Fn>
+LockGuard_t(Mtx&, Fn) -> LockGuard_t<Mtx, Fn>;
 
 
 class ThreadPool_t {
