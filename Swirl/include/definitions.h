@@ -29,6 +29,8 @@ inline const std::unordered_map<std::string, uint8_t> keywords = {
 // map, {operator, precedence}
 inline std::unordered_map<std::string, int> operators = {
     {"=", 0},
+    {"::", 0},
+
 
     // Logical Operators
     {"||", 0},
