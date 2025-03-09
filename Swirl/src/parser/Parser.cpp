@@ -96,6 +96,7 @@ SwNode Parser::dispatch() {
 
                 if (m_Stream.CurTok.value == "import") {
                     handleImports();
+                    continue;
                 }
 
                 if (m_Stream.CurTok.value == "fn") {
@@ -204,6 +205,15 @@ void Parser::handleImports() {
             throw std::runtime_error("import of a non-existent file!");
         }
         
+        forwardStream();
+        if (m_Stream.CurTok.type != KEYWORD && m_Stream.CurTok.value == "as") {
+            throw std::runtime_error("aliasing is required here!");
+        }
+
+        forwardStream();
+        SymbolTable.registerModuleAlias(forwardStream().value, mod_path);
+
+
         // do nothing if the module is already being parsed
         if (ModuleMap.contains(mod_path)) {
             return;
@@ -213,8 +223,6 @@ void Parser::handleImports() {
         ModuleMap.insert(mod_path, std::move(mod_parser)); // MOVED!!
         ThreadPool->addTask([mod_path] { ModuleMap.get(mod_path).parse(); });
     }
-    
-    forwardStream();
 }
 
 void Parser::parse() {
@@ -266,8 +274,8 @@ std::unique_ptr<Function> Parser::parseFunction() {
     auto function_t = std::make_unique<FunctionType>();
     func_nd.reg_ret_type = &function_t->ret_type;
 
-
-    static auto parse_params = [&, this] {
+     
+    auto parse_params = [function_t = function_t.get(), this] {
         Var param;
         const std::string var_name = m_Stream.CurTok.value;
 
@@ -277,6 +285,8 @@ std::unique_ptr<Function> Parser::parseFunction() {
         param.initialized = m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "=";
         if (param.initialized)
             param.value = parseExpr();
+        
+        assert(function_t != nullptr);
         function_t->param_types.push_back(param.var_type);
 
         TableEntry param_entry;
@@ -288,15 +298,15 @@ std::unique_ptr<Function> Parser::parseFunction() {
         return std::move(param);
     };
 
-    SymbolTable.newScope();
-    if (m_Stream.CurTok.type != PUNC) {
+    SymbolTable.newScope();  // emplace the function body scope
+    if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != ")") {
         while (m_Stream.CurTok.value != ")" && m_Stream.CurTok.type != PUNC) {
-            func_nd.params.push_back(parse_params());
+            func_nd.params.emplace_back(parse_params());
             if (m_Stream.CurTok.value == ",")
                 forwardStream();
         }
     }
-    SymbolTable.destroyLastScope();
+    SymbolTable.destroyLastScope();  // decrement the scope index
 
     // current token == ')'
     forwardStream();
@@ -321,14 +331,14 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     // parse the children
     forwardStream();
-    SymbolTable.lockNewScpEmplace();
-    SymbolTable.newScope();
-    SymbolTable.unlockNewScpEmplace();
+    SymbolTable.lockNewScpEmplace();  // to reuse the scope we created for params above
+    SymbolTable.newScope();  // increment the scope index
+    SymbolTable.unlockNewScpEmplace();  // undo the locking of scope-emplaces
 
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
         ret->children.push_back(dispatch());
     } forwardStream();
-    SymbolTable.destroyLastScope();
+    SymbolTable.destroyLastScope();  // decrement the scope index, we onto the global scope now
 
     return std::move(ret);
 }
@@ -397,6 +407,7 @@ std::unique_ptr<FuncCall> Parser::parseCall(const std::optional<ParsedIdent> ide
         if (mod_path.empty()) {
             ptr->ident = SymbolTable.getIDInfoFor(str_ident);
         } else {
+            std::println("mod-path: {}", mod_path.string());
             auto future = ModuleMap.get(mod_path).SymbolTable.subscribeForTableEntry(str_ident);
             std::pair<IdentInfo*, TableEntry*> entry = future.get();
 
@@ -486,7 +497,8 @@ Parser::ParsedIdent Parser::parseIdent() {
 
     // assuming current token is an ident
     if (m_Stream.peek().type == OP && m_Stream.peek().value == "::") {
-        ret.mod_path = m_RelativeDir / m_Stream.CurTok.value;
+        ret.mod_path = SymbolTable.getModuleFromAlias(m_Stream.CurTok.value);
+        std::println("module path: {}", ret.mod_path.string());
         forwardStream(2);
     }
     ret.name = m_Stream.CurTok.value;
@@ -590,12 +602,12 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
                 auto id = parseIdent();   
                 if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
                     auto call_node = parseCall(std::move(id));
-                    Type* fn_ret_type = dynamic_cast<FunctionType*>(SymbolTable.lookupDecl(call_node->getIdentInfo()).swirl_type)->ret_type;
-                    deduceType(&deduced_type, fn_ret_type);
+                    // Type* fn_ret_type = dynamic_cast<FunctionType*>(SymbolTable.lookupDecl(call_node->getIdentInfo()).swirl_type)->ret_type;
+                    // deduceType(&deduced_type, fn_ret_type);
                     return std::move(call_node);
                 }
  
-                auto id_node = std::make_unique<Ident>(SymbolTable.getIDInfoFor(forwardStream().value));
+                auto id_node = std::make_unique<Ident>(SymbolTable.getIDInfoFor(id.name));
                 Type* id_type = SymbolTable.lookupDecl(id_node->value).swirl_type;
                 deduceType(&deduced_type, id_type);
 

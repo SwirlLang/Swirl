@@ -1,7 +1,9 @@
 #pragma once
 #include "utils/utils.h"
+#include <filesystem>
 #include <future>
 #include <memory>
+#include <print>
 #include <string>
 #include <ranges>
 #include <unordered_map>
@@ -63,6 +65,9 @@ class SymbolManager {
     TypeManager m_TypeManager;
     std::vector<Scope> m_TypeTable;
     std::vector<Scope> m_DeclTable;
+
+    // for mapping the modules' aliases to their file paths
+    std::unordered_map<std::string, std::filesystem::path> m_ModuleAliasTable;
 
     std::size_t m_ModuleUID;
 
@@ -156,21 +161,37 @@ public:
     template <bool create_new = false>
     IdentInfo* getIDInfoFor(const std::string& id) {
         if constexpr (!create_new) {
-            for (const auto& [decls, type] : std::views::zip(m_DeclTable, m_TypeTable) | std::views::take(m_ScopeInt + 1)) {
-                if (auto decl_id = decls.getIDInfoFor(id); decl_id.has_value())
+            for (
+                const auto& [decls, type] 
+                    : std::views::zip(m_DeclTable, m_TypeTable)
+                    | std::views::take(m_ScopeInt + 1)
+                ) {
+                if (auto decl_id = decls.getIDInfoFor(id))
                     return decl_id.value();
-                if (auto type_id = type.getIDInfoFor(id); type_id.has_value())
+                if (auto type_id = type.getIDInfoFor(id))
                     return type_id.value();
             } throw std::runtime_error("SymbolManager::getIDInfoFor: No decl found");
         } return m_TypeTable.at(m_ScopeInt).getNewIDInfo(id);
     }
 
+
+    void registerModuleAlias(std::string_view name, const fs::path& path) {
+        m_ModuleAliasTable[std::string(name)] = path;
+    }
+
+    fs::path& getModuleFromAlias(std::string_view name) {
+        return m_ModuleAliasTable.at(std::string(name));
+    }
+
+
     void newScope() {
         m_ScopeInt++;
-        if (!m_LockEmplace) {
-            m_DeclTable.emplace_back();
-            m_TypeTable.emplace_back();
-        }
+
+        if (m_LockEmplace)
+            return;
+        
+        m_DeclTable.emplace_back();
+        m_TypeTable.emplace_back();
     }
 
     void lockNewScpEmplace() {
