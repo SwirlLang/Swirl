@@ -22,7 +22,7 @@ option(BUILD_STDLIB "Build the standard library" OFF)
 include_directories("include")
 include_directories("${PROJECT_BINARY_DIR}")
 
-file(GLOB_RECURSE SOURCES "src/*.cpp")
+file(GLOB_RECURSE SOURCES "src/*/*.cpp")
 
 add_executable(swirl src/swirl.cpp
         "${SOURCES}"

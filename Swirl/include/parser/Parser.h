@@ -73,6 +73,7 @@ public:
     void parse();
     void callBackend();
     void handleImports();
+    void analyzeSemantics(std::vector<std::unique_ptr<Node>>&);
 
     void runPendingVerifications() {
         while (!VerificationQueue.empty()) {

@@ -15,6 +15,8 @@ consteval std::filesystem::path getSpmPkgInstallDir() {
 #endif
 }
 
+
+
 inline const std::unordered_map<std::string, uint8_t> keywords = {
     {"return", 1},  {"if", 2},      {"else", 3},
     {"for", 4},       {"while", 5},   {"as", 6},      {"in", 7},

@@ -18,6 +18,7 @@
 #include <backend/LLVMBackend.h>
 #include <managers/ErrorManager.h>
 #include <managers/SymbolManager.h>
+#include <parser/SemanticAnalysis.h>
 
 
 using SwNode = std::unique_ptr<Node>;
@@ -236,12 +237,16 @@ void Parser::parse() {
     while (!m_Stream.eof()) {
         AST.emplace_back(dispatch());
     }
+    
+    runPendingVerifications();
+
+    AnalysisContext analysis_ctx{AST};
+    analysis_ctx.startAnalysis();
 }
 
 
 void Parser::callBackend() {
     SymbolTable.lockNewScpEmplace();
-    runPendingVerifications();
     ErrMan.raiseAll();
 
     LLVMBackend llvm_instance{std::move(AST), "deme", std::move(SymbolTable), std::move(ErrMan)};  // TODO
@@ -435,9 +440,9 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
         ret.parent_ret_type = ret.value.expr_type;
     }
     else {
-        if (!implicitlyConvertible(ret.value.expr_type, m_LatestFuncNode->ret_type)) {
-            throw std::runtime_error("returned value type-mismatch");
-        }
+        // if (!implicitlyConvertible(ret.value.expr_type, m_LatestFuncNode->ret_type)) {
+        //     throw std::runtime_error("returned value type-mismatch");
+        // }
         ret.value.expr_type = m_LatestFuncNode->ret_type;
         ret.parent_ret_type = m_LatestFuncNode->ret_type;
     }
@@ -556,23 +561,6 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
 }
 
 
-void deduceType(Type** placed_into, Type* from) {
-    // TODO: signed types
-    if (*placed_into == nullptr)
-        *placed_into = from;
-    else {
-        if ((*placed_into)->isFloatingPoint() &&
-            from->getBitWidth() > (*placed_into)->getBitWidth()) {
-            *placed_into = from;
-            }
-        if ((*placed_into)->isIntegral() &&
-            from->getBitWidth() > (*placed_into)->getBitWidth()) {
-            *placed_into = from;
-            }
-    }
-}
-
-
 Expression Parser::parseExpr(const std::optional<Type*>) {
     Type* deduced_type = nullptr;
 
@@ -602,6 +590,8 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
                 auto id = parseIdent();   
                 if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
                     auto call_node = parseCall(std::move(id));
+                    
+                    // TODO
                     // Type* fn_ret_type = dynamic_cast<FunctionType*>(SymbolTable.lookupDecl(call_node->getIdentInfo()).swirl_type)->ret_type;
                     // deduceType(&deduced_type, fn_ret_type);
                     return std::move(call_node);
@@ -609,7 +599,7 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
  
                 auto id_node = std::make_unique<Ident>(SymbolTable.getIDInfoFor(id.name));
                 Type* id_type = SymbolTable.lookupDecl(id_node->value).swirl_type;
-                deduceType(&deduced_type, id_type);
+                // deduceType(&deduced_type, id_type);
 
                 return std::move(id_node);
             }
@@ -617,7 +607,7 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
                 if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
                     forwardStream();
                     auto ret = std::make_unique<Expression>(parseExpr());
-                    deduceType(&deduced_type, ret->expr_type);
+                    // deduceType(&deduced_type, ret->expr_type);
                     forwardStream();
                     return std::move(ret);
                 } return dispatch();

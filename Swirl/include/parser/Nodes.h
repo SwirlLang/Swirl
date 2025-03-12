@@ -1,5 +1,6 @@
 #pragma once
 #include <filesystem>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -32,6 +33,14 @@ class IdentInfo;
 struct Type;
 
 
+struct AnalysisResult {
+    bool is_erroneous = false;
+    Type* deduced_type = nullptr;
+};
+
+class AnalysisContext;
+
+
 // A common base class for all the nodes
 struct Node {
     std::string value;
@@ -55,6 +64,8 @@ struct Node {
     virtual void setArity(int8_t val) { throw std::runtime_error("setArity called on base Node instance"); }
 
     virtual std::vector<std::unique_ptr<Node>>& getMutOperands() { throw std::runtime_error("getMutOperands called on base node"); }
+    
+    virtual AnalysisResult analyzeSemantics(AnalysisContext&) { return {}; }
 
     virtual ~Node() = default;
 };
@@ -104,10 +115,12 @@ struct Expression : Node {
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct Op final : Expression {
-    std::string value;
+    std::string value;  // the kind of operator (e.g. '+', '-')
     int8_t arity = 2;  // the no. of operands the operator requires
     std::vector<std::unique_ptr<Node>> operands;
 
@@ -133,6 +146,7 @@ struct Op final : Expression {
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 
@@ -146,6 +160,8 @@ struct Assignment final : Node {
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_ASSIGN;
     }
+    
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct ReturnStatement final : Node {
@@ -157,6 +173,8 @@ struct ReturnStatement final : Node {
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_RET;
     }
+
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct IntLit final : Expression {
@@ -170,6 +188,7 @@ struct IntLit final : Expression {
     }
 
     llvm::Value *llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct FloatLit final : Expression {
@@ -182,6 +201,7 @@ struct FloatLit final : Expression {
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct StrLit final : Expression {
@@ -194,6 +214,7 @@ struct StrLit final : Expression {
     }
 
     llvm::Value *llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct Ident final : Node {
@@ -210,6 +231,7 @@ struct Ident final : Node {
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct Var final : Node {
@@ -234,6 +256,7 @@ struct Var final : Node {
 
     std::vector<std::unique_ptr<Node>>& getExprValue() override { return value.expr; }
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct Function final : Node {
@@ -264,6 +287,7 @@ struct Function final : Node {
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct FuncCall final : Expression {
@@ -282,6 +306,7 @@ struct FuncCall final : Expression {
 
     [[nodiscard]] NodeType     getNodeType() const override { return ND_CALL; }
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct WhileLoop final : Node {
@@ -293,6 +318,7 @@ struct WhileLoop final : Node {
     }
 
     llvm::Value *llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 
@@ -309,6 +335,7 @@ struct Struct final : Node {
     }
 
     llvm::Value *llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 
@@ -332,4 +359,5 @@ struct Condition final : Node {
 
     
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };

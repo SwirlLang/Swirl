@@ -9,6 +9,7 @@ class IdentInfo;
 class  LLVMBackend;
 struct Var;
 
+
 struct Type {
     enum SwTypes {
         FUNCTION,
@@ -212,3 +213,25 @@ struct TypeBool final : Type {
 };
 
 
+
+// the instance pointers of builtin types is sharerd across all parser instances
+
+inline TypeI8 GlobalTypeI8{};
+inline TypeU8 GlobalTypeU8{};
+
+inline TypeI16 GlobalTypeI16{};
+inline TypeU16 GlobalTypeU16{};
+
+inline TypeI32 GlobalTypeI32{};
+inline TypeU32 GlobalTypeU32{};
+
+inline TypeI64 GlobalTypeI64{};
+inline TypeU64 GlobalTypeU64{};
+
+inline TypeI128 GlobalTypeI128{};
+inline TypeU128 GlobalTypeU128{};
+
+inline TypeF32 GlobalTypeF32{};
+inline TypeF64 GlobalTypeF64{};
+
+inline TypeBool GlobalTypeBool{};
