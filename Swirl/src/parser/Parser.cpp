@@ -187,7 +187,6 @@ SwNode Parser::dispatch() {
                 }
             default:
                 auto [line, _, col] = m_Stream.getStreamState();
-                std::println("{}: {}\n Line: {}; Col: {}", m_Stream.CurTok.value, to_string(type), line, col);
                 throw std::runtime_error("dispatch: nothing found");
         }
     }
@@ -240,7 +239,7 @@ void Parser::parse() {
     
     runPendingVerifications();
 
-    AnalysisContext analysis_ctx{AST};
+    AnalysisContext analysis_ctx{*this};
     analysis_ctx.startAnalysis();
 }
 
@@ -318,8 +317,8 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();
-        func_nd.ret_type = parseType();
-        function_t->ret_type = func_nd.ret_type;
+        // func_nd.ret_type = parseType();
+        function_t->ret_type = parseType();
     }
 
     TableEntry entry;
@@ -435,17 +434,17 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
         return std::make_unique<ReturnStatement>(std::move(ret));
 
     ret.value = parseExpr();
-    if (m_LatestFuncNode->ret_type == nullptr) {
-        m_LatestFuncNode->updateRetTypeTo(ret.value.expr_type);
-        ret.parent_ret_type = ret.value.expr_type;
-    }
-    else {
+    // if (m_LatestFuncNode->ret_type == nullptr) {
+    //     m_LatestFuncNode->updateRetTypeTo(ret.value.expr_type);
+    //     ret.parent_ret_type = ret.value.expr_type;
+    // }
+    // else {
         // if (!implicitlyConvertible(ret.value.expr_type, m_LatestFuncNode->ret_type)) {
         //     throw std::runtime_error("returned value type-mismatch");
         // }
-        ret.value.expr_type = m_LatestFuncNode->ret_type;
-        ret.parent_ret_type = m_LatestFuncNode->ret_type;
-    }
+    //     ret.value.expr_type = m_LatestFuncNode->ret_type;
+    //     ret.parent_ret_type = m_LatestFuncNode->ret_type;
+    // }
 
     return std::make_unique<ReturnStatement>(std::move(ret));
 }
@@ -571,15 +570,15 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
                 if (m_Stream.CurTok.meta == CT_FLOAT) {
                     auto ret = std::make_unique<FloatLit>(m_Stream.CurTok.value);
                     forwardStream();
-                    deduced_type = SymbolTable.lookupType("f64");
+                    // deduced_type = SymbolTable.lookupType("f64");
                     return std::move(ret);
                 }
 
                 auto ret = std::make_unique<IntLit>(m_Stream.CurTok.value);
 
-                if (!deduced_type) {
-                    deduced_type = SymbolTable.lookupType("i32");
-                }
+                // if (!deduced_type) {
+                //     deduced_type = SymbolTable.lookupType("i32");
+                // }
 
 
                 forwardStream();
@@ -591,7 +590,6 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
                 if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
                     auto call_node = parseCall(std::move(id));
                     
-                    // TODO
                     // Type* fn_ret_type = dynamic_cast<FunctionType*>(SymbolTable.lookupDecl(call_node->getIdentInfo()).swirl_type)->ret_type;
                     // deduceType(&deduced_type, fn_ret_type);
                     return std::move(call_node);
@@ -643,7 +641,6 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
         SwNode op = std::make_unique<Op>(m_Stream.CurTok.value);
         const int current_prec = operators.at(m_Stream.CurTok.value);
 
-        op->setArity(2);
         forwardStream();  // we are onto the rhs
 
         if (last_prec < 0) {
@@ -712,6 +709,7 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
         
     } else {
         auto tmp = parse_component();
+
         if (continue_parsing()) {
             ret.expr.push_back(handle_binary(std::move(tmp), -1, false));
             ret.expr_type = deduced_type;

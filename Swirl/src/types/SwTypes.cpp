@@ -10,7 +10,7 @@ llvm::Type* FunctionType::llvmCodegen(LLVMBackend& instance) {
         llvm_param_types.push_back(ptr->llvmCodegen(instance));
 
     llvm::FunctionType* function = llvm::FunctionType::get(
-        this->ret_type->llvmCodegen(instance),
+        ret_type == nullptr ? llvm::Type::getVoidTy(instance.Context) : this->ret_type->llvmCodegen(instance),
         llvm_param_types,
         false
     );

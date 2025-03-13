@@ -41,13 +41,7 @@ public:
     IdentInfo* getNewIDInfo(const std::string& name) {
         return m_IDMan.createNew(name);
     }
-
-    IdentInfo* registerNew(const std::string& name, const TableEntry& entry) {
-        const auto ret = m_IDMan.createNew(name);
-        m_SymT[ret] = entry;
-        return ret;
-    }
-
+    
     std::optional<IdentInfo*> getIDInfoFor(const std::string& name) const {
         return m_IDMan.contains(name) ? std::optional{m_IDMan.fetch(name)} : std::nullopt;
     }
@@ -65,6 +59,8 @@ class SymbolManager {
     TypeManager m_TypeManager;
     std::vector<Scope> m_TypeTable;
     std::vector<Scope> m_DeclTable;
+
+    std::unordered_map<IdentInfo*, TableEntry> m_IdToTableEntry;
 
     // for mapping the modules' aliases to their file paths
     std::unordered_map<std::string, std::filesystem::path> m_ModuleAliasTable;
@@ -103,7 +99,7 @@ public:
     }
 
     TableEntry& lookupDecl(IdentInfo* id) {
-        return lookup(id, m_DeclTable);
+        return m_IdToTableEntry.at(id);
     }
 
     Type* lookupType(IdentInfo* id) {
@@ -119,14 +115,15 @@ public:
     }
 
     IdentInfo* registerDecl(const std::string& name, const TableEntry& entry) {
-        auto ret = m_DeclTable.at(m_ScopeInt).registerNew(name, entry);
-        
+        auto id = m_DeclTable.at(m_ScopeInt).getNewIDInfo(name);
+        m_IdToTableEntry.insert({id, entry});
+
         if (m_TESubscribers.contains(name)) {
             for (auto& subscriber : m_TESubscribers[name]) {
-                subscriber.set_value({ret, &m_DeclTable[m_ScopeInt].get(ret)});
+                subscriber.set_value({id, &m_IdToTableEntry.at(id)});
             }
         } m_TESubscribers.erase(name);
-        return ret;
+        return id;
     }
 
     bool typeExists(IdentInfo* id) const {

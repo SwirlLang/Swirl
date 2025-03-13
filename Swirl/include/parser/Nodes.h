@@ -261,7 +261,6 @@ struct Var final : Node {
 
 struct Function final : Node {
     IdentInfo* ident = nullptr;
-    Type*  ret_type = nullptr;
     Type** reg_ret_type = nullptr;
 
     bool is_exported = false;
@@ -283,7 +282,7 @@ struct Function final : Node {
 
     void updateRetTypeTo(Type* to) {
         *reg_ret_type = to;
-        ret_type = to;
+        // ret_type = to;
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;

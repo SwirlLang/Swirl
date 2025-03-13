@@ -1,13 +1,15 @@
+#include <cassert>
 #include <types/SwTypes.h>
 #include <parser/Nodes.h>
 #include <parser/Parser.h>
+#include <parser/SemanticAnalysis.h>
 
 
 using SwNode = std::unique_ptr<Node>;
 using NodesVec = std::vector<SwNode>;
 
 
-// TODO: a mechanism for caching analyses to not re-analyze redundantly
+// TODO: a mechanism for caching analyses to not analyze redundantly
 
 
 // put the larger type of the two into `placed_into` 
@@ -42,13 +44,8 @@ AnalysisResult StrLit::analyzeSemantics(AnalysisContext&) {
 
 AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
-    
-    if (var_type == nullptr) {
-        auto val_analysis = value.analyzeSemantics(ctx);
-        if (!val_analysis.is_erroneous) {
-            var_type = val_analysis.deduced_type;
-        }
-    }
+    auto val_analysis = value.analyzeSemantics(ctx);
+    var_type = val_analysis.deduced_type;
 
     return ret;
 }
@@ -60,6 +57,7 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
+    auto decl = ctx.SymMan.lookupDecl(this->value);
     return ret;
 }
 
@@ -68,7 +66,7 @@ AnalysisResult WhileLoop::analyzeSemantics(AnalysisContext& ctx) {
 
     for (auto& child : children)
         child->analyzeSemantics(ctx);
-
+        
     return ret;
 }
 
@@ -105,21 +103,20 @@ AnalysisResult ReturnStatement::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
-    Type* deduced_type;
+    Type* deduced_type = nullptr;
     
     for (auto& child : children) {
         if (child->getNodeType() == ND_RET) {  // TODO: handle multiple return statements
             auto ret_analysis = child->analyzeSemantics(ctx);
-            deduced_type = ret.deduced_type;
+            deduced_type = ret_analysis.deduced_type;
             continue;
         }
         child->analyzeSemantics(ctx);
     }
 
-    if (ret_type == nullptr) {
-        ret_type = deduced_type;
-    }
-    
+    FunctionType* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(this->ident));
+    fn_type->ret_type = deduced_type;
+
     return ret;
 }
 
@@ -150,9 +147,11 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
+    assert(this->expr.size() == 1);
     auto val = this->expr.front()->analyzeSemantics(ctx);
-    ret.deduced_type = val.deduced_type;
 
+    ret.deduced_type = val.deduced_type;
+    this->expr_type = val.deduced_type;
     return ret;
 }
 
