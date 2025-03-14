@@ -46,9 +46,10 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
     auto val_analysis = value.analyzeSemantics(ctx);
 
-    if (var_type == nullptr)
+    if (var_type == nullptr) {
         var_type = val_analysis.deduced_type;
-    else {
+        ctx.SymMan.lookupDecl(var_ident).swirl_type = var_type;
+    } else {
         // TODO: check whether deduced_type is implicitly convertible to var_type 
         value.expr_type = var_type;
     }
@@ -64,6 +65,7 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
     auto decl = ctx.SymMan.lookupDecl(this->value);
+    ret.deduced_type = decl.swirl_type;
     return ret;
 }
 
@@ -112,8 +114,14 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
     Type* deduced_type = nullptr;
     
     for (auto& child : children) {
-        if (child->getNodeType() == ND_RET) {  // TODO: handle multiple return statements
+        if (child->getNodeType() == ND_RET) { 
             auto ret_analysis = child->analyzeSemantics(ctx);
+
+            if (deduced_type != nullptr) {
+                deduced_type = deduceType(deduced_type, ret_analysis.deduced_type);
+                continue;
+            }
+
             deduced_type = ret_analysis.deduced_type;
             continue;
         }

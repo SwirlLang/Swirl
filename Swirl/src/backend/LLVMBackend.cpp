@@ -167,11 +167,15 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         }},
 
         {{"+", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-            return instance.Builder.CreateAdd(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
+            if (instance.LatestBoundIsIntegral) {
+                return instance.Builder.CreateAdd(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
+            } return instance.Builder.CreateFAdd(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
         }},
 
         {{"-", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-            return instance.Builder.CreateSub(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
+            if (instance.LatestBoundIsIntegral) {
+                return instance.Builder.CreateSub(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
+            } return instance.Builder.CreateFSub(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
         }},
 
         {{"*", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
