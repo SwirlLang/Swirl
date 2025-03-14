@@ -28,15 +28,10 @@ struct TableEntry {
 
 
 class Scope {
-    std::unordered_map<IdentInfo*, TableEntry> m_SymT;
     IdentManager m_IDMan;
 
 public:
     Scope() = default;
-
-    TableEntry& get(IdentInfo* id) {
-        return m_SymT.at(id);
-    }
 
     IdentInfo* getNewIDInfo(const std::string& name) {
         return m_IDMan.createNew(name);
@@ -44,10 +39,6 @@ public:
     
     std::optional<IdentInfo*> getIDInfoFor(const std::string& name) const {
         return m_IDMan.contains(name) ? std::optional{m_IDMan.fetch(name)} : std::nullopt;
-    }
-
-    bool contains(IdentInfo* id) const {
-        return m_SymT.contains(id);
     }
 };
 
@@ -126,12 +117,12 @@ public:
         return id;
     }
 
-    bool typeExists(IdentInfo* id) const {
-        return checkExistence(id, m_TypeTable);
+    bool typeExists(IdentInfo* id) {
+        return m_TypeManager.contains(id);
     }
 
     bool declExists(IdentInfo* id) const {
-        return checkExistence(id, m_DeclTable);
+        return m_IdToTableEntry.contains(id);
     }
     
 
@@ -208,33 +199,8 @@ private:
     void fulfillPromisesIfExists(const std::string& name) {
         if (auto id = m_DeclTable.front().getIDInfoFor(name)) {
             for (auto& subscriber : m_TESubscribers[name]) {
-                subscriber.set_value({id.value(), &m_DeclTable.front().get(id.value())});
+                subscriber.set_value({id.value(), &m_IdToTableEntry.at(id.value())});
             } m_TESubscribers.erase(name);
         }
-    }
-
-    TableEntry& lookup(IdentInfo* id, std::vector<Scope>& at) {
-        if (at.front().contains(id))
-            return at.front().get(id);
-
-        // traverse in reverse
-        for (auto& scope : at | std::views::drop(1) | std::views::take(m_ScopeInt) | std::views::reverse)
-            if (scope.contains(id))
-                return scope.get(id);
-
-        throw std::runtime_error("SymbolManager::lookup: id not found");
-    }
-
-
-    bool checkExistence(IdentInfo* id, const std::vector<Scope>& at) const {
-        if (at.front().contains(id))
-            return true;
-
-        return std::ranges::any_of(
-            at | std::views::drop(1) | std::views::take(m_ScopeInt) | std::views::reverse,
-            [id](auto& scope) {
-                return scope.contains(id);
-            }
-        );
     }
 };

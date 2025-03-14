@@ -52,4 +52,12 @@ public:
             throw std::runtime_error("TypeManager::registerType: Duplicate type registration request!");
         m_TypeTable[pt] = std::unique_ptr<Type>(t);
     }
+
+    bool contains(IdentInfo* type) {
+        return m_TypeTable.contains({type});
+    }
+
+    bool contains(const ParsedType& t) {
+        return m_TypeTable.contains(t);
+    }
 };
