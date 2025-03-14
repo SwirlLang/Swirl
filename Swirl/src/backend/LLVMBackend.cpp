@@ -64,21 +64,25 @@ void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<
 
 llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
     llvm::Value* ret;
-    if (value.starts_with("0x"))
-        ret = llvm::ConstantInt::get(instance.IntegralTypeState, value.substr(2), 16);
-    else if (value.starts_with("0o"))
-        ret = llvm::ConstantInt::get(instance.IntegralTypeState, value.substr(2), 8);
-    else ret = llvm::ConstantInt::get(instance.IntegralTypeState, value, 10);
 
-    // TODO: handle octal and hexal radices
+    if (instance.LatestBoundIsIntegral) {
+        auto int_type = llvm::dyn_cast<llvm::IntegerType>(instance.BoundLLVMTypeState);
+
+        if (value.starts_with("0x"))
+            ret = llvm::ConstantInt::get(int_type, value.substr(2), 16);
+        else if (value.starts_with("0o"))
+            ret = llvm::ConstantInt::get(int_type, value.substr(2), 8);
+        else ret = llvm::ConstantInt::get(int_type, value, 10);
+    }
+
     if (instance.LatestBoundIsFloating) {
-        ret = llvm::ConstantFP::get(instance.FloatTypeState, value);
+        ret = llvm::ConstantFP::get(instance.BoundLLVMTypeState, value);
     }
     return ret; 
 }
 
 llvm::Value* FloatLit::llvmCodegen(LLVMBackend& instance) {
-    return llvm::ConstantFP::get(instance.FloatTypeState, value);
+    return llvm::ConstantFP::get(instance.BoundLLVMTypeState, value);
 }
 
 llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
@@ -190,8 +194,8 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
             if (instance.LatestBoundIsFloating) {
                 return instance.Builder.CreateFDiv(op1, op2);
-            } {
-                if (instance.IntegralTypeState->isSingleValueType())
+            } {  // !!!!!!!!!!
+                if (instance.BoundLLVMTypeState->isSingleValueType())  // !!!!!!!!!
                     return instance.Builder.CreateSDiv(op1, op2);
                 return instance.Builder.CreateUDiv(op1, op2);
             }
@@ -310,18 +314,12 @@ llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
 
     // ReSharper disable once CppDFANullDereference
     e_type = expr_type->llvmCodegen(instance);
-    if (e_type->isIntegerTy() && e_type != llvm::Type::getInt1Ty(instance.Context))
-        instance.setIntegralTypeState(e_type);
-    else if (e_type->isFloatingPointTy())
-        instance.setFloatTypeState(e_type);
+    instance.setBoundTypeState(expr_type);
 
     const auto val = expr.back()->llvmCodegen(instance);
 
     // ReSharper disable once CppDFANullDereference
-    if (e_type->isIntegerTy() && e_type != llvm::Type::getInt1Ty(instance.Context))
-        instance.restoreIntegralTypeState();
-    else if (e_type->isFloatingPointTy())
-        instance.restoreFloatTypeState();
+    instance.restoreBoundTypeState();
 
     return val;
 }

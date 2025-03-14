@@ -36,18 +36,14 @@ public:
     bool IsAssignmentLHS = false;
 
     Type*              LatestBoundType = nullptr;
-    llvm::Type*        FloatTypeState = nullptr;
-    llvm::IntegerType* IntegralTypeState = nullptr;
+    llvm::Type*        BoundLLVMTypeState = nullptr;
     // -------------------------------------------------------
     
     explicit LLVMBackend(SwAST_t ast, const std::string& mod_name, SymbolManager sym_man, ErrorManager em)
             : LModule{std::make_unique<llvm::Module>(mod_name, Context)}
             , AST(std::move(ast))
             , SymMan(std::move(sym_man))
-            , ErrMan(std::move(em))
-            , FloatTypeState{llvm::Type::getFloatTy(Context)}
-            , IntegralTypeState{llvm::Type::getInt32Ty(Context)} {}
-    
+            , ErrMan(std::move(em)) {}
 
     void startGeneration() {
         for (auto& node : AST) {
@@ -78,38 +74,26 @@ public:
         this->Builder.restoreIP(ip_cache);
     }
 
-    void setIntegralTypeState(llvm::Type* state) {
-        m_Cache = IntegralTypeState;
-        IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(state);
-        LatestBoundIsIntegral = true;
+    void setBoundTypeState(Type* to) {
+        m_Cache = LatestBoundType;
+        LatestBoundType = to;
+        BoundLLVMTypeState = to->llvmCodegen(*this);
+        
+        if (BoundLLVMTypeState->isFloatingPointTy())
+            LatestBoundIsFloating = true;
+        else if (BoundLLVMTypeState->isIntegerTy())
+            LatestBoundIsIntegral = true;
     }
 
-    void restoreIntegralTypeState() {
-        IntegralTypeState = llvm::dyn_cast<llvm::IntegerType>(m_Cache);
+    void restoreBoundTypeState() {
+        LatestBoundType = m_Cache;
+        BoundLLVMTypeState = m_Cache->llvmCodegen(*this);
+        LatestBoundIsFloating = false;
         LatestBoundIsIntegral = false;
     }
 
-    void setFloatTypeState(llvm::Type* state) {
-        m_Cache = FloatTypeState;
-        FloatTypeState = state;
-        LatestBoundIsFloating = true;
-    }
-
-    void restoreFloatTypeState() {
-        FloatTypeState = m_Cache;
-        LatestBoundIsFloating = false;
-    }
-
-    llvm::IntegerType* getIntegralTypeState() const {
-        return IntegralTypeState;
-    }
-
-    llvm::Type* getFloatTypeState() const {
-        return FloatTypeState;
-    }
-
 private:
-    llvm::Type* m_Cache = nullptr;
+    Type* m_Cache = nullptr;
     std::unordered_set<std::size_t> m_ResolvedList;
     std::size_t m_CurParentIndex = 0;
 };
