@@ -1,5 +1,7 @@
 #include <cassert>
+#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/GlobalVariable.h>
+#include <llvm/Support/Alignment.h>
 #include <string>
 #include <ranges>
 #include <unordered_map>
@@ -468,6 +470,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     if (initialized)
         init = value.llvmCodegen(instance);
 
+    
     if (!instance.IsLocalScope) {
         // TODO
         auto* var = new llvm::GlobalVariable(
@@ -482,10 +485,11 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
         instance.SymMan.lookupDecl(this->var_ident).ptr = var;
     } else {
         llvm::AllocaInst* var_alloca = instance.Builder.CreateAlloca(type, nullptr, var_ident->toString());
+
         if (init != nullptr) {
             instance.Builder.CreateStore(init, var_alloca, is_volatile);
         }
-
+        
         ret = var_alloca;
         instance.SymMan.lookupDecl(this->var_ident).ptr = var_alloca;
     }

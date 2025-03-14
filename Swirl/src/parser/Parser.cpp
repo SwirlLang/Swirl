@@ -248,7 +248,7 @@ void Parser::callBackend() {
     SymbolTable.lockNewScpEmplace();
     ErrMan.raiseAll();
 
-    LLVMBackend llvm_instance{std::move(AST), "deme", std::move(SymbolTable), std::move(ErrMan)};  // TODO
+    LLVMBackend llvm_instance{std::move(AST), m_FilePath.string(), std::move(SymbolTable), std::move(ErrMan)};  // TODO
     llvm_instance.startGeneration();
     
     printIR(llvm_instance);

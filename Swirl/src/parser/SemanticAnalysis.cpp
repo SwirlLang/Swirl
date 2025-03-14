@@ -45,7 +45,13 @@ AnalysisResult StrLit::analyzeSemantics(AnalysisContext&) {
 AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
     auto val_analysis = value.analyzeSemantics(ctx);
-    var_type = val_analysis.deduced_type;
+
+    if (var_type == nullptr)
+        var_type = val_analysis.deduced_type;
+    else {
+        // TODO: check whether deduced_type is implicitly convertible to var_type 
+        value.expr_type = var_type;
+    }
 
     return ret;
 }

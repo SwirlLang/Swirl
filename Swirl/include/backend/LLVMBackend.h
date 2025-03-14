@@ -1,6 +1,13 @@
 #pragma once
+#include <llvm/MC/TargetRegistry.h>
+#include <llvm/Support/CodeGen.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Target/TargetMachine.h>
+#include <llvm/Target/TargetOptions.h>
+#include <llvm/TargetParser/Host.h>
 #include <memory>
 #include <queue>
+#include <stdexcept>
 #include <unordered_set>
 #include <vector>
 
@@ -26,6 +33,9 @@ public:
     SymbolManager SymMan;
     ErrorManager  ErrMan;
     
+    inline static const std::string TargetTriple = llvm::sys::getDefaultTargetTriple();
+    inline static const llvm::TargetMachine* TargetMachine = nullptr;
+
     std::queue<std::function<void()>> PendingCodegenQ;
     
     // ----------------[contextual-states]-------------------
@@ -43,7 +53,42 @@ public:
             : LModule{std::make_unique<llvm::Module>(mod_name, Context)}
             , AST(std::move(ast))
             , SymMan(std::move(sym_man))
-            , ErrMan(std::move(em)) {}
+            , ErrMan(std::move(em)) 
+    {
+        if (m_AlreadyInstantiated) {
+            LModule->setDataLayout(TargetMachine->createDataLayout());
+            LModule->setTargetTriple(TargetTriple);
+        }
+
+        if (m_AlreadyInstantiated) return;
+
+        llvm::InitializeAllTargetInfos();
+        llvm::InitializeAllTargets();
+        llvm::InitializeAllTargetMCs();
+        llvm::InitializeAllAsmParsers();
+        llvm::InitializeAllAsmPrinters();
+
+        std::string error;
+        const auto target = llvm::TargetRegistry::lookupTarget(TargetTriple, error);
+
+        if (!target) {
+            throw std::runtime_error("Failed to lookup target! " + error);
+        }
+
+        llvm::TargetOptions options;
+        auto reloc_model = std::optional<llvm::Reloc::Model>();
+
+        TargetMachine = target->createTargetMachine(
+            TargetTriple, "generic", "", options, reloc_model
+        );
+
+        LModule->setDataLayout(TargetMachine->createDataLayout());
+        LModule->setTargetTriple(TargetTriple);
+
+        m_AlreadyInstantiated = true;
+    }
+
+
 
     void startGeneration() {
         for (auto& node : AST) {
@@ -94,6 +139,8 @@ public:
 
 private:
     Type* m_Cache = nullptr;
+    bool m_AlreadyInstantiated = false;
+
     std::unordered_set<std::size_t> m_ResolvedList;
     std::size_t m_CurParentIndex = 0;
 };
