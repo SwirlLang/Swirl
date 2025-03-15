@@ -1,3 +1,4 @@
+#include "types/SwTypes.h"
 #include <cassert>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/GlobalVariable.h>
@@ -67,6 +68,7 @@ void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<
 llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
     llvm::Value* ret;
 
+
     if (instance.LatestBoundIsIntegral) {
         auto int_type = llvm::dyn_cast<llvm::IntegerType>(instance.BoundLLVMTypeState);
 
@@ -74,7 +76,7 @@ llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
             ret = llvm::ConstantInt::get(int_type, value.substr(2), 16);
         else if (value.starts_with("0o"))
             ret = llvm::ConstantInt::get(int_type, value.substr(2), 8);
-        else ret = llvm::ConstantInt::get(int_type, value, 10);
+        else ret = llvm::ConstantInt::get(int_type, value, 10); 
     }
 
     if (instance.LatestBoundIsFloating) {
@@ -144,7 +146,6 @@ llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
         return nullptr;
     }
 
-    std::println("value.expr is empty!!!!!!!");
     instance.Builder.CreateRetVoid();
     return nullptr;
 }
@@ -200,14 +201,14 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
             if (instance.LatestBoundIsFloating) {
                 return instance.Builder.CreateFDiv(op1, op2);
-            } {  // !!!!!!!!!!
-                if (instance.BoundLLVMTypeState->isSingleValueType())  // !!!!!!!!!
+            } {
+                if (!instance.LatestBoundType->isUnsigned())
                     return instance.Builder.CreateSDiv(op1, op2);
                 return instance.Builder.CreateUDiv(op1, op2);
             }
         }},
-
-
+        
+        // TODO: this definition is flawed
         {{"==", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
             auto op1 = operands.at(0)->llvmCodegen(instance);
             auto op2 = operands.at(1)->llvmCodegen(instance);
@@ -315,7 +316,6 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
     llvm::Type* e_type = nullptr;
-
     instance.LatestBoundType = this->expr_type;
 
     // ReSharper disable once CppDFANullDereference

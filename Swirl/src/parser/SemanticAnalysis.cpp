@@ -1,8 +1,10 @@
 #include <cassert>
+#include <print>
 #include <types/SwTypes.h>
 #include <parser/Nodes.h>
 #include <parser/Parser.h>
 #include <parser/SemanticAnalysis.h>
+#include <unordered_set>
 
 
 using SwNode = std::unique_ptr<Node>;
@@ -12,7 +14,6 @@ using NodesVec = std::vector<SwNode>;
 // TODO: a mechanism for caching analyses to not analyze redundantly
 
 
-// put the larger type of the two into `placed_into` 
 Type* deduceType(Type* type1, Type* type2) {
     // TODO: signed types
     if (type1 == nullptr)
@@ -51,7 +52,7 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
         ctx.SymMan.lookupDecl(var_ident).swirl_type = var_type;
     } else {
         // TODO: check whether deduced_type is implicitly convertible to var_type 
-        value.expr_type = var_type;
+        value.setType(var_type);
     }
 
     return ret;
@@ -81,11 +82,13 @@ AnalysisResult WhileLoop::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult Condition::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
     
+    bool_expr.setType(&GlobalTypeBool);
     for (auto& child : if_children) {
         child->analyzeSemantics(ctx);
     }
 
     for (auto& [cond, children] : elif_children) {
+        cond.setType(&GlobalTypeBool);
         for (auto& child : children) {
             child->analyzeSemantics(ctx);
         }
@@ -138,18 +141,29 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
+    static const std::unordered_set<std::string_view> boolean_ops = {
+        "==", "<", ">", "<=", ">=", "!=", "!"
+    };
+
     // 1st operand
     auto analysis_1 = operands.at(0)->analyzeSemantics(ctx);
 
     if (arity == 1) {
         ret.deduced_type = analysis_1.deduced_type;
+        if (boolean_ops.contains(value)) {
+            ret.deduced_type = &GlobalTypeBool;
+        }
+
     } else {
         // 2nd operand
         auto analysis_2 = operands.at(1)->analyzeSemantics(ctx);
 
         if (this->value == "/") {
             ret.deduced_type = &GlobalTypeF64;
-        } 
+        }
+        else if (boolean_ops.contains(value)) {
+            ret.deduced_type = &GlobalTypeBool;
+        }
         else {
             ret.deduced_type = deduceType(analysis_1.deduced_type, analysis_2.deduced_type);
         }   
@@ -165,7 +179,7 @@ AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
     auto val = this->expr.front()->analyzeSemantics(ctx);
 
     ret.deduced_type = val.deduced_type;
-    this->expr_type = val.deduced_type;
+    setType(val.deduced_type);
     return ret;
 }
 
@@ -175,3 +189,25 @@ AnalysisResult Assignment::analyzeSemantics(AnalysisContext& ctx) {
     return ret;
 }
 
+void Op::setType(Type* to) {
+    if (operands.front()->getNodeType() == ND_EXPR) {
+        dynamic_cast<Expression*>(operands.front().get())->setType(to);
+    }
+    
+    if (arity == 1) return;
+    if (operands.back()->getNodeType() == ND_EXPR) {
+        auto expr = dynamic_cast<Expression*>(operands.back().get());
+        expr->setType(to);
+        return;
+    }
+}
+
+void Expression::setType(Type* to) {
+    expr_type = to;
+    if (expr.front()->getNodeType() == ND_EXPR) {
+        dynamic_cast<Expression*>(expr.front().get())->setType(to);
+    }
+    else if (expr.front()->getNodeType() == ND_OP) {
+        dynamic_cast<Op*>(expr.front().get())->setType(to);
+    }
+}

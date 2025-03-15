@@ -645,6 +645,7 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
 
         if (last_prec < 0) {
             auto rhs = m_Stream.CurTok.type == OP ? parse_prefix().value() : parse_component();
+
             op->getMutOperands().push_back(std::move(prev));
             op->getMutOperands().push_back(std::move(rhs));
 

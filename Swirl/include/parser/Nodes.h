@@ -71,7 +71,6 @@ struct Node {
 };
 
 
-
 struct Expression : Node {
     std::vector<std::unique_ptr<Node>> expr;
     Type* expr_type = nullptr;
@@ -97,6 +96,9 @@ struct Expression : Node {
                 std::back_inserter(expr));
         return *this;
     }
+
+    // set the type of sub-expression instances to `to`
+    void setType(Type* to);
 
     IdentInfo* getIdentInfo() override {
         return expr.at(0)->getIdentInfo();
@@ -139,6 +141,8 @@ struct Op final : Expression {
         return operands;
     }
 
+    // set the type of sub-expression instances to `to`
+    void setType(Type* to);
 
     [[nodiscard]]
     NodeType getNodeType() const override {
