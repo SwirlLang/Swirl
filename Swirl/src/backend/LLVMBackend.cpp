@@ -64,12 +64,12 @@ void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<
     }
 }
 
-
 llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
     llvm::Value* ret = nullptr;
 
     if (instance.LatestBoundIsIntegral) {
         auto int_type = llvm::dyn_cast<llvm::IntegerType>(instance.BoundLLVMTypeState);
+        assert(int_type);
 
         if (value.starts_with("0x"))
             ret = llvm::ConstantInt::get(int_type, value.substr(2), 16);
@@ -100,22 +100,11 @@ llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
     // if (e.is_param) { return e.ptr; }
     if (instance.IsAssignmentLHS) { return e.ptr; }
 
-    if (instance.LatestBoundType != e.swirl_type) {
-        if (instance.LatestBoundType->isIntegral()) {
-            if (instance.LatestBoundType->isUnsigned()) {
-                return instance.Builder.CreateZExtOrTrunc(
-                    instance.Builder.CreateLoad(
-                        e.swirl_type->llvmCodegen(instance), e.ptr), 
-                        instance.BoundLLVMTypeState
-                    );
-            } return instance.Builder.CreateSExtOrTrunc(
-                instance.Builder.CreateLoad(
-                    e.swirl_type->llvmCodegen(instance), e.ptr), 
-                    instance.BoundLLVMTypeState
-                ); 
-        }
-    }
-    return e.is_param ? e.ptr : instance.Builder.CreateLoad(instance.BoundLLVMTypeState, e.ptr);
+    return e.is_param
+    ? e.ptr
+    : instance.castIfNecessary(
+        e.swirl_type, instance.Builder.CreateLoad(
+            e.swirl_type->llvmCodegen(instance), e.ptr));
 }
 
 
@@ -235,56 +224,49 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return instance.Builder.CreateUDiv(lhs, rhs);
         }},
         
-        // TODO: this definition is flawed
-        {{"==", 2}, [&instance, this](const NodesVec&) -> llvm::Value* {
-            llvm::Value* lhs = this->operands.at(0)->llvmCodegen(instance);
-            llvm::Value* rhs = this->operands.at(1)->llvmCodegen(instance);
+        {{"==", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
-            llvm::Type* type1 = lhs->getType();
-            llvm::Type* type2 = rhs->getType();
+            assert(lhs->getType() == rhs->getType());
 
-            if (type1->isFloatingPointTy() || type2->isFloatingPointTy()) {
-                if (type1 != type2) {
-                    if (type1->getPrimitiveSizeInBits() < type2->getPrimitiveSizeInBits()) {
-                        lhs = instance.Builder.CreateFPExt(lhs, type2);
-                    } else {
-                        rhs = instance.Builder.CreateFPExt(rhs, type1);
-                    }
-                }
+            if (lhs->getType()->isFloatingPointTy()) {
                 return instance.Builder.CreateFCmpOEQ(lhs, rhs);
             }
+            if (lhs->getType()->isIntegerTy()) {
 
-            if (type1->isIntegerTy() && type2->isIntegerTy()) {
-                const auto i_size1 = type1->getIntegerBitWidth();
-                const auto i_size2 = type2->getIntegerBitWidth();
-
-                if (i_size1 != i_size2) {
-                    if (i_size1 < i_size2) {
-                        lhs = instance.Builder.CreateZExtOrBitCast(lhs, type2);
-                    } else {
-                        rhs = instance.Builder.CreateZExtOrBitCast(rhs, type1);
-                    }
-                }
-                return instance.Builder.CreateICmpEQ(lhs, rhs);
             }
-
-            if (type1->isFloatingPointTy() && type2->isIntegerTy()) {
-                rhs = instance.Builder.CreateSIToFP(rhs, type1);
-                return instance.Builder.CreateFCmpOEQ(lhs, rhs);
-            }
-
-            if (type1->isIntegerTy() && type2->isFloatingPointTy()) {
-                lhs = instance.Builder.CreateSIToFP(lhs, type2);
-                return instance.Builder.CreateFCmpOEQ(lhs, rhs);
-            }
-
-            throw std::runtime_error("Unsupported types for equality comparison");
         }},
 
         // other operators...
     };
 
     return OpTable[{this->value, arity}](operands);
+}
+
+
+llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subject) {
+    if (LatestBoundType != source_type) {
+        if (LatestBoundType->isIntegral()) {
+            if (LatestBoundType->isUnsigned()) {
+                return Builder.CreateZExtOrTrunc(subject, BoundLLVMTypeState);
+            } return Builder.CreateSExtOrTrunc(subject, BoundLLVMTypeState);
+        }
+
+        if (LatestBoundType->isFloatingPoint()) {
+            if (source_type->isFloatingPoint()) {
+                return Builder.CreateFPCast(subject, BoundLLVMTypeState);
+            }
+
+            if (source_type->isIntegral()) {
+                if (source_type->isUnsigned()) {
+                    return Builder.CreateUIToFP(subject, BoundLLVMTypeState);
+                } else {
+                    return Builder.CreateSIToFP(subject, BoundLLVMTypeState);
+                }
+            }
+        }
+    }
 }
 
 
@@ -397,8 +379,17 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
     for (auto& item : args)
         arguments.push_back(item.llvmCodegen(instance));
 
-    if (!func->getReturnType()->isVoidTy())
-        return instance.Builder.CreateCall(func, arguments, ident->toString());
+    if (!func->getReturnType()->isVoidTy()) {
+        Type* ret_type = nullptr;
+
+        auto fn_type = dynamic_cast<FunctionType*>(instance.SymMan.lookupType(ident));
+        ret_type = fn_type->ret_type;
+
+        return instance.castIfNecessary(
+            ret_type,
+            instance.Builder.CreateCall(func, arguments, ident->toString())
+            );
+    }
 
     instance.Builder.CreateCall(func, arguments);
     return nullptr;

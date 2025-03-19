@@ -89,7 +89,9 @@ public:
         m_AlreadyInstantiated = true;
     }
 
-
+    /// perform any necessary type casts, then return the llvm::Value*
+    /// note: `subject` is supposed to be a "loaded" value
+    llvm::Value* castIfNecessary(Type* source_type, llvm::Value* subject);
 
     void startGeneration() {
         for (auto& node : AST) {
@@ -139,6 +141,8 @@ public:
             LatestBoundIsFloating = BoundLLVMTypeState->isFloatingPointTy();
             LatestBoundIsIntegral = BoundLLVMTypeState->isIntegerTy();
         }
+        LatestBoundIsIntegral = false;
+        LatestBoundIsFloating = false;
     }
 
 private:

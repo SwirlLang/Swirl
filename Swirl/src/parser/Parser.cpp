@@ -388,8 +388,7 @@ std::unique_ptr<FuncCall> Parser::parseCall(const std::optional<ParsedIdent> ide
     auto call_node = std::make_unique<FuncCall>();
 
     auto str_ident = ident->name;
-    // call_node->ident = SymbolTable.getIDInfoFor(m_Stream.CurTok.value);
-    forwardStream();
+    forwardStream();  // skip '('
 
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ")") {
         forwardStream();
@@ -422,7 +421,9 @@ std::unique_ptr<FuncCall> Parser::parseCall(const std::optional<ParsedIdent> ide
         }
     });
 
-    forwardStream();
+    if (m_Stream.CurTok.value == ")") {
+        forwardStream();
+    }
     return call_node;
 }
 
