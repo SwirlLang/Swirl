@@ -15,13 +15,11 @@ Type* deduceType(Type* type1, Type* type2) {
     // TODO: signed types
     if (type1 == nullptr)
         return type2;
-    else {
-        if (type1->isFloatingPoint() && type2->getBitWidth() > type1->getBitWidth()) {
-            return type2;
-        }
-        if (type1->isIntegral() && type2->getBitWidth() > type1->getBitWidth()) {
-            return type2;
-        }
+    if (type1->isFloatingPoint() && type2->getBitWidth() > type1->getBitWidth()) {
+        return type2;
+    }
+    if (type1->isIntegral() && type2->getBitWidth() > type1->getBitWidth()) {
+        return type2;
     }
     return type1;
 }

@@ -122,7 +122,6 @@ public:
 
     void setBoundTypeState(Type* to) {
         m_Cache = LatestBoundType;
-        std::println("caching expr_type: {}", (void*)m_Cache);
 
         LatestBoundType = to;
         BoundLLVMTypeState = to->llvmCodegen(*this);

@@ -559,7 +559,6 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
     return std::make_unique<WhileLoop>(std::move(loop));
 }
 
-
 Expression Parser::parseExpr(const std::optional<Type*>) {
     Type* deduced_type = nullptr;
 

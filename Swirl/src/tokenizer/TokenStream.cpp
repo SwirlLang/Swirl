@@ -108,7 +108,7 @@ Token TokenStream::readNextTok() {
             }
             if (isDigit(ch)) {
                 auto val = readWhile(isNumeric);
-                return {NUMBER, std::move(val), getStreamState(), val.find('.') != std::string::npos ? CT_FLOAT : CT_INT};
+                return {NUMBER, val, getStreamState(), val.contains('.') ? CT_FLOAT : CT_INT};
             }
             Token punc = {PUNC, std::string(1, ch), getStreamState()};
             if (punc.value == ".") {
@@ -157,23 +157,6 @@ Token TokenStream::next(const bool modify_cur_tk) {
     }
 
     if (modify_cur_tk) CurTok = cur_tk;
-
-    if (m_Filter.is_active) {
-        if (m_Filter.only_type) {
-            if (std::ranges::find(m_Filter.expected_types, cur_tk.type) == m_Filter.expected_types.end()) {
-                m_Filter.is_active = false;
-                m_Filter.only_type = false;
-                ErrMan->newError("syntax error");
-                return {.type = m_Filter.expected_types.front()};
-            }
-        } else if (std::ranges::find(m_Filter.expected_tokens, cur_tk) == m_Filter.expected_tokens.end()) {
-            m_Filter.is_active = false;
-            ErrMan->newError("syntax error");
-            return m_Filter.expected_tokens.front();
-        }
-        m_Filter.is_active = false;
-    }
-
     return cur_tk;
 }
 
