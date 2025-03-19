@@ -55,6 +55,15 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
+
+    auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(ident));
+    assert(fn_type->param_types.size() == args.size());
+
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        // TODO check whether the types are compatible
+        args[i].setType(fn_type->param_types[i]);
+    }
+
     return ret;
 }
 

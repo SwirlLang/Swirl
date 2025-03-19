@@ -101,7 +101,7 @@ llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
     if (instance.IsAssignmentLHS) { return e.ptr; }
 
     return e.is_param
-    ? e.ptr
+    ? instance.castIfNecessary(e.swirl_type, e.ptr)
     : instance.castIfNecessary(
         e.swirl_type, instance.Builder.CreateLoad(
             e.swirl_type->llvmCodegen(instance), e.ptr));
@@ -123,7 +123,7 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
     for (int i = 0; i < params.size(); i++) {
         const auto p_name = params[i].var_ident;
         const auto param = func->getArg(i);
-        param->setName(p_name->toString());
+        // param->setName(p_name->toString());
 
         instance.SymMan.lookupDecl(p_name).ptr = func->getArg(i);
     }
@@ -266,7 +266,7 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
                 }
             }
         }
-    }
+    } return subject;
 }
 
 
