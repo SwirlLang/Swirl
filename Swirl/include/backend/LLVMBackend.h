@@ -6,6 +6,7 @@
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/TargetParser/Host.h>
 #include <memory>
+#include <print>
 #include <queue>
 #include <stdexcept>
 #include <unordered_set>
@@ -121,6 +122,8 @@ public:
 
     void setBoundTypeState(Type* to) {
         m_Cache = LatestBoundType;
+        std::println("caching expr_type: {}", (void*)m_Cache);
+
         LatestBoundType = to;
         BoundLLVMTypeState = to->llvmCodegen(*this);
         
@@ -132,9 +135,11 @@ public:
 
     void restoreBoundTypeState() {
         LatestBoundType = m_Cache;
-        BoundLLVMTypeState = m_Cache->llvmCodegen(*this);
-        LatestBoundIsFloating = false;
-        LatestBoundIsIntegral = false;
+        if (m_Cache != nullptr) {
+            BoundLLVMTypeState = m_Cache->llvmCodegen(*this);
+            LatestBoundIsFloating = BoundLLVMTypeState->isFloatingPointTy();
+            LatestBoundIsIntegral = BoundLLVMTypeState->isIntegerTy();
+        }
     }
 
 private:

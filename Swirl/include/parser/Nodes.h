@@ -121,7 +121,7 @@ struct Expression : Node {
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
-struct Op final : Expression {
+struct Op final : Node {
     std::string value;  // the kind of operator (e.g. '+', '-')
     int8_t arity = 2;  // the no. of operands the operator requires
     std::vector<std::unique_ptr<Node>> operands;
@@ -181,7 +181,7 @@ struct ReturnStatement final : Node {
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
-struct IntLit final : Expression {
+struct IntLit final : Node {
     std::string value;
 
     explicit IntLit(std::string val): value(std::move(val)) {}
@@ -195,7 +195,7 @@ struct IntLit final : Expression {
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
-struct FloatLit final : Expression {
+struct FloatLit final : Node {
     std::string value;
 
     explicit FloatLit(std::string val): value(std::move(val)) {}
@@ -208,7 +208,7 @@ struct FloatLit final : Expression {
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
-struct StrLit final : Expression {
+struct StrLit final : Node {
     std::string value;
 
     explicit StrLit(std::string  val): value(std::move(val)) {}
@@ -337,7 +337,6 @@ struct Struct final : Node {
         return ident;
     }
 
-    llvm::Value *llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 

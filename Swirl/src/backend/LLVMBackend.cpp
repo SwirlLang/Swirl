@@ -66,8 +66,7 @@ void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<
 
 
 llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
-    llvm::Value* ret;
-
+    llvm::Value* ret = nullptr;
 
     if (instance.LatestBoundIsIntegral) {
         auto int_type = llvm::dyn_cast<llvm::IntegerType>(instance.BoundLLVMTypeState);
@@ -79,10 +78,13 @@ llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
         else ret = llvm::ConstantInt::get(int_type, value, 10); 
     }
 
-    if (instance.LatestBoundIsFloating) {
+    else if (instance.LatestBoundIsFloating) {
         ret = llvm::ConstantFP::get(instance.BoundLLVMTypeState, value);
+    } else {
+        throw std::runtime_error("Fatal: IntLit::llvmCodegen called but instance is neither in "
+                                "integral nor FP state.");
     }
-    return ret; 
+    return ret;
 }
 
 llvm::Value* FloatLit::llvmCodegen(LLVMBackend& instance) {
@@ -100,12 +102,20 @@ llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
 
     if (instance.LatestBoundType != e.swirl_type) {
         if (instance.LatestBoundType->isIntegral()) {
-            if (!e.swirl_type->isUnsigned())
-                return instance.Builder.CreateSExtOrTrunc(e.ptr, instance.LatestBoundType->llvmCodegen(instance));
-            return instance.Builder.CreateZExtOrTrunc(e.ptr, instance.LatestBoundType->llvmCodegen(instance));
+            if (instance.LatestBoundType->isUnsigned()) {
+                return instance.Builder.CreateZExtOrTrunc(
+                    instance.Builder.CreateLoad(
+                        e.swirl_type->llvmCodegen(instance), e.ptr), 
+                        instance.BoundLLVMTypeState
+                    );
+            } return instance.Builder.CreateSExtOrTrunc(
+                instance.Builder.CreateLoad(
+                    e.swirl_type->llvmCodegen(instance), e.ptr), 
+                    instance.BoundLLVMTypeState
+                ); 
         }
     }
-    return e.is_param ? e.ptr : instance.Builder.CreateLoad(instance.LatestBoundType->llvmCodegen(instance), e.ptr);
+    return e.is_param ? e.ptr : instance.Builder.CreateLoad(instance.BoundLLVMTypeState, e.ptr);
 }
 
 
@@ -145,6 +155,7 @@ llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
         instance.Builder.CreateRet(ret);
         return nullptr;
     }
+    
 
     instance.Builder.CreateRetVoid();
     return nullptr;
@@ -155,9 +166,8 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
     using SwNode = std::unique_ptr<Node>;
     using NodesVec = std::vector<SwNode>;
 
-
     // Maps {operator, arity} to the corresponding operator 'function'
-    static std::unordered_map<std::pair<std::string, uint8_t>, std::function<llvm::Value*(NodesVec&)>>
+    std::unordered_map<std::pair<std::string, uint8_t>, std::function<llvm::Value*(NodesVec&)>>
     OpTable = {
         {{"+", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
             return operands.back()->llvmCodegen(instance);
@@ -167,22 +177,39 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return instance.Builder.CreateNeg(operands.back()->llvmCodegen(instance));
         }},
 
-        {{"+", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"+", 2}, [&instance](NodesVec& operands) -> llvm::Value* {
+            auto lhs = operands.at(0)->llvmCodegen(instance);
+            auto rhs = operands.at(1)->llvmCodegen(instance);
+
             if (instance.LatestBoundIsIntegral) {
-                return instance.Builder.CreateAdd(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
-            } return instance.Builder.CreateFAdd(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
+                return instance.Builder.CreateAdd(lhs, rhs);
+            }
+
+            assert(lhs->getType()->isFloatingPointTy() && rhs->getType()->isFloatingPointTy());
+            return instance.Builder.CreateFAdd(lhs, rhs);
         }},
 
         {{"-", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
             if (instance.LatestBoundIsIntegral) {
-                return instance.Builder.CreateSub(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
-            } return instance.Builder.CreateFSub(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
+                return instance.Builder.CreateSub(lhs, rhs);
+            }
+            return instance.Builder.CreateFSub(lhs, rhs);
         }},
 
         {{"*", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-            return instance.Builder.CreateMul(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+
+            if (instance.LatestBoundIsIntegral) {
+                return instance.Builder.CreateMul(lhs, rhs);
+            }
+
+            return instance.Builder.CreateFMul(lhs, rhs);
         }},
 
+        // the dereference operator
         {{"*", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
             const auto entry = instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo());
             if (entry.is_param)
@@ -190,40 +217,41 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return instance.Builder.CreateLoad(entry.ptr->getType(), entry.ptr);
         }},
 
+        // the "address-taking" operator
         {{"&", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
             auto lookup = instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo());
             return lookup.ptr;
         }},
 
         {{"/", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-            const auto op1 = operands.at(0)->llvmCodegen(instance);
-            const auto op2 = operands.at(1)->llvmCodegen(instance);
-
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
             if (instance.LatestBoundIsFloating) {
-                return instance.Builder.CreateFDiv(op1, op2);
-            } {
-                if (!instance.LatestBoundType->isUnsigned())
-                    return instance.Builder.CreateSDiv(op1, op2);
-                return instance.Builder.CreateUDiv(op1, op2);
+                return instance.Builder.CreateFDiv(lhs, rhs);
             }
+            if (!instance.LatestBoundType->isUnsigned()) {
+                return instance.Builder.CreateSDiv(lhs, rhs);
+            }
+            return instance.Builder.CreateUDiv(lhs, rhs);
         }},
         
         // TODO: this definition is flawed
-        {{"==", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-            auto op1 = operands.at(0)->llvmCodegen(instance);
-            auto op2 = operands.at(1)->llvmCodegen(instance);
+        {{"==", 2}, [&instance, this](const NodesVec&) -> llvm::Value* {
+            llvm::Value* lhs = this->operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = this->operands.at(1)->llvmCodegen(instance);
 
-            llvm::Type* type1 = op1->getType();
-            llvm::Type* type2 = op2->getType();
+            llvm::Type* type1 = lhs->getType();
+            llvm::Type* type2 = rhs->getType();
 
             if (type1->isFloatingPointTy() || type2->isFloatingPointTy()) {
                 if (type1 != type2) {
                     if (type1->getPrimitiveSizeInBits() < type2->getPrimitiveSizeInBits()) {
-                        op1 = instance.Builder.CreateFPExt(op1, type2);
+                        lhs = instance.Builder.CreateFPExt(lhs, type2);
                     } else {
-                        op2 = instance.Builder.CreateFPExt(op2, type1);
+                        rhs = instance.Builder.CreateFPExt(rhs, type1);
                     }
-                } return instance.Builder.CreateFCmpOEQ(op1, op2);
+                }
+                return instance.Builder.CreateFCmpOEQ(lhs, rhs);
             }
 
             if (type1->isIntegerTy() && type2->isIntegerTy()) {
@@ -232,99 +260,38 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
                 if (i_size1 != i_size2) {
                     if (i_size1 < i_size2) {
-                        op1 = instance.Builder.CreateZExtOrBitCast(op1, type2);
+                        lhs = instance.Builder.CreateZExtOrBitCast(lhs, type2);
                     } else {
-                        op2 = instance.Builder.CreateZExtOrBitCast(op2, type1);
+                        rhs = instance.Builder.CreateZExtOrBitCast(rhs, type1);
                     }
-                } return instance.Builder.CreateICmpEQ(op1, op2);
+                }
+                return instance.Builder.CreateICmpEQ(lhs, rhs);
             }
 
             if (type1->isFloatingPointTy() && type2->isIntegerTy()) {
-                op2 = instance.Builder.CreateSIToFP(op2, type1);
-                return instance.Builder.CreateFCmpOEQ(op1, op2);
+                rhs = instance.Builder.CreateSIToFP(rhs, type1);
+                return instance.Builder.CreateFCmpOEQ(lhs, rhs);
             }
 
             if (type1->isIntegerTy() && type2->isFloatingPointTy()) {
-                op1 = instance.Builder.CreateSIToFP(op1, type2);
-                return instance.Builder.CreateFCmpOEQ(op1, op2);
+                lhs = instance.Builder.CreateSIToFP(lhs, type2);
+                return instance.Builder.CreateFCmpOEQ(lhs, rhs);
             }
 
             throw std::runtime_error("Unsupported types for equality comparison");
         }},
 
-        {{".", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-            static Type* BoundType;  // used to propagate the bound type up the recursion hierarchy
-            static int   recursion_depth = 0;
-
-            if (operands.front()->getNodeType() == ND_OP && dynamic_cast<Op*>(operands.front().get())->value == ".") {
-                recursion_depth++;
-                llvm::Value* op1 = OpTable[{".", 2}](operands.front()->getMutOperands());
-                
-                // auto struct_t = instance.SymManager.lookupType(BoundType->getIdent());  // dependent struct type
-                // auto* struct_type = struct_t->llvmCodegen(instance);
-
-                auto struct_entry   = instance.SymMan.lookupType(BoundType->getIdent());
-                auto* struct_swtype = dynamic_cast<StructType*>(struct_entry);
-
-                auto [index, bound_type] = struct_swtype->fields.at(operands.at(1)->getIdentInfo());
-                llvm::Type* mem_type = bound_type->llvmCodegen(instance);
-
-                const auto field_ptr = instance.Builder.CreateStructGEP(
-                    struct_swtype->llvmCodegen(instance),
-                    op1,
-                    index
-                );
-
-                if (instance.IsAssignmentLHS)
-                    return field_ptr;
-                return instance.Builder.CreateLoad(mem_type, field_ptr);
-            }
-
-            const TableEntry op1_symbol = instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo());
-            Type* struct_entry  = op1_symbol.swirl_type;
-
-            auto* struct_t = dynamic_cast<StructType*>(struct_entry);
-
-            auto [index, mem_bound_type] = struct_t->fields.at(operands.at(1)->getIdentInfo());
-            llvm::Type* member_ty = mem_bound_type->llvmCodegen(instance);
-            BoundType = mem_bound_type;
-
-
-            const auto field_ptr = instance.Builder.CreateStructGEP(
-                struct_t->llvmCodegen(instance),
-                operands.front()->llvmCodegen(instance),
-                index
-                );
-
-            if (instance.IsAssignmentLHS)
-                return field_ptr;
-            return instance.Builder.CreateLoad(member_ty, field_ptr);
-        }},
-
-        {{"||", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-            return instance.Builder.CreateLogicalOr(operands.at(0)->llvmCodegen(instance), operands.at(1)->llvmCodegen(instance));
-        }}
-        // {{">", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-        // }}
+        // other operators...
     };
-
 
     return OpTable[{this->value, arity}](operands);
 }
 
 
-
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
-    llvm::Type* e_type = nullptr;
-    instance.LatestBoundType = this->expr_type;
-
-    // ReSharper disable once CppDFANullDereference
-    e_type = expr_type->llvmCodegen(instance);
+    assert(expr_type != nullptr && expr.size() == 1);
     instance.setBoundTypeState(expr_type);
-
     const auto val = expr.back()->llvmCodegen(instance);
-
-    // ReSharper disable once CppDFANullDereference
     instance.restoreBoundTypeState();
 
     return val;
@@ -383,31 +350,6 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
             instance.Builder.CreateBr(merge_block);
         instance.Builder.SetInsertPoint(merge_block);
     }
-
-    return nullptr;
-}
-
-// useless
-llvm::Value* Struct::llvmCodegen(LLVMBackend& instance) {
-    // std::vector<llvm::Type*> types;
-    // std::vector<std::string> names;
-    // std::vector<Type*> type_names;
-    //
-    // types.reserve(members.size());
-    // names.reserve(members.size());
-    // type_names.reserve(members.size());
-    //
-    // for (const auto& mem : members)
-    //     if (mem->getNodeType() == ND_VAR) {
-    //         const auto field = dynamic_cast<Var*>(mem.get());
-    //         types.push_back(instance.SymManager.lookupType(field->var_type->getIdent())->llvmCodegen(instance));
-    //         names.push_back(field->var_ident->toString());
-    //         type_names.push_back(field->var_type);
-    //     }
-    //
-    // auto* struct_ = llvm::StructType::get(instance.Context);
-    // struct_->setName(ident->toString());
-    // struct_->setBody(types);
 
     return nullptr;
 }
