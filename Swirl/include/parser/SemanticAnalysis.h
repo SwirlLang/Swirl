@@ -1,18 +1,21 @@
+#pragma once
 #include <parser/Parser.h>
-#include "parser/Nodes.h"
 
+struct Node;
 using SwAST_t = std::vector<std::unique_ptr<Node>>;
 class SymbolManager;
 
-struct AnalysisContext {
-    AnalysisContext(Parser& parser): m_AST(parser.AST), SymMan(parser.SymbolTable) {}
+class AnalysisContext {
+public:
+    std::unordered_map<Node*, AnalysisResult> Cache;
+
+    explicit AnalysisContext(Parser& parser): SymMan(parser.SymbolTable), m_AST(parser.AST) {}
 
     void startAnalysis() {
-        for (auto& child : m_AST) {
+        for (const auto& child : m_AST) {
             child->analyzeSemantics(*this);
         }
     }
-    
 
     SymbolManager& SymMan;
 

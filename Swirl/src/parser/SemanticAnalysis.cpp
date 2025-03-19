@@ -11,9 +11,6 @@ using SwNode = std::unique_ptr<Node>;
 using NodesVec = std::vector<SwNode>;
 
 
-// TODO: a mechanism for caching analyses to not analyze redundantly
-
-
 Type* deduceType(Type* type1, Type* type2) {
     // TODO: signed types
     if (type1 == nullptr)
@@ -173,6 +170,9 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
+    if (ctx.Cache.contains(this))
+        return ctx.Cache.at(this);
+
     AnalysisResult ret;
 
     assert(this->expr.size() == 1);
@@ -180,6 +180,8 @@ AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
 
     ret.deduced_type = val.deduced_type;
     setType(val.deduced_type);
+
+    ctx.Cache.insert({this, ret});
     return ret;
 }
 
