@@ -255,6 +255,7 @@ struct Var final : Node {
     bool is_const    = false;
     bool is_volatile = false;
     bool is_exported = false;
+    bool is_extern = false;  // whether it has been extern'd
 
     Var() = default;
 
@@ -274,6 +275,7 @@ struct Function final : Node {
     Type** reg_ret_type = nullptr;
 
     bool is_exported = false;
+    bool is_extern = false;  // whether it has been extern'd
 
     std::vector<Var> params;
     std::vector<std::unique_ptr<Node>> children;

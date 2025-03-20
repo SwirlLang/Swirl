@@ -89,6 +89,12 @@ SwNode Parser::dispatch() {
                     return std::move(ret);
                 }
 
+                if (m_Stream.CurTok.value == "extern") {
+                    m_LastSymIsExtern = true;
+                    forwardStream();
+                    continue;
+                }
+
                 if (m_Stream.CurTok.value == "export") {
                     m_LastSymWasExported = true;
                     forwardStream();
@@ -268,7 +274,10 @@ std::unique_ptr<Function> Parser::parseFunction() {
     Function func_nd;
     
     func_nd.is_exported = m_LastSymWasExported;
+    func_nd.is_extern = m_LastSymIsExtern;
+
     m_LastSymWasExported = false;
+    m_LastSymIsExtern = false;
 
     m_Stream.expectTypes({IDENT});
     const std::string func_ident = m_Stream.next().value;
@@ -349,10 +358,14 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
 std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     Var var_node;
+
     var_node.is_const = m_Stream.CurTok.value[0] == 'c';
     var_node.is_volatile = is_volatile;
     var_node.is_exported = m_LastSymWasExported;
+    var_node.is_extern = m_LastSymIsExtern;
+
     m_LastSymWasExported = false;
+    m_LastSymIsExtern = false;
 
     const std::string var_ident = m_Stream.next().value;
     forwardStream();  // [:, =]

@@ -23,6 +23,7 @@ class Parser {
     TokenStream  m_Stream;
     Function*    m_LatestFuncNode = nullptr;
     bool         m_LastSymWasExported = false;
+    bool         m_LastSymIsExtern = false;
     std::size_t  m_ModuleUID = getNewModuleUID();  // unique id for the parser-instance per-module
     
     std::filesystem::path m_FilePath;
