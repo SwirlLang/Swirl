@@ -128,10 +128,8 @@ public:
         LatestBoundType = to;
         BoundLLVMTypeState = to->llvmCodegen(*this);
         
-        if (BoundLLVMTypeState->isFloatingPointTy())
-            LatestBoundIsFloating = true;
-        else if (BoundLLVMTypeState->isIntegerTy())
-            LatestBoundIsIntegral = true;
+        LatestBoundIsFloating = BoundLLVMTypeState->isFloatingPointTy();
+        LatestBoundIsIntegral = BoundLLVMTypeState->isIntegerTy();
     }
 
     void restoreBoundTypeState() {
@@ -140,7 +138,10 @@ public:
             BoundLLVMTypeState = m_Cache->llvmCodegen(*this);
             LatestBoundIsFloating = BoundLLVMTypeState->isFloatingPointTy();
             LatestBoundIsIntegral = BoundLLVMTypeState->isIntegerTy();
+            return;
         }
+
+        BoundLLVMTypeState = nullptr;
         LatestBoundIsIntegral = false;
         LatestBoundIsFloating = false;
     }

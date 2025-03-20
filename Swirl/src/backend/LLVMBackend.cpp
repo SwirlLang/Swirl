@@ -215,12 +215,14 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         {{"/", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+
             if (instance.LatestBoundIsFloating) {
                 return instance.Builder.CreateFDiv(lhs, rhs);
             }
             if (!instance.LatestBoundType->isUnsigned()) {
                 return instance.Builder.CreateSDiv(lhs, rhs);
             }
+
             return instance.Builder.CreateUDiv(lhs, rhs);
         }},
         
