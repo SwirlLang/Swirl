@@ -34,23 +34,22 @@ inline std::unordered_map<std::string, int> operators = {
     {"::", 0},
 
 
-    // Logical Operators
     {"||", 0},
     {"&&", 1},
     {"!=", 2},
     {"==", 2},
 
-    // Relational Operators
     {">", 4},
     {"<", 4},
     {"<=", 4},
     {">=", 4},
 
-    // Arithmetic Operators
     {"+", 8},
     {"-", 8},
     {"*", 16},
     {"/", 16},
+
+    {"!", 20},
 
     // Misc
     {".", 32}

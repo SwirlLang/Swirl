@@ -67,6 +67,8 @@ struct Node {
     
     virtual AnalysisResult analyzeSemantics(AnalysisContext&) { return {}; }
 
+    virtual Type* getSwType() { throw std::runtime_error("getSwType unimplemented!"); }
+
     virtual ~Node() = default;
 };
 
@@ -114,6 +116,10 @@ struct Expression : Node {
 
     bool operator==(const Expression& other) const {
         return this->expr.data() == other.expr.data() && this->expr_type == other.expr_type;
+    }
+
+    Type* getSwType() override {
+        return expr_type;
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
@@ -305,6 +311,10 @@ struct FuncCall final : Expression {
 
     IdentInfo* getIdentInfo() override {
         return ident;
+    }
+
+    Type* getSwType() override {
+        return signature;
     }
 
     [[nodiscard]] NodeType     getNodeType() const override { return ND_CALL; }

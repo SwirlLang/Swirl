@@ -85,14 +85,17 @@ AnalysisResult WhileLoop::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult Condition::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
-    
-    bool_expr.setType(&GlobalTypeBool);
+
+    // bool_expr.setType(&GlobalTypeBool);
+    bool_expr.analyzeSemantics(ctx);
+
     for (auto& child : if_children) {
         child->analyzeSemantics(ctx);
     }
 
     for (auto& [cond, children] : elif_children) {
-        cond.setType(&GlobalTypeBool);
+        // cond.setType(&GlobalTypeBool);
+        cond.analyzeSemantics(ctx);
         for (auto& child : children) {
             child->analyzeSemantics(ctx);
         }
@@ -145,18 +148,11 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
-    static const std::unordered_set<std::string_view> boolean_ops = {
-        "==", "<", ">", "<=", ">=", "!=", "!"
-    };
-
     // 1st operand
     auto analysis_1 = operands.at(0)->analyzeSemantics(ctx);
 
     if (arity == 1) {
         ret.deduced_type = analysis_1.deduced_type;
-        if (boolean_ops.contains(value)) {
-            ret.deduced_type = &GlobalTypeBool;
-        }
 
     } else {
         // 2nd operand
@@ -164,9 +160,6 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 
         if (this->value == "/") {
             ret.deduced_type = &GlobalTypeF64;
-        }
-        else if (boolean_ops.contains(value)) {
-            ret.deduced_type = &GlobalTypeBool;
         }
         else {
             ret.deduced_type = deduceType(analysis_1.deduced_type, analysis_2.deduced_type);

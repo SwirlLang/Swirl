@@ -122,6 +122,23 @@ public:
         this->Builder.restoreIP(ip_cache);
     }
 
+    Type* fetchSwType(const std::unique_ptr<Node>& node) {
+        switch (node->getNodeType()) {
+            case ND_INT:
+                return &GlobalTypeI32;
+            case ND_FLOAT:
+                return &GlobalTypeF64;
+            case ND_IDENT:
+                return SymMan.lookupDecl(node->getIdentInfo()).swirl_type;
+            case ND_EXPR:
+                return node->getSwType();
+            case ND_CALL:
+                return dynamic_cast<FunctionType*>(node->getSwType())->ret_type;
+            default:
+                throw std::runtime_error("LLVMBackend::fetchSwType: failed to fetch type");
+        }
+    }
+
     void setBoundTypeState(Type* to) {
         m_Cache = LatestBoundType;
 

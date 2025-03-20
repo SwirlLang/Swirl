@@ -28,7 +28,7 @@ bool TokenStream::isId(const char chr) {
 }
 
 bool TokenStream::isOpChar(const char _chr) {
-    return "+-/*><=&@|.:"sv.find(_chr) != std::string::npos;
+    return "+-/*><=&@|.:!"sv.find(_chr) != std::string::npos;
 }
 
 bool TokenStream::isWhiteSpace(const char _chr) {

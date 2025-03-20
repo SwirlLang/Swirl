@@ -43,16 +43,16 @@ class NewScope {
 public:
      explicit NewScope(LLVMBackend& inst): instance(inst) {
          prev_ls_cache = inst.IsLocalScope;
-         inst.IsLocalScope = true;
-         inst.SymMan.newScope();
+         instance.IsLocalScope = true;
      }
 
     ~NewScope() {
          instance.IsLocalScope = prev_ls_cache;
-         instance.SymMan.destroyLastScope();
          instance.ChildHasReturned = false;
      }
 };
+
+
 
 void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<Node>>& children) {
     for (const auto& child : children) {
@@ -225,7 +225,9 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
             return instance.Builder.CreateUDiv(lhs, rhs);
         }},
-        
+
+        // -*- conditional operators -*- //
+
         {{"==", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
@@ -235,12 +237,117 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             if (lhs->getType()->isFloatingPointTy()) {
                 return instance.Builder.CreateFCmpOEQ(lhs, rhs);
             }
-            if (lhs->getType()->isIntegerTy()) {
 
+            if (lhs->getType()->isIntegerTy()) {
+                return instance.Builder.CreateICmpEQ(lhs, rhs);
             }
         }},
 
-        // other operators...
+        {{"!=", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+
+            assert(lhs->getType() == rhs->getType());
+
+            if (lhs->getType()->isFloatingPointTy()) {
+                return instance.Builder.CreateFCmpONE(lhs, rhs);
+            }
+
+            if (lhs->getType()->isIntegerTy()) {
+                return instance.Builder.CreateICmpNE(lhs, rhs);
+            }
+        }},
+
+        {{"&&", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+
+            return instance.Builder.CreateLogicalAnd(lhs, rhs);
+        }},
+
+        {{"!", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            return instance.Builder.CreateNot(lhs);
+        }},
+
+        {{"||", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+
+            return instance.Builder.CreateLogicalOr(lhs, rhs);
+        }},
+
+        {{">", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+
+            auto lhs_type = instance.fetchSwType(operands.at(0));
+            auto rhs_type = instance.fetchSwType(operands.at(1));
+
+            if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
+                return instance.Builder.CreateFCmpOGT(lhs, rhs);
+            }
+
+            if (lhs_type->isUnsigned() && rhs_type->isUnsigned()) {
+                return instance.Builder.CreateICmpUGT(lhs, rhs);
+            }
+
+            return instance.Builder.CreateICmpSGT(lhs, rhs);
+        }},
+
+    {{"<", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+        llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+
+        auto lhs_type = instance.fetchSwType(operands.at(0));
+        auto rhs_type = instance.fetchSwType(operands.at(1));
+
+        if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
+            return instance.Builder.CreateFCmpOLT(lhs, rhs);
+        }
+
+        if (lhs_type->isUnsigned() && rhs_type->isUnsigned()) {
+            return instance.Builder.CreateICmpULT(lhs, rhs);
+        }
+
+        return instance.Builder.CreateICmpSLT(lhs, rhs);
+    }},
+
+    {{">=", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+        llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+
+        auto lhs_type = instance.fetchSwType(operands.at(0));
+        auto rhs_type = instance.fetchSwType(operands.at(1));
+
+        if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
+            return instance.Builder.CreateFCmpOGE(lhs, rhs);
+        }
+
+        if (lhs_type->isUnsigned() && rhs_type->isUnsigned()) {
+            return instance.Builder.CreateICmpUGE(lhs, rhs);
+        }
+
+        return instance.Builder.CreateICmpSGE(lhs, rhs);
+    }},
+
+    {{"<=", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+        llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+
+        auto lhs_type = instance.fetchSwType(operands.at(0));
+        auto rhs_type = instance.fetchSwType(operands.at(1));
+
+        if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
+            return instance.Builder.CreateFCmpOLE(lhs, rhs);
+        }
+
+        if (lhs_type->isUnsigned() && rhs_type->isUnsigned()) {
+            return instance.Builder.CreateICmpULE(lhs, rhs);
+        }
+
+        return instance.Builder.CreateICmpSLE(lhs, rhs);
+    }},
     };
 
     return OpTable[{this->value, arity}](operands);
