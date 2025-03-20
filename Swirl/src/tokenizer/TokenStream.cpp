@@ -97,7 +97,14 @@ Token TokenStream::readNextTok() {
         default:
             if (isIdStart(ch)) {
                 auto val = readWhile(isId);
-                return {keywords.contains(val) ? KEYWORD : IDENT, std::move(val), getStreamState()};
+                return {
+                    keywords.contains(val)
+                        ? KEYWORD
+                        : val == "as" ? OP : IDENT,
+
+                    std::move(val),
+                    getStreamState()
+                };
             }
             if (isOpChar(ch)) {
                 Token op = readOperator();

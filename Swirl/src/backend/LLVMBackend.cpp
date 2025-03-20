@@ -226,6 +226,11 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return instance.Builder.CreateUDiv(lhs, rhs);
         }},
 
+        /// this operator doesn't need to do anything as `as` is handled in the semantic-analysis phase
+        {{"as", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+            return operands.at(0)->llvmCodegen(instance);
+        }},
+
         // -*- conditional operators -*- //
 
         {{"==", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {

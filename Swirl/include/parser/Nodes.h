@@ -130,7 +130,7 @@ struct Expression : Node {
 struct Op final : Node {
     std::string value;  // the kind of operator (e.g. '+', '-')
     int8_t arity = 2;  // the no. of operands the operator requires
-    std::vector<std::unique_ptr<Node>> operands;
+    std::vector<std::unique_ptr<Node>> operands;  // the operands
 
     Op() = default;
     explicit Op(std::string val): value(std::move(val)) {}

@@ -596,8 +596,6 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
                 }
  
                 auto id_node = std::make_unique<Ident>(SymbolTable.getIDInfoFor(id.name));
-                Type* id_type = SymbolTable.lookupDecl(id_node->value).swirl_type;
-                // deduceType(&deduced_type, id_type);
 
                 return std::move(id_node);
             }
