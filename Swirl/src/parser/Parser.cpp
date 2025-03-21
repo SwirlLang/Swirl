@@ -583,28 +583,26 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
                 if (m_Stream.CurTok.meta == CT_FLOAT) {
                     auto ret = std::make_unique<FloatLit>(m_Stream.CurTok.value);
                     forwardStream();
-                    // deduced_type = SymbolTable.lookupType("f64");
                     return std::move(ret);
                 }
 
                 auto ret = std::make_unique<IntLit>(m_Stream.CurTok.value);
 
-                // if (!deduced_type) {
-                //     deduced_type = SymbolTable.lookupType("i32");
-                // }
-
-
                 forwardStream();
                 return std::move(ret);
             }
 
+            case STRING: {
+                std::string str;
+                while (m_Stream.CurTok.type == STRING) {  // concatenation of adjacent string literals
+                    str += m_Stream.CurTok.value;
+                    forwardStream();
+                } return std::make_unique<StrLit>(str);
+            }
             case IDENT: {
                 auto id = parseIdent();   
                 if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
                     auto call_node = parseCall(std::move(id));
-                    
-                    // Type* fn_ret_type = dynamic_cast<FunctionType*>(SymbolTable.lookupDecl(call_node->getIdentInfo()).swirl_type)->ret_type;
-                    // deduceType(&deduced_type, fn_ret_type);
                     return std::move(call_node);
                 }
  

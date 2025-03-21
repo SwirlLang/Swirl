@@ -30,6 +30,7 @@ struct Type {
         F32,
         F64,
         BOOL,
+        STR,
         REFERENCE,
         POINTER
     };
@@ -70,7 +71,6 @@ struct FunctionType final : Type {
 struct StructType final : Type {
     IdentInfo* ident;
 
-    // std::unordered_map<IdentInfo*, std::unique_ptr<Var>> fields;
     std::map<IdentInfo*, std::pair<std::size_t, Type*>> fields;
 
     SwTypes getSwType() override { return STRUCT; }
@@ -83,6 +83,13 @@ struct StructType final : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
+/// This represents a non-owning string type, akin to std::string_view
+struct TypeStr final : Type {
+    [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
+    SwTypes    getSwType() override { return STR; }
+
+    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
+};
 
 struct ReferenceType final : Type {
     Type* of_type;
@@ -99,7 +106,7 @@ struct ReferenceType final : Type {
 
 struct PointerType final : Type {
     uint16_t pointer_level;
-    Type*   of_type;
+    Type*    of_type;
 
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes    getSwType() override { return POINTER; }
@@ -158,6 +165,8 @@ struct TypeI128 : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
+// TODO: merge the unsigned types into the corresponding `I` types with an `is_unsigned` field which `isUnsigned()` shall return
+
 struct TypeU8 final : TypeI8 {
     SwTypes getSwType() override { return U8; }
     bool isUnsigned() override { return true; }
@@ -214,7 +223,7 @@ struct TypeBool final : Type {
 
 
 
-// the instance pointers of builtin types is sharerd across all parser instances
+// the instance pointers of builtin types is shared across all parser instances
 
 inline TypeI8 GlobalTypeI8{};
 inline TypeU8 GlobalTypeU8{};
@@ -235,3 +244,4 @@ inline TypeF32 GlobalTypeF32{};
 inline TypeF64 GlobalTypeF64{};
 
 inline TypeBool GlobalTypeBool{};
+inline TypeStr  GlobalTypeStr{};

@@ -87,6 +87,7 @@ public:
         registerType(m_TypeTable.front().getNewIDInfo("f64"),  &GlobalTypeF64);
 
         registerType(m_TypeTable.front().getNewIDInfo("bool"), &GlobalTypeBool);
+        registerType(m_TypeTable.front().getNewIDInfo("str"),  &GlobalTypeStr);
     }
 
     TableEntry& lookupDecl(IdentInfo* id) {

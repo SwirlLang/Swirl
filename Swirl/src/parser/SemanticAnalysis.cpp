@@ -34,7 +34,7 @@ AnalysisResult FloatLit::analyzeSemantics(AnalysisContext&) {
 }
 
 AnalysisResult StrLit::analyzeSemantics(AnalysisContext&) {
-    return {}; 
+    return {.deduced_type = &GlobalTypeStr};
 }
 
 

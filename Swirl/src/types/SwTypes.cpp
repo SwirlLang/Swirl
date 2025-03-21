@@ -4,6 +4,8 @@
 #include <managers/IdentManager.h>
 
 
+// TODO: assign address spaces to types
+
 llvm::Type* FunctionType::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Type*> llvm_param_types;
     for (const auto& ptr : this->param_types)
@@ -17,6 +19,11 @@ llvm::Type* FunctionType::llvmCodegen(LLVMBackend& instance) {
 
     return function;
 }
+
+llvm::Type* TypeStr::llvmCodegen(LLVMBackend& instance) {
+    return llvm::PointerType::get(llvm::Type::getInt8Ty(instance.Context), 1);
+}
+
 
 llvm::Type* StructType::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Type*> llvm_fields;

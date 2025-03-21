@@ -144,7 +144,6 @@ llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
         instance.Builder.CreateRet(ret);
         return nullptr;
     }
-    
 
     instance.Builder.CreateRetVoid();
     return nullptr;
