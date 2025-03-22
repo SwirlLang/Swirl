@@ -4,12 +4,15 @@
 #include <functional>
 #include <tokenizer/Tokens.h>
 #include <tokenizer/InputStream.h>
+#include <utils/utils.h>
 
 class ErrorManager;
 
 class TokenStream {
-    StreamState                 m_Cache;           // For caching stream state
-    InputStream                 m_Stream;          // InputStream instance
+    StreamState                 m_Cache;    // For caching stream state
+    InputStream                 m_Stream;   // InputStream instance
+
+    std::filesystem::path       m_Path;     // a copy of the path for our ErrorManager friend =)
 
     friend class ErrorManager;
 
@@ -39,7 +42,7 @@ public:
     Token PeekTok;
     ErrorManager*  ErrMan = nullptr;
 
-    explicit TokenStream(std::string);
+    explicit TokenStream(const fs::path& file_path);
 
     void setReturnPoint();
     void restoreCache();

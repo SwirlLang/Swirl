@@ -21,9 +21,17 @@ inline std::size_t getNewModuleUID() {
 
 class Parser {
     TokenStream  m_Stream;
+
+    // ---*--- Flags  ---*---
     Function*    m_LatestFuncNode = nullptr;
     bool         m_LastSymWasExported = false;
     bool         m_LastSymIsExtern = false;
+
+    /// if set, forwardStream would return this token and won't forward the stream
+    std::optional<Token> m_ReturnFakeToken = std::nullopt;
+    // ---*--- ---*--- ---*---
+
+
     std::size_t  m_ModuleUID = getNewModuleUID();  // unique id for the parser-instance per-module
     
     std::filesystem::path m_FilePath;
@@ -68,7 +76,7 @@ public:
     ParsedIdent parseIdent();
 
     Token forwardStream(uint8_t n = 1);
-    Expression parseExpr(std::optional<Type*> bound_type = std::nullopt);
+    Expression parseExpr(const std::optional<Token>& terminator = std::nullopt);
     Type* parseType();
 
     void parse();

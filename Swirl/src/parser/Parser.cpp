@@ -32,23 +32,14 @@ extern std::optional<ThreadPool_t> ThreadPool;
 extern void printIR(const LLVMBackend& instance);
 extern void GenerateObjectFileLLVM(const LLVMBackend&);
 
-
 ModuleMap_t ModuleMap;
 
 
-std::string readFile(const std::filesystem::path& path) {
-    std::ifstream file;
-    file.open(path);
-    
-    std::string ret{std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
-    file.close();
-    return std::move(ret);
-}
-
 Parser::Parser(const std::filesystem::path& path)
-    : m_Stream{readFile(path)}
+    : m_Stream{path}
+    , m_FilePath{path}
     , ErrMan{&m_Stream}
-    , m_FilePath{path} {
+{
     m_Stream.ErrMan = &ErrMan;
     m_RelativeDir = path.parent_path();
 }
@@ -56,8 +47,16 @@ Parser::Parser(const std::filesystem::path& path)
 
 Token Parser::forwardStream(const uint8_t n) {
     Token ret = m_Stream.CurTok;
+
+    if (m_ReturnFakeToken.has_value()) {
+        auto tok = m_ReturnFakeToken.value();
+        m_ReturnFakeToken = std::nullopt;
+        return std::move(tok);
+    }
+
     for (uint8_t _ = 0; _ < n; _++)
         m_Stream.next();
+
     return std::move(ret);
 }
 
@@ -79,8 +78,8 @@ Type* Parser::parseType() {
 SwNode Parser::dispatch() {
     while (!m_Stream.eof()) {
         const TokenType type  = m_Stream.CurTok.type;
-        const std::string value = m_Stream.CurTok.value;    
-        
+        const std::string value = m_Stream.CurTok.value;
+
         // pattern matching in C++ when?
         switch (m_Stream.CurTok.type) {
             case KEYWORD:
@@ -187,6 +186,7 @@ SwNode Parser::dispatch() {
                     goto assignment_lhs;  // sorry
                 if (m_Stream.CurTok.value == ";") {
                     forwardStream();
+
                     continue;
                 } if (m_Stream.CurTok.value == "}") {
                     return std::make_unique<Node>();
@@ -379,7 +379,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "=") {
         var_node.initialized = true;
         forwardStream();
-        var_node.value = parseExpr(var_node.var_type);
+        var_node.value = parseExpr();
     }
 
     TableEntry entry;
@@ -415,7 +415,7 @@ std::unique_ptr<FuncCall> Parser::parseCall(const std::optional<ParsedIdent> ide
                     break;
             }
 
-            call_node->args.emplace_back(parseExpr({}));
+            call_node->args.emplace_back(parseExpr());
         }
     }
 
@@ -467,7 +467,7 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
 std::unique_ptr<Condition> Parser::parseCondition() {
     Condition cnd;
     forwardStream();  // skip "if"
-    cnd.bool_expr = parseExpr();
+    cnd.bool_expr = parseExpr(Token{PUNC, "{"});
     forwardStream();  // skip the opening brace
 
     SymbolTable.newScope();
@@ -486,7 +486,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
             forwardStream();
 
             std::tuple<Expression, std::vector<SwNode>> children{};
-            std::get<0>(children) = parseExpr({});
+            std::get<0>(children) = parseExpr(Token{PUNC, "{"});
 
             forwardStream();
             while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
@@ -561,7 +561,7 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
     WhileLoop loop{};
     forwardStream();
 
-    loop.condition = parseExpr();
+    loop.condition = parseExpr(Token{PUNC, "{"});
 
     SymbolTable.newScope();
     forwardStream();
@@ -573,7 +573,7 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
     return std::make_unique<WhileLoop>(std::move(loop));
 }
 
-Expression Parser::parseExpr(const std::optional<Type*>) {
+Expression Parser::parseExpr(const std::optional<Token>& terminator) {
     Type* deduced_type = nullptr;
 
     const
@@ -702,6 +702,16 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
         return std::move(op);
     };
 
+    auto check_for_terminator = [this, &terminator] {
+        if (terminator.has_value()) {
+            if (m_Stream.CurTok != terminator.value()) {
+                ErrMan.newSyntaxError("Expected '" + terminator->value + "'");
+                m_ReturnFakeToken = terminator.value();
+            }
+        }
+    };
+
+
     Expression ret;
     if (m_Stream.CurTok.type == OP) {
         auto op = parse_prefix().value();
@@ -709,13 +719,16 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
         if (continue_parsing()) {
             ret.expr.push_back(handle_binary(std::move(op), -1, false));
             ret.expr_type = deduced_type;
+
+            check_for_terminator();
             return std::move(ret);
         }
         
         ret.expr.push_back(std::move(op));
         ret.expr_type = deduced_type;
-        return std::move(ret);
 
+        check_for_terminator();
+        return std::move(ret);
         
     } else {
         auto tmp = parse_component();
@@ -723,10 +736,14 @@ Expression Parser::parseExpr(const std::optional<Type*>) {
         if (continue_parsing()) {
             ret.expr.push_back(handle_binary(std::move(tmp), -1, false));
             ret.expr_type = deduced_type;
+
+            check_for_terminator();
             return std::move(ret);
         }
         ret.expr.push_back(std::move(tmp));
         ret.expr_type = deduced_type;
+
+        check_for_terminator();
         return std::move(ret);
     }
 }

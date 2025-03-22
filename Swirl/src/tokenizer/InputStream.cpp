@@ -1,11 +1,25 @@
 #include <print>
-#include <sstream>
 #include <string>
+#include <fstream>
 #include <tokenizer/InputStream.h>
 
 std::size_t prev_col_state = 0;
 
-InputStream::InputStream(std::string source): m_Source(std::move(source)) {}
+InputStream::InputStream(const std::filesystem::path& file_path) {
+    m_SourceSize = file_size(file_path);
+    std::ifstream file_stream{file_path};
+
+    std::size_t ln_counter = 1;
+    std::size_t pos = 0;
+
+    for (std::string line; std::getline(file_stream, line); ) {
+        line += '\n';
+        m_LineOffsets[ln_counter] = {pos, line.size()};
+        m_Source += line;
+        pos += line.size();
+        ln_counter++;
+    }
+}
 
 char InputStream::peek() const {
     return m_Source.at(Pos);
@@ -20,7 +34,6 @@ char InputStream::next() {
     m_CurrentChar = chr;
 
     static std::size_t line_size = 0;
-    m_LineTable[Line] = {.from = Pos - line_size, .line_size = line_size + 1};  // TODO
     Pos++;
 
     if (chr == '\n') {
@@ -48,7 +61,7 @@ void InputStream::restoreCache() {
 }
 
 std::string InputStream::getLineAt(const std::size_t line) {
-    auto [from, line_size] = m_LineTable.at(line);
+    auto [from, line_size] = m_LineOffsets.at(line);
     return m_Source.substr(from, line_size);
 }
 
@@ -57,7 +70,7 @@ void InputStream::reset() {
 }
 
 bool InputStream::eof() const {
-    return Pos == m_Source.size();
+    return Pos == m_SourceSize;
 }
 
 std::string InputStream::getCurrentLine() const {

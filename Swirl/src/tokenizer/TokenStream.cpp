@@ -128,7 +128,7 @@ Token TokenStream::readNextTok() {
     }
 }
 
-TokenStream::TokenStream(std::string src) : m_Stream{std::move(src)} {}
+TokenStream::TokenStream(const fs::path& file_path) : m_Stream{file_path}, m_Path{file_path} {}
 
 void TokenStream::setReturnPoint() {
     m_Cache.Line = m_Stream.Line;

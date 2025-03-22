@@ -14,16 +14,29 @@ class ErrorManager {
 public:
     explicit ErrorManager(TokenStream* token_stream): m_TokStream(token_stream), m_IsErroneous(false) {}
 
+    void newSyntaxError(const std::string& message, std::optional<StreamState> at = std::nullopt) {
+        m_IsErroneous = true;
+        if (!at.has_value()) at = m_TokStream->getStreamState();
+
+        m_Message += "In " + m_TokStream->m_Path.string() + ':' + std::to_string(at->Line) + ":" + std::to_string(at->Col) + ':' + '\n' +
+            m_TokStream->m_Stream.getLineAt(at->Line)
+        + '\n' + std::string(at->Col - 1, ' ')
+        + "^ Syntax error! " + message
+        + LINE;
+    }
+
     void newError(const std::string& message, std::optional<StreamState> at = std::nullopt) {
         m_IsErroneous = true;
         if (!at.has_value()) at = m_TokStream->getStreamState();
-        m_Message += m_TokStream->m_Stream.getLineAt(at->Line) + '\n' + std::string(at->Col - 1, ' ') + "^ " + message + LINE;
+        m_Message += "In " + m_TokStream->m_Path.string() + ':' + std::to_string(at->Line) + ":" + std::to_string(at->Col) + ':' + '\n' +
+            m_TokStream->m_Stream.getLineAt(at->Line) + '\n' + std::string(at->Col - 1, ' ') + "^ " + message + LINE;
     }
 
     void newWarning(const std::string& message, std::optional<StreamState> at = std::nullopt) {
         m_IsErroneous = true;
         if (!at.has_value()) at = m_TokStream->getStreamState();
-        m_Message += m_TokStream->m_Stream.getLineAt(at->Line) + std::string(at->Col - 1, ' ') + "^ " + message + LINE;
+        m_Message += "In " + m_TokStream->m_Path.string() + ':' + std::to_string(at->Line) + ":" + std::to_string(at->Col) + ':' + '\n' +
+            m_TokStream->m_Stream.getLineAt(at->Line) + std::string(at->Col - 1, ' ') + "^ " + message + LINE;
     }
 
 
