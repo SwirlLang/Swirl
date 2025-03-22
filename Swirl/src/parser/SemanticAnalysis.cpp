@@ -77,6 +77,7 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult WhileLoop::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
+    condition.analyzeSemantics(ctx);
     for (auto& child : children)
         child->analyzeSemantics(ctx);
         

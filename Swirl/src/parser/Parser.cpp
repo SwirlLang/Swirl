@@ -561,7 +561,7 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
     WhileLoop loop{};
     forwardStream();
 
-    loop.condition = parseExpr(Token{PUNC, "{"});
+    loop.condition = parseExpr();
 
     SymbolTable.newScope();
     forwardStream();
