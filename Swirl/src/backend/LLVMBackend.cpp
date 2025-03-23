@@ -230,6 +230,10 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return operands.at(0)->llvmCodegen(instance);
         }},
 
+        {{".", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+
+        }},
+
         // -*- conditional operators -*- //
 
         {{"==", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {

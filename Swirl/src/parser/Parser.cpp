@@ -62,17 +62,29 @@ Token Parser::forwardStream(const uint8_t n) {
 
 
 Type* Parser::parseType() {
-    ParsedType pt;
+    bool is_reference = false;
+    IdentInfo* ident = nullptr;
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
-        pt.is_reference = true;
+        is_reference = true;
+        forwardStream();
+        ident = SymbolTable.getIDInfoFor(forwardStream().value);
+        return SymbolTable.getReferenceType(SymbolTable.lookupType(ident));
+    }
+
+    ident = SymbolTable.getIDInfoFor(forwardStream().value);
+
+    uint16_t ptr_level = 0;
+    while (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {
+        ptr_level++;
         forwardStream();
     }
 
-    pt.ident = SymbolTable.getIDInfoFor(forwardStream().value);
-    return SymbolTable.lookupType(pt.ident);
+    if (ptr_level) {
+        return SymbolTable.getPointerType(SymbolTable.lookupType(ident), ptr_level);
+    }
 
-    // TODO handle pointers and references
+    return SymbolTable.lookupType(ident);
 }
 
 SwNode Parser::dispatch() {
@@ -448,18 +460,6 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
         return std::make_unique<ReturnStatement>(std::move(ret));
 
     ret.value = parseExpr();
-    // if (m_LatestFuncNode->ret_type == nullptr) {
-    //     m_LatestFuncNode->updateRetTypeTo(ret.value.expr_type);
-    //     ret.parent_ret_type = ret.value.expr_type;
-    // }
-    // else {
-        // if (!implicitlyConvertible(ret.value.expr_type, m_LatestFuncNode->ret_type)) {
-        //     throw std::runtime_error("returned value type-mismatch");
-        // }
-    //     ret.value.expr_type = m_LatestFuncNode->ret_type;
-    //     ret.parent_ret_type = m_LatestFuncNode->ret_type;
-    // }
-
     return std::make_unique<ReturnStatement>(std::move(ret));
 }
 
@@ -561,7 +561,7 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
     WhileLoop loop{};
     forwardStream();
 
-    loop.condition = parseExpr();
+    loop.condition = parseExpr(Token{PUNC, "{"});
 
     SymbolTable.newScope();
     forwardStream();

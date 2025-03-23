@@ -92,8 +92,11 @@ struct TypeStr final : Type {
 };
 
 struct ReferenceType final : Type {
-    Type* of_type;
+    Type* of_type = nullptr;
 
+    ReferenceType() = default;
+    explicit ReferenceType(Type* t) : of_type(t) {}
+    
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes    getSwType() override { return REFERENCE; }
 
@@ -105,8 +108,11 @@ struct ReferenceType final : Type {
 };
 
 struct PointerType final : Type {
-    uint16_t pointer_level;
     Type*    of_type;
+    uint16_t pointer_level;
+
+    PointerType() = default;
+    explicit PointerType(Type* t, const uint16_t level): of_type(t), pointer_level(level) {}
 
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes    getSwType() override { return POINTER; }

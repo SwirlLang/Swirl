@@ -148,12 +148,16 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
-
     // 1st operand
     auto analysis_1 = operands.at(0)->analyzeSemantics(ctx);
 
     if (arity == 1) {
-        ret.deduced_type = analysis_1.deduced_type;
+        if (value == "&") {
+        }
+
+        else {
+            ret.deduced_type = analysis_1.deduced_type;
+        }
 
     } else {
         // 2nd operand
@@ -162,15 +166,12 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
         if (value == "/") {
             ret.deduced_type = &GlobalTypeF64;
         }
-
         else if (value == "as") {
-
             ret.deduced_type = ctx.SymMan.lookupType(operands.at(1)->getIdentInfo());
         }
-
         else {
             ret.deduced_type = deduceType(analysis_1.deduced_type, analysis_2.deduced_type);
-        }   
+        }
     }
     
     return ret;

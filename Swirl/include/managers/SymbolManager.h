@@ -2,7 +2,6 @@
 #include "utils/utils.h"
 #include <filesystem>
 #include <future>
-#include <memory>
 #include <print>
 #include <string>
 #include <ranges>
@@ -65,7 +64,7 @@ class SymbolManager {
                 >>> m_TESubscribers; // TE = TableEntry
 
 public:
-    SymbolManager(std::size_t uid): m_ModuleUID{uid} {
+    explicit SymbolManager(std::size_t uid): m_ModuleUID{uid} {
         // global scope
         m_TypeTable.emplace_back();
         m_DeclTable.emplace_back();
@@ -95,15 +94,23 @@ public:
     }
 
     Type* lookupType(IdentInfo* id) {
-        return m_TypeManager.getFor({.ident = id});
+        return m_TypeManager.getFor(id);
     }
 
     Type* lookupType(const std::string& id) {
-        return m_TypeManager.getFor({.ident = getIDInfoFor(id)});
+        return m_TypeManager.getFor(getIDInfoFor(id));
     }
 
     void registerType(IdentInfo* id, Type* type) {
-        m_TypeManager.registerType({.ident = id}, type);
+        m_TypeManager.registerType(id, type);
+    }
+
+    Type* getReferenceType(Type* of_type) {
+        return m_TypeManager.getReferenceType(of_type);
+    }
+
+    Type* getPointerType(Type* of_type, const uint16_t ptr_level) {
+        return m_TypeManager.getPointerType(of_type, ptr_level);
     }
 
     IdentInfo* registerDecl(const std::string& name, const TableEntry& entry) {
