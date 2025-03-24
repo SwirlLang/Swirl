@@ -1,5 +1,4 @@
 #include <filesystem>
-#include <iterator>
 #include <memory>
 #include <fstream>
 #include <print>
@@ -41,6 +40,7 @@ Parser::Parser(const std::filesystem::path& path)
     , ErrMan{&m_Stream}
 {
     m_Stream.ErrMan = &ErrMan;
+    SymbolTable.ErrMan = &ErrMan;
     m_RelativeDir = path.parent_path();
 }
 
@@ -62,11 +62,9 @@ Token Parser::forwardStream(const uint8_t n) {
 
 
 Type* Parser::parseType() {
-    bool is_reference = false;
     IdentInfo* ident = nullptr;
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
-        is_reference = true;
         forwardStream();
         ident = SymbolTable.getIDInfoFor(forwardStream().value);
         return SymbolTable.getReferenceType(SymbolTable.lookupType(ident));
@@ -89,8 +87,6 @@ Type* Parser::parseType() {
 
 SwNode Parser::dispatch() {
     while (!m_Stream.eof()) {
-        const TokenType type  = m_Stream.CurTok.type;
-        const std::string value = m_Stream.CurTok.value;
 
         // pattern matching in C++ when?
         switch (m_Stream.CurTok.type) {
@@ -198,17 +194,19 @@ SwNode Parser::dispatch() {
                     goto assignment_lhs;  // sorry
                 if (m_Stream.CurTok.value == ";") {
                     forwardStream();
-
                     continue;
                 } if (m_Stream.CurTok.value == "}") {
                     return std::make_unique<Node>();
                 }
             default:
-                auto [line, _, col] = m_Stream.getStreamState();
-                throw std::runtime_error("dispatch: nothing found");
+                ErrMan.newSyntaxError("");
+                ErrMan.raiseAll();
         }
     }
-    throw std::runtime_error("dispatch: this wasn't supposed to happen");
+
+    // TODO: make such errors better
+    ErrMan.raiseUnexpectedEOF();
+    return {};
 }
 
 
@@ -243,28 +241,24 @@ void Parser::handleImports() {
     }
 }
 
+/// begin parsing
 void Parser::parse() {
-    // uncomment to check the stream's output for debugging
-    // while (!m_Stream.eof()) {
-    //     std::cout << m_Stream.p_CurTk.value << ": " << to_string(m_Stream.p_CurTk.type) << " peek: " << m_Stream.peek().value << std::endl;
-    //     m_Stream.next();
-    // }
-
     forwardStream();
     while (!m_Stream.eof()) {
         AST.emplace_back(dispatch());
     }
     
     runPendingVerifications();
+    ErrMan.raiseAll();
 
     AnalysisContext analysis_ctx{*this};
     analysis_ctx.startAnalysis();
+    ErrMan.raiseAll();
 }
 
 
 void Parser::callBackend() {
     SymbolTable.lockNewScpEmplace();
-    ErrMan.raiseAll();
 
     LLVMBackend llvm_instance{std::move(AST), m_FilePath.string(), std::move(SymbolTable), std::move(ErrMan)};  // TODO
     llvm_instance.startGeneration();
@@ -273,14 +267,6 @@ void Parser::callBackend() {
     GenerateObjectFileLLVM(llvm_instance);
 }
 
-/// returns whether `t1` is implicitly convertible to `t2`
-bool implicitlyConvertible(Type* t1, Type* t2) {
-    // TODO: handled signed-ness
-    if (t1->isIntegral() && t2->isIntegral()) {
-        return t1->getBitWidth() <= t2->getBitWidth();
-    }
-    return false;
-}
 
 std::unique_ptr<Function> Parser::parseFunction() {
     Function func_nd;
@@ -511,7 +497,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
 }
 
 Parser::ParsedIdent Parser::parseIdent() {
-    ParsedIdent ret;  
+    ParsedIdent ret;
 
     // assuming current token is an ident
     if (m_Stream.peek().type == OP && m_Stream.peek().value == "::") {
@@ -574,8 +560,6 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
 }
 
 Expression Parser::parseExpr(const std::optional<Token>& terminator) {
-    Type* deduced_type = nullptr;
-
     const
     std::function<SwNode()> parse_component = [&, this] -> SwNode {
         switch (m_Stream.CurTok.type) {
@@ -614,7 +598,6 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
                 if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
                     forwardStream();
                     auto ret = std::make_unique<Expression>(parseExpr());
-                    // deduceType(&deduced_type, ret->expr_type);
                     forwardStream();
                     return std::move(ret);
                 } return dispatch();
@@ -718,14 +701,12 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
 
         if (continue_parsing()) {
             ret.expr.push_back(handle_binary(std::move(op), -1, false));
-            ret.expr_type = deduced_type;
 
             check_for_terminator();
             return std::move(ret);
         }
         
         ret.expr.push_back(std::move(op));
-        ret.expr_type = deduced_type;
 
         check_for_terminator();
         return std::move(ret);
@@ -735,13 +716,11 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
 
         if (continue_parsing()) {
             ret.expr.push_back(handle_binary(std::move(tmp), -1, false));
-            ret.expr_type = deduced_type;
 
             check_for_terminator();
             return std::move(ret);
         }
         ret.expr.push_back(std::move(tmp));
-        ret.expr_type = deduced_type;
 
         check_for_terminator();
         return std::move(ret);

@@ -9,13 +9,19 @@ extern std::thread::id MAIN_THREAD_ID;
 class ErrorManager {
     TokenStream* m_TokStream;
     std::string m_Message;
-    bool m_IsErroneous;
-    
+    int m_Errors = 0;  // the no. of errors
+
 public:
-    explicit ErrorManager(TokenStream* token_stream): m_TokStream(token_stream), m_IsErroneous(false) {}
+    explicit ErrorManager(TokenStream* token_stream): m_TokStream(token_stream) {}
+
+    void raiseUnexpectedEOF() {
+        m_Errors++;
+        m_Message += "Error: unexpected EOF (end of file)!\n";
+        raiseAll();
+    }
 
     void newSyntaxError(const std::string& message, std::optional<StreamState> at = std::nullopt) {
-        m_IsErroneous = true;
+        m_Errors += 1;
         if (!at.has_value()) at = m_TokStream->getStreamState();
 
         m_Message += "In " + m_TokStream->m_Path.string() + ':' + std::to_string(at->Line) + ":" + std::to_string(at->Col) + ':' + '\n' +
@@ -26,14 +32,14 @@ public:
     }
 
     void newError(const std::string& message, std::optional<StreamState> at = std::nullopt) {
-        m_IsErroneous = true;
+        m_Errors += 1;
         if (!at.has_value()) at = m_TokStream->getStreamState();
         m_Message += "In " + m_TokStream->m_Path.string() + ':' + std::to_string(at->Line) + ":" + std::to_string(at->Col) + ':' + '\n' +
             m_TokStream->m_Stream.getLineAt(at->Line) + '\n' + std::string(at->Col - 1, ' ') + "^ " + message + LINE;
     }
 
     void newWarning(const std::string& message, std::optional<StreamState> at = std::nullopt) {
-        m_IsErroneous = true;
+        m_Errors += 1;
         if (!at.has_value()) at = m_TokStream->getStreamState();
         m_Message += "In " + m_TokStream->m_Path.string() + ':' + std::to_string(at->Line) + ":" + std::to_string(at->Col) + ':' + '\n' +
             m_TokStream->m_Stream.getLineAt(at->Line) + std::string(at->Col - 1, ' ') + "^ " + message + LINE;
@@ -41,14 +47,14 @@ public:
 
 
     void newSafetyError(const std::string& message, std::optional<StreamState> at = std::nullopt) {
-        m_IsErroneous = true;
+        m_Errors += 1;
         if (!at.has_value()) at = m_TokStream->getStreamState();
         m_Message += m_TokStream->m_Stream.getLineAt(at->Line) + std::string(at->Col - 1, ' ') + "^ " + message + LINE;
     }
 
     void raiseAll() {
-        if (m_IsErroneous) {
-            std::println(stderr, "{}", m_Message);
+        if (m_Errors) {
+            std::println(stderr, "{}\n{} error(s) in total reported", m_Message, m_Errors);
             if (std::this_thread::get_id() == MAIN_THREAD_ID) {
                 std::exit(1);
             }
@@ -56,9 +62,9 @@ public:
     }
 
     [[nodiscard]] bool hasErrors() const {
-        return m_IsErroneous;
+        return m_Errors > 0;
     }
 
 private:
-    static constexpr char LINE[] = "\n----------------------------------------\n\n";
+    static constexpr char LINE[] = "\n\n";
 };

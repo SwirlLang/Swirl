@@ -8,8 +8,13 @@ class SymbolManager;
 class AnalysisContext {
 public:
     std::unordered_map<Node*, AnalysisResult> Cache;
+    SymbolManager& SymMan;
+    ErrorManager&  ErrMan;
 
-    explicit AnalysisContext(Parser& parser): SymMan(parser.SymbolTable), m_AST(parser.AST) {}
+    explicit AnalysisContext(Parser& parser):
+        SymMan(parser.SymbolTable),
+        m_AST(parser.AST),
+        ErrMan(parser.ErrMan) {}
 
     void startAnalysis() {
         for (const auto& child : m_AST) {
@@ -17,7 +22,7 @@ public:
         }
     }
 
-    SymbolManager& SymMan;
+    Type* deduceType(Type*, Type*) const;
 
 private:
     SwAST_t& m_AST;

@@ -1,5 +1,4 @@
 #include <cassert>
-#include <print>
 #include <types/SwTypes.h>
 #include <parser/Nodes.h>
 #include <parser/Parser.h>
@@ -11,17 +10,27 @@ using SwNode = std::unique_ptr<Node>;
 using NodesVec = std::vector<SwNode>;
 
 
-Type* deduceType(Type* type1, Type* type2) {
-    // TODO: signed types
-    if (type1 == nullptr)
-        return type2;
-    if (type1->isFloatingPoint() && type2->getBitWidth() > type1->getBitWidth()) {
-        return type2;
+Type* AnalysisContext::deduceType(Type* type1, Type* type2) const {
+    // either of them being nullptr implies a violation of the typing-rules
+    if (type1 == nullptr || type2 == nullptr) {
+        return nullptr;
     }
-    if (type1->isIntegral() && type2->getBitWidth() > type1->getBitWidth()) {
-        return type2;
+
+    if (type1->isIntegral() && type2->isIntegral()) {
+        // return the greater of the two types
+        if ((type1->isUnsigned() && type2->isUnsigned()) || (!type1->isUnsigned() && !type2->isUnsigned())) {
+            if (type1->getBitWidth() >= type2->getBitWidth()) {
+                return type1;
+            } return type2;
+        }
+
+        ErrMan.newError("conversion between signed and unsigned types shall be explicit, "
+                        "use the `as` operator for casting.");
+        return nullptr;
     }
-    return type1;
+
+    ErrMan.newError("incompatible types!");
+    return nullptr;
 }
 
 
@@ -129,7 +138,7 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
             auto ret_analysis = child->analyzeSemantics(ctx);
 
             if (deduced_type != nullptr) {
-                deduced_type = deduceType(deduced_type, ret_analysis.deduced_type);
+                deduced_type = ctx.deduceType(deduced_type, ret_analysis.deduced_type);
                 continue;
             }
 
@@ -175,7 +184,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             ret.deduced_type = ctx.SymMan.lookupType(operands.at(1)->getIdentInfo());
         }
         else {
-            ret.deduced_type = deduceType(analysis_1.deduced_type, analysis_2.deduced_type);
+            ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type);
         }
     }
     

@@ -2,7 +2,6 @@
 #include "utils/utils.h"
 #include <filesystem>
 #include <future>
-#include <print>
 #include <string>
 #include <ranges>
 #include <unordered_map>
@@ -12,6 +11,7 @@
 #include <types/TypeManager.h>
 #include <managers/IdentManager.h>
 #include <llvm/IR/Value.h>
+#include <managers/ErrorManager.h>
 
 
 struct TableEntry {
@@ -64,6 +64,8 @@ class SymbolManager {
                 >>> m_TESubscribers; // TE = TableEntry
 
 public:
+    ErrorManager* ErrMan = nullptr;
+
     explicit SymbolManager(std::size_t uid): m_ModuleUID{uid} {
         // global scope
         m_TypeTable.emplace_back();
@@ -166,7 +168,9 @@ public:
                     return decl_id.value();
                 if (auto type_id = type.getIDInfoFor(id))
                     return type_id.value();
-            } throw std::runtime_error("SymbolManager::getIDInfoFor: No decl found");
+            }
+            ErrMan->newError("undefined identifier '" + id + "'");
+            return nullptr;
         } return m_TypeTable.at(m_ScopeInt).getNewIDInfo(id);
     }
 
