@@ -29,6 +29,12 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2) const {
         return nullptr;
     }
 
+    if (type1->isFloatingPoint() && type2->isFloatingPoint()) {
+        if (type1->getBitWidth() >= type2->getBitWidth()) {
+            return type1;
+        } return type2;
+    }
+
     ErrMan.newError("incompatible types!");
     return nullptr;
 }

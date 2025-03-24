@@ -16,7 +16,7 @@ public:
 
     void raiseUnexpectedEOF() {
         m_Errors++;
-        m_Message += "Error: unexpected EOF (end of file)!\n";
+        m_Message += "In " + m_TokStream->m_Path.string() + '\n' + "Error: unexpected EOF (end of file)!\n";
         raiseAll();
     }
 
