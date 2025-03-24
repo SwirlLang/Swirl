@@ -153,6 +153,11 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 
     if (arity == 1) {
         if (value == "&") {
+            uint16_t ptr_level = 1;
+            if (analysis_1.deduced_type->getSwType() == Type::POINTER) {
+                ptr_level = dynamic_cast<PointerType*>(analysis_1.deduced_type)->pointer_level + 1;
+            }
+            ret.deduced_type = ctx.SymMan.getPointerType(analysis_1.deduced_type, ptr_level);
         }
 
         else {
