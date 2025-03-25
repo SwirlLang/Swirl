@@ -366,6 +366,22 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
      }}
     };
 
+    if (value.ends_with("=") && value.size() > 1) {
+        auto op = std::make_unique<Op>();
+        op->value = value.at(0);
+        op->operands.push_back(std::move(operands.at(0)));
+        op->operands.push_back(std::move(operands.at(1)));
+
+        auto rhs = op->llvmCodegen(instance);
+
+        instance.IsAssignmentLHS = true;
+        auto lhs = op->operands.at(0)->llvmCodegen(instance);
+        instance.IsAssignmentLHS = false;
+
+        instance.Builder.CreateStore(rhs, lhs);
+        return nullptr;
+    }
+
     return OpTable[{this->value, arity}](operands);
 }
 
