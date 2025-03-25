@@ -71,6 +71,7 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
+    ctx.GlobalNodeJmpTable.at(ident)->analyzeSemantics(ctx);
     auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(ident));
     assert(fn_type->param_types.size() == args.size());
 
@@ -78,6 +79,8 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
         // TODO check whether the types are compatible
         args[i].setType(fn_type->param_types[i]);
     }
+
+    ret.deduced_type = fn_type->ret_type;
 
     return ret;
 }
@@ -136,9 +139,12 @@ AnalysisResult ReturnStatement::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
+    if (ctx.Cache.contains(this))
+        return ctx.Cache[this];
+
     AnalysisResult ret;
     Type* deduced_type = nullptr;
-    
+
     for (auto& child : children) {
         if (child->getNodeType() == ND_RET) { 
             auto ret_analysis = child->analyzeSemantics(ctx);
@@ -156,6 +162,8 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
 
     FunctionType* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(this->ident));
     fn_type->ret_type = deduced_type;
+
+
 
     return ret;
 }
@@ -198,9 +206,6 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
-    if (ctx.Cache.contains(this))
-        return ctx.Cache.at(this);
-
     AnalysisResult ret;
 
     assert(this->expr.size() == 1);
@@ -209,7 +214,6 @@ AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
     ret.deduced_type = val.deduced_type;
     setType(val.deduced_type);
 
-    ctx.Cache.insert({this, ret});
     return ret;
 }
 

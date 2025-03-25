@@ -27,7 +27,6 @@ class Parser {
     bool         m_LastSymWasExported = false;
     bool         m_LastSymIsExtern = false;
 
-    /// if set, forwardStream would return this token and won't forward the stream
     std::optional<Token> m_ReturnFakeToken = std::nullopt;
     // ---*--- ---*--- ---*---
 
@@ -36,7 +35,7 @@ class Parser {
     
     std::filesystem::path m_FilePath;
     std::filesystem::path m_RelativeDir;
-    
+
     struct ParsedIdent {
         std::string name;
         fs::path    mod_path;
@@ -48,6 +47,7 @@ public:
 
     std::vector<std::unique_ptr<Node>> AST;
     std::queue<std::function<void()>>  VerificationQueue;
+    std::unordered_map<IdentInfo*, Node*> GlobalNodeJmpTable;  // maps global symbols to their nodes
 
     explicit Parser(const std::filesystem::path&);
 

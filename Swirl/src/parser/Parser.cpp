@@ -339,6 +339,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     auto ret = std::make_unique<Function>(std::move(func_nd));
     // ReSharper disable once CppDFALocalValueEscapesFunction
     m_LatestFuncNode = ret.get();
+    GlobalNodeJmpTable[ret->ident] = ret.get();
 
     // parse the children
     forwardStream();
