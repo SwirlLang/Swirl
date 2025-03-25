@@ -138,44 +138,7 @@ SwNode Parser::dispatch() {
                     return parseRet();
                 }
 
-            case IDENT:
-                {
-                    auto id = parseIdent();
-                    if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
-                        return parseCall(std::move(id));
-                    }
-                }
-
-                if (const Token p_tk = m_Stream.peek();
-                    p_tk.type == PUNC && p_tk.value == "(") {
-                    auto nd = parseCall();
-
-                    // handle call assignments
-                    if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value.ends_with("=")) {
-                        Assignment ass{};
-                        ass.op = m_Stream.CurTok.value;
-                        ass.l_value.expr.push_back(std::move(nd));
-                        forwardStream();
-                        ass.r_value = parseExpr();
-
-                        return std::make_unique<Assignment>(std::move(ass));
-                    }
-
-                    return std::move(nd);
-                }
-
-                {
-                    Expression expr = parseExpr();
-
-                    if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "=") {
-                        Assignment ass;
-                        ass.l_value = std::move(expr);
-
-                        forwardStream();
-                        ass.r_value = parseExpr();
-                        return std::make_unique<Assignment>(std::move(ass));
-                    } continue;
-                }
+            case IDENT: return std::make_unique<Expression>(parseExpr());
             case OP:
                 assignment_lhs:
                 {
@@ -622,7 +585,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
     };
 
     const auto continue_parsing = [this]() -> bool {
-        return m_Stream.CurTok.type == OP && m_Stream.CurTok.value != "=";
+        return m_Stream.CurTok.type == OP;
     };
 
     const

@@ -356,6 +356,14 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
         return instance.Builder.CreateICmpSLE(lhs, rhs);
     }},
+
+     {{"=", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+         instance.IsAssignmentLHS = true;
+         auto lhs = operands.at(0)->llvmCodegen(instance);
+         instance.IsAssignmentLHS = false;
+         instance.Builder.CreateStore(operands.at(1)->llvmCodegen(instance), lhs);
+         return nullptr;
+     }}
     };
 
     return OpTable[{this->value, arity}](operands);
