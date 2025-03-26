@@ -155,17 +155,19 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
     using NodesVec = std::vector<SwNode>;
 
     // Maps {operator, arity} to the corresponding operator 'function'
-    std::unordered_map<std::pair<std::string, uint8_t>, std::function<llvm::Value*(NodesVec&)>>
+    static std::unordered_map<
+        std::pair<std::string, uint8_t>,
+        std::function<llvm::Value*(LLVMBackend&, NodesVec&)>>
     OpTable = {
-        {{"+", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"+", 1}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             return operands.back()->llvmCodegen(instance);
         }},
 
-        {{"-", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"-", 1}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             return instance.Builder.CreateNeg(operands.back()->llvmCodegen(instance));
         }},
 
-        {{"+", 2}, [&instance](NodesVec& operands) -> llvm::Value* {
+        {{"+", 2}, [](LLVMBackend& instance, NodesVec& operands) -> llvm::Value* {
             auto lhs = operands.at(0)->llvmCodegen(instance);
             auto rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -177,7 +179,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return instance.Builder.CreateFAdd(lhs, rhs);
         }},
 
-        {{"-", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"-", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
             if (instance.LatestBoundIsIntegral) {
@@ -186,7 +188,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return instance.Builder.CreateFSub(lhs, rhs);
         }},
 
-        {{"*", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"*", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -198,7 +200,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         }},
 
         // the dereference operator
-        {{"*", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"*", 1}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             const auto entry = instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo());
             if (entry.is_param)
                 return entry.ptr;
@@ -206,12 +208,12 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         }},
 
         // the "address-taking" operator
-        {{"&", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"&", 1}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             auto lookup = instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo());
             return lookup.ptr;
         }},
 
-        {{"/", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"/", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -225,18 +227,15 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return instance.Builder.CreateUDiv(lhs, rhs);
         }},
 
-        /// this operator doesn't need to do anything as `as` is handled in the semantic-analysis phase
-        {{"as", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"as", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             return operands.at(0)->llvmCodegen(instance);
         }},
 
-        {{".", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-
+        {{".", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+            throw;
         }},
 
-        // -*- conditional operators -*- //
-
-        {{"==", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"==", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -251,7 +250,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             }
         }},
 
-        {{"!=", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"!=", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -266,26 +265,26 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             }
         }},
 
-        {{"&&", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"&&", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
             return instance.Builder.CreateLogicalAnd(lhs, rhs);
         }},
 
-        {{"!", 1}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"!", 1}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             return instance.Builder.CreateNot(lhs);
         }},
 
-        {{"||", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{"||", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
             return instance.Builder.CreateLogicalOr(lhs, rhs);
         }},
 
-        {{">", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
+        {{">", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -303,67 +302,67 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return instance.Builder.CreateICmpSGT(lhs, rhs);
         }},
 
-    {{"<", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-        llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
-        llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+        {{"<", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
-        auto lhs_type = instance.fetchSwType(operands.at(0));
-        auto rhs_type = instance.fetchSwType(operands.at(1));
+            auto lhs_type = instance.fetchSwType(operands.at(0));
+            auto rhs_type = instance.fetchSwType(operands.at(1));
 
-        if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
-            return instance.Builder.CreateFCmpOLT(lhs, rhs);
-        }
+            if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
+                return instance.Builder.CreateFCmpOLT(lhs, rhs);
+            }
 
-        if (lhs_type->isUnsigned() && rhs_type->isUnsigned()) {
-            return instance.Builder.CreateICmpULT(lhs, rhs);
-        }
+            if (lhs_type->isUnsigned() && rhs_type->isUnsigned()) {
+                return instance.Builder.CreateICmpULT(lhs, rhs);
+            }
 
-        return instance.Builder.CreateICmpSLT(lhs, rhs);
-    }},
+            return instance.Builder.CreateICmpSLT(lhs, rhs);
+        }},
 
-    {{">=", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-        llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
-        llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+        {{">=", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
-        auto lhs_type = instance.fetchSwType(operands.at(0));
-        auto rhs_type = instance.fetchSwType(operands.at(1));
+            auto lhs_type = instance.fetchSwType(operands.at(0));
+            auto rhs_type = instance.fetchSwType(operands.at(1));
 
-        if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
-            return instance.Builder.CreateFCmpOGE(lhs, rhs);
-        }
+            if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
+                return instance.Builder.CreateFCmpOGE(lhs, rhs);
+            }
 
-        if (lhs_type->isUnsigned() && rhs_type->isUnsigned()) {
-            return instance.Builder.CreateICmpUGE(lhs, rhs);
-        }
+            if (lhs_type->isUnsigned() && rhs_type->isUnsigned()) {
+                return instance.Builder.CreateICmpUGE(lhs, rhs);
+            }
 
-        return instance.Builder.CreateICmpSGE(lhs, rhs);
-    }},
+            return instance.Builder.CreateICmpSGE(lhs, rhs);
+        }},
 
-    {{"<=", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-        llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
-        llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+        {{"<=", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
-        auto lhs_type = instance.fetchSwType(operands.at(0));
-        auto rhs_type = instance.fetchSwType(operands.at(1));
+            auto lhs_type = instance.fetchSwType(operands.at(0));
+            auto rhs_type = instance.fetchSwType(operands.at(1));
 
-        if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
-            return instance.Builder.CreateFCmpOLE(lhs, rhs);
-        }
+            if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
+                return instance.Builder.CreateFCmpOLE(lhs, rhs);
+            }
 
-        if (lhs_type->isUnsigned() && rhs_type->isUnsigned()) {
-            return instance.Builder.CreateICmpULE(lhs, rhs);
-        }
+            if (lhs_type->isUnsigned() && rhs_type->isUnsigned()) {
+                return instance.Builder.CreateICmpULE(lhs, rhs);
+            }
 
-        return instance.Builder.CreateICmpSLE(lhs, rhs);
-    }},
+            return instance.Builder.CreateICmpSLE(lhs, rhs);
+        }},
 
-     {{"=", 2}, [&instance](const NodesVec& operands) -> llvm::Value* {
-         instance.IsAssignmentLHS = true;
-         auto lhs = operands.at(0)->llvmCodegen(instance);
-         instance.IsAssignmentLHS = false;
-         instance.Builder.CreateStore(operands.at(1)->llvmCodegen(instance), lhs);
-         return nullptr;
-     }}
+        {{"=", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+            instance.IsAssignmentLHS = true;
+            auto lhs = operands.at(0)->llvmCodegen(instance);
+            instance.IsAssignmentLHS = false;
+            instance.Builder.CreateStore(operands.at(1)->llvmCodegen(instance), lhs);
+            return nullptr;
+        }}
     };
 
     if (value.ends_with("=") && value.size() > 1) {
@@ -372,7 +371,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         op->operands.push_back(std::move(operands.at(0)));
         op->operands.push_back(std::move(operands.at(1)));
 
-        auto rhs = op->llvmCodegen(instance);
+        auto rhs = OpTable[{value, 2}](instance, operands);
 
         instance.IsAssignmentLHS = true;
         auto lhs = op->operands.at(0)->llvmCodegen(instance);
@@ -382,7 +381,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         return nullptr;
     }
 
-    return OpTable[{this->value, arity}](operands);
+    return OpTable[{this->value, arity}](instance, operands);
 }
 
 
