@@ -233,7 +233,7 @@ void Parser::callBackend() {
 
 std::unique_ptr<Function> Parser::parseFunction() {
     Function func_nd;
-    
+    func_nd.location = m_Stream.getStreamState();
     func_nd.is_exported = m_LastSymWasExported;
     func_nd.is_extern = m_LastSymIsExtern;
 
@@ -361,6 +361,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
 
 std::unique_ptr<FuncCall> Parser::parseCall(const std::optional<ParsedIdent> ident) {
     auto call_node = std::make_unique<FuncCall>();
+    call_node->location = m_Stream.getStreamState();
 
     auto str_ident = ident->name;
     forwardStream();  // skip '('
@@ -435,7 +436,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
             SymbolTable.newScope();
             forwardStream();
 
-            std::tuple<Expression, std::vector<SwNode>> children{};
+            std::tuple<Expression, std::vector<SwNode>> children;
             std::get<0>(children) = parseExpr(Token{PUNC, "{"});
 
             forwardStream();

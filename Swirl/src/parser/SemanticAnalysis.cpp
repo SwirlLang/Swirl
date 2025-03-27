@@ -71,8 +71,16 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
-    ctx.GlobalNodeJmpTable.at(ident)->analyzeSemantics(ctx);
+    if (ctx.CurrentParentFunc->getIdentInfo() != ident)
+        ctx.GlobalNodeJmpTable.at(ident)->analyzeSemantics(ctx);
+
     auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(ident));
+
+    if (fn_type->ret_type == nullptr && ident == ctx.CurrentParentFunc->getIdentInfo()) {
+        ctx.ErrMan.newError("It is required to explicitly specify the return type "
+                            "when calling the function recursively.", location);
+    }
+
     assert(fn_type->param_types.size() == args.size());
 
     for (std::size_t i = 0; i < args.size(); ++i) {
@@ -139,8 +147,10 @@ AnalysisResult ReturnStatement::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
+    ctx.CurrentParentFunc = this;
     if (ctx.Cache.contains(this))
         return ctx.Cache[this];
+
 
     AnalysisResult ret;
     Type* deduced_type = nullptr;

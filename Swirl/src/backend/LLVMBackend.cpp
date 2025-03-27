@@ -371,7 +371,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         op->operands.push_back(std::move(operands.at(0)));
         op->operands.push_back(std::move(operands.at(1)));
 
-        auto rhs = OpTable[{value, 2}](instance, operands);
+        auto rhs = op->llvmCodegen(instance);
 
         instance.IsAssignmentLHS = true;
         auto lhs = op->operands.at(0)->llvmCodegen(instance);

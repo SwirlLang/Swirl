@@ -6,6 +6,7 @@
 
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Instructions.h>
+#include <tokenizer/Tokens.h>
 
 class LLVMBackend;
 
@@ -45,6 +46,7 @@ class AnalysisContext;
 struct Node {
     std::string value;
     std::size_t scope_id{};
+    StreamState location;
 
     [[nodiscard]]
     virtual NodeType getNodeType() const { return ND_INVALID; }
@@ -292,7 +294,7 @@ struct Function final : Node {
         return true;
     }
 
-    void updateRetTypeTo(Type* to) {
+    void updateRetTypeTo(Type* to) const {
         *reg_ret_type = to;
         // ret_type = to;
     }

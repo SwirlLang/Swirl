@@ -9,6 +9,7 @@ class AnalysisContext {
 public:
     std::unordered_map<Node*, AnalysisResult> Cache;
     std::unordered_map<IdentInfo*, Node*>& GlobalNodeJmpTable;
+    Node* CurrentParentFunc = nullptr;
 
     SymbolManager& SymMan;
     ErrorManager&  ErrMan;
