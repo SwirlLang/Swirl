@@ -274,7 +274,6 @@ struct Var final : Node {
 
 struct Function final : Node {
     IdentInfo* ident = nullptr;
-    Type** reg_ret_type = nullptr;
 
     bool is_exported = false;
     bool is_extern = false;  // whether it has been extern'd
@@ -292,11 +291,6 @@ struct Function final : Node {
 
     bool hasScopes() override {
         return true;
-    }
-
-    void updateRetTypeTo(Type* to) const {
-        *reg_ret_type = to;
-        // ret_type = to;
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;

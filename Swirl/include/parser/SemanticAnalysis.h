@@ -26,8 +26,23 @@ public:
         }
     }
 
+    Type* getBoundTypeState() const {
+        return m_BoundTypeState;
+    }
+
+    void setBoundTypeState(Type* to) {
+        m_BoundTypeStateCache = m_BoundTypeState;
+        m_BoundTypeState = to;
+    }
+
+    void restoreBoundTypeState() {
+        m_BoundTypeState = m_BoundTypeStateCache;
+    }
+
     Type* deduceType(Type*, Type*) const;
 
 private:
     SwAST_t& m_AST;
+    Type* m_BoundTypeState = nullptr;
+    Type* m_BoundTypeStateCache = nullptr;
 };

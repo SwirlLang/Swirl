@@ -40,12 +40,16 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2) const {
 }
 
 
-AnalysisResult IntLit::analyzeSemantics(AnalysisContext&) {
-    return {.deduced_type = &GlobalTypeI32};
+AnalysisResult IntLit::analyzeSemantics(AnalysisContext& ctx) {
+    if (ctx.getBoundTypeState() != nullptr && ctx.getBoundTypeState()->isIntegral()) {
+        return {.deduced_type = ctx.getBoundTypeState()};
+    } return {.deduced_type = &GlobalTypeI32};
 }
 
-AnalysisResult FloatLit::analyzeSemantics(AnalysisContext&) {
-    return {.deduced_type = &GlobalTypeF64};
+AnalysisResult FloatLit::analyzeSemantics(AnalysisContext& ctx) {
+    if (ctx.getBoundTypeState() != nullptr && ctx.getBoundTypeState()->isFloatingPoint()) {
+        return {.deduced_type = ctx.getBoundTypeState()};
+    } return {.deduced_type = &GlobalTypeF64};
 }
 
 AnalysisResult StrLit::analyzeSemantics(AnalysisContext&) {
@@ -55,7 +59,10 @@ AnalysisResult StrLit::analyzeSemantics(AnalysisContext&) {
 
 AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
+
+    ctx.setBoundTypeState(var_type);
     auto val_analysis = value.analyzeSemantics(ctx);
+    ctx.restoreBoundTypeState();
 
     if (var_type == nullptr) {
         var_type = val_analysis.deduced_type;
@@ -151,13 +158,22 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
     if (ctx.Cache.contains(this))
         return ctx.Cache[this];
 
-
     AnalysisResult ret;
     Type* deduced_type = nullptr;
+
+    auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(this->ident));
+    ctx.setBoundTypeState(fn_type->ret_type);
 
     for (auto& child : children) {
         if (child->getNodeType() == ND_RET) { 
             auto ret_analysis = child->analyzeSemantics(ctx);
+
+            if (fn_type->ret_type != nullptr) {
+                // TODO: check for implicit convertibility
+                auto* ret_t = dynamic_cast<ReturnStatement*>(child.get());
+                ret_t->value.setType(fn_type->ret_type);
+                continue;
+            }
 
             if (deduced_type != nullptr) {
                 deduced_type = ctx.deduceType(deduced_type, ret_analysis.deduced_type);
@@ -170,9 +186,9 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
         child->analyzeSemantics(ctx);
     }
 
-    FunctionType* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(this->ident));
-    fn_type->ret_type = deduced_type;
-
+    ctx.restoreBoundTypeState();
+    if (fn_type->ret_type == nullptr)
+        fn_type->ret_type = deduced_type;
 
 
     return ret;

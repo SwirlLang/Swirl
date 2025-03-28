@@ -365,7 +365,9 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         }}
     };
 
-    if (value.ends_with("=") && value.size() > 1) {
+    using namespace std::string_view_literals;
+
+    if (value.ends_with("=") && ("*-+/~&^"sv.find(value.at(0)) != std::string::npos)) {
         auto op = std::make_unique<Op>();
         op->value = value.at(0);
         op->operands.push_back(std::move(operands.at(0)));

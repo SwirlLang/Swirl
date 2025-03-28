@@ -246,8 +246,6 @@ std::unique_ptr<Function> Parser::parseFunction() {
     m_Stream.expectTokens({Token{PUNC, "("}});
     forwardStream(2);
     auto function_t = std::make_unique<FunctionType>();
-    func_nd.reg_ret_type = &function_t->ret_type;
-
      
     auto parse_params = [function_t = function_t.get(), this] {
         Var param;
