@@ -319,6 +319,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     Var var_node;
 
+    var_node.location = m_Stream.getStreamState();
     var_node.is_const = m_Stream.CurTok.value[0] == 'c';
     var_node.is_volatile = is_volatile;
     var_node.is_exported = m_LastSymWasExported;
@@ -403,6 +404,7 @@ std::unique_ptr<FuncCall> Parser::parseCall(const std::optional<ParsedIdent> ide
 
 std::unique_ptr<ReturnStatement> Parser::parseRet() {
     ReturnStatement ret;
+    ret.location = m_Stream.getStreamState();
 
     forwardStream();
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ";")
@@ -417,6 +419,8 @@ std::unique_ptr<Condition> Parser::parseCondition() {
     Condition cnd;
     forwardStream();  // skip "if"
     cnd.bool_expr = parseExpr(Token{PUNC, "{"});
+    cnd.bool_expr.location = m_Stream.getStreamState();
+
     forwardStream();  // skip the opening brace
 
     SymbolTable.newScope();
@@ -574,6 +578,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
         if (m_Stream.CurTok.type == OP) {
             Op op(m_Stream.CurTok.value);
             op.arity = 1;
+            op.location = m_Stream.getStreamState();
             forwardStream();
             if (auto next_op = parse_prefix()) {
                 op.operands.push_back(std::move(*next_op));
@@ -594,6 +599,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
 
         is_left_associative = m_Stream.CurTok.value == "." || m_Stream.CurTok.value == "-";
         SwNode op = std::make_unique<Op>(m_Stream.CurTok.value);
+        op->location = m_Stream.getStreamState();
         const int current_prec = operators.at(m_Stream.CurTok.value);
 
         forwardStream();  // we are onto the rhs
@@ -672,6 +678,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
         ret.expr.push_back(std::move(op));
 
         check_for_terminator();
+        ret.location = m_Stream.getStreamState();
         return std::move(ret);
         
     } else {
@@ -681,11 +688,13 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
             ret.expr.push_back(handle_binary(std::move(tmp), -1, false));
 
             check_for_terminator();
+            ret.location = m_Stream.getStreamState();
             return std::move(ret);
         }
         ret.expr.push_back(std::move(tmp));
 
         check_for_terminator();
+        ret.location = m_Stream.getStreamState();
         return std::move(ret);
     }
 }

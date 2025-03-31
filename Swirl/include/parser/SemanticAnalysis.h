@@ -9,7 +9,6 @@ class AnalysisContext {
 public:
     std::unordered_map<Node*, AnalysisResult> Cache;
     std::unordered_map<IdentInfo*, Node*>& GlobalNodeJmpTable;
-    Node* CurrentParentFunc = nullptr;
 
     SymbolManager& SymMan;
     ErrorManager&  ErrMan;
@@ -26,6 +25,19 @@ public:
         }
     }
 
+    Node* getCurParentFunc() const {
+        return m_CurrentParentFunc;
+    }
+
+    void setCurParentFunc(Node* to) {
+        m_CurrentParentFuncCache = m_CurrentParentFunc;
+        m_CurrentParentFunc = to;
+    }
+
+    void restoreCurParentFunc() {
+        m_CurrentParentFunc = m_CurrentParentFuncCache;
+    }
+
     Type* getBoundTypeState() const {
         return m_BoundTypeState;
     }
@@ -39,10 +51,17 @@ public:
         m_BoundTypeState = m_BoundTypeStateCache;
     }
 
-    Type* deduceType(Type*, Type*) const;
+    Type* deduceType(Type*, Type*, StreamState location) const;
+
+    /// checks whether `from` can be converted to `to`
+    void checkTypeCompatibility(Type* from, Type* to, StreamState location) const;
 
 private:
     SwAST_t& m_AST;
+
     Type* m_BoundTypeState = nullptr;
     Type* m_BoundTypeStateCache = nullptr;
+
+    Node* m_CurrentParentFunc = nullptr;
+    Node* m_CurrentParentFuncCache = nullptr;
 };

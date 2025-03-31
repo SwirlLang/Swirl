@@ -10,7 +10,7 @@ using SwNode = std::unique_ptr<Node>;
 using NodesVec = std::vector<SwNode>;
 
 
-Type* AnalysisContext::deduceType(Type* type1, Type* type2) const {
+Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location) const {
     // either of them being nullptr implies a violation of the typing-rules
     if (type1 == nullptr || type2 == nullptr) {
         return nullptr;
@@ -25,7 +25,7 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2) const {
         }
 
         ErrMan.newError("conversion between signed and unsigned types shall be explicit, "
-                        "use the `as` operator for casting.");
+                        "use the `as` operator for casting.", location);
         return nullptr;
     }
 
@@ -35,8 +35,35 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2) const {
         } return type2;
     }
 
-    ErrMan.newError("incompatible types!");
+    ErrMan.newError("incompatible types!", location);
     return nullptr;
+}
+
+
+void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState location) const {
+    if (!from || !to) return;
+
+    if (from->isIntegral() && to->isFloatingPoint()) {
+        ErrMan.newError("Cannot implicitly convert an integral type to a floating point!", location);
+        return;
+    }
+
+    if (from->isFloatingPoint() && to->isIntegral()) {
+        ErrMan.newError("Cannot implicitly convert a floating-point type to an integral type!", location);
+        return;
+    }
+
+    if (from->isIntegral() && to->isIntegral()) {
+        if ((from->isUnsigned() && !to->isUnsigned()) || (!from->isUnsigned() && to->isUnsigned())) {
+            ErrMan.newError("Cannot implicitly convert between signed and unsigned types!", location);
+            return;
+        }
+    }
+
+    if (!(from->isIntegral() && to->isIntegral()) && !(from->isFloatingPoint() && to->isFloatingPoint())) {
+        ErrMan.newError("No implicit type-conversion exists for this case.", location);
+        return;
+    }
 }
 
 
@@ -68,7 +95,8 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
         var_type = val_analysis.deduced_type;
         ctx.SymMan.lookupDecl(var_ident).swirl_type = var_type;
     } else {
-        // TODO: check whether deduced_type is implicitly convertible to var_type 
+        // TODO: check whether deduced_type is implicitly convertible to var_type
+        ctx.checkTypeCompatibility(val_analysis.deduced_type, var_type, location);
         value.setType(var_type);
     }
 
@@ -78,12 +106,12 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
-    if (ctx.CurrentParentFunc->getIdentInfo() != ident)
+    if (ctx.getCurParentFunc()->getIdentInfo() != ident)
         ctx.GlobalNodeJmpTable.at(ident)->analyzeSemantics(ctx);
 
     auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(ident));
 
-    if (fn_type->ret_type == nullptr && ident == ctx.CurrentParentFunc->getIdentInfo()) {
+    if (fn_type->ret_type == nullptr && ident == ctx.getCurParentFunc()->getIdentInfo()) {
         ctx.ErrMan.newError("It is required to explicitly specify the return type "
                             "when calling the function recursively.", location);
     }
@@ -154,9 +182,10 @@ AnalysisResult ReturnStatement::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
-    ctx.CurrentParentFunc = this;
     if (ctx.Cache.contains(this))
         return ctx.Cache[this];
+
+    ctx.setCurParentFunc(this);
 
     AnalysisResult ret;
     Type* deduced_type = nullptr;
@@ -176,7 +205,7 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
             }
 
             if (deduced_type != nullptr) {
-                deduced_type = ctx.deduceType(deduced_type, ret_analysis.deduced_type);
+                deduced_type = ctx.deduceType(deduced_type, ret_analysis.deduced_type, location);
                 continue;
             }
 
@@ -190,7 +219,7 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
     if (fn_type->ret_type == nullptr)
         fn_type->ret_type = deduced_type;
 
-
+    ctx.restoreCurParentFunc();
     return ret;
 }
 
@@ -224,7 +253,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             ret.deduced_type = ctx.SymMan.lookupType(operands.at(1)->getIdentInfo());
         }
         else {
-            ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type);
+            ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);
         }
     }
     
