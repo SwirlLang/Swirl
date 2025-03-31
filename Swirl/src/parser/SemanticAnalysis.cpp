@@ -58,6 +58,18 @@ void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
             ErrMan.newError("Cannot implicitly convert between signed and unsigned types!", location);
             return;
         }
+
+        if (to->getBitWidth() < from->getBitWidth()) {
+            ErrMan.newError("Implicit narrowing conversions are not allowed.", location);
+            return;
+        }
+    }
+
+    if (from->isFloatingPoint() && to->isFloatingPoint()) {
+        if (to->getBitWidth() < from->getBitWidth()) {
+            ErrMan.newError("Implicit narrowing conversions are not allowed.", location);
+            return;
+        }
     }
 
     if (!(from->isIntegral() && to->isIntegral()) && !(from->isFloatingPoint() && to->isFloatingPoint())) {
@@ -95,7 +107,6 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
         var_type = val_analysis.deduced_type;
         ctx.SymMan.lookupDecl(var_ident).swirl_type = var_type;
     } else {
-        // TODO: check whether deduced_type is implicitly convertible to var_type
         ctx.checkTypeCompatibility(val_analysis.deduced_type, var_type, location);
         value.setType(var_type);
     }
@@ -119,7 +130,11 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     assert(fn_type->param_types.size() == args.size());
 
     for (std::size_t i = 0; i < args.size(); ++i) {
-        // TODO check whether the types are compatible
+        ctx.setBoundTypeState(fn_type->param_types.at(i));
+        AnalysisResult arg = args.at(i).analyzeSemantics(ctx);
+        ctx.restoreBoundTypeState();
+
+        ctx.checkTypeCompatibility(arg.deduced_type, fn_type->param_types.at(i), location);
         args[i].setType(fn_type->param_types[i]);
     }
 

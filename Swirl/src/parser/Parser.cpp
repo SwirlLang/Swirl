@@ -250,6 +250,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     auto parse_params = [function_t = function_t.get(), this] {
         Var param;
         const std::string var_name = m_Stream.CurTok.value;
+        param.location = m_Stream.getStreamState();
 
         forwardStream(2);
         param.var_type = parseType();
