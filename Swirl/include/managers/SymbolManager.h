@@ -5,6 +5,7 @@
 #include <string>
 #include <ranges>
 #include <unordered_map>
+#include <utility>
 
 #include <types/SwTypes.h>
 #include <types/TypeManager.h>
@@ -29,7 +30,7 @@ class Scope {
     IdentManager m_IDMan;
 
 public:
-    Scope() = default;
+    explicit Scope(std::filesystem::path mod_path): m_IDMan(std::move(mod_path)) {}
 
     IdentInfo* getNewIDInfo(const std::string& name) {
         return m_IDMan.createNew(name);
@@ -53,7 +54,7 @@ class SymbolManager {
     // for mapping the modules' aliases to their file paths
     std::unordered_map<std::string, std::filesystem::path> m_ModuleAliasTable;
 
-    std::size_t m_ModuleUID;
+    std::filesystem::path m_ModulePath;
 
     std::unordered_map<
         std::string,
@@ -64,9 +65,9 @@ class SymbolManager {
 public:
     ErrorManager* ErrMan = nullptr;
 
-    explicit SymbolManager(std::size_t uid): m_ModuleUID{uid} {
+    explicit SymbolManager(std::filesystem::path uid): m_ModulePath{std::move(uid)} {
         // global scope
-        m_IdScopes.emplace_back();
+        m_IdScopes.emplace_back(m_ModulePath);
 
         // register built-in types in the global scope
         registerType(m_IdScopes.front().getNewIDInfo("i8"),   &GlobalTypeI8);
@@ -190,7 +191,7 @@ public:
         if (m_LockEmplace)
             return;
         
-        m_IdScopes.emplace_back();
+        m_IdScopes.emplace_back(m_ModulePath);
     }
 
     void lockNewScpEmplace() {

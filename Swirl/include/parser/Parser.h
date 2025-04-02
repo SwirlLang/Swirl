@@ -39,7 +39,7 @@ class Parser {
 
 public:
     ErrorManager  ErrMan;
-    SymbolManager SymbolTable{m_ModuleUID};
+    SymbolManager SymbolTable;
 
     std::vector<std::unique_ptr<Node>> AST;
     std::unordered_map<IdentInfo*, Node*> GlobalNodeJmpTable;  // maps global symbols to their nodes

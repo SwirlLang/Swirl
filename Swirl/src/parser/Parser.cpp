@@ -37,13 +37,14 @@ Parser::Parser(const std::filesystem::path& path)
     : m_Stream{path}
     , m_FilePath{path}
     , ErrMan{&m_Stream}
+    , SymbolTable{m_FilePath}
 {
     m_Stream.ErrMan = &ErrMan;
     SymbolTable.ErrMan = &ErrMan;
     m_RelativeDir = path.parent_path();
 }
 
-/// returns the current and forwards the stream
+/// returns the current token and forwards the stream
 Token Parser::forwardStream(const uint8_t n) {
     Token ret = m_Stream.CurTok;
 
