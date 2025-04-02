@@ -1,7 +1,6 @@
 #include <filesystem>
 #include <memory>
 #include <fstream>
-#include <print>
 #include <stdexcept>
 #include <utility>
 #include <unordered_map>
@@ -44,7 +43,7 @@ Parser::Parser(const std::filesystem::path& path)
     m_RelativeDir = path.parent_path();
 }
 
-
+/// returns the current and forwards the stream
 Token Parser::forwardStream(const uint8_t n) {
     Token ret = m_Stream.CurTok;
 
@@ -138,6 +137,8 @@ SwNode Parser::dispatch() {
                     return parseRet();
                 }
 
+            case NUMBER:
+            case STRING:
             case IDENT: return std::make_unique<Expression>(parseExpr());
             case OP:
                 assignment_lhs:
@@ -211,7 +212,6 @@ void Parser::parse() {
         AST.emplace_back(dispatch());
     }
     
-    runPendingVerifications();
     ErrMan.raiseAll();
 
     AnalysisContext analysis_ctx{*this};
@@ -359,11 +359,11 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     return std::make_unique<Var>(std::move(var_node));
 }
 
-std::unique_ptr<FuncCall> Parser::parseCall(const std::optional<ParsedIdent> ident) {
+std::unique_ptr<FuncCall> Parser::parseCall(std::optional<Ident> ident) {
     auto call_node = std::make_unique<FuncCall>();
     call_node->location = m_Stream.getStreamState();
+    call_node->ident = std::move(ident.value());
 
-    auto str_ident = ident->name;
     forwardStream();  // skip '('
 
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ")") {
@@ -381,21 +381,6 @@ std::unique_ptr<FuncCall> Parser::parseCall(const std::optional<ParsedIdent> ide
             call_node->args.emplace_back(parseExpr());
         }
     }
-
-    VerificationQueue.emplace([str_ident, ptr = call_node.get(), mod_path = ident->mod_path, this] {
-        if (mod_path.empty()) {
-            ptr->ident = SymbolTable.getIDInfoFor(str_ident);
-        } else {
-            std::println("mod-path: {}", mod_path.string());
-            auto future = ModuleMap.get(mod_path).SymbolTable.subscribeForTableEntry(str_ident);
-            std::pair<IdentInfo*, TableEntry*> entry = future.get();
-
-            ptr->ident = entry.first;
-            ptr->signature = entry.second->swirl_type;
-
-            // TODO: match the signature against the arguments' types
-        }
-    });
 
     if (m_Stream.CurTok.value == ")") {
         forwardStream();
@@ -464,18 +449,22 @@ std::unique_ptr<Condition> Parser::parseCondition() {
     return std::make_unique<Condition>(std::move(cnd));
 }
 
-Parser::ParsedIdent Parser::parseIdent() {
-    ParsedIdent ret;
+Ident Parser::parseIdent() {
+    Ident ret;
+    ret.location = m_Stream.getStreamState();
 
-    // assuming current token is an ident
-    if (m_Stream.peek().type == OP && m_Stream.peek().value == "::") {
-        ret.mod_path = SymbolTable.getModuleFromAlias(m_Stream.CurTok.value);
-        std::println("module path: {}", ret.mod_path.string());
-        forwardStream(2);
+    while (m_Stream.peek().type == PUNC && m_Stream.peek().value == "::") {
+        ret.mod_path /= forwardStream().value;
     }
-    ret.name = m_Stream.CurTok.value;
-    forwardStream();
-    
+
+    ret.str_ident = forwardStream().value;
+
+    if (ret.mod_path.empty()) {
+        ret.value = SymbolTable.getIDInfoFor(ret.str_ident);
+    } else {
+        ret.mod_path = m_RelativeDir / ret.mod_path;
+    }
+
     return std::move(ret);
 }
 
@@ -552,15 +541,11 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
                 } return std::make_unique<StrLit>(str);
             }
             case IDENT: {
-                auto id = parseIdent();   
+                auto id = parseIdent();
                 if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
                     auto call_node = parseCall(std::move(id));
                     return std::move(call_node);
-                }
- 
-                auto id_node = std::make_unique<Ident>(SymbolTable.getIDInfoFor(id.name));
-
-                return std::move(id_node);
+                } return std::make_unique<Ident>(std::move(id));
             }
             default: {
                 if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {

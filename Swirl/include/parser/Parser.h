@@ -36,17 +36,12 @@ class Parser {
     std::filesystem::path m_FilePath;
     std::filesystem::path m_RelativeDir;
 
-    struct ParsedIdent {
-        std::string name;
-        fs::path    mod_path;
-    };
 
 public:
     ErrorManager  ErrMan;
     SymbolManager SymbolTable{m_ModuleUID};
 
     std::vector<std::unique_ptr<Node>> AST;
-    std::queue<std::function<void()>>  VerificationQueue;
     std::unordered_map<IdentInfo*, Node*> GlobalNodeJmpTable;  // maps global symbols to their nodes
 
     explicit Parser(const std::filesystem::path&);
@@ -60,8 +55,7 @@ public:
     , m_LastSymWasExported(other.m_LastSymWasExported)
     , ErrMan(std::move(other.ErrMan))
     , SymbolTable(std::move(other.SymbolTable))
-    , AST(std::move(other.AST))
-    , VerificationQueue(std::move(other.VerificationQueue)) {}
+    , AST(std::move(other.AST)) {}
     
     std::unique_ptr<Node> dispatch();
     std::unique_ptr<Function> parseFunction();
@@ -71,9 +65,9 @@ public:
     std::unique_ptr<Struct> parseStruct();
 
     std::unique_ptr<Var> parseVar(bool is_volatile = false);
-    std::unique_ptr<FuncCall> parseCall(std::optional<ParsedIdent> _ = std::nullopt);
+    std::unique_ptr<FuncCall> parseCall(std::optional<Ident> _ = std::nullopt);
 
-    ParsedIdent parseIdent();
+    Ident parseIdent();
 
     Token forwardStream(uint8_t n = 1);
     Expression parseExpr(const std::optional<Token>& terminator = std::nullopt);
@@ -83,13 +77,6 @@ public:
     void callBackend();
     void handleImports();
     void analyzeSemantics(std::vector<std::unique_ptr<Node>>&);
-
-    void runPendingVerifications() {
-        while (!VerificationQueue.empty()) {
-            VerificationQueue.front()();
-            VerificationQueue.pop();
-        }
-    }
 };
 
 

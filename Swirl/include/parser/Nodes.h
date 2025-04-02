@@ -4,11 +4,8 @@
 #include <utility>
 #include <vector>
 
-#include <llvm/IR/Value.h>
-#include <llvm/IR/Instructions.h>
 #include <tokenizer/Tokens.h>
 
-class LLVMBackend;
 
 enum NodeType {
     ND_INVALID,     //  0
@@ -26,20 +23,23 @@ enum NodeType {
     ND_COND,        // 12
     ND_WHILE,       // 13
     ND_STRUCT,      // 14
+    ND_IMPORT,      // 15
 };
 
 
 struct Var;
-class IdentInfo;
 struct Type;
+
+class IdentInfo;
+class LLVMBackend;
+class AnalysisContext;
+namespace llvm { class Value; }
 
 
 struct AnalysisResult {
     bool is_erroneous = false;
     Type* deduced_type = nullptr;
 };
-
-class AnalysisContext;
 
 
 // A common base class for all the nodes
@@ -230,8 +230,13 @@ struct StrLit final : Node {
 };
 
 struct Ident final : Node {
-    IdentInfo* value;
+    IdentInfo* value = nullptr;
+    std::string str_ident;
 
+    /// the path of the source-file where this identifier is supposed to exist
+    std::filesystem::path mod_path;
+
+    Ident() = default;
     explicit Ident(IdentInfo* val): value(val) {}
 
     IdentInfo* getIdentInfo() override {
@@ -297,10 +302,10 @@ struct Function final : Node {
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
-struct FuncCall final : Expression {
+struct FuncCall final : Node {
     std::vector<Expression> args;
-    IdentInfo* ident = nullptr;
-    Type*      signature = nullptr;  // supposed to hold the signature of the callee
+    Ident ident;
+    Type* signature = nullptr;  // supposed to hold the signature of the callee
 
     // a flag, if set, indicates existence in another module to the backend
     std::filesystem::path module_path;
@@ -308,7 +313,7 @@ struct FuncCall final : Expression {
     Node* parent = nullptr;
 
     IdentInfo* getIdentInfo() override {
-        return ident;
+        return ident.getIdentInfo();
     }
 
     Type* getSwType() override {
@@ -320,6 +325,20 @@ struct FuncCall final : Expression {
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
+struct ImportNode final : Node {
+    struct ImportedSymbol_t {
+        std::string actual_name;
+        std::string assigned_alias;
+    };
+
+    std::filesystem::path         mod_path;
+    std::vector<ImportedSymbol_t> imported_symbols;
+
+    [[nodiscard]] NodeType getNodeType() const override {
+        return ND_IMPORT;
+    }
+};
+
 struct WhileLoop final : Node {
     Expression condition{};
     std::vector<std::unique_ptr<Node>> children{};
@@ -328,7 +347,7 @@ struct WhileLoop final : Node {
         return ND_WHILE;
     }
 
-    llvm::Value *llvmCodegen(LLVMBackend& instance) override;
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 

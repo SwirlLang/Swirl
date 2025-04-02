@@ -99,6 +99,11 @@ AnalysisResult StrLit::analyzeSemantics(AnalysisContext&) {
 AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
+    if (!initialized && !var_type) {
+        ctx.ErrMan.newError("Cannot leave a variable without an explicit type uninitialized!", location);
+        return {};
+    }
+
     ctx.setBoundTypeState(var_type);
     auto val_analysis = value.analyzeSemantics(ctx);
     ctx.restoreBoundTypeState();
@@ -116,13 +121,18 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
+    ident.analyzeSemantics(ctx);
 
-    if (ctx.getCurParentFunc()->getIdentInfo() != ident)
-        ctx.GlobalNodeJmpTable.at(ident)->analyzeSemantics(ctx);
+    IdentInfo* id = ident.getIdentInfo();
 
-    auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(ident));
+    if (!id) return {};
 
-    if (fn_type->ret_type == nullptr && ident == ctx.getCurParentFunc()->getIdentInfo()) {
+    if (ctx.getCurParentFunc()->getIdentInfo() != id)
+        ctx.GlobalNodeJmpTable.at(id)->analyzeSemantics(ctx);
+
+    auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(id));
+
+    if (fn_type->ret_type == nullptr && id == ctx.getCurParentFunc()->getIdentInfo()) {
         ctx.ErrMan.newError("It is required to explicitly specify the return type "
                             "when calling the function recursively.", location);
     }
@@ -145,6 +155,18 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
+
+    if (value == nullptr) {
+        if (mod_path.empty()) {
+            value = ctx.SymMan.getIdInfoOfAGlobal(str_ident);
+        } else value = SymbolManager::getIdInfoFromModule(mod_path, str_ident);
+    }
+
+    if (!value) {
+        ctx.ErrMan.newError("undefined identifier '" + str_ident + "'", location);
+        return {};
+    }
+
     auto decl = ctx.SymMan.lookupDecl(this->value);
     ret.deduced_type = decl.swirl_type;
     return ret;
@@ -290,6 +312,13 @@ AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult Assignment::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
+
+    if (l_value.getNodeType() == ND_IDENT) {
+        if (ctx.SymMan.lookupDecl(l_value.getIdentInfo()).is_const) {
+            ctx.ErrMan.newError("Cannot assign, " + l_value.getIdentInfo()->toString() + " is const.");
+        }
+    }
+
     return ret;
 }
 

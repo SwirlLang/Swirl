@@ -2,13 +2,11 @@
 #include <cassert>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/GlobalVariable.h>
-#include <llvm/Support/Alignment.h>
 #include <string>
 #include <ranges>
 #include <unordered_map>
 
 
-#include <parser/Parser.h>
 #include <backend/LLVMBackend.h>
 
 #include <llvm/IR/Module.h>
@@ -509,10 +507,12 @@ llvm::Value* WhileLoop::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Type*> paramTypes;
 
-    llvm::Function* func = instance.LModule->getFunction(ident->toString());
+    IdentInfo* fn_name = ident.getIdentInfo();
+
+    llvm::Function* func = instance.LModule->getFunction(fn_name->toString());
     if (!func) {
-        instance.codegenTheFunction(ident);
-        func = instance.LModule->getFunction(ident->toString());
+        instance.codegenTheFunction(fn_name);
+        func = instance.LModule->getFunction(fn_name->toString());
     }
 
     std::vector<llvm::Value*> arguments{};
@@ -524,12 +524,12 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
     if (!func->getReturnType()->isVoidTy()) {
         Type* ret_type = nullptr;
 
-        auto fn_type = dynamic_cast<FunctionType*>(instance.SymMan.lookupType(ident));
+        auto fn_type = dynamic_cast<FunctionType*>(instance.SymMan.lookupType(ident.value));
         ret_type = fn_type->ret_type;
 
         return instance.castIfNecessary(
             ret_type,
-            instance.Builder.CreateCall(func, arguments, ident->toString())
+            instance.Builder.CreateCall(func, arguments, ident.value->toString())
             );
     }
 

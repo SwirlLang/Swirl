@@ -6,7 +6,6 @@
 #include <ranges>
 #include <unordered_map>
 
-#include <definitions.h>
 #include <types/SwTypes.h>
 #include <types/TypeManager.h>
 #include <managers/IdentManager.h>
@@ -97,6 +96,16 @@ public:
         return m_TypeManager.getFor(id);
     }
 
+    /// returns the IdentInfo* of a global
+    IdentInfo* getIdInfoOfAGlobal(const std::string& name) const {
+        if (const auto id = m_IdScopes.front().getIDInfoFor(name))
+            return *id;
+        return nullptr;
+    }
+
+    /// returns the IdentInfo* of a global name from the module `mod_path`
+    static IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) ;
+
     Type* lookupType(const std::string& id) {
         return m_TypeManager.getFor(getIDInfoFor(id));
     }
@@ -108,6 +117,7 @@ public:
     Type* getReferenceType(Type* of_type) {
         return m_TypeManager.getReferenceType(of_type);
     }
+
 
     Type* getPointerType(Type* of_type, const uint16_t ptr_level) {
         return m_TypeManager.getPointerType(of_type, ptr_level);
@@ -180,7 +190,6 @@ public:
         if (m_LockEmplace)
             return;
         
-        m_IdScopes.emplace_back();
         m_IdScopes.emplace_back();
     }
 
