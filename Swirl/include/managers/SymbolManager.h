@@ -47,8 +47,7 @@ class SymbolManager {
     std::size_t m_ScopeInt = 0;
 
     TypeManager m_TypeManager;
-    std::vector<Scope> m_TypeTable;
-    std::vector<Scope> m_DeclTable;
+    std::vector<Scope> m_IdScopes;
 
     std::unordered_map<IdentInfo*, TableEntry> m_IdToTableEntry;
 
@@ -58,7 +57,7 @@ class SymbolManager {
     std::size_t m_ModuleUID;
 
     std::unordered_map<
-        std::string,                            
+        std::string,
         std::vector<
             std::promise<std::pair<IdentInfo*, TableEntry*>
                 >>> m_TESubscribers; // TE = TableEntry
@@ -68,27 +67,26 @@ public:
 
     explicit SymbolManager(std::size_t uid): m_ModuleUID{uid} {
         // global scope
-        m_TypeTable.emplace_back();
-        m_DeclTable.emplace_back();
+        m_IdScopes.emplace_back();
 
         // register built-in types in the global scope
-        registerType(m_TypeTable.front().getNewIDInfo("i8"),   &GlobalTypeI8);
-        registerType(m_TypeTable.front().getNewIDInfo("i16"),  &GlobalTypeI16);
-        registerType(m_TypeTable.front().getNewIDInfo("i32"),  &GlobalTypeI32);
-        registerType(m_TypeTable.front().getNewIDInfo("i64"),  &GlobalTypeI64);
-        registerType(m_TypeTable.front().getNewIDInfo("i128"), &GlobalTypeI128);
+        registerType(m_IdScopes.front().getNewIDInfo("i8"),   &GlobalTypeI8);
+        registerType(m_IdScopes.front().getNewIDInfo("i16"),  &GlobalTypeI16);
+        registerType(m_IdScopes.front().getNewIDInfo("i32"),  &GlobalTypeI32);
+        registerType(m_IdScopes.front().getNewIDInfo("i64"),  &GlobalTypeI64);
+        registerType(m_IdScopes.front().getNewIDInfo("i128"), &GlobalTypeI128);
 
-        registerType(m_TypeTable.front().getNewIDInfo("u8"),   &GlobalTypeU8);
-        registerType(m_TypeTable.front().getNewIDInfo("u16"),  &GlobalTypeU16);
-        registerType(m_TypeTable.front().getNewIDInfo("u32"),  &GlobalTypeU32);
-        registerType(m_TypeTable.front().getNewIDInfo("u64"),  &GlobalTypeU64);
-        registerType(m_TypeTable.front().getNewIDInfo("u128"), &GlobalTypeU128);
+        registerType(m_IdScopes.front().getNewIDInfo("u8"),   &GlobalTypeU8);
+        registerType(m_IdScopes.front().getNewIDInfo("u16"),  &GlobalTypeU16);
+        registerType(m_IdScopes.front().getNewIDInfo("u32"),  &GlobalTypeU32);
+        registerType(m_IdScopes.front().getNewIDInfo("u64"),  &GlobalTypeU64);
+        registerType(m_IdScopes.front().getNewIDInfo("u128"), &GlobalTypeU128);
 
-        registerType(m_TypeTable.front().getNewIDInfo("f32"),  &GlobalTypeF32);
-        registerType(m_TypeTable.front().getNewIDInfo("f64"),  &GlobalTypeF64);
+        registerType(m_IdScopes.front().getNewIDInfo("f32"),  &GlobalTypeF32);
+        registerType(m_IdScopes.front().getNewIDInfo("f64"),  &GlobalTypeF64);
 
-        registerType(m_TypeTable.front().getNewIDInfo("bool"), &GlobalTypeBool);
-        registerType(m_TypeTable.front().getNewIDInfo("str"),  &GlobalTypeStr);
+        registerType(m_IdScopes.front().getNewIDInfo("bool"), &GlobalTypeBool);
+        registerType(m_IdScopes.front().getNewIDInfo("str"),  &GlobalTypeStr);
     }
 
     TableEntry& lookupDecl(IdentInfo* id) {
@@ -116,7 +114,7 @@ public:
     }
 
     IdentInfo* registerDecl(const std::string& name, const TableEntry& entry) {
-        auto id = m_DeclTable.at(m_ScopeInt).getNewIDInfo(name);
+        auto id = m_IdScopes.at(m_ScopeInt).getNewIDInfo(name);
         m_IdToTableEntry.insert({id, entry});
 
         if (m_TESubscribers.contains(name)) {
@@ -134,7 +132,7 @@ public:
     bool declExists(IdentInfo* id) const {
         return m_IdToTableEntry.contains(id);
     }
-    
+
 
     std::future<std::pair<IdentInfo*, TableEntry*>> subscribeForTableEntry(const std::string& id) {
         static std::mutex function_guard;
@@ -159,19 +157,11 @@ public:
     template <bool create_new = false>
     IdentInfo* getIDInfoFor(const std::string& id) {
         if constexpr (!create_new) {
-            for (
-                const auto& [decls, type] 
-                    : std::views::zip(m_DeclTable, m_TypeTable)
-                    | std::views::take(m_ScopeInt + 1)
-                ) {
-                if (auto decl_id = decls.getIDInfoFor(id))
+            for (const auto& scope : m_IdScopes | std::views::take(m_ScopeInt + 1)) {
+                if (const auto decl_id = scope.getIDInfoFor(id))
                     return decl_id.value();
-                if (auto type_id = type.getIDInfoFor(id))
-                    return type_id.value();
-            }
-            ErrMan->newError("undefined identifier '" + id + "'");
-            return nullptr;
-        } return m_TypeTable.at(m_ScopeInt).getNewIDInfo(id);
+            } return nullptr;
+        } return m_IdScopes.at(m_ScopeInt).getNewIDInfo(id);
     }
 
 
@@ -190,8 +180,8 @@ public:
         if (m_LockEmplace)
             return;
         
-        m_DeclTable.emplace_back();
-        m_TypeTable.emplace_back();
+        m_IdScopes.emplace_back();
+        m_IdScopes.emplace_back();
     }
 
     void lockNewScpEmplace() {
@@ -209,7 +199,7 @@ public:
 
 private:
     void fulfillPromisesIfExists(const std::string& name) {
-        if (auto id = m_DeclTable.front().getIDInfoFor(name)) {
+        if (auto id = m_IdScopes.front().getIDInfoFor(name)) {
             for (auto& subscriber : m_TESubscribers[name]) {
                 subscriber.set_value({id.value(), &m_IdToTableEntry.at(id.value())});
             } m_TESubscribers.erase(name);
