@@ -6,15 +6,15 @@
 
 class IdentInfo {
     std::string id;
-    std::filesystem::path& mod_path;
+    std::filesystem::path mod_path;
     friend class IdentManager;
 
 public:
     IdentInfo() = delete;
 
-    explicit IdentInfo(std::string id, std::filesystem::path& mod_path)
+    explicit IdentInfo(std::string id, std::filesystem::path mod_path)
         : id(std::move(id))
-        , mod_path(mod_path) {}
+        , mod_path(std::move(mod_path)) {}
 
     [[nodiscard]]
     const std::string& toString() const {

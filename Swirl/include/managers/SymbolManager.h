@@ -89,13 +89,9 @@ public:
         registerType(m_IdScopes.front().getNewIDInfo("str"),  &GlobalTypeStr);
     }
 
-    TableEntry& lookupDecl(IdentInfo* id) {
-        return m_IdToTableEntry.at(id);
-    }
+    TableEntry& lookupDecl(IdentInfo* id);
 
-    Type* lookupType(IdentInfo* id) {
-        return m_TypeManager.getFor(id);
-    }
+    Type* lookupType(IdentInfo* id);
 
     /// returns the IdentInfo* of a global
     IdentInfo* getIdInfoOfAGlobal(const std::string& name) const {
