@@ -63,6 +63,7 @@ public:
     std::unique_ptr<WhileLoop> parseWhile();
     std::unique_ptr<ReturnStatement> parseRet();
     std::unique_ptr<Struct> parseStruct();
+    std::unique_ptr<ImportNode> parseImport();
 
     std::unique_ptr<Var> parseVar(bool is_volatile = false);
     std::unique_ptr<FuncCall> parseCall(std::optional<Ident> _ = std::nullopt);
@@ -75,7 +76,6 @@ public:
 
     void parse();
     void callBackend();
-    void handleImports();
     void analyzeSemantics(std::vector<std::unique_ptr<Node>>&);
 };
 
