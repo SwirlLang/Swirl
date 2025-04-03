@@ -109,8 +109,7 @@ SwNode Parser::dispatch() {
                 }
 
                 if (m_Stream.CurTok.value == "import") {
-                    handleImports();
-                    continue;
+                    return parseImport();
                 }
 
                 if (m_Stream.CurTok.value == "fn") {
@@ -175,35 +174,72 @@ SwNode Parser::dispatch() {
 }
 
 
-void Parser::handleImports() {
+/*             Examples                                    *
+ *      ------------------------                           *
+ * import dir1::dir2::mod::sym1 as stuff;                  *
+ * import dir1::dir2::mod::{ sym1, sym2 as other_stuff };  *
+ */
+std::unique_ptr<ImportNode> Parser::parseImport() {
+    ImportNode ret;
+    ret.location = m_Stream.getStreamState();
+
     forwardStream();  // skip 'import'
 
+    ret.mod_path = m_RelativeDir;
 
-    if (m_Stream.CurTok.type == STRING) {
-        const auto mod_path = m_RelativeDir / m_Stream.CurTok.value;
-
-        if (!std::filesystem::exists(mod_path)) {
-            throw std::runtime_error("import of a non-existent file!");
+    while (m_Stream.CurTok.type == IDENT) {
+        ret.mod_path /= forwardStream().value;
+        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "::") {
+            forwardStream();
         }
-        
-        forwardStream();
-        if (m_Stream.CurTok.type != KEYWORD && m_Stream.CurTok.value == "as") {
-            throw std::runtime_error("aliasing is required here!");
-        }
-
-        forwardStream();
-        SymbolTable.registerModuleAlias(forwardStream().value, mod_path);
-
-
-        // do nothing if the module is already being parsed
-        if (ModuleMap.contains(mod_path)) {
-            return;
-        }
-        
-        Parser mod_parser{mod_path};
-        ModuleMap.insert(mod_path, std::move(mod_parser)); // MOVED!!
-        ThreadPool->addTask([mod_path] { ModuleMap.get(mod_path).parse(); });
     }
+
+    if (is_directory(ret.mod_path)) {
+        ErrMan.newError("Directories cannot be imported (yet).", ret.location);
+        return {};
+    }
+
+    ret.mod_path += ".sw";
+    if (!exists(ret.mod_path)) {
+        ErrMan.newError(
+            std::format(
+                "No such module exists (inferred path: '{}').",
+                ret.mod_path.string()), ret.location);
+        return {};
+    }
+
+    if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "{") {
+        if (!ModuleMap.contains(ret.mod_path)) {
+            ModuleMap.insert(ret.mod_path, Parser(ret.mod_path));
+            ThreadPool->addTask(
+                [mod_path = ret.mod_path] {
+                    ModuleMap.get(mod_path).parse();
+                });
+        }
+
+        if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "as") {
+            forwardStream();
+            ret.alias = forwardStream().value;
+            SymbolTable.registerModuleAlias(ret.alias, ret.mod_path);
+        }
+    } else {
+        forwardStream();  // skip '{'
+
+        while (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "}") {
+            ret.imported_symbols.emplace_back(forwardStream().value);
+
+            if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "as") {
+                forwardStream();
+                ret.imported_symbols.back().assigned_alias = forwardStream().value;
+            }
+
+            if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ",") {
+                forwardStream();
+            }
+        } forwardStream();
+    }
+
+    return std::make_unique<ImportNode>(std::move(ret));
 }
 
 /// begin parsing
@@ -463,7 +499,7 @@ Ident Parser::parseIdent() {
     if (ret.mod_path.empty()) {
         ret.value = SymbolTable.getIDInfoFor(ret.str_ident);
     } else {
-        ret.mod_path = m_RelativeDir / ret.mod_path;
+        ret.mod_path = SymbolTable.getModuleFromAlias(ret.mod_path.string());
     }
 
     return std::move(ret);

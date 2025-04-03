@@ -332,11 +332,14 @@ struct ImportNode final : Node {
     };
 
     std::filesystem::path         mod_path;
+    std::string                   alias;
     std::vector<ImportedSymbol_t> imported_symbols;
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_IMPORT;
     }
+
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override { /* TODO */ return nullptr; }
 };
 
 struct WhileLoop final : Node {
