@@ -5,6 +5,7 @@ struct Node;
 using SwAST_t = std::vector<std::unique_ptr<Node>>;
 class SymbolManager;
 
+
 class AnalysisContext {
 public:
     std::unordered_map<Node*, AnalysisResult> Cache;
@@ -13,11 +14,11 @@ public:
     SymbolManager& SymMan;
     ErrorManager&  ErrMan;
 
-    explicit AnalysisContext(Parser& parser):
-        GlobalNodeJmpTable(parser.GlobalNodeJmpTable),
-        SymMan(parser.SymbolTable),
-        ErrMan(parser.ErrMan),
-        m_AST(parser.AST) {}
+    explicit AnalysisContext(Parser& parser)
+    : GlobalNodeJmpTable(parser.GlobalNodeJmpTable)
+    , SymMan(parser.SymbolTable)
+    , ErrMan(parser.ErrMan)
+    , m_AST(parser.AST) {}
 
     void startAnalysis() {
         for (const auto& child : m_AST) {
@@ -51,6 +52,17 @@ public:
         m_BoundTypeState = m_BoundTypeStateCache;
     }
 
+    /// fulfills all existing promises for the AR of `id`
+    // void fulfillPromises(IdentInfo* id, const AnalysisResult result) {
+    //     assert(id != nullptr);
+    //     if (m_ARPromises.contains(id)) {
+    //         for (auto& promises = m_ARPromises[id]; auto& promise : promises) {
+    //             promise.set_value(result);
+    //         }
+    //     } m_ARPromises.erase(id);
+    // }
+
+
     Type* deduceType(Type*, Type*, StreamState location) const;
 
     /// checks whether `from` can be converted to `to`
@@ -64,4 +76,23 @@ private:
 
     Node* m_CurrentParentFunc = nullptr;
     Node* m_CurrentParentFuncCache = nullptr;
+
+    // std::unordered_map<IdentInfo*, std::vector<std::promise<AnalysisResult>>> m_ARPromises;  // AR = AnalysisResult
+
+    // std::future<AnalysisResult> subscribeForAnalysisResult(IdentInfo* id) {
+    //     assert(id != nullptr);
+    //     ScopeEndCallback _{[id, this] {
+    //         if (Cache.contains(id)) {
+    //             m_ARPromises[id].back().set_value(Cache[id]);
+    //         }
+    //     }};
+    //
+    //     if (m_ARPromises.contains(id)) {
+    //         m_ARPromises[id].emplace_back();
+    //         return m_ARPromises[id].back().get_future();
+    //     }
+    //
+    //     m_ARPromises[id] = {std::promise<AnalysisResult>()};
+    //     return m_ARPromises[id].back().get_future();
+    // }
 };

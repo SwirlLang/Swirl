@@ -32,6 +32,15 @@ struct std::hash<std::pair<T1, T2>> {  // WHY?!?!!1
 };
 
 
+/// A helper to make a callback when a scope's end
+template <typename Fn>
+class ScopeEndCallback {
+    Fn m_Callback;
+
+public:
+    explicit ScopeEndCallback(Fn callback) : m_Callback(callback) {}
+    ~ScopeEndCallback() { m_Callback(); }
+};
 
 // a lock guard but with a destructor callback
 template <typename Mtx, typename Fn>

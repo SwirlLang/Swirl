@@ -62,6 +62,8 @@ class SymbolManager {
             std::promise<std::pair<IdentInfo*, TableEntry*>
                 >>> m_TESubscribers; // TE = TableEntry
 
+    std::unordered_map<std::string, std::shared_future<std::pair<IdentInfo*, TableEntry*>>> m_ImportedSyms;
+
 public:
     ErrorManager* ErrMan = nullptr;
 
@@ -93,10 +95,15 @@ public:
 
     Type* lookupType(IdentInfo* id);
 
+    void registerImportedSymbol(const fs::path& mod_path, const std::string& actual_name, const std::string& alias);
+
     /// returns the IdentInfo* of a global
-    IdentInfo* getIdInfoOfAGlobal(const std::string& name) const {
+    IdentInfo* getIdInfoOfAGlobal(const std::string& name) {
         if (const auto id = m_IdScopes.front().getIDInfoFor(name))
             return *id;
+
+        if (m_ImportedSyms.contains(name))
+            return m_ImportedSyms[name].get().first;
         return nullptr;
     }
 

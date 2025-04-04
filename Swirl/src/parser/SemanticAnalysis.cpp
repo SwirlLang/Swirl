@@ -9,6 +9,7 @@
 using SwNode = std::unique_ptr<Node>;
 using NodesVec = std::vector<SwNode>;
 
+extern ModuleMap_t ModuleMap;
 
 Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location) const {
     // either of them being nullptr implies a violation of the typing-rules
@@ -96,6 +97,23 @@ AnalysisResult StrLit::analyzeSemantics(AnalysisContext&) {
 }
 
 
+AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
+    if (!imported_symbols.empty()) {
+        for (auto& symbol : imported_symbols) {
+            IdentInfo* id = ctx.SymMan.getIdInfoOfAGlobal(
+                symbol.assigned_alias.empty()
+                ? symbol.actual_name
+                : symbol.assigned_alias
+            );
+
+            assert(id != nullptr);
+            ctx.GlobalNodeJmpTable.insert({id, ModuleMap.get(mod_path).GlobalNodeJmpTable.at(id)});
+        }
+    }
+    return {};
+}
+
+
 AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
@@ -156,14 +174,14 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
-    if (value == nullptr) {
-        if (mod_path.empty()) {
-            value = ctx.SymMan.getIdInfoOfAGlobal(str_ident);
-        } else value = SymbolManager::getIdInfoFromModule(mod_path, str_ident);
+    if (!value) {
+        if (full_qualification.size() == 1) {
+            value = ctx.SymMan.getIdInfoOfAGlobal(full_qualification.front());
+        }
     }
 
     if (!value) {
-        ctx.ErrMan.newError("undefined identifier '" + str_ident + "'", location);
+        ctx.ErrMan.newError("Undefined identifier '" + full_qualification.back() + "'", location);
         return {};
     }
 
@@ -219,6 +237,9 @@ AnalysisResult ReturnStatement::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
+    static std::recursive_mutex mtx;
+    std::lock_guard lock(mtx);
+
     if (ctx.Cache.contains(this))
         return ctx.Cache[this];
 
