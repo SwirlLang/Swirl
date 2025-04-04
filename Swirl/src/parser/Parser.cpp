@@ -174,8 +174,8 @@ SwNode Parser::dispatch() {
 }
 
 
-/*             Examples                                    *
- *      ------------------------                           *
+/*                 Examples                                *
+ *          ------------------------                       *
  * import dir1::dir2::mod::sym1 as stuff;                  *
  * import dir1::dir2::mod::{ sym1, sym2 as other_stuff };  *
  */
@@ -217,7 +217,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
     }
 
     if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "{") {
-        if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "as") {
+        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {
             forwardStream();
             ret.alias = forwardStream().value;
             SymbolTable.registerModuleAlias(ret.alias, ret.mod_path);
@@ -228,10 +228,16 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
         while (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "}") {
             ret.imported_symbols.emplace_back(forwardStream().value);
 
-            if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "as") {
-                forwardStream();
+            if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {
+                forwardStream();  // skip "as"
                 ret.imported_symbols.back().assigned_alias = forwardStream().value;
             }
+
+            SymbolTable.registerImportedSymbol(
+                ret.mod_path,
+                ret.imported_symbols.back().actual_name,
+                ret.imported_symbols.back().assigned_alias
+            );
 
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ",") {
                 forwardStream();
@@ -260,7 +266,14 @@ void Parser::parse() {
 void Parser::callBackend() {
     SymbolTable.lockNewScpEmplace();
 
-    LLVMBackend llvm_instance{std::move(AST), m_FilePath.string(), std::move(SymbolTable), std::move(ErrMan)};  // TODO
+    LLVMBackend llvm_instance{
+        std::move(AST),
+        m_FilePath.string(),
+        std::move(SymbolTable),
+        std::move(ErrMan),
+        GlobalNodeJmpTable
+    };
+
     llvm_instance.startGeneration();
     
     printIR(llvm_instance);
@@ -490,16 +503,14 @@ Ident Parser::parseIdent() {
     Ident ret;
     ret.location = m_Stream.getStreamState();
 
-    while (m_Stream.peek().type == PUNC && m_Stream.peek().value == "::") {
-        ret.mod_path /= forwardStream().value;
+    ret.full_qualification.emplace_back(forwardStream().value);
+    while (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "::") {
+        forwardStream();
+        ret.full_qualification.emplace_back(forwardStream().value);
     }
 
-    ret.str_ident = forwardStream().value;
-
-    if (ret.mod_path.empty()) {
-        ret.value = SymbolTable.getIDInfoFor(ret.str_ident);
-    } else {
-        ret.mod_path = SymbolTable.getModuleFromAlias(ret.mod_path.string());
+    if (ret.full_qualification.size() == 1) {
+        ret.value = SymbolTable.getIDInfoFor(ret.full_qualification.front());
     }
 
     return std::move(ret);

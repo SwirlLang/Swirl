@@ -37,8 +37,8 @@ public:
     inline static const std::string TargetTriple = llvm::sys::getDefaultTargetTriple();
     inline static const llvm::TargetMachine* TargetMachine = nullptr;
 
-    std::queue<std::function<void()>> PendingCodegenQ;
-    
+    std::unordered_map<IdentInfo*, Node*> GlobalNodeJmpTable;
+
     // ----------------[contextual-states]-------------------
     bool IsLocalScope = false;
     bool ChildHasReturned = false;
@@ -50,11 +50,18 @@ public:
     llvm::Type*        BoundLLVMTypeState = nullptr;
     // -------------------------------------------------------
     
-    explicit LLVMBackend(SwAST_t ast, const std::string& mod_name, SymbolManager sym_man, ErrorManager em)
+    explicit LLVMBackend(
+        SwAST_t ast,
+        const std::string& mod_name,
+        SymbolManager sym_man,
+        ErrorManager em,
+        std::unordered_map<IdentInfo*, Node*>& jmp_table)
+
             : LModule{std::make_unique<llvm::Module>(mod_name, Context)}
             , AST(std::move(ast))
             , SymMan(std::move(sym_man))
-            , ErrMan(std::move(em)) 
+            , ErrMan(std::move(em))
+            , GlobalNodeJmpTable(std::move(jmp_table))
     {
         if (m_AlreadyInstantiated) {
             LModule->setDataLayout(TargetMachine->createDataLayout());
@@ -100,25 +107,11 @@ public:
             m_CurParentIndex++;
         }
     }
-    
-    void runPendingTasks() {
-        while (!PendingCodegenQ.empty()) {
-            PendingCodegenQ.front()();
-            PendingCodegenQ.pop();
-        }
-    }
 
     /// codegen's the function with the id `id`
     void codegenTheFunction(IdentInfo* id) {
-        std::size_t counter = m_CurParentIndex;
         auto ip_cache = this->Builder.saveIP();
-
-        while (counter < AST.size()) {
-            if (AST[counter]->getIdentInfo() == id) {
-                AST[counter]->llvmCodegen(*this);
-                m_ResolvedList.insert(counter);
-            } counter++;
-        }
+        GlobalNodeJmpTable.at(id)->llvmCodegen(*this);
         this->Builder.restoreIP(ip_cache);
     }
 

@@ -105,8 +105,15 @@ llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
             e.swirl_type->llvmCodegen(instance), e.ptr));
 }
 
+llvm::Value* ImportNode::llvmCodegen(LLVMBackend &instance) {
+    return nullptr;  // TODO
+}
+
 
 llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
+    std::recursive_mutex mtx;
+    std::lock_guard guard(mtx);
+
     const auto fn_sw_type = dynamic_cast<FunctionType*>(instance.SymMan.lookupType(ident));
 
     auto linkage = this->is_exported ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;

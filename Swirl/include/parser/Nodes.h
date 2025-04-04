@@ -231,10 +231,7 @@ struct StrLit final : Node {
 
 struct Ident final : Node {
     IdentInfo* value = nullptr;
-    std::string str_ident;
-
-    /// the path of the source-file where this identifier is supposed to exist
-    std::filesystem::path mod_path;
+    std::vector<std::string> full_qualification;
 
     Ident() = default;
     explicit Ident(IdentInfo* val): value(val) {}
@@ -339,7 +336,8 @@ struct ImportNode final : Node {
         return ND_IMPORT;
     }
 
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override { /* TODO */ return nullptr; }
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct WhileLoop final : Node {
