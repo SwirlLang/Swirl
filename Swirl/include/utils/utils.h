@@ -67,18 +67,20 @@ class ThreadPool_t {
         bool m_Stop = false;
 
         void task() const {
-            std::unique_lock lock{m_PoolInstance.m_QMutex};
-            m_CV.wait(lock, [this] {
-                return !this->m_PoolInstance.m_TaskQueue.empty() || m_Stop;
-            });
+            while (true) {
+                std::unique_lock lock{m_PoolInstance.m_QMutex};
+                m_CV.wait(lock, [this] {
+                    return !this->m_PoolInstance.m_TaskQueue.empty() || m_Stop;
+                });
 
-            if (m_Stop && m_PoolInstance.m_TaskQueue.empty())
-                return;
+                if (m_Stop && m_PoolInstance.m_TaskQueue.empty())
+                    return;
 
-            const std::function todo = std::move(m_PoolInstance.m_TaskQueue.front());
-            m_PoolInstance.m_TaskQueue.pop();
-            lock.unlock();
-            todo();
+                const std::function todo = std::move(m_PoolInstance.m_TaskQueue.front());
+                m_PoolInstance.m_TaskQueue.pop();
+                lock.unlock();
+                todo();
+            }
         }
     
     public:
@@ -89,17 +91,21 @@ class ThreadPool_t {
         };
     
         void stop() {
-            m_Stop = true;
+            {
+                std::lock_guard lock{m_PoolInstance.m_QMutex};
+                m_Stop = true;
+            }
+
+            m_CV.notify_all();
             m_Handle.join();
         }
     };
-    
+
     std::vector<Thread> m_Threads;
     std::queue<std::function<void()>> m_TaskQueue;
     std::mutex m_QMutex;
 
     inline static std::condition_variable m_CV;
-
     friend ThreadPool_t;
 
 public:
@@ -115,13 +121,15 @@ public:
     
     template <typename Fn>
     void enqueue(Fn callable) {
-        m_TaskQueue.emplace(std::move(callable));
+        {
+            std::lock_guard lock{m_QMutex};
+            m_TaskQueue.emplace(std::move(callable));
+        } m_CV.notify_one();
     }
 
     void shutdown() {
         for (auto& thread : m_Threads)
             thread.stop();
     }
-    
 };
 
