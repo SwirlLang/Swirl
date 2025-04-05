@@ -1,9 +1,10 @@
 #pragma once
+#include <cassert>
 #include <string>
 #include <thread>
 #include <queue>
 #include <functional>
-
+#include <condition_variable>
 
 namespace fs = std::filesystem;
 
@@ -32,7 +33,7 @@ struct std::hash<std::pair<T1, T2>> {  // WHY?!?!!1
 };
 
 
-/// A helper to make a callback when a scope's end
+/// A helper to execute a callback when a scope ends
 template <typename Fn>
 class ScopeEndCallback {
     Fn m_Callback;
@@ -42,7 +43,8 @@ public:
     ~ScopeEndCallback() { m_Callback(); }
 };
 
-// a lock guard but with a destructor callback
+
+/// A lock guard but with a destructor callback
 template <typename Mtx, typename Fn>
 class LockGuard_t {
     std::lock_guard<Mtx> m_Guard;
@@ -50,7 +52,6 @@ class LockGuard_t {
 
 public:
     LockGuard_t(Mtx& mutex, Fn callback): m_Guard{mutex}, m_Callback(callback) {}
-    
     ~LockGuard_t() { m_Callback(); }
 };
 
@@ -65,12 +66,19 @@ class ThreadPool_t {
         std::size_t m_CoolDown{};
         bool m_Stop = false;
 
-        // TODO: use a condition variable instead of busy-waiting
         void task() const {
-            while (!m_Stop) {
-                if (auto task = m_PoolInstance.getTask())
-                    (*task)();
-            }
+            std::unique_lock lock{m_PoolInstance.m_QMutex};
+            m_CV.wait(lock, [this] {
+                return !this->m_PoolInstance.m_TaskQueue.empty() || m_Stop;
+            });
+
+            if (m_Stop && m_PoolInstance.m_TaskQueue.empty())
+                return;
+
+            const std::function todo = std::move(m_PoolInstance.m_TaskQueue.front());
+            m_PoolInstance.m_TaskQueue.pop();
+            lock.unlock();
+            todo();
         }
     
     public:
@@ -90,18 +98,23 @@ class ThreadPool_t {
     std::queue<std::function<void()>> m_TaskQueue;
     std::mutex m_QMutex;
 
+    inline static std::condition_variable m_CV;
+
+    friend ThreadPool_t;
+
 public:
     ThreadPool_t() = default;
 
     explicit ThreadPool_t(int base_thread_counts) {
         // TODO: handle the edge-case of 0
+        assert(base_thread_counts > 0);
         m_Threads.reserve(base_thread_counts);
         while (base_thread_counts--)
             m_Threads.emplace_back(*this);
     }
     
     template <typename Fn>
-    void addTask(Fn callable) {
+    void enqueue(Fn callable) {
         m_TaskQueue.emplace(std::move(callable));
     }
 
@@ -110,14 +123,5 @@ public:
             thread.stop();
     }
     
-    std::optional<std::function<void()>> getTask() {
-        std::lock_guard guard{m_QMutex};
-    
-        if (!m_TaskQueue.empty()) {
-            auto ret = m_TaskQueue.front();
-            m_TaskQueue.pop();
-            return ret;
-        } return std::nullopt;
-    }
 };
 
