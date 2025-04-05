@@ -24,12 +24,17 @@ void SymbolManager::registerImportedSymbol(const fs::path& mod_path, const std::
         if (m_ImportedSyms.contains(actual_name)) {
             ErrMan->newError("Symbol already present!");
             return;
-        } m_ImportedSyms[actual_name] = ModuleMap.get(mod_path).SymbolTable.subscribeForTableEntry(actual_name);
+        }
+
+        m_ImportedSyms[actual_name] = ModuleMap.get(mod_path).SymbolTable.subscribeForTableEntry(actual_name);
         return;
     }
 
     if (m_ImportedSyms.contains(alias)) {
         ErrMan->newError("Symbol already present!");
         return;
-    } m_ImportedSyms[alias] = ModuleMap.get(mod_path).SymbolTable.subscribeForTableEntry(actual_name);
+    }
+
+    // register the symbol as the alias but subscribe with the actual name
+    m_ImportedSyms[alias] = ModuleMap.get(mod_path).SymbolTable.subscribeForTableEntry(actual_name);
 }

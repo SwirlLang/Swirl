@@ -106,7 +106,14 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
                 : symbol.assigned_alias
             );
 
-            assert(id != nullptr);
+            if (!id) {
+                ctx.ErrMan.newError(std::format(
+                    "No symbol '{}' in module '{}'",
+                    symbol.actual_name,
+                    mod_path.string()
+                ), location);
+                continue;
+            }
             ctx.GlobalNodeJmpTable.insert({id, ModuleMap.get(mod_path).GlobalNodeJmpTable.at(id)});
         }
     }

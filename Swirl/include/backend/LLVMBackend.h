@@ -117,6 +117,8 @@ public:
 
     Type* fetchSwType(const std::unique_ptr<Node>& node) {
         switch (node->getNodeType()) {
+            case ND_STR:
+                return &GlobalTypeStr;
             case ND_INT:
                 return &GlobalTypeI32;
             case ND_FLOAT:

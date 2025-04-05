@@ -187,6 +187,13 @@ public:
         return m_ModuleAliasTable.at(std::string(name));
     }
 
+    void fulfillRemainingPromises() {
+        for (auto& promises: m_TESubscribers | std::views::values) {
+            for (auto& promise : promises) {
+                promise.set_value({nullptr, nullptr});
+            }
+        }
+    }
 
     void newScope() {
         m_ScopeInt++;
@@ -209,12 +216,12 @@ public:
         m_ScopeInt--;
     }
 
-
 private:
     void fulfillPromisesIfExists(const std::string& name) {
         if (auto id = m_IdScopes.front().getIDInfoFor(name)) {
-            for (auto& subscriber : m_TESubscribers[name]) {
-                subscriber.set_value({id.value(), &m_IdToTableEntry.at(id.value())});
+            for (auto& promise : m_TESubscribers.at(name)) {
+                std::println("promise already satisfiable!");
+                promise.set_value({id.value(), &m_IdToTableEntry.at(id.value())});
             } m_TESubscribers.erase(name);
         }
     }

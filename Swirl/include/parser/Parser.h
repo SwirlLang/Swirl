@@ -14,11 +14,6 @@
 #include <managers/SymbolManager.h>
 
 
-inline std::size_t getNewModuleUID() {
-    static std::size_t uid = 0;
-    return uid++;
-}
-
 class Parser {
     TokenStream  m_Stream;
 
@@ -31,8 +26,6 @@ class Parser {
     // ---*--- ---*--- ---*---
 
 
-    std::size_t  m_ModuleUID = getNewModuleUID();  // unique id for the parser-instance per-module
-    
     std::filesystem::path m_FilePath;
     std::filesystem::path m_RelativeDir;
 

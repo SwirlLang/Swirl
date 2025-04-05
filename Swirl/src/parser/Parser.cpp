@@ -210,7 +210,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
 
     if (!ModuleMap.contains(ret.mod_path)) {
         ModuleMap.insert(ret.mod_path, Parser(ret.mod_path));
-        ThreadPool->addTask(
+        ThreadPool->enqueue(
             [mod_path = ret.mod_path] {
                 ModuleMap.get(mod_path).parse();
             });

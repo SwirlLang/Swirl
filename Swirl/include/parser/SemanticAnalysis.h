@@ -23,7 +23,7 @@ public:
     void startAnalysis() {
         for (const auto& child : m_AST) {
             child->analyzeSemantics(*this);
-        }
+        } SymMan.fulfillRemainingPromises();
     }
 
     Node* getCurParentFunc() const {
