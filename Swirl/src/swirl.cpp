@@ -14,7 +14,6 @@
 std::string SW_FED_FILE_PATH;
 std::string SW_OUTPUT;
 std::string SW_FED_FILE_SOURCE;
-std::string SW_COMPLETE_FED_FILE_PATH;
 
 
 std::thread::id MAIN_THREAD_ID = std::this_thread::get_id();
@@ -50,7 +49,6 @@ int main(int argc, const char** argv) {
     }
 
     SW_FED_FILE_PATH = *app.get_file();
-    SW_COMPLETE_FED_FILE_PATH = SW_FED_FILE_PATH;
 
     if (!std::filesystem::exists(SW_FED_FILE_PATH)) {
         std::cerr << "File '" << SW_FED_FILE_PATH << "' not found!" << std::endl;
