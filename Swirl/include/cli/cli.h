@@ -19,7 +19,7 @@ struct Argument {
 	std::tuple<std::string, std::string> flags;
 	std::string desc;
 
-	bool value_required;
+	bool required;
 	std::string value;
 };	
 
