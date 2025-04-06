@@ -59,8 +59,6 @@ int main(int argc, const char** argv) {
     SW_FED_FILE_SOURCE = {std::istreambuf_iterator(file_stream), std::istreambuf_iterator<char>{}};
     file_stream.close();
 
-    std::string cache_dir = getWorkingDirectory(SW_FED_FILE_PATH) + PATH_SEP + "__swirl_cache__" + PATH_SEP;
-
     std::string file_name = SW_FED_FILE_PATH.substr(SW_FED_FILE_PATH.find_last_of("/\\") + 1);
     std::string out_dir = SW_FED_FILE_PATH.substr().replace(SW_FED_FILE_PATH.find(file_name),file_name.length(),"");
     file_name = file_name.substr(0, file_name.find_last_of('.'));
