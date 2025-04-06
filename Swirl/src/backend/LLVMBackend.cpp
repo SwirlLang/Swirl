@@ -32,7 +32,6 @@
 
 // ReSharper disable all CppUseStructuredBinding
 
-extern std::string OUTPUT_FILE_PATH;
 
 class NewScope {
     bool prev_ls_cache{};
@@ -120,6 +119,8 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
 
     auto*               fn_type  = llvm::dyn_cast<llvm::FunctionType>(fn_sw_type->llvmCodegen(instance));
     llvm::Function*     func     = llvm::Function::Create(fn_type, linkage, ident->toString(), instance.LModule.get());
+
+    // if (ident->getModulePath() != )
     llvm::BasicBlock*   entry_bb = llvm::BasicBlock::Create(instance.Context, "entry", func);
 
     NewScope _(instance);
@@ -584,45 +585,45 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
 }
 
 void GenerateObjectFileLLVM(const LLVMBackend& instance) {
-    const auto target_triple = llvm::sys::getDefaultTargetTriple();
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers();
-    llvm::InitializeAllAsmPrinters();
-
-    std::string err;
-    if (const auto target = llvm::TargetRegistry::lookupTarget(target_triple, err)) {
-        const auto cpu  = "generic";
-        const auto feat = "";
-
-        const llvm::TargetOptions opt;
-        const auto machine = target->createTargetMachine(target_triple, cpu, feat, opt, llvm::Reloc::PIC_);
-
-        instance.LModule->setDataLayout(machine->createDataLayout());
-        instance.LModule->setTargetTriple(target_triple);
-
-        std::error_code f_ec;
-        llvm::raw_fd_ostream dest(OUTPUT_FILE_PATH, f_ec, llvm::sys::fs::OF_None);
-
-        if (f_ec) {
-            llvm::errs() << "Could not open output file! " << f_ec.message();
-            return;
-        }
-
-        llvm::legacy::PassManager pass{};
-
-        if ( constexpr auto file_type = llvm::CodeGenFileType::ObjectFile;
-             machine->addPassesToEmitFile(pass, dest, nullptr, file_type)
-            ) { llvm::errs() << "TargetMachine can't emit a file of this type";
-            return;
-        }
-
-        pass.run(*instance.LModule);
-        dest.flush();
-    } else {
-        llvm::errs() << err;
-    }
+    // const auto target_triple = llvm::sys::getDefaultTargetTriple();
+    // llvm::InitializeAllTargetInfos();
+    // llvm::InitializeAllTargets();
+    // llvm::InitializeAllTargetMCs();
+    // llvm::InitializeAllAsmParsers();
+    // llvm::InitializeAllAsmPrinters();
+    //
+    // std::string err;
+    // if (const auto target = llvm::TargetRegistry::lookupTarget(target_triple, err)) {
+    //     const auto cpu  = "generic";
+    //     const auto feat = "";
+    //
+    //     const llvm::TargetOptions opt;
+    //     const auto machine = target->createTargetMachine(target_triple, cpu, feat, opt, llvm::Reloc::PIC_);
+    //
+    //     instance.LModule->setDataLayout(machine->createDataLayout());
+    //     instance.LModule->setTargetTriple(target_triple);
+    //
+    //     std::error_code f_ec;
+    //     llvm::raw_fd_ostream dest(OUTPUT_FILE_PATH, f_ec, llvm::sys::fs::OF_None);
+    //
+    //     if (f_ec) {
+    //         llvm::errs() << "Could not open output file! " << f_ec.message();
+    //         return;
+    //     }
+    //
+    //     llvm::legacy::PassManager pass{};
+    //
+    //     if ( constexpr auto file_type = llvm::CodeGenFileType::ObjectFile;
+    //          machine->addPassesToEmitFile(pass, dest, nullptr, file_type)
+    //         ) { llvm::errs() << "TargetMachine can't emit a file of this type";
+    //         return;
+    //     }
+    //
+    //     pass.run(*instance.LModule);
+    //     dest.flush();
+    // } else {
+    //     llvm::errs() << err;
+    // }
 }
 
 void printIR(const LLVMBackend& instance) {

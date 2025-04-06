@@ -21,8 +21,6 @@
 
 using SwNode = std::unique_ptr<Node>;
 
-extern std::string     OUTPUT_FILE_PATH;
-extern std::string     INPUT_FILE_PATH;
 extern std::thread::id MAIN_THREAD_ID;
 
 extern std::optional<ThreadPool_t> ThreadPool;
@@ -87,7 +85,6 @@ Type* Parser::parseType() {
 
 SwNode Parser::dispatch() {
     while (!m_Stream.eof()) {
-
         // pattern matching in C++ when?
         switch (m_Stream.CurTok.type) {
             case KEYWORD:
