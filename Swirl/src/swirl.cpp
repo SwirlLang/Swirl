@@ -11,13 +11,12 @@
 #include <include/SwirlConfig.h>
 
 
-std::string SW_FED_FILE_PATH;
-std::string SW_OUTPUT;
-std::string SW_FED_FILE_SOURCE;
+std::filesystem::path SW_OUTPUT;
 
 
 std::thread::id MAIN_THREAD_ID = std::this_thread::get_id();
 std::optional<ThreadPool_t> ThreadPool = std::nullopt;
+
 
 const std::vector<Argument> application_flags = {
     {{"-h","--help"}, "Show the help message", false, {}},
@@ -48,20 +47,16 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    SW_FED_FILE_PATH = *app.get_file();
+    std::filesystem::path source_file_path = *app.get_file();
 
-    if (!std::filesystem::exists(SW_FED_FILE_PATH)) {
-        std::cerr << "File '" << SW_FED_FILE_PATH << "' not found!" << std::endl;
+    if (!exists(source_file_path)) {
+        std::cerr << "File '" << source_file_path << "' not found!" << std::endl;
         return 1;
     }
 
-    std::ifstream file_stream(SW_FED_FILE_PATH);
-    SW_FED_FILE_SOURCE = {std::istreambuf_iterator(file_stream), std::istreambuf_iterator<char>{}};
-    file_stream.close();
 
-    std::string file_name = SW_FED_FILE_PATH.substr(SW_FED_FILE_PATH.find_last_of("/\\") + 1);
-    std::string out_dir = SW_FED_FILE_PATH.substr().replace(SW_FED_FILE_PATH.find(file_name),file_name.length(),"");
-    file_name = file_name.substr(0, file_name.find_last_of('.'));
+    auto out_dir = source_file_path.parent_path();
+    auto file_name = source_file_path.filename();
 
     
     if (app.contains_flag("-o"))
@@ -73,10 +68,13 @@ int main(int argc, const char** argv) {
         ThreadPool.emplace(std::stoi(app.get_flag_value("-j")));
     } else { ThreadPool.emplace(std::thread::hardware_concurrency() / 2); }
 
-    SW_FED_FILE_SOURCE += "\n";
 
-    if ( !SW_FED_FILE_SOURCE.empty() ) {
-        Parser parser(SW_FED_FILE_PATH);
+    if (!source_file_path.empty()) {
+        if (!source_file_path.is_absolute()) {
+            source_file_path = absolute(source_file_path);
+        }
+
+        Parser parser(source_file_path);
         parser.parse();
         parser.callBackend();
     }
