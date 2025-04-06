@@ -63,10 +63,11 @@ int main(int argc, const char** argv) {
     std::string out_dir = SW_FED_FILE_PATH.substr().replace(SW_FED_FILE_PATH.find(file_name),file_name.length(),"");
     file_name = file_name.substr(0, file_name.find_last_of('.'));
 
-    SW_OUTPUT = file_name;
-
+    
     if (app.contains_flag("-o"))
         SW_OUTPUT = app.get_flag_value("-o");
+    else { SW_OUTPUT = file_name; }
+
 
     if (app.contains_flag("-j")) {
         ThreadPool.emplace(std::stoi(app.get_flag_value("-j")));
