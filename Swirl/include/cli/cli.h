@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 #include <variant>
 #include <string_view>
@@ -5,9 +6,6 @@
 #include <optional>
 #include <iostream>
 #include <tuple>
-
-#ifndef CLI_H_Swirl
-#define CLI_H_Swirl
 
 const std::string USAGE = R"(The Swirl compiler
 Usage: Swirl <input-file> [flags]
@@ -56,5 +54,3 @@ private:
 	const std::vector<Argument> *m_flags;
   std::vector<Argument> m_args;
 };
-
-#endif
