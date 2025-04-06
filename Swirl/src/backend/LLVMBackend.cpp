@@ -32,7 +32,7 @@
 
 // ReSharper disable all CppUseStructuredBinding
 
-extern std::string SW_OUTPUT;
+extern std::string OUTPUT_FILE_PATH;
 
 class NewScope {
     bool prev_ls_cache{};
@@ -603,7 +603,7 @@ void GenerateObjectFileLLVM(const LLVMBackend& instance) {
         instance.LModule->setTargetTriple(target_triple);
 
         std::error_code f_ec;
-        llvm::raw_fd_ostream dest(SW_OUTPUT, f_ec, llvm::sys::fs::OF_None);
+        llvm::raw_fd_ostream dest(OUTPUT_FILE_PATH, f_ec, llvm::sys::fs::OF_None);
 
         if (f_ec) {
             llvm::errs() << "Could not open output file! " << f_ec.message();

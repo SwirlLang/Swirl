@@ -21,8 +21,8 @@
 
 using SwNode = std::unique_ptr<Node>;
 
-extern std::string     SW_OUTPUT;
-extern std::string     SW_FED_FILE_PATH;
+extern std::string     OUTPUT_FILE_PATH;
+extern std::string     INPUT_FILE_PATH;
 extern std::thread::id MAIN_THREAD_ID;
 
 extern std::optional<ThreadPool_t> ThreadPool;
