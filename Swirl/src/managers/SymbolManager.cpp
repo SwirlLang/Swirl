@@ -3,7 +3,10 @@
 extern ModuleMap_t ModuleMap;
 
 IdentInfo* SymbolManager::getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) {
-    return ModuleMap.get(mod_path).SymbolTable.getIdInfoOfAGlobal(name);
+    if (m_ImplicitlyIncludedSymbols.contains({name, mod_path}))
+        return m_ImportedSyms[name].get().first;
+    m_ImplicitlyIncludedSymbols[{name, mod_path}] = ModuleMap.get(mod_path).SymbolTable.subscribeForTableEntry(name);
+    return m_ImplicitlyIncludedSymbols[{name, mod_path}].get().first;
 }
 
 TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {

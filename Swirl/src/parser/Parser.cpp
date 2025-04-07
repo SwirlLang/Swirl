@@ -213,13 +213,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
             });
     }
 
-    if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "{") {
-        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {
-            forwardStream();
-            ret.alias = forwardStream().value;
-            SymbolTable.registerModuleAlias(ret.alias, ret.mod_path);
-        }
-    } else {
+    if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "{") {
         forwardStream();  // skip '{'
 
         while (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "}") {
@@ -240,6 +234,12 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
                 forwardStream();
             }
         } forwardStream();
+    } else {
+        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {
+            forwardStream();
+            ret.alias = forwardStream().value;
+            SymbolTable.registerModuleAlias(ret.alias, ret.mod_path);
+        } else forwardStream();
     }
 
     return std::make_unique<ImportNode>(std::move(ret));

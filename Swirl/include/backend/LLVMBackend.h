@@ -1,13 +1,5 @@
 #pragma once
-#include <llvm/MC/TargetRegistry.h>
-#include <llvm/Support/CodeGen.h>
-#include <llvm/Support/TargetSelect.h>
-#include <llvm/Target/TargetMachine.h>
-#include <llvm/Target/TargetOptions.h>
-#include <llvm/TargetParser/Host.h>
 #include <memory>
-#include <print>
-#include <queue>
 #include <stdexcept>
 #include <unordered_set>
 #include <vector>
@@ -19,6 +11,12 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#include <llvm/MC/TargetRegistry.h>
+#include <llvm/Support/CodeGen.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Target/TargetMachine.h>
+#include <llvm/Target/TargetOptions.h>
+#include <llvm/TargetParser/Host.h>
 
 
 using SwAST_t = std::vector<std::unique_ptr<Node>>;
@@ -39,6 +37,7 @@ public:
 
     std::unordered_map<IdentInfo*, Node*> GlobalNodeJmpTable;
 
+
     // ----------------[contextual-states]-------------------
     bool IsLocalScope = false;
     bool ChildHasReturned = false;
@@ -52,12 +51,11 @@ public:
     
     explicit LLVMBackend(
         SwAST_t ast,
-        const std::string& mod_name,
+        const std::string& mod_path,
         SymbolManager sym_man,
         ErrorManager em,
         std::unordered_map<IdentInfo*, Node*>& jmp_table)
-
-            : LModule{std::make_unique<llvm::Module>(mod_name, Context)}
+            : LModule{std::make_unique<llvm::Module>(mod_path, Context)}
             , AST(std::move(ast))
             , SymMan(std::move(sym_man))
             , ErrMan(std::move(em))
@@ -109,11 +107,7 @@ public:
     }
 
     /// codegen's the function with the id `id`
-    void codegenTheFunction(IdentInfo* id) {
-        auto ip_cache = this->Builder.saveIP();
-        GlobalNodeJmpTable.at(id)->llvmCodegen(*this);
-        this->Builder.restoreIP(ip_cache);
-    }
+    void codegenTheFunction(IdentInfo* id);
 
     Type* fetchSwType(const std::unique_ptr<Node>& node) {
         switch (node->getNodeType()) {

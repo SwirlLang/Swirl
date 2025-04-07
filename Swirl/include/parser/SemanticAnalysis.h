@@ -11,6 +11,10 @@ public:
     std::unordered_map<Node*, AnalysisResult> Cache;
     std::unordered_map<IdentInfo*, Node*>& GlobalNodeJmpTable;
 
+    /// Maps module names (or their aliases) to their path, used for the resolution of  ///
+    /// identifiers' `IdentInfo*`s.                                                    ///
+    std::unordered_map<std::string, std::filesystem::path> ModuleNamespaceTable;
+
     SymbolManager& SymMan;
     ErrorManager&  ErrMan;
 
@@ -62,6 +66,8 @@ public:
     //     } m_ARPromises.erase(id);
     // }
 
+
+    void analyzeSemanticsOf(IdentInfo* id);
 
     Type* deduceType(Type*, Type*, StreamState location) const;
 

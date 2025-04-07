@@ -64,6 +64,11 @@ class SymbolManager {
 
     std::unordered_map<std::string, std::shared_future<std::pair<IdentInfo*, TableEntry*>>> m_ImportedSyms;
 
+    std::unordered_map<
+        //        symbol's name | its module's path
+        std::pair<std::string, std::filesystem::path>,
+        std::shared_future<std::pair<IdentInfo*, TableEntry*>>> m_ImplicitlyIncludedSymbols;
+
 public:
     ErrorManager* ErrMan = nullptr;
 
@@ -108,7 +113,7 @@ public:
     }
 
     /// returns the IdentInfo* of a global name from the module `mod_path`
-    static IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) ;
+    IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) ;
 
     Type* lookupType(const std::string& id) {
         return m_TypeManager.getFor(getIDInfoFor(id));

@@ -98,6 +98,7 @@ AnalysisResult StrLit::analyzeSemantics(AnalysisContext&) {
 
 
 AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
+    // specific-symbol imports
     if (!imported_symbols.empty()) {
         for (auto& symbol : imported_symbols) {
             IdentInfo* id = ctx.SymMan.getIdInfoOfAGlobal(
@@ -115,8 +116,27 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
                 continue;
             }
             ctx.GlobalNodeJmpTable.insert({id, ModuleMap.get(mod_path).GlobalNodeJmpTable.at(id)});
-        }
+        } return {};
     }
+
+    if (alias.empty()) {
+        auto name = mod_path.filename().replace_extension();
+        if (ctx.ModuleNamespaceTable.contains(name)) {
+            ctx.ErrMan.newError(
+                std::format("Imported symbol '{}' already exists.",
+                    name.string()), location);
+            return {};
+        } ctx.ModuleNamespaceTable.insert({name, mod_path});
+    } else {
+        if (ctx.ModuleNamespaceTable.contains(alias)) {
+            ctx.ErrMan.newError(
+                std::format("Imported symbol '{}' already exists.",
+                    alias), location);
+            return {};
+        }
+        ctx.ModuleNamespaceTable.insert({alias, mod_path});
+    }
+
     return {};
 }
 
@@ -153,7 +173,7 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     if (!id) return {};
 
     if (ctx.getCurParentFunc()->getIdentInfo() != id)
-        ctx.GlobalNodeJmpTable.at(id)->analyzeSemantics(ctx);
+        ctx.analyzeSemanticsOf(id);
 
     auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(id));
 
@@ -184,6 +204,16 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     if (!value) {
         if (full_qualification.size() == 1) {
             value = ctx.SymMan.getIdInfoOfAGlobal(full_qualification.front());
+        } else {
+            if (full_qualification.size() == 2) {
+                if (!ctx.ModuleNamespaceTable.contains(full_qualification.front())) {
+                    ctx.ErrMan.newError("Undefined qualifier '" + full_qualification.front() + "'", location);
+                    return {};
+                } value = ctx.SymMan.getIdInfoFromModule(
+                    ctx.ModuleNamespaceTable[full_qualification.front()],
+                    full_qualification.back()
+                    );
+            }
         }
     }
 
@@ -371,4 +401,12 @@ void Expression::setType(Type* to) {
     else if (expr.front()->getNodeType() == ND_OP) {
         dynamic_cast<Op*>(expr.front().get())->setType(to);
     }
+}
+
+
+void AnalysisContext::analyzeSemanticsOf(IdentInfo* id) {
+    if (!GlobalNodeJmpTable.contains(id)) {
+        ModuleMap.get(id->getModulePath()).GlobalNodeJmpTable.at(id)->analyzeSemantics(*this);
+        return;
+    } GlobalNodeJmpTable[id]->analyzeSemantics(*this);
 }

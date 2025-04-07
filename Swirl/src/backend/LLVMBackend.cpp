@@ -28,9 +28,13 @@
 #include <llvm/Support/Casting.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
+#include <parser/Parser.h>
 
 
 // ReSharper disable all CppUseStructuredBinding
+
+
+extern ModuleMap_t ModuleMap;
 
 
 class NewScope {
@@ -120,7 +124,6 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
     auto*               fn_type  = llvm::dyn_cast<llvm::FunctionType>(fn_sw_type->llvmCodegen(instance));
     llvm::Function*     func     = llvm::Function::Create(fn_type, linkage, ident->toString(), instance.LModule.get());
 
-    // if (ident->getModulePath() != )
     llvm::BasicBlock*   entry_bb = llvm::BasicBlock::Create(instance.Context, "entry", func);
 
     NewScope _(instance);
@@ -583,6 +586,17 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
 
     return ret;
 }
+
+void LLVMBackend::codegenTheFunction(IdentInfo* id) {
+    auto ip_cache = this->Builder.saveIP();
+    if (!GlobalNodeJmpTable.contains(id)) {
+        ModuleMap.get(id->getModulePath()).GlobalNodeJmpTable.at(id)->llvmCodegen(*this);
+        this->Builder.restoreIP(ip_cache);
+        return;
+    } GlobalNodeJmpTable[id]->llvmCodegen(*this);
+    this->Builder.restoreIP(ip_cache);
+}
+
 
 void GenerateObjectFileLLVM(const LLVMBackend& instance) {
     // const auto target_triple = llvm::sys::getDefaultTargetTriple();
