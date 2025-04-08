@@ -6,7 +6,7 @@ include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 
-configure_file(include/SwirlConfig.h.in include/SwirlConfig.h)
+configure_file(compiler/include/SwirlConfig.h.in include/SwirlConfig.h)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,18 +19,18 @@ endif (WIN32)
 
 
 option(BUILD_STDLIB "Build the standard library" OFF)
-include_directories("include")
+include_directories("compiler/include")
 include_directories("${PROJECT_BINARY_DIR}")
 
-file(GLOB_RECURSE SOURCES "src/*/*.cpp")
+file(GLOB_RECURSE SOURCES "compiler/src/*/*.cpp")
 
-add_executable(swirl src/swirl.cpp
+add_executable(swirl compiler/src/swirl.cpp
         "${SOURCES}"
 )
 
 llvm_config(swirl USE_SHARED irreader support core)
 
-add_subdirectory(src)
+add_subdirectory(compiler/src)
 if(BUILD_STDLIB)
     add_subdirectory("../std_lib" build)
 endif()
@@ -38,7 +38,7 @@ endif()
 install(TARGETS ${CMAKE_PROJECT_NAME} DESTINATION bin)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    install(FILES "man/swirl.1" DESTINATION share/man/man1)
+    install(FILES "misc/man/swirl.1" DESTINATION share/man/man1)
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 include(CPackConfig.cmake)
