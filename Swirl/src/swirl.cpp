@@ -1,6 +1,4 @@
 #include "utils/utils.h"
-#include <iostream>
-#include <fstream>
 #include <string>
 #include <vector>
 #include <thread>
@@ -31,26 +29,26 @@ int main(int argc, const char** argv) {
     cli app(argc, argv, application_flags);
 
     if (app.contains_flag("-h")) {
-        std::cout << USAGE << app.generate_help() << '\n';
+        std::println("{}{}", USAGE, app.generate_help());
         return 0;
     }
 
     if (app.contains_flag("-v")) {
-        std::cout << "Swirl v" << swirl_VERSION_MAJOR << "." << swirl_VERSION_MINOR << "." << swirl_VERSION_PATCH << "\n";
+        std::println("Swirl v{}.{}.{}", swirl_VERSION_MAJOR, swirl_VERSION_MINOR, swirl_VERSION_PATCH);
         return 0;
     }
 
     std::optional<std::string> _file = app.get_file();
 
     if (!_file.has_value()) {
-        std::cerr << "No Input file\n";
+        std::println(stderr, "No input file");
         return 1;
     }
 
     std::filesystem::path source_file_path = *app.get_file();
 
     if (!exists(source_file_path)) {
-        std::cerr << "File '" << source_file_path << "' not found!" << std::endl;
+        std::println(stderr, "File \"{}\" not found!", source_file_path.string());
         return 1;
     }
 
