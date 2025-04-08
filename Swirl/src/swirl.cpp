@@ -34,7 +34,7 @@ int main(int argc, const char** argv) {
     }
 
     if (app.contains_flag("-v")) {
-        std::println("Swirl v{}.{}.{}", swirl_VERSION_MAJOR, swirl_VERSION_MINOR, swirl_VERSION_PATCH);
+        std::println("Swirl v{}.{}.{}, built on {}.", swirl_VERSION_MAJOR, swirl_VERSION_MINOR, swirl_VERSION_PATCH, __DATE__);
         return 0;
     }
 
