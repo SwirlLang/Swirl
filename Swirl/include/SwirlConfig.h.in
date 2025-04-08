@@ -1,4 +1,4 @@
 // Configured options for Swirl
-#define swirl_VERSION_MAJOR @swirl_VERSION_MAJOR@
-#define swirl_VERSION_MINOR @swirl_VERSION_MINOR@
-#define swirl_VERSION_PATCH @swirl_VERSION_PATCH@
+#define VERSION_MAJOR @swirl_VERSION_MAJOR@
+#define VERSION_MINOR @swirl_VERSION_MINOR@
+#define VERSION_PATCH @swirl_VERSION_PATCH@
