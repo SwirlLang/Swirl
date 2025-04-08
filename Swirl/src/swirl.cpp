@@ -21,7 +21,7 @@ const std::vector<Argument> application_flags = {
     {{"-o", "--output"}, "Output file name", true, {}},
     {{"-d", "--debug"}, "Log the steps of compilation", false, {}},
     {{"-v", "--version"}, "Show the version of Swirl", false, {}},
-    {{"-t", "--threads"}, "No. of threads to use (beside the mainthread).", true}
+    {{"-t", "--threads"}, "No. of threads to use (besides the mainthread).", true}
 };
 
 
