@@ -1,39 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(swirl VERSION 0.0.5)
 
-find_package(LLVM REQUIRED CONFIG)
-include_directories(${LLVM_INCLUDE_DIRS})
-add_definitions(${LLVM_DEFINITIONS})
-
-
-configure_file(compiler/include/SwirlConfig.h.in include/SwirlConfig.h)
-
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-# for windows
-if (WIN32)
-    set(CMAKE_CXX_STANDARD_LIBRARIES "-static-libgcc -static-libstdc++ -static")
-endif (WIN32)
-
-
-option(BUILD_STDLIB "Build the standard library" OFF)
-include_directories("compiler/include")
-include_directories("${PROJECT_BINARY_DIR}")
-
-file(GLOB_RECURSE SOURCES "compiler/src/*/*.cpp")
-
-add_executable(swirl compiler/src/swirl.cpp
-        "${SOURCES}"
-)
-
-llvm_config(swirl USE_SHARED irreader support core)
-
-add_subdirectory(compiler/src)
-if(BUILD_STDLIB)
-    add_subdirectory("../std_lib" build)
-endif()
+add_subdirectory(compiler)
 
 install(TARGETS ${CMAKE_PROJECT_NAME} DESTINATION bin)
 
