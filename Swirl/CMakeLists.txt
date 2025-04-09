@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.20)
 project(swirl VERSION 0.0.5)
 
 find_package(LLVM REQUIRED CONFIG)
