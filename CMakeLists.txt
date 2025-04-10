@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(swirl VERSION 0.0.5)
 
 add_subdirectory(compiler)
+add_subdirectory(runtime)
 
 install(TARGETS ${CMAKE_PROJECT_NAME} DESTINATION bin)
 
