@@ -4,8 +4,6 @@ project(swirl VERSION 0.0.5)
 add_subdirectory(compiler)
 add_subdirectory(runtime)
 
-install(TARGETS ${CMAKE_PROJECT_NAME} DESTINATION bin)
-
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     install(FILES "misc/man/swirl.1" DESTINATION share/man/man1)
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")

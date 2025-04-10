@@ -32,3 +32,6 @@ add_executable(swirl src/swirl.cpp
 
 llvm_config(swirl USE_SHARED irreader support core)
 
+install(TARGETS swirl 
+        RUNTIME DESTINATION bin)
+
