@@ -3,7 +3,7 @@ set(CPACK_PACKAGE_INSTALL_DIRECTORY "Swirl")
 set(CPACK_PACKAGE_VENDOR "Swirl Lang")
 set(CPACK_PACKAGE_VERSION "${CMAKE_PROJECT_VERSION}")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Swirl compiler")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/misc/resources/LICENSE")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 
 # RPM config
 set(CPACK_RPM_PACKAGE_DESCRIPTION "A modern, beginner-friendly language that combines power, performance, and simplicity.")
