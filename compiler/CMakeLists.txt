@@ -29,7 +29,6 @@ file(GLOB_RECURSE SOURCES "src/*/*.cpp")
 add_executable(swirl src/swirl.cpp
         "${SOURCES}"
 )
-target_link_libraries(swirl PUBLIC runtime)
 
 llvm_config(swirl USE_SHARED irreader support core)
 
