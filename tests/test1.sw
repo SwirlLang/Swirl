@@ -1,9 +1,9 @@
-import "dir/mod.sw";
+import dir::mod::{ useful_func };
 
 fn main(): i32 {
     configure(23, 43)
     var meow: i32 = 2333;
-
+    useful_func();
     return 0;
 }
 
