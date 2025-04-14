@@ -11,12 +11,15 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/CodeGen.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/TargetParser/Host.h>
+
+#include "parser/Parser.h"
 
 
 using SwAST_t = std::vector<std::unique_ptr<Node>>;
@@ -48,18 +51,13 @@ public:
     Type*              LatestBoundType = nullptr;
     llvm::Type*        BoundLLVMTypeState = nullptr;
     // -------------------------------------------------------
-    
-    explicit LLVMBackend(
-        SwAST_t ast,
-        const std::string& mod_path,
-        SymbolManager sym_man,
-        ErrorManager em,
-        std::unordered_map<IdentInfo*, Node*>& jmp_table)
-            : LModule{std::make_unique<llvm::Module>(mod_path, Context)}
-            , AST(std::move(ast))
-            , SymMan(std::move(sym_man))
-            , ErrMan(std::move(em))
-            , GlobalNodeJmpTable(std::move(jmp_table))
+
+    explicit LLVMBackend(Parser& parser)
+        : LModule{std::make_unique<llvm::Module>(parser.m_FilePath.string(), Context)}
+        , AST(std::move(parser.AST))
+        , SymMan(std::move(parser.SymbolTable))
+        , ErrMan(std::move(parser.ErrMan))
+        , GlobalNodeJmpTable(std::move(parser.GlobalNodeJmpTable))
     {
         if (m_AlreadyInstantiated) {
             LModule->setDataLayout(TargetMachine->createDataLayout());
@@ -126,6 +124,11 @@ public:
             default:
                 throw std::runtime_error("LLVMBackend::fetchSwType: failed to fetch type");
         }
+    }
+
+    void printIR() const {
+        verifyModule(*LModule, &llvm::outs());
+        LModule->print(llvm::outs(), nullptr);
     }
 
     void setBoundTypeState(Type* to) {

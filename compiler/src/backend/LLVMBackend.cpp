@@ -639,8 +639,3 @@ void GenerateObjectFileLLVM(const LLVMBackend& instance) {
     //     llvm::errs() << err;
     // }
 }
-
-void printIR(const LLVMBackend& instance) {
-    llvm::verifyModule(*instance.LModule, &llvm::errs());
-    instance.LModule->print(llvm::outs(), nullptr);
-}

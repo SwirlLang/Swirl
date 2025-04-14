@@ -21,12 +21,6 @@
 
 using SwNode = std::unique_ptr<Node>;
 
-extern std::thread::id MAIN_THREAD_ID;
-
-extern std::optional<ThreadPool_t> ThreadPool;
-
-extern void printIR(const LLVMBackend& instance);
-extern void GenerateObjectFileLLVM(const LLVMBackend&);
 
 ModuleMap_t ModuleMap;
 
@@ -207,11 +201,15 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
 
     if (!ModuleMap.contains(ret.mod_path)) {
         ModuleMap.insert(ret.mod_path, Parser(ret.mod_path));
-        ThreadPool->enqueue(
-            [mod_path = ret.mod_path] {
-                ModuleMap.get(mod_path).parse();
-            });
+        ModuleMap.get(ret.mod_path).parse();
     }
+
+    if (m_Dependencies.contains(&ModuleMap.get(ret.mod_path))) {
+        ErrMan.newError("Duplicate module import");
+    }
+
+    m_Dependencies.insert(&ModuleMap.get(ret.mod_path));
+    ModuleMap.get(ret.mod_path).m_Dependents.insert(this);
 
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "{") {
         forwardStream();  // skip '{'
@@ -245,36 +243,48 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
     return std::make_unique<ImportNode>(std::move(ret));
 }
 
-/// begin parsing
+/// begin parsing ///
 void Parser::parse() {
     forwardStream();
     while (!m_Stream.eof()) {
         AST.emplace_back(dispatch());
-    }
-    
-    ErrMan.raiseAll();
+    } ErrMan.raiseAll();
 
+    m_UnresolvedDeps = m_Dependencies.size();
+    if (m_Dependencies.empty())
+        ModuleMap.m_ZeroDepVec.push_back(this);
+}
+
+/// begin semantic analysis  ///
+void Parser::performSema() {
     AnalysisContext analysis_ctx{*this};
     analysis_ctx.startAnalysis();
     ErrMan.raiseAll();
 }
 
 
-void Parser::callBackend() {
-    SymbolTable.lockNewScpEmplace();
+// void Parser::callBackend() {
+//     SymbolTable.lockNewScpEmplace();
+//
+//     LLVMBackend llvm_instance{
+//         std::move(AST),
+//         m_FilePath.string(),
+//         std::move(SymbolTable),
+//         std::move(ErrMan),
+//         GlobalNodeJmpTable
+//     };
+//
+//     llvm_instance.startGeneration();
+//
+//     printIR(llvm_instance);
+//     GenerateObjectFileLLVM(llvm_instance);
+// }
 
-    LLVMBackend llvm_instance{
-        std::move(AST),
-        m_FilePath.string(),
-        std::move(SymbolTable),
-        std::move(ErrMan),
-        GlobalNodeJmpTable
-    };
-
-    llvm_instance.startGeneration();
-    
-    printIR(llvm_instance);
-    GenerateObjectFileLLVM(llvm_instance);
+void Parser::decrementUnresolvedDeps() {
+    m_UnresolvedDeps--;
+    if (m_UnresolvedDeps == 0) {
+        ModuleMap.m_BackBuffer.push_back(this);
+    }
 }
 
 

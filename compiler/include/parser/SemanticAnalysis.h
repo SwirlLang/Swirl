@@ -27,7 +27,7 @@ public:
     void startAnalysis() {
         for (const auto& child : m_AST) {
             child->analyzeSemantics(*this);
-        } SymMan.fulfillRemainingPromises();
+        }
     }
 
     Node* getCurParentFunc() const {
@@ -56,17 +56,6 @@ public:
         m_BoundTypeState = m_BoundTypeStateCache;
     }
 
-    /// fulfills all existing promises for the AR of `id`
-    // void fulfillPromises(IdentInfo* id, const AnalysisResult result) {
-    //     assert(id != nullptr);
-    //     if (m_ARPromises.contains(id)) {
-    //         for (auto& promises = m_ARPromises[id]; auto& promise : promises) {
-    //             promise.set_value(result);
-    //         }
-    //     } m_ARPromises.erase(id);
-    // }
-
-
     void analyzeSemanticsOf(IdentInfo* id);
 
     Type* deduceType(Type*, Type*, StreamState location) const;
@@ -82,23 +71,4 @@ private:
 
     Node* m_CurrentParentFunc = nullptr;
     Node* m_CurrentParentFuncCache = nullptr;
-
-    // std::unordered_map<IdentInfo*, std::vector<std::promise<AnalysisResult>>> m_ARPromises;  // AR = AnalysisResult
-
-    // std::future<AnalysisResult> subscribeForAnalysisResult(IdentInfo* id) {
-    //     assert(id != nullptr);
-    //     ScopeEndCallback _{[id, this] {
-    //         if (Cache.contains(id)) {
-    //             m_ARPromises[id].back().set_value(Cache[id]);
-    //         }
-    //     }};
-    //
-    //     if (m_ARPromises.contains(id)) {
-    //         m_ARPromises[id].emplace_back();
-    //         return m_ARPromises[id].back().get_future();
-    //     }
-    //
-    //     m_ARPromises[id] = {std::promise<AnalysisResult>()};
-    //     return m_ARPromises[id].back().get_future();
-    // }
 };

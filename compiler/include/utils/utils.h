@@ -69,7 +69,7 @@ class ThreadPool_t {
         void task() const {
             while (true) {
                 std::unique_lock lock{m_PoolInstance.m_QMutex};
-                m_CV.wait(lock, [this] {
+                m_PoolInstance.m_CV.wait(lock, [this] {
                     return !this->m_PoolInstance.m_TaskQueue.empty() || m_Stop;
                 });
 
@@ -77,9 +77,15 @@ class ThreadPool_t {
                     return;
 
                 const std::function todo = std::move(m_PoolInstance.m_TaskQueue.front());
+                ++m_PoolInstance.m_ActiveTasks;
                 m_PoolInstance.m_TaskQueue.pop();
                 lock.unlock();
                 todo();
+
+                {
+                    std::lock_guard _{m_PoolInstance.m_QMutex};
+                    --m_PoolInstance.m_ActiveTasks;
+                } m_PoolInstance.m_CV.notify_all();
             }
         }
     
@@ -96,7 +102,7 @@ class ThreadPool_t {
                 m_Stop = true;
             }
 
-            m_CV.notify_all();
+            m_PoolInstance.m_CV.notify_all();
             m_Handle.join();
         }
     };
@@ -104,8 +110,9 @@ class ThreadPool_t {
     std::vector<Thread> m_Threads;
     std::queue<std::function<void()>> m_TaskQueue;
     std::mutex m_QMutex;
+    int m_ActiveTasks{};
 
-    inline static std::condition_variable m_CV;
+    std::condition_variable m_CV;
     friend ThreadPool_t;
 
 public:
@@ -118,7 +125,7 @@ public:
         while (base_thread_counts--)
             m_Threads.emplace_back(*this);
     }
-    
+
     template <typename Fn>
     void enqueue(Fn callable) {
         {
@@ -126,6 +133,16 @@ public:
             m_TaskQueue.emplace(std::move(callable));
         } m_CV.notify_one();
     }
+
+
+    /// makes the calling thread wait until all tasks in the queue have finished
+    void wait() {
+        std::unique_lock lock{m_QMutex};
+        m_CV.wait(lock, [this] {
+            return m_ActiveTasks == 0;
+        });
+    }
+
 
     void shutdown() {
         for (auto& thread : m_Threads)

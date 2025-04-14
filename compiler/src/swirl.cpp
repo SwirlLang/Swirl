@@ -1,19 +1,13 @@
-#include "utils/utils.h"
 #include <string>
 #include <vector>
-#include <thread>
 #include <filesystem>
 
 #include <cli/cli.h>
-#include <parser/Parser.h>
+#include <Module.h>
 #include <include/SwirlConfig.h>
 
 
-std::filesystem::path SW_OUTPUT;
-
-
 std::thread::id MAIN_THREAD_ID = std::this_thread::get_id();
-std::optional<ThreadPool_t> ThreadPool = std::nullopt;
 
 
 const std::vector<Argument> application_flags = {
@@ -21,7 +15,7 @@ const std::vector<Argument> application_flags = {
     {{"-o", "--output"}, "Output file name", true, {}},
     {{"-d", "--debug"}, "Log the steps of compilation", false, {}},
     {{"-v", "--version"}, "Show the version of Swirl", false, {}},
-    {{"-t", "--threads"}, "No. of threads to use (besides the mainthread).", true}
+    {{"-t", "--threads"}, "No. of threads to use (excluding the main-thread).", true}
 };
 
 
@@ -56,26 +50,15 @@ int main(int argc, const char** argv) {
     auto out_dir = source_file_path.parent_path();
     auto file_name = source_file_path.filename();
 
-    
-    if (app.contains_flag("-o"))
-        SW_OUTPUT = app.get_flag_value("-o");
-    else { SW_OUTPUT = file_name; }
-
-
-    if (app.contains_flag("-j")) {
-        ThreadPool.emplace(std::stoi(app.get_flag_value("-j")));
-    } else { ThreadPool.emplace(std::thread::hardware_concurrency() / 2); }
-
 
     if (!source_file_path.empty()) {
-        if (!source_file_path.is_absolute()) {
+        if (!source_file_path.is_absolute())
             source_file_path = absolute(source_file_path);
-        }
 
-        Parser parser(source_file_path);
-        parser.parse();
-        parser.callBackend();
+        Module main_module{source_file_path};
+        if (app.contains_flag("-t"))
+            main_module.setBaseThreadCount(app.get_flag_value("-t"));
+
+        main_module.compile();
     }
-
-    ThreadPool->shutdown();
 }

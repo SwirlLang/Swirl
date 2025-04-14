@@ -56,18 +56,6 @@ class SymbolManager {
 
     std::filesystem::path m_ModulePath;
 
-    std::unordered_map<
-        std::string,
-        std::vector<
-            std::promise<std::pair<IdentInfo*, TableEntry*>
-                >>> m_TESubscribers; // TE = TableEntry
-
-    std::unordered_map<std::string, std::shared_future<std::pair<IdentInfo*, TableEntry*>>> m_ImportedSyms;
-
-    std::unordered_map<
-        //        symbol's name | its module's path
-        std::pair<std::string, std::filesystem::path>,
-        std::shared_future<std::pair<IdentInfo*, TableEntry*>>> m_ImplicitlyIncludedSymbols;
 
 public:
     ErrorManager* ErrMan = nullptr;
@@ -103,17 +91,14 @@ public:
     void registerImportedSymbol(const fs::path& mod_path, const std::string& actual_name, const std::string& alias);
 
     /// returns the IdentInfo* of a global
-    IdentInfo* getIdInfoOfAGlobal(const std::string& name) {
+    IdentInfo* getIdInfoOfAGlobal(const std::string& name) const {
         if (const auto id = m_IdScopes.front().getIDInfoFor(name))
             return *id;
-
-        if (m_ImportedSyms.contains(name))
-            return m_ImportedSyms[name].get().first;
         return nullptr;
     }
 
     /// returns the IdentInfo* of a global name from the module `mod_path`
-    IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) ;
+    static IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) ;
 
     Type* lookupType(const std::string& id) {
         return m_TypeManager.getFor(getIDInfoFor(id));
@@ -135,12 +120,6 @@ public:
     IdentInfo* registerDecl(const std::string& name, const TableEntry& entry) {
         auto id = m_IdScopes.at(m_ScopeInt).getNewIDInfo(name);
         m_IdToTableEntry.insert({id, entry});
-
-        if (m_TESubscribers.contains(name)) {
-            for (auto& subscriber : m_TESubscribers[name]) {
-                subscriber.set_value({id, &m_IdToTableEntry.at(id)});
-            }
-        } m_TESubscribers.erase(name);
         return id;
     }
 
@@ -150,26 +129,6 @@ public:
 
     bool declExists(IdentInfo* id) const {
         return m_IdToTableEntry.contains(id);
-    }
-
-
-    std::future<std::pair<IdentInfo*, TableEntry*>> subscribeForTableEntry(const std::string& id) {
-        static std::mutex function_guard;
-
-        auto bound = [this, &id] {
-            fulfillPromisesIfExists(id);
-        };
-
-        LockGuard_t _{function_guard, bound};
-        
-        if (m_TESubscribers.contains(id)) {
-            m_TESubscribers[id].emplace_back();
-            return m_TESubscribers[id].back().get_future();
-        } 
-
-        m_TESubscribers.insert({id, {}});
-        m_TESubscribers[id].emplace_back();
-        return m_TESubscribers[id].back().get_future();
     }
 
 
@@ -192,13 +151,6 @@ public:
         return m_ModuleAliasTable.at(std::string(name));
     }
 
-    void fulfillRemainingPromises() {
-        for (auto& promises: m_TESubscribers | std::views::values) {
-            for (auto& promise : promises) {
-                promise.set_value({nullptr, nullptr});
-            }
-        }
-    }
 
     void newScope() {
         m_ScopeInt++;
@@ -219,15 +171,5 @@ public:
 
     void destroyLastScope() {
         m_ScopeInt--;
-    }
-
-private:
-    void fulfillPromisesIfExists(const std::string& name) {
-        if (auto id = m_IdScopes.front().getIDInfoFor(name)) {
-            for (auto& promise : m_TESubscribers.at(name)) {
-                std::println("promise already satisfiable!");
-                promise.set_value({id.value(), &m_IdToTableEntry.at(id.value())});
-            } m_TESubscribers.erase(name);
-        }
     }
 };

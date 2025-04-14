@@ -2,8 +2,8 @@
 #include <filesystem>
 #include <memory>
 #include <mutex>
-#include <queue>
 #include <shared_mutex>
+#include <unordered_set>
 #include <utility>
 
 #include <parser/Nodes.h>
@@ -25,12 +25,20 @@ class Parser {
     std::optional<Token> m_ReturnFakeToken = std::nullopt;
     // ---*--- ---*--- ---*---
 
+    std::size_t  m_UnresolvedDeps{};
 
     std::filesystem::path m_FilePath;
     std::filesystem::path m_RelativeDir;
 
+    std::unordered_set<Parser*> m_Dependents;     // the modules which depend on this module
+    std::unordered_set<Parser*> m_Dependencies;  // the modules which this module depends on
+
+    friend class Module;
+    friend class ModuleMap_t;
+    friend class LLVMBackend;
 
 public:
+
     ErrorManager  ErrMan;
     SymbolManager SymbolTable;
 
@@ -68,28 +76,54 @@ public:
     Type* parseType();
 
     void parse();
+    void performSema();
     void callBackend();
-    void analyzeSemantics(std::vector<std::unique_ptr<Node>>&);
+
+    /// decrements the unresolved-deps counter of dependents
+    void decrementUnresolvedDeps();
 };
 
 
 class ModuleMap_t {
-    std::unordered_map<std::filesystem::path, Parser> m_ModuleMap;
-    std::shared_mutex m_Mutex;
-    
+    std::unordered_map<std::filesystem::path, std::unique_ptr<Parser>> m_ModuleMap;
+    std::vector<Parser*> m_ZeroDepVec;  // holds modules with zero dependencies
+    std::vector<Parser*> m_BackBuffer;  // this will be swapped with the above vector after flushing
+
+    friend class Parser;
+
 public:
-    Parser& get(const std::filesystem::path& m) {
-        std::shared_lock guard(m_Mutex);
-        return m_ModuleMap.at(m);
-    }
-    
-    void insert(const std::filesystem::path& key, Parser parser) {
-        std::lock_guard guard(m_Mutex);
-        m_ModuleMap.emplace(key, std::move(parser));
+    Parser& get(const std::filesystem::path& m) const {
+        return *m_ModuleMap.at(m);
     }
 
-    bool contains(const std::filesystem::path& mod) {
-        std::shared_lock guard(m_Mutex);
+    Parser* popZeroDepVec() {
+        if (m_ZeroDepVec.empty())
+            return nullptr;
+
+        const auto ret = m_ZeroDepVec.back();
+        m_ZeroDepVec.pop_back();
+
+        for (Parser* dependent : ret->m_Dependents) {
+            dependent->decrementUnresolvedDeps();
+        }
+
+        return ret;
+    }
+
+    void swapBuffers() {
+        if (!m_BackBuffer.empty())
+            std::swap(m_BackBuffer, m_ZeroDepVec);
+    }
+
+    void insert(const std::filesystem::path& key, Parser parser) {
+        m_ModuleMap.emplace(key, std::make_unique<Parser>(std::move(parser)));
+    }
+
+    bool zeroVecIsEmpty() const {
+        return m_ZeroDepVec.empty();
+    }
+
+    bool contains(const std::filesystem::path& mod) const {
         return m_ModuleMap.contains(mod);
     } 
 };
