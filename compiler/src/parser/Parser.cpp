@@ -195,7 +195,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
         ErrMan.newError(
             std::format(
                 "No such module exists (inferred path: '{}').",
-                ret.mod_path.string()), ret.location);
+                ret.mod_path.string()));
         return {};
     }
 

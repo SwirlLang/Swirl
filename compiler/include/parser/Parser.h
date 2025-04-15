@@ -54,10 +54,17 @@ public:
     : m_Stream(std::move(other.m_Stream))
     , m_LatestFuncNode(other.m_LatestFuncNode)
     , m_LastSymWasExported(other.m_LastSymWasExported)
+    , m_UnresolvedDeps(other.m_UnresolvedDeps)
+    , m_FilePath(std::move(other.m_FilePath))
+    , m_RelativeDir(std::move(other.m_RelativeDir))
+    , m_Dependents(std::move(other.m_Dependents))
+    , m_Dependencies(std::move(other.m_Dependencies))
     , ErrMan(std::move(other.ErrMan))
     , SymbolTable(std::move(other.SymbolTable))
-    , AST(std::move(other.AST)) {}
-    
+    , AST(std::move(other.AST))
+    , GlobalNodeJmpTable(std::move(other.GlobalNodeJmpTable)) {}
+
+
     std::unique_ptr<Node> dispatch();
     std::unique_ptr<Function> parseFunction();
     std::unique_ptr<Condition> parseCondition();
