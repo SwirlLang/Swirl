@@ -101,11 +101,7 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
     // specific-symbol imports
     if (!imported_symbols.empty()) {
         for (auto& symbol : imported_symbols) {
-            IdentInfo* id = ctx.SymMan.getIdInfoOfAGlobal(
-                symbol.assigned_alias.empty()
-                ? symbol.actual_name
-                : symbol.assigned_alias
-            );
+            IdentInfo* id = SymbolManager::getIdInfoFromModule(mod_path, symbol.actual_name);
 
             if (!id) {
                 ctx.ErrMan.newError(std::format(
@@ -115,6 +111,8 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
                 ), location);
                 continue;
             }
+
+            ctx.SymMan.registerIdInfoForImportedSym(symbol.assigned_alias.empty() ? symbol.actual_name : symbol.assigned_alias, id);
             ctx.GlobalNodeJmpTable.insert({id, ModuleMap.get(mod_path).GlobalNodeJmpTable.at(id)});
         } return {};
     }

@@ -51,11 +51,8 @@ class SymbolManager {
 
     std::unordered_map<IdentInfo*, TableEntry> m_IdToTableEntry;
 
-    // for mapping the modules' aliases to their file paths
-    std::unordered_map<std::string, std::filesystem::path> m_ModuleAliasTable;
-
     std::filesystem::path m_ModulePath;
-
+    std::unordered_map<std::string, IdentInfo*> m_ImportedSymsIDTable;
 
 public:
     ErrorManager* ErrMan = nullptr;
@@ -88,12 +85,13 @@ public:
 
     Type* lookupType(IdentInfo* id);
 
-    void registerImportedSymbol(const fs::path& mod_path, const std::string& actual_name, const std::string& alias);
 
     /// returns the IdentInfo* of a global
-    IdentInfo* getIdInfoOfAGlobal(const std::string& name) const {
+    IdentInfo* getIdInfoOfAGlobal(const std::string& name) {
         if (const auto id = m_IdScopes.front().getIDInfoFor(name))
             return *id;
+        if (m_ImportedSymsIDTable.contains(name))
+            return m_ImportedSymsIDTable[name];
         return nullptr;
     }
 
@@ -108,10 +106,13 @@ public:
         m_TypeManager.registerType(id, type);
     }
 
+    void registerIdInfoForImportedSym(const std::string& name, IdentInfo* id) {
+        m_ImportedSymsIDTable.emplace(name, id);
+    }
+
     Type* getReferenceType(Type* of_type) {
         return m_TypeManager.getReferenceType(of_type);
     }
-
 
     Type* getPointerType(Type* of_type, const uint16_t ptr_level) {
         return m_TypeManager.getPointerType(of_type, ptr_level);
@@ -121,6 +122,10 @@ public:
         auto id = m_IdScopes.at(m_ScopeInt).getNewIDInfo(name);
         m_IdToTableEntry.insert({id, entry});
         return id;
+    }
+
+    void registerDecl(IdentInfo* id, const TableEntry& entry) {
+        m_IdToTableEntry.insert({id, entry});
     }
 
     bool typeExists(IdentInfo* id) {
@@ -140,15 +145,6 @@ public:
                     return decl_id.value();
             } return nullptr;
         } return m_IdScopes.at(m_ScopeInt).getNewIDInfo(id);
-    }
-
-
-    void registerModuleAlias(std::string_view name, const fs::path& path) {
-        m_ModuleAliasTable[std::string(name)] = path;
-    }
-
-    fs::path& getModuleFromAlias(std::string_view name) {
-        return m_ModuleAliasTable.at(std::string(name));
     }
 
 

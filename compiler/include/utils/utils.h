@@ -79,6 +79,7 @@ class ThreadPool_t {
                 const std::function todo = std::move(m_PoolInstance.m_TaskQueue.front());
                 ++m_PoolInstance.m_ActiveTasks;
                 m_PoolInstance.m_TaskQueue.pop();
+                m_PoolInstance.m_CV.notify_all();
                 lock.unlock();
                 todo();
 
@@ -131,7 +132,7 @@ public:
         {
             std::lock_guard lock{m_QMutex};
             m_TaskQueue.emplace(std::move(callable));
-        } m_CV.notify_one();
+        } m_CV.notify_all();
     }
 
 

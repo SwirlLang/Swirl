@@ -222,12 +222,6 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
                 ret.imported_symbols.back().assigned_alias = forwardStream().value;
             }
 
-            SymbolTable.registerImportedSymbol(
-                ret.mod_path,
-                ret.imported_symbols.back().actual_name,
-                ret.imported_symbols.back().assigned_alias
-            );
-
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ",") {
                 forwardStream();
             }
@@ -236,7 +230,6 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {
             forwardStream();
             ret.alias = forwardStream().value;
-            SymbolTable.registerModuleAlias(ret.alias, ret.mod_path);
         } else forwardStream();
     }
 

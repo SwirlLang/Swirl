@@ -1,13 +1,8 @@
-import dir::mod::{ useful_func };
+import dir::mod;
+import mod::{another_function as af};
 
 fn main(): i32 {
-    configure(23, 43)
-    var meow: i32 = 2333;
-    useful_func();
+    mod::sum(32, 53);
+    af();
     return 0;
 }
-
-fn configure(a: i32, b: i32): i32 {
-    return 0; 
-}
-

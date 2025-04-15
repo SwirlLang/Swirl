@@ -18,7 +18,3 @@ Type* SymbolManager::lookupType(IdentInfo* id) {
         return ModuleMap.get(mod_path).SymbolTable.m_TypeManager.getFor(id);
     } return m_TypeManager.getFor(id);
 }
-
-void SymbolManager::registerImportedSymbol(const fs::path& mod_path, const std::string& actual_name, const std::string& alias) {
-    throw std::runtime_error("SymbolManager::registerImportedSymbol: deprecated");
-}
