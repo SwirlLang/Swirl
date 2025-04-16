@@ -200,7 +200,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
     }
 
     if (!ModuleMap.contains(ret.mod_path)) {
-        ModuleMap.insert(ret.mod_path, Parser(ret.mod_path));
+        ModuleMap.insert(ret.mod_path);
         ModuleMap.get(ret.mod_path).parse();
     }
 
@@ -255,23 +255,6 @@ void Parser::performSema() {
     ErrMan.raiseAll();
 }
 
-
-// void Parser::callBackend() {
-//     SymbolTable.lockNewScpEmplace();
-//
-//     LLVMBackend llvm_instance{
-//         std::move(AST),
-//         m_FilePath.string(),
-//         std::move(SymbolTable),
-//         std::move(ErrMan),
-//         GlobalNodeJmpTable
-//     };
-//
-//     llvm_instance.startGeneration();
-//
-//     printIR(llvm_instance);
-//     GenerateObjectFileLLVM(llvm_instance);
-// }
 
 void Parser::decrementUnresolvedDeps() {
     m_UnresolvedDeps--;

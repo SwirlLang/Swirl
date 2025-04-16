@@ -62,7 +62,12 @@ public:
     , ErrMan(std::move(other.ErrMan))
     , SymbolTable(std::move(other.SymbolTable))
     , AST(std::move(other.AST))
-    , GlobalNodeJmpTable(std::move(other.GlobalNodeJmpTable)) {}
+    , GlobalNodeJmpTable(std::move(other.GlobalNodeJmpTable))
+    {
+        m_Stream.ErrMan = &ErrMan;
+        SymbolTable.ErrMan = &ErrMan;
+        m_RelativeDir = m_FilePath.parent_path();
+    }
 
 
     std::unique_ptr<Node> dispatch();
@@ -112,18 +117,16 @@ public:
 
         for (Parser* dependent : ret->m_Dependents) {
             dependent->decrementUnresolvedDeps();
-        }
-
-        return ret;
+        } return ret;
     }
 
     void swapBuffers() {
-        if (!m_BackBuffer.empty())
-            std::swap(m_BackBuffer, m_ZeroDepVec);
+        m_ZeroDepVec = std::move(m_BackBuffer);
     }
 
-    void insert(const std::filesystem::path& key, Parser parser) {
-        m_ModuleMap.emplace(key, std::make_unique<Parser>(std::move(parser)));
+    void insert(const std::filesystem::path& mod_path) {
+        m_ModuleMap.emplace(mod_path, std::make_unique<Parser>(mod_path));
+        std::println("New Parser instance for: {}", m_ModuleMap[mod_path]->m_FilePath.string());
     }
 
     bool zeroVecIsEmpty() const {

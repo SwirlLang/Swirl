@@ -12,7 +12,9 @@ class ErrorManager {
     int m_Errors = 0;  // the no. of errors
 
 public:
-    explicit ErrorManager(TokenStream* token_stream): m_TokStream(token_stream) {}
+    explicit ErrorManager(TokenStream* token_stream): m_TokStream(token_stream) {
+        std::println("Error Manager registered with path: {}", m_TokStream->m_Path.string());
+    }
 
     void raiseUnexpectedEOF() {
         m_Errors++;

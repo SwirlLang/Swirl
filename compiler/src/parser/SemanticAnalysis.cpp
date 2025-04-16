@@ -3,7 +3,6 @@
 #include <parser/Nodes.h>
 #include <parser/Parser.h>
 #include <parser/SemanticAnalysis.h>
-#include <unordered_set>
 
 
 using SwNode = std::unique_ptr<Node>;
@@ -75,7 +74,6 @@ void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
 
     if (!(from->isIntegral() && to->isIntegral()) && !(from->isFloatingPoint() && to->isFloatingPoint())) {
         ErrMan.newError("No implicit type-conversion exists for this case.", location);
-        return;
     }
 }
 
@@ -207,7 +205,7 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
                 if (!ctx.ModuleNamespaceTable.contains(full_qualification.front())) {
                     ctx.ErrMan.newError("Undefined qualifier '" + full_qualification.front() + "'", location);
                     return {};
-                } value = ctx.SymMan.getIdInfoFromModule(
+                } value = SymbolManager::getIdInfoFromModule(
                     ctx.ModuleNamespaceTable[full_qualification.front()],
                     full_qualification.back()
                     );

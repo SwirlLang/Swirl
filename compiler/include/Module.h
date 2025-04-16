@@ -23,13 +23,18 @@ public:
     void compile() {
         m_MainModParser.parse();
 
+        int batch_no = 1;
         while (!ModuleMap.zeroVecIsEmpty()) {
+            std::println("Batch-{}: ", batch_no++);
+
             while (auto mod = ModuleMap.popZeroDepVec()) {
+                std::print("{}, ", mod->m_FilePath.string());
                 m_ThreadPool.enqueue([mod] {
                     mod->performSema();
                 });
             }
 
+            std::println("\n-------------");
             ModuleMap.swapBuffers();
             m_ThreadPool.wait();
         }
