@@ -69,7 +69,7 @@ class ThreadPool_t {
         void task() const {
             while (true) {
                 std::unique_lock lock{m_PoolInstance.m_QMutex};
-                m_PoolInstance.m_CV.wait(lock, [this] {
+                m_PoolInstance.m_QCV.wait(lock, [this] {
                     return !this->m_PoolInstance.m_TaskQueue.empty() || m_Stop;
                 });
 
@@ -79,14 +79,14 @@ class ThreadPool_t {
                 const std::function todo = std::move(m_PoolInstance.m_TaskQueue.front());
                 ++m_PoolInstance.m_ActiveTasks;
                 m_PoolInstance.m_TaskQueue.pop();
-                m_PoolInstance.m_CV.notify_all();
+                m_PoolInstance.m_WaitCV.notify_all();
                 lock.unlock();
                 todo();
 
                 {
                     std::lock_guard _{m_PoolInstance.m_QMutex};
                     --m_PoolInstance.m_ActiveTasks;
-                } m_PoolInstance.m_CV.notify_all();
+                } m_PoolInstance.m_WaitCV.notify_all();
             }
         }
     
@@ -103,7 +103,7 @@ class ThreadPool_t {
                 m_Stop = true;
             }
 
-            m_PoolInstance.m_CV.notify_all();
+            m_PoolInstance.m_QCV.notify_all();
             m_Handle.join();
         }
     };
@@ -113,7 +113,9 @@ class ThreadPool_t {
     std::mutex m_QMutex;
     int m_ActiveTasks{};
 
-    std::condition_variable m_CV;
+    std::condition_variable m_QCV;
+    std::condition_variable m_WaitCV;
+
     friend ThreadPool_t;
 
 public:
@@ -132,15 +134,15 @@ public:
         {
             std::lock_guard lock{m_QMutex};
             m_TaskQueue.emplace(std::move(callable));
-        } m_CV.notify_all();
+        } m_QCV.notify_one();
     }
 
 
     /// makes the calling thread wait until all tasks in the queue have finished
     void wait() {
         std::unique_lock lock{m_QMutex};
-        m_CV.wait(lock, [this] {
-            return m_ActiveTasks == 0;
+        m_WaitCV.wait(lock, [this] {
+            return m_ActiveTasks == 0 && m_TaskQueue.empty();
         });
     }
 

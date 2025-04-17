@@ -28,15 +28,16 @@ public:
             std::println("Batch-{}: ", batch_no++);
 
             while (auto mod = ModuleMap.popZeroDepVec()) {
-                std::print("{}, ", mod->m_FilePath.string());
-                m_ThreadPool.enqueue([mod] {
-                    mod->performSema();
-                });
+                mod->performSema();
+                // std::print("{}, ", mod->m_FilePath.string());
+                // m_ThreadPool.enqueue([mod] {
+                //     mod->performSema();
+                // });
             }
 
             std::println("\n-------------");
             ModuleMap.swapBuffers();
-            m_ThreadPool.wait();
+            // m_ThreadPool.wait();
         }
 
         m_MainModParser.performSema();

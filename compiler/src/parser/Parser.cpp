@@ -325,6 +325,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     TableEntry entry;
     entry.swirl_type = function_t.get();
+    entry.is_exported = func_nd.is_exported;
     func_nd.ident = SymbolTable.registerDecl(func_ident, entry);
     function_t->ident = func_nd.ident;
 
@@ -380,6 +381,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     TableEntry entry;
     entry.is_const = var_node.is_const;
     entry.is_volatile = var_node.is_volatile;
+    entry.is_exported = var_node.is_exported;
 
     if (!var_node.var_type)
         var_node.var_type = var_node.value.expr_type;

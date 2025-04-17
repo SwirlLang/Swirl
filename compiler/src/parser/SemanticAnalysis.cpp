@@ -110,6 +110,12 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
                 continue;
             }
 
+            if (!ctx.SymMan.lookupDecl(id).is_exported) {
+                ctx.ErrMan.newError(std::format(
+                    "Symbol '{}' exists, but its parent module doesn't export it.", symbol.actual_name
+                    ), location);
+            }
+
             ctx.SymMan.registerIdInfoForImportedSym(symbol.assigned_alias.empty() ? symbol.actual_name : symbol.assigned_alias, id);
             ctx.GlobalNodeJmpTable.insert({id, ModuleMap.get(mod_path).GlobalNodeJmpTable.at(id)});
         } return {};
@@ -209,6 +215,14 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
                     ctx.ModuleNamespaceTable[full_qualification.front()],
                     full_qualification.back()
                     );
+
+                if (value && !ctx.SymMan.lookupDecl(value).is_exported) {
+                    ctx.ErrMan.newError(std::format(
+                        "Symbol '{}::{}' exists, but its parent module doesn't export it.",
+                            full_qualification.front(),
+                            full_qualification.back()
+                        ), location);
+                }
             }
         }
     }

@@ -1,3 +1,5 @@
-fn another_function() {
-    return 32;
+import dir::mod;
+
+export fn another_function() {
+   return mod::useful_func();
 }

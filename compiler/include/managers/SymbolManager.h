@@ -1,7 +1,5 @@
 #pragma once
-#include "utils/utils.h"
 #include <filesystem>
-#include <future>
 #include <string>
 #include <ranges>
 #include <unordered_map>
@@ -18,6 +16,7 @@ struct TableEntry {
     bool is_type     = false;
     bool is_const    = false;
     bool is_param    = false;
+    bool is_exported = false;
     bool is_volatile = false;
 
     llvm::Value* ptr        = nullptr;

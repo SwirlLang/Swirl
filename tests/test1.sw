@@ -1,8 +1,5 @@
-import dir::mod;
-import mod::{another_function as af};
+import mod;
 
-fn main(): i32 {
-    mod::sum(32, 53);
-    af();
-    return 0;
+fn main() {
+    mod::another_function();
 }
