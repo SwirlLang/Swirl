@@ -389,11 +389,13 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 
         if (value == "/") {
             ret.deduced_type = &GlobalTypeF64;
-        }
-        else if (value == "as") {
+        } else if (value == "as") {
             ret.deduced_type = ctx.SymMan.lookupType(operands.at(1)->getIdentInfo());
-        }
-        else {
+        } else if (value == "[]") {
+            if (!analysis_2.deduced_type->isIntegral()) {
+                ctx.ErrMan.newError("Non-integral values can't be used as indices.", location);
+            } ret.deduced_type = dynamic_cast<ArrayType*>(analysis_1.deduced_type)->of_type;
+        } else {
             ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);
         }
     }

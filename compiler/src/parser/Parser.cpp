@@ -574,6 +574,24 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
 Expression Parser::parseExpr(const std::optional<Token>& terminator) {
     const
     std::function<SwNode()> parse_component = [&, this] -> SwNode {
+        // this helper returns a packaged element-access operator if it detects its presence
+        auto package_element_access = [this, parse_component] (SwNode& operand_1) -> std::optional<SwNode> {
+            if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[") {
+                forwardStream();
+                auto op = std::make_unique<Op>("[]");
+                op->location = m_Stream.getStreamState();
+                op->operands.push_back(std::move(operand_1));
+                op->operands.push_back(parse_component());
+
+                if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "]") {
+                    ErrMan.newSyntaxError("Expected ']' to match '['.");
+                    return std::nullopt;
+                }
+                forwardStream();
+                return std::move(op);
+            } return std::nullopt;
+        };
+
         switch (m_Stream.CurTok.type) {
             case NUMBER: {
                 if (m_Stream.CurTok.meta == CT_FLOAT) {
@@ -600,15 +618,20 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
                 if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
                     auto call_node = parseCall(std::move(id));
                     return std::move(call_node);
-                } return std::make_unique<Ident>(std::move(id));
+                }
+
+                std::unique_ptr<Node> id_node = std::make_unique<Ident>(std::move(id));
+                if (auto op = package_element_access(id_node)) {
+                    return std::move(*op);
+                } return std::move(id_node);
             }
             case PUNC: {
                 if (m_Stream.CurTok.value == "[") {
-                    ArrayNode arr_node;
+                    ArrayNode arr;
                     forwardStream();
 
                     while (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "]") {
-                        arr_node.elements.push_back(parseExpr());
+                        arr.elements.push_back(parseExpr());
 
                         if (m_Stream.CurTok.type == PUNC) {
                             if (m_Stream.CurTok.value == ",") {
@@ -619,12 +642,17 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
                         if (m_Stream.peek().type != PUNC && m_Stream.peek().value != "]")
                             ErrMan.newSyntaxError("Array elements must be separated by a comma (',').");
                     } forwardStream();
-                    return std::make_unique<ArrayNode>(std::move(arr_node));
+
+                    std::unique_ptr<Node> arr_node = std::make_unique<ArrayNode>(std::move(arr));
+                    if (auto op = package_element_access(arr_node)) {
+                        return std::move(*op);
+                    } return std::move(arr_node);
                 }
 
                 if (m_Stream.CurTok.value == "(") {
                     forwardStream();
                     auto ret = std::make_unique<Expression>(parseExpr());
+                    ret->location = m_Stream.getStreamState();
                     forwardStream();
                     return std::move(ret);
                 } return dispatch();
