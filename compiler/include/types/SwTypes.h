@@ -32,7 +32,8 @@ struct Type {
         BOOL,
         STR,
         REFERENCE,
-        POINTER
+        POINTER,
+        ARRAY
     };
 
 
@@ -83,8 +84,24 @@ struct StructType final : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
-/// This represents a non-owning string type, akin to std::string_view
+
+struct ArrayType final : Type {
+    Type* of_type    = nullptr;
+    std::size_t size = 0;
+
+    ArrayType(Type* of_type, const std::size_t size): of_type(of_type), size(size) {}
+
+    [[nodiscard]]
+    IdentInfo* getIdent() const override { return nullptr;}
+    SwTypes getSwType() override { return ARRAY; }
+
+    llvm::Type* llvmCodegen(LLVMBackend&) override;
+};
+
+
 struct TypeStr final : Type {
+    std::size_t size = 0;
+
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes    getSwType() override { return STR; }
 

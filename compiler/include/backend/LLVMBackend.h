@@ -127,7 +127,7 @@ public:
     }
 
     void printIR() const {
-        verifyModule(*LModule, &llvm::outs());
+        verifyModule(*LModule, &llvm::errs());
         LModule->print(llvm::outs(), nullptr);
     }
 

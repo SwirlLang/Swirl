@@ -113,6 +113,10 @@ public:
         return m_TypeManager.getReferenceType(of_type);
     }
 
+    Type* getArrayType(Type* of_type, const std::size_t size) {
+        return m_TypeManager.getArrayType(of_type, size);
+    }
+
     Type* getPointerType(Type* of_type, const uint16_t ptr_level) {
         return m_TypeManager.getPointerType(of_type, ptr_level);
     }

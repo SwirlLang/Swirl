@@ -24,6 +24,7 @@ enum NodeType {
     ND_WHILE,       // 13
     ND_STRUCT,      // 14
     ND_IMPORT,      // 15
+    ND_ARRAY,       // 16
 };
 
 
@@ -339,6 +340,19 @@ struct ImportNode final : Node {
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
+
+
+struct ArrayNode final : Node {
+    Type* type = nullptr;
+    std::vector<Expression> elements;
+
+    Type* getSwType() override {
+        return type;
+    }
+
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+};
+
 
 struct WhileLoop final : Node {
     Expression condition{};

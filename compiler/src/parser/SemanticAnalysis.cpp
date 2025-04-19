@@ -72,6 +72,19 @@ void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
         }
     }
 
+    if (from->getSwType() == Type::ARRAY && to->getSwType() == Type::ARRAY) {
+        const auto* base_t1 = dynamic_cast<ArrayType*>(from);
+        const auto* base_t2 = dynamic_cast<ArrayType*>(to);
+
+        if (base_t1->size != base_t2->size) {
+            ErrMan.newError("Arrays with different sizes are not compatible with each other.");
+            return;
+        }
+
+        checkTypeCompatibility(base_t1->of_type, base_t2->of_type, location);
+        return;
+    }
+
     if (!(from->isIntegral() && to->isIntegral()) && !(from->isFloatingPoint() && to->isFloatingPoint())) {
         ErrMan.newError("No implicit type-conversion exists for this case.", location);
     }
@@ -92,6 +105,23 @@ AnalysisResult FloatLit::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult StrLit::analyzeSemantics(AnalysisContext&) {
     return {.deduced_type = &GlobalTypeStr};
+}
+
+AnalysisResult ArrayNode::analyzeSemantics(AnalysisContext& ctx) {
+    AnalysisResult ret;
+    Type* common_type = nullptr;
+
+    for (auto& element : elements) {
+        auto expr_analysis = element.analyzeSemantics(ctx);
+
+        if (common_type != nullptr) {
+            common_type = ctx.deduceType(common_type, expr_analysis.deduced_type, location);
+            continue;
+        } common_type = expr_analysis.deduced_type;
+    }
+
+    ret.deduced_type = ctx.SymMan.getArrayType(common_type, elements.size());
+    return ret;
 }
 
 
@@ -151,7 +181,11 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
         return {};
     }
 
-    ctx.setBoundTypeState(var_type);
+    if (var_type && var_type->getSwType() == Type::ARRAY) {
+        const auto base_type = dynamic_cast<ArrayType*>(var_type)->of_type;
+        ctx.setBoundTypeState(base_type);
+    } else ctx.setBoundTypeState(var_type);
+
     auto val_analysis = value.analyzeSemantics(ctx);
     ctx.restoreBoundTypeState();
 
@@ -184,7 +218,9 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
                             "when calling the function recursively.", location);
     }
 
+    std::println("param_types.size(): {} | args.size(): {}", fn_type->param_types.size(), args.size());
     assert(fn_type->param_types.size() == args.size());
+
 
     for (std::size_t i = 0; i < args.size(); ++i) {
         ctx.setBoundTypeState(fn_type->param_types.at(i));

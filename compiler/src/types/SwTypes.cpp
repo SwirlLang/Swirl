@@ -21,7 +21,7 @@ llvm::Type* FunctionType::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Type* TypeStr::llvmCodegen(LLVMBackend& instance) {
-    return llvm::PointerType::get(llvm::Type::getInt8Ty(instance.Context), 1);
+    return llvm::ArrayType::get(llvm::Type::getInt8Ty(instance.Context), size);
 }
 
 
@@ -35,12 +35,16 @@ llvm::Type* StructType::llvmCodegen(LLVMBackend& instance) {
     return struct_t;
 }
 
-llvm::Type* PointerType::llvmCodegen(LLVMBackend &instance) {
+llvm::Type* PointerType::llvmCodegen(LLVMBackend& instance) {
     return llvm::PointerType::get(of_type->llvmCodegen(instance), 1);
 }
 
-llvm::Type* ReferenceType::llvmCodegen(LLVMBackend &instance) {
+llvm::Type* ReferenceType::llvmCodegen(LLVMBackend& instance) {
     return llvm::PointerType::get(of_type->llvmCodegen(instance), 1);
+}
+
+llvm::Type* ArrayType::llvmCodegen(LLVMBackend& instance) {
+    return llvm::ArrayType::get(of_type->llvmCodegen(instance), size);
 }
 
 

@@ -54,15 +54,37 @@ Token Parser::forwardStream(const uint8_t n) {
 
 
 Type* Parser::parseType() {
-    IdentInfo* ident = nullptr;
+    Type* base_type = nullptr;
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
         forwardStream();
-        ident = SymbolTable.getIDInfoFor(forwardStream().value);
-        return SymbolTable.getReferenceType(SymbolTable.lookupType(ident));
+        return SymbolTable.getReferenceType(
+            SymbolTable.lookupType(SymbolTable.getIDInfoFor(forwardStream().value)));
     }
 
-    ident = SymbolTable.getIDInfoFor(forwardStream().value);
+    if (m_Stream.CurTok.type == IDENT) {
+        base_type = SymbolTable.lookupType(SymbolTable.getIDInfoFor(forwardStream().value));
+    }
+
+    if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[") {
+        forwardStream();
+        base_type = parseType();
+
+        if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != ";") {
+            ErrMan.newSyntaxError("Expected ';' (syntax: [<type>; <size>]).");
+            return nullptr;
+        }
+
+        forwardStream();
+        if (m_Stream.CurTok.type != NUMBER || m_Stream.CurTok.meta != CT_INT) {
+            ErrMan.newError("Array sizes can only be integral compile-time constants.");
+            return nullptr;
+        }
+
+        const auto ret = SymbolTable.getArrayType(base_type, std::stoi(forwardStream().value));
+        forwardStream();
+        return ret;
+    }
 
     uint16_t ptr_level = 0;
     while (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {
@@ -71,10 +93,10 @@ Type* Parser::parseType() {
     }
 
     if (ptr_level) {
-        return SymbolTable.getPointerType(SymbolTable.lookupType(ident), ptr_level);
+        return SymbolTable.getPointerType(base_type, ptr_level);
     }
 
-    return SymbolTable.lookupType(ident);
+    return base_type;
 }
 
 SwNode Parser::dispatch() {
@@ -580,13 +602,37 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
                     return std::move(call_node);
                 } return std::make_unique<Ident>(std::move(id));
             }
-            default: {
-                if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
+            case PUNC: {
+                if (m_Stream.CurTok.value == "[") {
+                    ArrayNode arr_node;
+                    forwardStream();
+
+                    while (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "]") {
+                        arr_node.elements.push_back(parseExpr());
+
+                        if (m_Stream.CurTok.type == PUNC) {
+                            if (m_Stream.CurTok.value == ",") {
+                                forwardStream();
+                                continue;
+                            }
+                        }
+                        if (m_Stream.peek().type != PUNC && m_Stream.peek().value != "]")
+                            ErrMan.newSyntaxError("Array elements must be separated by a comma (',').");
+                    } forwardStream();
+                    return std::make_unique<ArrayNode>(std::move(arr_node));
+                }
+
+                if (m_Stream.CurTok.value == "(") {
                     forwardStream();
                     auto ret = std::make_unique<Expression>(parseExpr());
                     forwardStream();
                     return std::move(ret);
                 } return dispatch();
+            }
+
+            default: {
+                ErrMan.newSyntaxError("Expected an expression.");
+                return nullptr;
             }
         }
     };

@@ -19,6 +19,15 @@ struct Pointer {
         return level == other.level && of_type == other.of_type;
     }
 };
+
+struct Array {
+    Type* of_type = nullptr;
+    std::size_t size = 0;
+
+    bool operator==(const Array& other) const {
+        return size == other.size && of_type == other.of_type;
+    }
+};
 }
 
 
@@ -32,12 +41,24 @@ struct std::hash<detail::Pointer> {
     }
 };
 
+
+template <>
+struct std::hash<detail::Array> {
+    std::size_t operator()(const detail::Array ptr) const noexcept {
+        return combineHashes(
+            std::hash<Type*>{}(ptr.of_type),
+            std::hash<std::size_t>{}(ptr.size)
+        );
+    }
+};
+
+
 class TypeManager {
     std::unordered_map<IdentInfo*, std::unique_ptr<Type>>              m_TypeTable;  // for named types
     std::unordered_map<Type*, std::unique_ptr<ReferenceType>>          m_ReferenceTable;
-    std::unordered_map<detail::Pointer, std::unique_ptr<PointerType>>  m_PointerTable;
 
-    friend std::hash<detail::Pointer>;
+    std::unordered_map<detail::Array, std::unique_ptr<ArrayType>>      m_ArrayTable;
+    std::unordered_map<detail::Pointer, std::unique_ptr<PointerType>>  m_PointerTable;
 
 public:
     /// returns the type with the id `name`
@@ -61,6 +82,16 @@ public:
             return m_PointerTable[ptr].get();
         } m_PointerTable[ptr] = std::make_unique<PointerType>(to, level);
         return m_PointerTable[ptr].get();
+    }
+
+    /// returns the corresponding array-type for the type and size
+    Type* getArrayType(Type* of_type, std::size_t size) {
+        using namespace detail;
+        const Array arr{of_type, size};
+        if (m_ArrayTable.contains(arr)) {
+            return m_ArrayTable[arr].get();
+        } m_ArrayTable[arr] = std::make_unique<ArrayType>(of_type, size);
+        return m_ArrayTable[arr].get();
     }
 
     /// returns a reference for the type `to`
