@@ -44,12 +44,7 @@ public:
     // ----------------[contextual-states]-------------------
     bool IsLocalScope = false;
     bool ChildHasReturned = false;
-    bool LatestBoundIsIntegral = false;
-    bool LatestBoundIsFloating = false;
     bool IsAssignmentLHS = false;
-
-    Type*              LatestBoundType = nullptr;
-    llvm::Type*        BoundLLVMTypeState = nullptr;
     // -------------------------------------------------------
 
     explicit LLVMBackend(Parser& parser)
@@ -104,7 +99,7 @@ public:
         }
     }
 
-    /// codegen's the function with the id `id`
+    /// codegens the function with the id `id`
     void codegenTheFunction(IdentInfo* id);
 
     Type* fetchSwType(const std::unique_ptr<Node>& node) {
@@ -133,34 +128,29 @@ public:
         LModule->print(llvm::outs(), nullptr);
     }
 
-    void setBoundTypeState(Type* to) {
-        m_Cache = LatestBoundType;
+    Type* getBoundTypeState() const {
+        return m_LatestBoundType;
+    }
 
-        LatestBoundType = to;
-        BoundLLVMTypeState = to->llvmCodegen(*this);
-        
-        LatestBoundIsFloating = BoundLLVMTypeState->isFloatingPointTy();
-        LatestBoundIsIntegral = BoundLLVMTypeState->isIntegerTy();
+    llvm::Type* getBoundLLVMType() {
+        return m_LatestBoundType->llvmCodegen(*this);
+    }
+
+    void setBoundTypeState(Type* to) {
+        m_BoundTypeCache = m_LatestBoundType;
+        m_LatestBoundType = to;
     }
 
     void restoreBoundTypeState() {
-        LatestBoundType = m_Cache;
-        if (m_Cache != nullptr) {
-            BoundLLVMTypeState = m_Cache->llvmCodegen(*this);
-            LatestBoundIsFloating = BoundLLVMTypeState->isFloatingPointTy();
-            LatestBoundIsIntegral = BoundLLVMTypeState->isIntegerTy();
-            return;
-        }
-
-        BoundLLVMTypeState = nullptr;
-        LatestBoundIsIntegral = false;
-        LatestBoundIsFloating = false;
+        m_LatestBoundType = m_BoundTypeCache;
     }
 
 private:
-    Type* m_Cache = nullptr;
     bool m_AlreadyInstantiated = false;
 
     std::unordered_set<std::size_t> m_ResolvedList;
     std::size_t m_CurParentIndex = 0;
+
+    Type*   m_LatestBoundType = nullptr;
+    Type*   m_BoundTypeCache = nullptr;
 };

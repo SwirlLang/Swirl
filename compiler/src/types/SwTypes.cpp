@@ -44,7 +44,9 @@ llvm::Type* ReferenceType::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Type* ArrayType::llvmCodegen(LLVMBackend& instance) {
-    return llvm::ArrayType::get(of_type->llvmCodegen(instance), size);
+    const auto arr_struct = llvm::StructType::create(instance.Context);
+    arr_struct->setBody(llvm::ArrayType::get(of_type->llvmCodegen(instance), size));
+    return arr_struct;
 }
 
 

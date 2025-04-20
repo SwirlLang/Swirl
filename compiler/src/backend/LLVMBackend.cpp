@@ -68,8 +68,8 @@ void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<
 llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
     llvm::Value* ret = nullptr;
 
-    if (instance.LatestBoundIsIntegral) {
-        auto int_type = llvm::dyn_cast<llvm::IntegerType>(instance.BoundLLVMTypeState);
+    if (instance.getBoundTypeState()->isIntegral()) {
+        auto int_type = llvm::dyn_cast<llvm::IntegerType>(instance.getBoundLLVMType());
         assert(int_type);
 
         if (value.starts_with("0x"))
@@ -79,8 +79,8 @@ llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
         else ret = llvm::ConstantInt::get(int_type, value, 10); 
     }
 
-    else if (instance.LatestBoundIsFloating) {
-        ret = llvm::ConstantFP::get(instance.BoundLLVMTypeState, value);
+    else if (instance.getBoundTypeState()->isFloatingPoint()) {
+        ret = llvm::ConstantFP::get(instance.getBoundLLVMType(), value);
     } else {
         throw std::runtime_error("Fatal: IntLit::llvmCodegen called but instance is neither in "
                                 "integral nor FP state.");
@@ -89,7 +89,7 @@ llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Value* FloatLit::llvmCodegen(LLVMBackend& instance) {
-    return llvm::ConstantFP::get(instance.BoundLLVMTypeState, value);
+    return llvm::ConstantFP::get(instance.getBoundLLVMType(), value);
 }
 
 llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
@@ -180,7 +180,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             auto lhs = operands.at(0)->llvmCodegen(instance);
             auto rhs = operands.at(1)->llvmCodegen(instance);
 
-            if (instance.LatestBoundIsIntegral) {
+            if (instance.getBoundTypeState()->isIntegral()) {
                 return instance.Builder.CreateAdd(lhs, rhs);
             }
 
@@ -191,7 +191,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         {{"-", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
-            if (instance.LatestBoundIsIntegral) {
+            if (instance.getBoundTypeState()->isIntegral()) {
                 return instance.Builder.CreateSub(lhs, rhs);
             }
             return instance.Builder.CreateFSub(lhs, rhs);
@@ -201,7 +201,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
-            if (instance.LatestBoundIsIntegral) {
+            if (instance.getBoundTypeState()->isIntegral()) {
                 return instance.Builder.CreateMul(lhs, rhs);
             }
 
@@ -226,10 +226,10 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
-            if (instance.LatestBoundIsFloating) {
+            if (instance.getBoundTypeState()->isFloatingPoint()) {
                 return instance.Builder.CreateFDiv(lhs, rhs);
             }
-            if (!instance.LatestBoundType->isUnsigned()) {
+            if (!instance.getBoundTypeState()->isUnsigned()) {
                 return instance.Builder.CreateSDiv(lhs, rhs);
             }
 
@@ -397,23 +397,23 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subject) {
-    if (LatestBoundType != source_type) {
-        if (LatestBoundType->isIntegral()) {
-            if (LatestBoundType->isUnsigned()) {
-                return Builder.CreateZExtOrTrunc(subject, BoundLLVMTypeState);
-            } return Builder.CreateSExtOrTrunc(subject, BoundLLVMTypeState);
+    if (getBoundTypeState() != source_type) {
+        if (getBoundTypeState()->isIntegral()) {
+            if (getBoundTypeState()->isUnsigned()) {
+                return Builder.CreateZExtOrTrunc(subject, getBoundLLVMType());
+            } return Builder.CreateSExtOrTrunc(subject, getBoundLLVMType());
         }
 
-        if (LatestBoundType->isFloatingPoint()) {
+        if (getBoundTypeState()->isFloatingPoint()) {
             if (source_type->isFloatingPoint()) {
-                return Builder.CreateFPCast(subject, BoundLLVMTypeState);
+                return Builder.CreateFPCast(subject, getBoundLLVMType());
             }
 
             if (source_type->isIntegral()) {
                 if (source_type->isUnsigned()) {
-                    return Builder.CreateUIToFP(subject, BoundLLVMTypeState);
+                    return Builder.CreateUIToFP(subject, getBoundLLVMType());
                 } else {
-                    return Builder.CreateSIToFP(subject, BoundLLVMTypeState);
+                    return Builder.CreateSIToFP(subject, getBoundLLVMType());
                 }
             }
         }
@@ -485,6 +485,9 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
     }
 
     return nullptr;
+}
+
+llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
 }
 
 

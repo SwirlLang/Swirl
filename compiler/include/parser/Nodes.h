@@ -351,6 +351,7 @@ struct ArrayNode final : Node {
     }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
+    llvm::Value*   llvmCodegen(LLVMBackend& instance) override;
 };
 
 
