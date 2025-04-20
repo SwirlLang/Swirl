@@ -121,6 +121,8 @@ public:
                 return node->getSwType();
             case ND_CALL:
                 return dynamic_cast<FunctionType*>(node->getSwType())->ret_type;
+            case ND_ARRAY:
+                return node->getSwType();
             default:
                 throw std::runtime_error("LLVMBackend::fetchSwType: failed to fetch type");
         }

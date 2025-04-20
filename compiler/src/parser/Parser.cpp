@@ -104,7 +104,7 @@ SwNode Parser::dispatch() {
         // pattern matching in C++ when?
         switch (m_Stream.CurTok.type) {
             case KEYWORD:
-                if (m_Stream.CurTok.value == "const" || m_Stream.CurTok.value == "var") {
+                if (m_Stream.CurTok.value == "let" || m_Stream.CurTok.value == "var") {
                     auto ret = parseVar(false);
                     return std::move(ret);
                 }
@@ -377,7 +377,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     Var var_node;
 
     var_node.location = m_Stream.getStreamState();
-    var_node.is_const = m_Stream.CurTok.value[0] == 'c';
+    var_node.is_const = m_Stream.CurTok.value[0] == 'l';
     var_node.is_volatile = is_volatile;
     var_node.is_exported = m_LastSymWasExported;
     var_node.is_extern = m_LastSymIsExtern;
