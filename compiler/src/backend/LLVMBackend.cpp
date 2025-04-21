@@ -487,7 +487,40 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
     return nullptr;
 }
 
+/// Writes the array literal to 'BoundMemory' if not null, otherwise creates a temporary and
+/// returns a load of it.
 llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
+    if (instance.BoundMemory && !instance.InArgumentContext) {
+        auto array_gep = instance.Builder.CreateStructGEP(
+            instance.getBoundLLVMType(),
+            instance.BoundMemory,
+            0);  // GEP into the struct-wrapper
+
+        auto array_type =  instance.getBoundLLVMType()->getStructElementType(0);
+        std::size_t index = 0;
+        for (auto& element : elements) {
+            instance.Builder.CreateStore(
+                element.llvmCodegen(instance),
+                instance.Builder.CreateGEP(array_type, array_gep,
+                    {llvm::ConstantInt::get(llvm::Type::getInt64Ty(instance.Context), 0),
+                        llvm::ConstantInt::get(llvm::Type::getInt64Ty(instance.Context), index++)}
+                ));
+        } return nullptr;
+    }
+
+    auto tmp = instance.Builder.CreateAlloca(instance.getBoundLLVMType());
+    auto array_gep = instance.Builder.CreateStructGEP(instance.getBoundLLVMType(), tmp,0);
+    auto array_type = instance.getBoundLLVMType()->getStructElementType(0);
+
+    std::size_t index = 0;
+    for (auto& element : elements) {
+        instance.Builder.CreateStore(
+            element.llvmCodegen(instance),
+            instance.Builder.CreateGEP(array_type, array_gep,
+                {llvm::ConstantInt::get(llvm::Type::getInt64Ty(instance.Context), 0),
+                    llvm::ConstantInt::get(llvm::Type::getInt64Ty(instance.Context), index++)}
+            ));
+    } return instance.Builder.CreateLoad(instance.getBoundLLVMType(), tmp);
 }
 
 
@@ -532,8 +565,10 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Value*> arguments{};
     arguments.reserve(args.size());
 
+    instance.InArgumentContext = true;
     for (auto& item : args)
         arguments.push_back(item.llvmCodegen(instance));
+    instance.InArgumentContext = false;
 
     if (!func->getReturnType()->isVoidTy()) {
         Type* ret_type = nullptr;
@@ -560,9 +595,6 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
 
     auto linkage = this->is_exported ? llvm::GlobalVariable::ExternalLinkage : llvm::GlobalVariable::InternalLinkage;
 
-    if (initialized)
-        init = value.llvmCodegen(instance);
-
     
     if (!instance.IsLocalScope) {
         // TODO
@@ -571,16 +603,23 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
                 nullptr, var_ident->toString()
                 );
 
-        if (init) {
+        if (initialized) {
+            instance.BoundMemory = var;
+            init = value.llvmCodegen(instance);
             const auto val = llvm::dyn_cast<llvm::Constant>(init);
             var->setInitializer(val);
+            instance.BoundMemory = nullptr;
         } ret = var;
         instance.SymMan.lookupDecl(this->var_ident).ptr = var;
     } else {
         llvm::AllocaInst* var_alloca = instance.Builder.CreateAlloca(type, nullptr, var_ident->toString());
 
-        if (init != nullptr) {
-            instance.Builder.CreateStore(init, var_alloca, is_volatile);
+        if (initialized) {
+            instance.BoundMemory = var_alloca;
+            init = value.llvmCodegen(instance);
+            if (init != nullptr)
+                instance.Builder.CreateStore(init, var_alloca, is_volatile);
+            instance.BoundMemory = nullptr;
         }
         
         ret = var_alloca;

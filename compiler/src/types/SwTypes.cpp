@@ -21,7 +21,13 @@ llvm::Type* FunctionType::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Type* TypeStr::llvmCodegen(LLVMBackend& instance) {
-    return llvm::ArrayType::get(llvm::Type::getInt8Ty(instance.Context), size);
+    if (instance.LLVMTypeCache.contains(this)) {
+        return instance.LLVMTypeCache[this];
+    }
+
+    auto ret = llvm::ArrayType::get(llvm::Type::getInt8Ty(instance.Context), size);
+    instance.LLVMTypeCache[this] = ret;
+    return ret;
 }
 
 
@@ -44,8 +50,12 @@ llvm::Type* ReferenceType::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Type* ArrayType::llvmCodegen(LLVMBackend& instance) {
-    const auto arr_struct = llvm::StructType::create(instance.Context);
+    if (instance.LLVMTypeCache.contains(this)) {
+        return instance.LLVMTypeCache[this];
+    }
+    const auto arr_struct = llvm::StructType::create(instance.Context, "__Arr");
     arr_struct->setBody(llvm::ArrayType::get(of_type->llvmCodegen(instance), size));
+    instance.LLVMTypeCache[this] = arr_struct;
     return arr_struct;
 }
 

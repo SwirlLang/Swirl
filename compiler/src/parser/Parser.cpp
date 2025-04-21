@@ -167,6 +167,8 @@ SwNode Parser::dispatch() {
                     }  continue;
                 }
             case PUNC:
+                if (m_Stream.CurTok.value == "[")
+                    return std::make_unique<Expression>(parseExpr());
                 if (m_Stream.CurTok.value == "(")
                     goto assignment_lhs;  // sorry
                 if (m_Stream.CurTok.value == ";") {

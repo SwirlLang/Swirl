@@ -39,13 +39,16 @@ public:
     inline static const std::string TargetTriple = llvm::sys::getDefaultTargetTriple();
     inline static const llvm::TargetMachine* TargetMachine = nullptr;
 
-    std::unordered_map<IdentInfo*, Node*> GlobalNodeJmpTable;
-
+    std::unordered_map<IdentInfo*, Node*>  GlobalNodeJmpTable;
+    std::unordered_map<Type*, llvm::Type*> LLVMTypeCache;
 
     // ----------------[contextual-states]-------------------
     bool IsLocalScope = false;
     bool ChildHasReturned = false;
     bool IsAssignmentLHS = false;
+    bool InArgumentContext = false;
+
+    llvm::Value* BoundMemory = nullptr;
     // -------------------------------------------------------
 
     explicit LLVMBackend(Parser& parser)
