@@ -1,4 +1,5 @@
 #pragma once
+#include <stack>
 #include <parser/Parser.h>
 
 struct Node;
@@ -22,7 +23,7 @@ public:
     : GlobalNodeJmpTable(parser.GlobalNodeJmpTable)
     , SymMan(parser.SymbolTable)
     , ErrMan(parser.ErrMan)
-    , m_AST(parser.AST) {}
+    , m_AST(parser.AST) { m_BoundTypeState.emplace(nullptr); }
 
     void startAnalysis() {
         for (const auto& child : m_AST) {
@@ -44,16 +45,15 @@ public:
     }
 
     Type* getBoundTypeState() const {
-        return m_BoundTypeState;
+        return m_BoundTypeState.top();
     }
 
     void setBoundTypeState(Type* to) {
-        m_BoundTypeStateCache = m_BoundTypeState;
-        m_BoundTypeState = to;
+        m_BoundTypeState.emplace(to);
     }
 
     void restoreBoundTypeState() {
-        m_BoundTypeState = m_BoundTypeStateCache;
+        m_BoundTypeState.pop();
     }
 
     void analyzeSemanticsOf(IdentInfo* id);
@@ -66,8 +66,7 @@ public:
 private:
     SwAST_t& m_AST;
 
-    Type* m_BoundTypeState = nullptr;
-    Type* m_BoundTypeStateCache = nullptr;
+    std::stack<Type*> m_BoundTypeState;
 
     Node* m_CurrentParentFunc = nullptr;
     Node* m_CurrentParentFuncCache = nullptr;

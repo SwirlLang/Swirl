@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <stack>
 #include <stdexcept>
 #include <unordered_set>
 #include <vector>
@@ -19,7 +20,7 @@
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/TargetParser/Host.h>
 
-#include "parser/Parser.h"
+#include <parser/Parser.h>
 
 
 using SwAST_t = std::vector<std::unique_ptr<Node>>;
@@ -54,6 +55,7 @@ public:
         , ErrMan(std::move(parser.ErrMan))
         , GlobalNodeJmpTable(std::move(parser.GlobalNodeJmpTable))
     {
+        m_LatestBoundType.emplace(nullptr);
         if (m_AlreadyInstantiated) {
             LModule->setDataLayout(TargetMachine->createDataLayout());
             LModule->setTargetTriple(TargetTriple);
@@ -129,20 +131,19 @@ public:
     }
 
     Type* getBoundTypeState() const {
-        return m_LatestBoundType;
+        return m_LatestBoundType.top();
     }
 
     llvm::Type* getBoundLLVMType() {
-        return m_LatestBoundType->llvmCodegen(*this);
+        return m_LatestBoundType.top()->llvmCodegen(*this);
     }
 
     void setBoundTypeState(Type* to) {
-        m_BoundTypeCache = m_LatestBoundType;
-        m_LatestBoundType = to;
+        m_LatestBoundType.emplace(to);
     }
 
     void restoreBoundTypeState() {
-        m_LatestBoundType = m_BoundTypeCache;
+        m_LatestBoundType.pop();
     }
 
 private:
@@ -151,6 +152,5 @@ private:
     std::unordered_set<std::size_t> m_ResolvedList;
     std::size_t m_CurParentIndex = 0;
 
-    Type*   m_LatestBoundType = nullptr;
-    Type*   m_BoundTypeCache = nullptr;
+    std::stack<Type*>   m_LatestBoundType;
 };
