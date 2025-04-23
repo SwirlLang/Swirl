@@ -544,11 +544,10 @@ std::unique_ptr<Struct> Parser::parseStruct() {
 
         if (member->getNodeType() == ND_VAR) {
             const auto field_ptr = dynamic_cast<Var*>(member.get());
-            struct_t->fields.insert({field_ptr->var_ident, {mem_index, field_ptr->var_type}});
-            mem_index++;
-        }
-
-        ret.members.push_back(std::move(member));
+            struct_t->fields.insert({
+                field_ptr->var_ident, {mem_index, field_ptr->var_type}
+            }); mem_index++;
+        } ret.members.push_back(std::move(member));
     }
 
     forwardStream();
@@ -607,7 +606,6 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
                 forwardStream();
                 return std::move(ret);
             }
-
             case STRING: {
                 std::string str;
                 while (m_Stream.CurTok.type == STRING) {  // concatenation of adjacent string literals
@@ -630,9 +628,10 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
             case PUNC: {
                 if (m_Stream.CurTok.value == "[") {
                     ArrayNode arr;
-                    forwardStream();
+                    arr.location = m_Stream.getStreamState();
+                    forwardStream();  // skip the '['
 
-                    while (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "]") {
+                    while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "]")) {
                         arr.elements.push_back(parseExpr());
 
                         if (m_Stream.CurTok.type == PUNC) {
@@ -684,7 +683,8 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
     };
 
     const auto continue_parsing = [this]() -> bool {
-        return m_Stream.CurTok.type == OP;
+        return m_Stream.CurTok.type == OP ||
+            (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[");
     };
 
     const
@@ -758,7 +758,6 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
         }
     };
 
-
     Expression ret;
     if (m_Stream.CurTok.type == OP) {
         auto op = parse_prefix().value();
@@ -769,27 +768,25 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
             check_for_terminator();
             return std::move(ret);
         }
-        
+
         ret.expr.push_back(std::move(op));
 
         check_for_terminator();
         ret.location = m_Stream.getStreamState();
         return std::move(ret);
-        
-    } else {
-        auto tmp = parse_component();
+    }
 
-        if (continue_parsing()) {
-            ret.expr.push_back(handle_binary(std::move(tmp), -1, false));
-
-            check_for_terminator();
-            ret.location = m_Stream.getStreamState();
-            return std::move(ret);
-        }
-        ret.expr.push_back(std::move(tmp));
+    auto tmp = parse_component();
+    if (continue_parsing()) {
+        ret.expr.push_back(handle_binary(std::move(tmp), -1, false));
 
         check_for_terminator();
         ret.location = m_Stream.getStreamState();
         return std::move(ret);
     }
+    ret.expr.push_back(std::move(tmp));
+
+    check_for_terminator();
+    ret.location = m_Stream.getStreamState();
+    return std::move(ret);
 }

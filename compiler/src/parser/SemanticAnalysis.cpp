@@ -35,6 +35,18 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
         } return type2;
     }
 
+    if (type1->getSwType() == Type::ARRAY && type2->getSwType() == Type::ARRAY) {
+        auto arr_1 = dynamic_cast<ArrayType*>(type1);
+        auto arr_2 = dynamic_cast<ArrayType*>(type2);
+
+        if (arr_1->size != arr_2->size) {
+            ErrMan.newError("Arrays with distinct sizes are not compatible with each other!");
+            return nullptr;
+        }
+
+        return SymMan.getArrayType(deduceType(arr_1->of_type, arr_2->of_type, location), arr_1->size);
+    }
+
     ErrMan.newError("incompatible types!", location);
     return nullptr;
 }
