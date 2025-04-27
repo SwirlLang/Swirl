@@ -96,6 +96,51 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
     return llvm::ConstantDataArray::getString(instance.Context, value, false);
 }
 
+/// Writes the array literal to 'BoundMemory' if not null, otherwise creates a temporary and
+/// returns a load of it.
+llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
+    // the array-type which is enclosed within a struct
+    assert(instance.getBoundLLVMType()->isStructTy());
+    llvm::Type*  arr_type = instance.getBoundLLVMType()->getStructElementType(0);
+    llvm::Value* ptr  = nullptr;  // the to-be-calculated pointer to where the array is supposed to be written
+    llvm::Value* bound_mem_cache = nullptr;
+
+    // if this flag is set, the literal shall be written to the storage that it represents
+    if (instance.BoundMemory) {
+        // set ptr = array member
+        auto base_ptr = instance.Builder.CreateStructGEP(instance.getBoundLLVMType(), instance.BoundMemory, 0);
+
+        for (auto [i, element] : std::views::enumerate(elements)) {
+            ptr = instance.Builder.CreateGEP(arr_type, base_ptr, {instance.toLLVMInt(0), instance.toLLVMInt(i)});
+            if (element.expr_type->getSwType() == Type::ARRAY) {
+                bound_mem_cache = instance.BoundMemory;
+                instance.BoundMemory = ptr;
+                element.llvmCodegen(instance);
+                continue;
+            } instance.Builder.CreateStore(element.llvmCodegen(instance), ptr);
+        }
+        if (bound_mem_cache) instance.BoundMemory = bound_mem_cache;
+        return nullptr;
+    }
+
+    auto tmp = instance.Builder.CreateAlloca(instance.getBoundLLVMType());
+    auto base_ptr = instance.Builder.CreateStructGEP(instance.getBoundLLVMType(), tmp, 0);
+
+    for (auto [i, element] : std::views::enumerate(elements)) {
+        ptr = instance.Builder.CreateGEP(arr_type, base_ptr, {instance.toLLVMInt(0), instance.toLLVMInt(i)});
+        if (element.expr_type->getSwType() == Type::ARRAY) {
+            bound_mem_cache = instance.BoundMemory;
+            instance.BoundMemory = ptr;
+            element.llvmCodegen(instance);
+            continue;
+        } instance.Builder.CreateStore(element.llvmCodegen(instance), ptr);
+    }
+
+    if (bound_mem_cache) instance.BoundMemory = bound_mem_cache;
+    return instance.Builder.CreateLoad(instance.getBoundLLVMType(), tmp);
+}
+
+
 llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
     const auto e = instance.SymMan.lookupDecl(this->value);
     // if (e.is_param) { return e.ptr; }
@@ -485,42 +530,6 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
     }
 
     return nullptr;
-}
-
-/// Writes the array literal to 'BoundMemory' if not null, otherwise creates a temporary and
-/// returns a load of it.
-llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
-    if (instance.BoundMemory && !instance.InArgumentContext) {
-        auto array_gep = instance.Builder.CreateStructGEP(
-            instance.getBoundLLVMType(),
-            instance.BoundMemory,
-            0);  // GEP into the struct-wrapper
-
-        auto array_type =  instance.getBoundLLVMType()->getStructElementType(0);
-        std::size_t index = 0;
-        for (auto& element : elements) {
-            instance.Builder.CreateStore(
-                element.llvmCodegen(instance),
-                instance.Builder.CreateGEP(array_type, array_gep,
-                    {llvm::ConstantInt::get(llvm::Type::getInt64Ty(instance.Context), 0),
-                        llvm::ConstantInt::get(llvm::Type::getInt64Ty(instance.Context), index++)}
-                ));
-        } return nullptr;
-    }
-
-    auto tmp = instance.Builder.CreateAlloca(instance.getBoundLLVMType());
-    auto array_gep = instance.Builder.CreateStructGEP(instance.getBoundLLVMType(), tmp,0);
-    auto array_type = instance.getBoundLLVMType()->getStructElementType(0);
-
-    std::size_t index = 0;
-    for (auto& element : elements) {
-        instance.Builder.CreateStore(
-            element.llvmCodegen(instance),
-            instance.Builder.CreateGEP(array_type, array_gep,
-                {llvm::ConstantInt::get(llvm::Type::getInt64Ty(instance.Context), 0),
-                    llvm::ConstantInt::get(llvm::Type::getInt64Ty(instance.Context), index++)}
-            ));
-    } return instance.Builder.CreateLoad(instance.getBoundLLVMType(), tmp);
 }
 
 

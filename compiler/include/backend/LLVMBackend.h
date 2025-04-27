@@ -128,6 +128,10 @@ public:
         }
     }
 
+    llvm::Value* toLLVMInt(const std::size_t i) {
+        return llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), i);
+    }
+
     void printIR() const {
         verifyModule(*LModule, &llvm::errs());
         LModule->print(llvm::outs(), nullptr);
