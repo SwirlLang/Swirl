@@ -35,7 +35,7 @@ public:
         return m_IDMan.createNew(name);
     }
     
-    std::optional<IdentInfo*> getIDInfoFor(const std::string& name) const {
+    constexpr std::optional<IdentInfo*> getIDInfoFor(const std::string& name) {
         return m_IDMan.contains(name) ? std::optional{m_IDMan.fetch(name)} : std::nullopt;
     }
 };
@@ -95,7 +95,7 @@ public:
     }
 
     /// returns the IdentInfo* of a global name from the module `mod_path`
-    static IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) ;
+    static IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name);
 
     Type* lookupType(const std::string& id) {
         return m_TypeManager.getFor(getIDInfoFor(id));
@@ -123,15 +123,19 @@ public:
 
     IdentInfo* registerDecl(const std::string& name, const TableEntry& entry) {
         auto id = m_IdScopes.at(m_ScopeInt).getNewIDInfo(name);
+        if (m_IdToTableEntry.contains(id))
+            throw std::runtime_error("SymbolManager::registerDecl: duplicate declaration");
         m_IdToTableEntry.insert({id, entry});
         return id;
     }
 
     void registerDecl(IdentInfo* id, const TableEntry& entry) {
+        if (m_IdToTableEntry.contains(id))
+            throw std::runtime_error("SymbolManager::registerDecl: duplicate declaration");
         m_IdToTableEntry.insert({id, entry});
     }
 
-    bool typeExists(IdentInfo* id) {
+    bool typeExists(IdentInfo* id) const {
         return m_TypeManager.contains(id);
     }
 
@@ -143,7 +147,7 @@ public:
     template <bool create_new = false>
     IdentInfo* getIDInfoFor(const std::string& id) {
         if constexpr (!create_new) {
-            for (const auto& scope : m_IdScopes | std::views::take(m_ScopeInt + 1)) {
+            for (auto& scope : m_IdScopes | std::views::take(m_ScopeInt + 1)) {
                 if (const auto decl_id = scope.getIDInfoFor(id))
                     return decl_id.value();
             } return nullptr;

@@ -1,8 +1,9 @@
 #pragma once
-#include <memory>
+#include <list>
 #include <string>
 #include <utility>
 #include <unordered_map>
+
 
 class IdentInfo {
     std::string id;
@@ -29,7 +30,7 @@ public:
 
 
 class IdentManager {
-    std::unordered_map<std::string, std::unique_ptr<IdentInfo>> m_IdentTable;
+    std::unordered_map<std::string, std::list<IdentInfo>> m_IdentTable;
     std::filesystem::path m_ModPath;
 
 public:
@@ -37,13 +38,13 @@ public:
 
     /// registers a new IdentInfo and returns its pointer
     IdentInfo* createNew(const std::string& id) {
-        m_IdentTable[id] = std::make_unique<IdentInfo>(id, m_ModPath);
-        return m_IdentTable[id].get();
+        m_IdentTable[id].emplace_back(id, m_ModPath);
+        return &m_IdentTable[id].back();
     }
 
     /// fetches `id`
-    IdentInfo* fetch(const std::string& id) const {
-        return m_IdentTable.at(id).get();
+    IdentInfo* fetch(const std::string& id) {
+        return &m_IdentTable.at(id).back();
     }
 
     bool contains(const std::string& id) const {

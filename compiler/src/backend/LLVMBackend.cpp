@@ -410,11 +410,40 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return instance.Builder.CreateICmpSLE(lhs, rhs);
         }},
 
+        {{"[]", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+            auto operand_sw_ty = dynamic_cast<ArrayType*>(instance.fetchSwType(operands.at(0)));
+            auto operand_ty = operand_sw_ty->llvmCodegen(instance);
+
+            auto ass_state_cache = instance.IsAssignmentLHS;
+            instance.IsAssignmentLHS = true;
+            auto arr_ptr = instance.Builder.CreateStructGEP(operand_ty, operands.at(0)->llvmCodegen(instance), 0);
+            instance.IsAssignmentLHS = ass_state_cache;
+
+            llvm::Value* second_op;
+            if (instance.IsAssignmentLHS) {
+                instance.IsAssignmentLHS = false;
+                second_op = operands.at(1)->llvmCodegen(instance);
+                instance.IsAssignmentLHS = true;
+            } else second_op = operands.at(1)->llvmCodegen(instance);
+
+            auto element_ptr = instance.Builder.CreateGEP(
+                operand_ty->getStructElementType(0),
+                arr_ptr,
+                {instance.toLLVMInt(0), second_op}
+                );
+
+            if (instance.IsAssignmentLHS) {
+                return element_ptr;
+            } return instance.Builder.CreateLoad(operand_sw_ty->of_type->llvmCodegen(instance), element_ptr);
+        }},
+
         {{"=", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
             instance.IsAssignmentLHS = true;
             auto lhs = operands.at(0)->llvmCodegen(instance);
             instance.IsAssignmentLHS = false;
+            instance.setBoundTypeState(instance.fetchSwType(operands.at(0)));
             instance.Builder.CreateStore(operands.at(1)->llvmCodegen(instance), lhs);
+            instance.restoreBoundTypeState();
             return nullptr;
         }}
     };
@@ -427,7 +456,9 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         op->operands.push_back(std::move(operands.at(0)));
         op->operands.push_back(std::move(operands.at(1)));
 
+        instance.setBoundTypeState(instance.fetchSwType(op->operands.at(1)));
         auto rhs = op->llvmCodegen(instance);
+        instance.restoreBoundTypeState();
 
         instance.IsAssignmentLHS = true;
         auto lhs = op->operands.at(0)->llvmCodegen(instance);
