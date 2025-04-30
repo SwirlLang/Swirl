@@ -93,7 +93,15 @@ llvm::Value* FloatLit::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
-    return llvm::ConstantDataArray::getString(instance.Context, value, false);
+    auto struct_instance = instance.Builder.CreateAlloca(instance.getBoundLLVMType());
+    auto literal_mem = instance.Builder.CreateStructGEP(instance.getBoundLLVMType(), struct_instance, 0);
+
+    instance.Builder.CreateStore(
+        llvm::ConstantDataArray::getString(instance.Context, value, false),
+        literal_mem
+        );
+
+    return instance.Builder.CreateLoad(instance.getBoundLLVMType(), struct_instance);
 }
 
 /// Writes the array literal to 'BoundMemory' if not null, otherwise creates a temporary and

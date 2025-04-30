@@ -25,7 +25,11 @@ llvm::Type* TypeStr::llvmCodegen(LLVMBackend& instance) {
         return instance.LLVMTypeCache[this];
     }
 
-    auto ret = llvm::ArrayType::get(llvm::Type::getInt8Ty(instance.Context), size);
+    auto lit_arr = llvm::ArrayType::get(llvm::Type::getInt8Ty(instance.Context), size);
+
+    const auto ret = llvm::StructType::create(instance.Context, "__Str");
+    ret->setBody({lit_arr});
+
     instance.LLVMTypeCache[this] = ret;
     return ret;
 }
