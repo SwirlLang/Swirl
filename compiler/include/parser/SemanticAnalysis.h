@@ -63,6 +63,9 @@ public:
     /// checks whether `from` can be converted to `to`
     void checkTypeCompatibility(Type* from, Type* to, StreamState location) const;
 
+    Type* getUnderlyingType(Type*);
+
+
 private:
     SwAST_t& m_AST;
 

@@ -28,6 +28,28 @@ struct Array {
         return size == other.size && of_type == other.of_type;
     }
 };
+
+struct Deleter {
+    void operator()(const Type* ptr) const {
+        if (ptr == &GlobalTypeI8 ||
+            ptr == &GlobalTypeI16 ||
+            ptr == &GlobalTypeI32 ||
+            ptr == &GlobalTypeI64 ||
+            ptr == &GlobalTypeI128 ||
+            ptr == &GlobalTypeU8 ||
+            ptr == &GlobalTypeU16 ||
+            ptr == &GlobalTypeU32 ||
+            ptr == &GlobalTypeU64 ||
+            ptr == &GlobalTypeU128 ||
+            ptr == &GlobalTypeF32 ||
+            ptr == &GlobalTypeF64 ||
+            ptr == &GlobalTypeBool ||
+            ptr == &GlobalTypeStr) {
+            } else {
+                delete ptr;
+            }
+    }
+};
 }
 
 
@@ -53,12 +75,14 @@ struct std::hash<detail::Array> {
 };
 
 
-class TypeManager {
-    std::unordered_map<IdentInfo*, std::unique_ptr<Type>>              m_TypeTable;  // for named types
-    std::unordered_map<Type*, std::unique_ptr<ReferenceType>>          m_ReferenceTable;
 
-    std::unordered_map<detail::Array, std::unique_ptr<ArrayType>>      m_ArrayTable;
-    std::unordered_map<detail::Pointer, std::unique_ptr<PointerType>>  m_PointerTable;
+class TypeManager {
+    std::unordered_map<IdentInfo*, std::unique_ptr
+        <Type, detail::Deleter>>                                      m_TypeTable;  // for named types
+    std::unordered_map<Type*, std::unique_ptr<ReferenceType>>         m_ReferenceTable;
+
+    std::unordered_map<detail::Array, std::unique_ptr<ArrayType>>     m_ArrayTable;
+    std::unordered_map<detail::Pointer, std::unique_ptr<PointerType>> m_PointerTable;
 
 public:
     /// returns the type with the id `name`
@@ -71,7 +95,7 @@ public:
     void registerType(IdentInfo* name, Type* type) {
         if (m_TypeTable.contains(name))
             throw std::runtime_error("TypeManager::registerType: Duplicate type registration request!");
-        m_TypeTable[name] = std::unique_ptr<Type>(type);
+        m_TypeTable[name] = std::unique_ptr<Type, detail::Deleter>(type);
     }
 
     /// returns a pointer for the type `to` of the level `level`

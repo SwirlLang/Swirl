@@ -576,7 +576,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
     const
     std::function<SwNode()> parse_component = [&, this] -> SwNode {
         // this helper returns a packaged element-access operator if it detects its presence
-        auto package_element_access = [this, parse_component] (SwNode& operand_1) -> std::optional<SwNode> {
+        auto package_element_access =  [this, parse_component] (SwNode& operand_1) -> std::optional<SwNode> {
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[") {
                 forwardStream();
                 auto op = std::make_unique<Op>("[]");
@@ -607,17 +607,22 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
                 return std::move(ret);
             }
             case STRING: {
-                std::string str;
+                std::unique_ptr<Node> str = std::make_unique<StrLit>("");
                 while (m_Stream.CurTok.type == STRING) {  // concatenation of adjacent string literals
-                    str += m_Stream.CurTok.value;
+                    str->value += m_Stream.CurTok.value;
                     forwardStream();
-                } return std::make_unique<StrLit>(str);
+                }
+                if (auto op = package_element_access(str)) {
+                    return std::move(*op);
+                } return std::move(str);
             }
             case IDENT: {
                 auto id = parseIdent();
                 if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
-                    auto call_node = parseCall(std::move(id));
-                    return std::move(call_node);
+                    std::unique_ptr<Node> call_node = parseCall(std::move(id));
+                    if (auto op = package_element_access(call_node)) {
+                        return std::move(*op);
+                    } return std::move(call_node);
                 }
 
                 std::unique_ptr<Node> id_node = std::make_unique<Ident>(std::move(id));
@@ -693,9 +698,9 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
         // assumption: current token is an OP
 
         is_left_associative = m_Stream.CurTok.value == "." || m_Stream.CurTok.value == "-";
-        SwNode op = std::make_unique<Op>(m_Stream.CurTok.value);
+        SwNode op = std::make_unique<Op>(m_Stream.CurTok.value == "[" ? "[]" : m_Stream.CurTok.value);
         op->location = m_Stream.getStreamState();
-        const int current_prec = operators.at(m_Stream.CurTok.value);
+        const int current_prec = operators.at(m_Stream.CurTok.value == "[" ? "[]" : m_Stream.CurTok.value);
 
         forwardStream();  // we are onto the rhs
 
@@ -777,6 +782,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
     }
 
     auto tmp = parse_component();
+
     if (continue_parsing()) {
         ret.expr.push_back(handle_binary(std::move(tmp), -1, false));
 

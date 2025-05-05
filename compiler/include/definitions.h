@@ -58,5 +58,6 @@ inline std::unordered_map<std::string, int> operators = {
     {"!", 20},
 
     // Misc
-    {".", 32}
+    {".", 32},
+    {"[]", 32}
 };

@@ -103,6 +103,12 @@ void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
 }
 
 
+/// Assumes `of` is an "array-like" type, returns its underlying child type
+Type* AnalysisContext::getUnderlyingType(Type* of) {
+    throw;
+}
+
+
 AnalysisResult IntLit::analyzeSemantics(AnalysisContext& ctx) {
     if (ctx.getBoundTypeState() != nullptr && ctx.getBoundTypeState()->isIntegral()) {
         return {.deduced_type = ctx.getBoundTypeState()};
