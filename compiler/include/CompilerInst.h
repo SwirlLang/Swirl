@@ -7,7 +7,7 @@ namespace fs = std::filesystem;
 extern ModuleMap_t ModuleMap;
 
 
-class Module {
+class CompilerInst {
     Parser        m_MainModParser;   // the parser of the module from where compilation has been initiated
     fs::path      m_OutputPath;     // path/to/executable (absolute)
     unsigned      m_BaseThreadCount = std::thread::hardware_concurrency() / 2;
@@ -15,7 +15,7 @@ class Module {
 
 
 public:
-    explicit Module(const fs::path& path): m_MainModParser(path) {}
+    explicit CompilerInst(const fs::path& path): m_MainModParser(path) {}
 
     void setBaseThreadCount(const unsigned count)     { m_BaseThreadCount = count; }
     void setBaseThreadCount(const std::string& count) { m_BaseThreadCount = std::stoi(count); }
@@ -47,6 +47,6 @@ public:
         llvm_bk.printIR();
     }
 
-    ~Module() { m_ThreadPool.shutdown(); }
+    ~CompilerInst() { m_ThreadPool.shutdown(); }
 };
 

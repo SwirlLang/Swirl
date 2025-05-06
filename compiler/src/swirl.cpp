@@ -3,7 +3,7 @@
 #include <filesystem>
 
 #include <cli/cli.h>
-#include <Module.h>
+#include <CompilerInst.h>
 #include <include/SwirlConfig.h>
 
 
@@ -55,10 +55,10 @@ int main(int argc, const char** argv) {
         if (!source_file_path.is_absolute())
             source_file_path = absolute(source_file_path);
 
-        Module main_module{source_file_path};
+        CompilerInst compiler_inst{source_file_path};
         if (app.contains_flag("-t"))
-            main_module.setBaseThreadCount(app.get_flag_value("-t"));
+            compiler_inst.setBaseThreadCount(app.get_flag_value("-t"));
 
-        main_module.compile();
+        compiler_inst.compile();
     }
 }

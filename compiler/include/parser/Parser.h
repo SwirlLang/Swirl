@@ -32,7 +32,7 @@ class Parser {
     std::unordered_set<Parser*> m_Dependents;     // the modules which depend on this module
     std::unordered_set<Parser*> m_Dependencies;  // the modules which this module depends on
 
-    friend class Module;
+    friend class CompilerInst;
     friend class ModuleMap_t;
     friend class LLVMBackend;
 

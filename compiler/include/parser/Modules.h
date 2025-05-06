@@ -3,12 +3,12 @@
 #include <parser/Parser.h>
 #include <backend/LLVMBackend.h>
 
-class Module {
+class CompilerInst {
 public:
     fs::path Path;
     Parser   Parser;
 
-    explicit Module(const fs::path& path): Path(path), Parser(path) {}
+    explicit CompilerInst(const fs::path& path): Path(path), Parser(path) {}
 
     void parse() {
         Parser.parse();
@@ -19,18 +19,18 @@ public:
 
     }
 
-    void addDependency(Module* mod) {
+    void addDependency(CompilerInst* mod) {
         std::unique_lock lock(m_Mutex);
         m_Dependencies.push_back(mod);
     }
 
     const
-    std::vector<Module*>& getDependencies() const {
+    std::vector<CompilerInst*>& getDependencies() const {
         std::shared_lock lock(m_Mutex);
         return m_Dependencies;
     }
 
 private:
-    std::vector<Module*> m_Dependencies;
+    std::vector<CompilerInst*> m_Dependencies;
     std::shared_mutex    m_Mutex;
 };
