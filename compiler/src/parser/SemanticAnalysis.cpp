@@ -230,6 +230,10 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
         ctx.analyzeSemanticsOf(id);
 
     auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(id));
+    if (args.size() < fn_type->param_types.size()) {  // TODO: default params-values
+        ctx.ErrMan.newError("Too few arguments passed!", location);
+        return {};
+    }
 
     if (fn_type->ret_type == nullptr && id == ctx.getCurParentFunc()->getIdentInfo()) {
         ctx.ErrMan.newError("It is required to explicitly specify the return type "
