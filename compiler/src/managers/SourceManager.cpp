@@ -1,7 +1,7 @@
 #include <print>
 #include <string>
 #include <fstream>
-#include <../../include/managers/SourceManager.h>
+#include <managers/SourceManager.h>
 
 std::size_t prev_col_state = 0;
 
