@@ -1,11 +1,11 @@
 #include <print>
 #include <string>
 #include <fstream>
-#include <tokenizer/InputStream.h>
+#include <../../include/managers/SourceManager.h>
 
 std::size_t prev_col_state = 0;
 
-InputStream::InputStream(const std::filesystem::path& file_path) {
+SourceManager::SourceManager(const std::filesystem::path& file_path) {
     m_SourceSize = file_size(file_path);
     std::ifstream file_stream{file_path};
 
@@ -21,15 +21,15 @@ InputStream::InputStream(const std::filesystem::path& file_path) {
     }
 }
 
-char InputStream::peek() const {
+char SourceManager::peek() const {
     return m_Source.at(Pos);
 }
 
-char InputStream::getCurrentChar() const {
+char SourceManager::getCurrentChar() const {
     return m_CurrentChar;
 }
 
-char InputStream::next() {
+char SourceManager::next() {
     const char chr = m_Source.at(Pos);
     m_CurrentChar = chr;
 
@@ -52,28 +52,28 @@ char InputStream::next() {
     return chr;
 }
 
-void InputStream::setReturnPoint() {
+void SourceManager::setReturnPoint() {
     cache = {Pos, Line, Col};
 }
 
-void InputStream::restoreCache() {
+void SourceManager::restoreCache() {
     std::tie(Pos, Line, Col) = cache;
 }
 
-std::string InputStream::getLineAt(const std::size_t line) {
+std::string SourceManager::getLineAt(const std::size_t line) {
     auto [from, line_size] = m_LineOffsets.at(line);
     return m_Source.substr(from, line_size);
 }
 
-void InputStream::reset() {
+void SourceManager::reset() {
     Col = Pos = 0; Line = 1;
 }
 
-bool InputStream::eof() const {
+bool SourceManager::eof() const {
     return Pos == m_SourceSize;
 }
 
-std::string InputStream::getCurrentLine() const {
+std::string SourceManager::getCurrentLine() const {
     return m_CurrentLine;
 }
 

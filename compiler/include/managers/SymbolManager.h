@@ -54,7 +54,7 @@ class SymbolManager {
     std::unordered_map<std::string, IdentInfo*> m_ImportedSymsIDTable;
 
 public:
-    ErrorManager* ErrMan = nullptr;
+    LegacyErrorManager* ErrMan = nullptr;
 
     explicit SymbolManager(std::filesystem::path uid): m_ModulePath{std::move(uid)} {
         // global scope

@@ -2,19 +2,19 @@
 #include <string>
 #include <vector>
 #include <functional>
-#include <tokenizer/Tokens.h>
-#include <tokenizer/InputStream.h>
+#include <lexer/Tokens.h>
+#include <managers/SourceManager.h>
 #include <utils/utils.h>
 
-class ErrorManager;
+class LegacyErrorManager;
 
 class TokenStream {
     StreamState                 m_Cache;    // For caching stream state
-    InputStream                 m_Stream;   // InputStream instance
+    SourceManager                 m_Stream;   // SourceManager instance
 
     std::filesystem::path       m_Path;     // a copy of the path for our ErrorManager friend =)
 
-    friend class ErrorManager;
+    friend class LegacyErrorManager;
 
     struct Filter {
         bool  is_active = false;
@@ -40,7 +40,7 @@ class TokenStream {
 public:
     Token CurTok;
     Token PeekTok;
-    ErrorManager*  ErrMan = nullptr;
+    LegacyErrorManager*  ErrMan = nullptr;
 
     explicit TokenStream(const fs::path& file_path);
 

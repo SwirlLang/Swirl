@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-#include <tokenizer/Tokens.h>
+#include <lexer/Tokens.h>
 
 
 enum NodeType {

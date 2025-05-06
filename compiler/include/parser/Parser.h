@@ -7,8 +7,8 @@
 
 #include <parser/Nodes.h>
 #include <types/SwTypes.h>
-#include <tokenizer/TokenStream.h>
-#include <tokenizer/Tokens.h>
+#include <lexer/TokenStream.h>
+#include <lexer/Tokens.h>
 #include <managers/ErrorManager.h>
 #include <managers/SymbolManager.h>
 
@@ -38,7 +38,7 @@ class Parser {
 
 public:
 
-    ErrorManager  ErrMan;
+    LegacyErrorManager  ErrMan;
     SymbolManager SymbolTable;
 
     std::vector<std::unique_ptr<Node>> AST;

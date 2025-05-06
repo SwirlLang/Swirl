@@ -11,7 +11,7 @@
 #include <utils/utils.h>
 #include <parser/Nodes.h>
 #include <parser/Parser.h>
-#include <tokenizer/Tokens.h>
+#include <lexer/Tokens.h>
 #include <definitions.h>
 #include <backend/LLVMBackend.h>
 #include <managers/ErrorManager.h>

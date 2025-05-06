@@ -3,7 +3,7 @@
 #include <definitions.h>
 #include <string_view>
 #include <managers/ErrorManager.h>
-#include <tokenizer/TokenStream.h>
+#include <lexer/TokenStream.h>
 
 using namespace std::string_view_literals;
 

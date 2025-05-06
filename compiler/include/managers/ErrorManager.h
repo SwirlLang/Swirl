@@ -1,18 +1,18 @@
 #pragma once
 #include <print>
 #include <thread>
-#include <tokenizer/TokenStream.h>
+#include <lexer/TokenStream.h>
 
 extern std::thread::id MAIN_THREAD_ID;
 
 
-class ErrorManager {
+class LegacyErrorManager {
     TokenStream* m_TokStream;
     std::string m_Message;
     int m_Errors = 0;  // the no. of errors
 
 public:
-    explicit ErrorManager(TokenStream* token_stream): m_TokStream(token_stream) {
+    explicit LegacyErrorManager(TokenStream* token_stream): m_TokStream(token_stream) {
         std::println("Error Manager registered with path: {}", m_TokStream->m_Path.string());
     }
 

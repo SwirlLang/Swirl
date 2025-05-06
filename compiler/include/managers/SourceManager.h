@@ -2,7 +2,7 @@
 #include <unordered_map>
 #include <filesystem>
 
-class InputStream {
+class SourceManager {
     std::tuple<size_t, size_t, size_t> cache;
     std::string m_CurrentLine;
     std::string m_Source;
@@ -18,7 +18,7 @@ public:
     std::size_t Pos = 0, Line = 1, Col = 0;
     std::unordered_map<std::size_t, std::string> LineMap{};
 
-    explicit InputStream(const std::filesystem::path& file_path);
+    explicit SourceManager(const std::filesystem::path& file_path);
 
     /** @brief Returns the next value without discarding it */
     char peek() const;

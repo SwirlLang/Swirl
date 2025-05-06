@@ -17,7 +17,7 @@ public:
     std::unordered_map<std::string, std::filesystem::path> ModuleNamespaceTable;
 
     SymbolManager& SymMan;
-    ErrorManager&  ErrMan;
+    LegacyErrorManager&  ErrMan;
 
     explicit AnalysisContext(Parser& parser)
     : GlobalNodeJmpTable(parser.GlobalNodeJmpTable)

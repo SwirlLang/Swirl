@@ -34,7 +34,7 @@ public:
 
     std::vector<std::unique_ptr<Node>> AST;
     SymbolManager SymMan;
-    ErrorManager  ErrMan;
+    LegacyErrorManager  ErrMan;
     
     inline static const std::string TargetTriple = llvm::sys::getDefaultTargetTriple();
     inline static const llvm::TargetMachine* TargetMachine = nullptr;
