@@ -5,6 +5,7 @@
 struct Node;
 using SwAST_t = std::vector<std::unique_ptr<Node>>;
 class SymbolManager;
+class SourceManager;
 
 
 class AnalysisContext {
@@ -17,12 +18,17 @@ public:
     std::unordered_map<std::string, std::filesystem::path> ModuleNamespaceTable;
 
     SymbolManager& SymMan;
-    LegacyErrorManager&  ErrMan;
+    ModuleManager& ModuleMap;
+    const SourceManager* SrcMan;
+
+    ErrorCallback_t ErrCallback;
 
     explicit AnalysisContext(Parser& parser)
-    : GlobalNodeJmpTable(parser.GlobalNodeJmpTable)
+    : GlobalNodeJmpTable(parser.NodeJmpTable)
     , SymMan(parser.SymbolTable)
-    , ErrMan(parser.ErrMan)
+    , ModuleMap(parser.m_ModuleMap)
+    , SrcMan(&parser.m_SrcMan)
+    , ErrCallback(parser.m_ErrorCallback)
     , m_AST(parser.AST) { m_BoundTypeState.emplace(nullptr); }
 
     void startAnalysis() {
@@ -54,6 +60,11 @@ public:
 
     void restoreBoundTypeState() {
         m_BoundTypeState.pop();
+    }
+
+    void reportError(const ErrCode code, ErrorContext err_ctx) const {
+        err_ctx.src_man = SrcMan;
+        ErrCallback(code, err_ctx);
     }
 
     void analyzeSemanticsOf(IdentInfo* id);

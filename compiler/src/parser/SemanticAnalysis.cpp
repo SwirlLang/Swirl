@@ -1,14 +1,16 @@
 #include <cassert>
+#include <print>
+
 #include <types/SwTypes.h>
 #include <parser/Nodes.h>
 #include <parser/Parser.h>
 #include <parser/SemanticAnalysis.h>
+#include <managers/ModuleManager.h>
 
 
 using SwNode = std::unique_ptr<Node>;
 using NodesVec = std::vector<SwNode>;
 
-extern ModuleMap_t ModuleMap;
 
 Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location) const {
     // either of them being nullptr implies a violation of the typing-rules
@@ -24,8 +26,11 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
             } return type2;
         }
 
-        ErrMan.newError("conversion between signed and unsigned types shall be explicit, "
-                        "use the `as` operator for casting.", location);
+        reportError(
+            ErrCode::INCOMPATIBLE_TYPES,
+            {.location = location, .type_1 = type1, .type_2 = type2}
+            );
+
         return nullptr;
     }
 
@@ -40,14 +45,17 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
         auto arr_2 = dynamic_cast<ArrayType*>(type2);
 
         if (arr_1->size != arr_2->size) {
-            ErrMan.newError("Arrays with distinct sizes are not compatible with each other!");
+            reportError(
+                ErrCode::INCOMPATIBLE_TYPES,
+                {.location = location, .type_1 = arr_1, .type_2 = arr_2}
+                );
             return nullptr;
         }
 
         return SymMan.getArrayType(deduceType(arr_1->of_type, arr_2->of_type, location), arr_1->size);
     }
 
-    ErrMan.newError("incompatible types!", location);
+    reportError(ErrCode::INCOMPATIBLE_TYPES, {.location = location, .type_1 = type1, .type_2 = type2});
     return nullptr;
 }
 
@@ -55,31 +63,26 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
 void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState location) const {
     if (!from || !to) return;
 
-    if (from->isIntegral() && to->isFloatingPoint()) {
-        ErrMan.newError("Cannot implicitly convert an integral type to a floating point!", location);
-        return;
-    }
-
-    if (from->isFloatingPoint() && to->isIntegral()) {
-        ErrMan.newError("Cannot implicitly convert a floating-point type to an integral type!", location);
+    if ((from->isIntegral() && to->isFloatingPoint()) || (from->isFloatingPoint() && to->isIntegral())) {
+        reportError(ErrCode::INT_AND_FLOAT_CONV, {.location = location, .type_1 = from, .type_2 = to});
         return;
     }
 
     if (from->isIntegral() && to->isIntegral()) {
         if ((from->isUnsigned() && !to->isUnsigned()) || (!from->isUnsigned() && to->isUnsigned())) {
-            ErrMan.newError("Cannot implicitly convert between signed and unsigned types!", location);
+            reportError(ErrCode::NO_SIGNED_UNSIGNED_CONV, {.location = location, .type_1 = from, .type_2 = to});
             return;
         }
 
         if (to->getBitWidth() < from->getBitWidth()) {
-            ErrMan.newError("Implicit narrowing conversions are not allowed.", location);
+            reportError(ErrCode::NO_NARROWING_CONVERSION, {.location = location, .type_1 = from, .type_2 = to});
             return;
         }
     }
 
     if (from->isFloatingPoint() && to->isFloatingPoint()) {
         if (to->getBitWidth() < from->getBitWidth()) {
-            ErrMan.newError("Implicit narrowing conversions are not allowed.", location);
+            reportError(ErrCode::NO_NARROWING_CONVERSION, {.location = location, .type_1 = from, .type_2 = to});
             return;
         }
     }
@@ -89,7 +92,7 @@ void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
         const auto* base_t2 = dynamic_cast<ArrayType*>(to);
 
         if (base_t1->size != base_t2->size) {
-            ErrMan.newError("Arrays with different sizes are not compatible with each other.");
+            reportError(ErrCode::DISTINCTLY_SIZED_ARR, {.location = location, .type_1 = from, .type_2 = to});
             return;
         }
 
@@ -98,7 +101,7 @@ void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
     }
 
     if (!(from->isIntegral() && to->isIntegral()) && !(from->isFloatingPoint() && to->isFloatingPoint())) {
-        ErrMan.newError("No implicit type-conversion exists for this case.", location);
+        reportError(ErrCode::INCOMPATIBLE_TYPES, {.location = location, .type_1 = from, .type_2 = to});
     }
 }
 
@@ -147,41 +150,38 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
     // specific-symbol imports
     if (!imported_symbols.empty()) {
         for (auto& symbol : imported_symbols) {
-            IdentInfo* id = SymbolManager::getIdInfoFromModule(mod_path, symbol.actual_name);
+            IdentInfo* id = ctx.SymMan.getIdInfoFromModule(mod_path, symbol.actual_name);
 
             if (!id) {
-                ctx.ErrMan.newError(std::format(
-                    "No symbol '{}' in module '{}'",
-                    symbol.actual_name,
-                    mod_path.string()
-                ), location);
+                ctx.reportError(
+                    ErrCode::SYMBOL_NOT_FOUND_IN_MOD,
+                    {.location = location, .path_1 = mod_path}
+                    );
                 continue;
             }
 
             if (!ctx.SymMan.lookupDecl(id).is_exported) {
-                ctx.ErrMan.newError(std::format(
-                    "Symbol '{}' exists, but its parent module doesn't export it.", symbol.actual_name
-                    ), location);
+                ctx.reportError(ErrCode::SYMBOL_NOT_EXPORTED, {.location = location, .str_1 = symbol.actual_name});
             }
 
-            ctx.SymMan.registerIdInfoForImportedSym(symbol.assigned_alias.empty() ? symbol.actual_name : symbol.assigned_alias, id);
-            ctx.GlobalNodeJmpTable.insert({id, ModuleMap.get(mod_path).GlobalNodeJmpTable.at(id)});
+            // make the symbol manager aware of the foreign symbol's `IdentInfo*`
+            ctx.SymMan.registerForeignID(
+                symbol.assigned_alias.empty() ? symbol.actual_name : symbol.assigned_alias, id
+                );
+
+            ctx.GlobalNodeJmpTable.insert({id, ctx.ModuleMap.get(mod_path).NodeJmpTable.at(id)});
         } return {};
     }
 
     if (alias.empty()) {
         auto name = mod_path.filename().replace_extension();
         if (ctx.ModuleNamespaceTable.contains(name)) {
-            ctx.ErrMan.newError(
-                std::format("Imported symbol '{}' already exists.",
-                    name.string()), location);
+            ctx.reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.location = location, .str_1 = name});
             return {};
         } ctx.ModuleNamespaceTable.insert({name, mod_path});
     } else {
         if (ctx.ModuleNamespaceTable.contains(alias)) {
-            ctx.ErrMan.newError(
-                std::format("Imported symbol '{}' already exists.",
-                    alias), location);
+            ctx.reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.location = location, .str_1 = alias});
             return {};
         }
         ctx.ModuleNamespaceTable.insert({alias, mod_path});
@@ -195,7 +195,7 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
     if (!initialized && !var_type) {
-        ctx.ErrMan.newError("Cannot leave a variable without an explicit type uninitialized!", location);
+        ctx.reportError(ErrCode::INITIALIZER_REQUIRED, {.location = location, .ident = var_ident});
         return {};
     }
 
@@ -220,27 +220,34 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
+
+    if (ctx.Cache.contains(this)) {
+        return ctx.Cache[this];
+    }
+
     ident.analyzeSemantics(ctx);
 
     IdentInfo* id = ident.getIdentInfo();
 
-    if (!id) return {};
+    if (!id) {
+        ctx.Cache.insert({this, ret});
+        return {};
+    }
 
     if (ctx.getCurParentFunc()->getIdentInfo() != id)
         ctx.analyzeSemanticsOf(id);
 
     auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(id));
     if (args.size() < fn_type->param_types.size()) {  // TODO: default params-values
-        ctx.ErrMan.newError("Too few arguments passed!", location);
+        ctx.reportError(ErrCode::TOO_FEW_ARGS, {.location = location, .ident = ident.getIdentInfo()});
+        ctx.Cache.insert({this, ret});
         return {};
     }
 
     if (fn_type->ret_type == nullptr && id == ctx.getCurParentFunc()->getIdentInfo()) {
-        ctx.ErrMan.newError("It is required to explicitly specify the return type "
-                            "when calling the function recursively.", location);
+        ctx.reportError(ErrCode::RET_TYPE_REQUIRED, {.location = location});
     }
 
-    std::println("param_types.size(): {} | args.size(): {}", fn_type->param_types.size(), args.size());
     assert(fn_type->param_types.size() == args.size());
 
 
@@ -255,11 +262,16 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
 
     ret.deduced_type = fn_type->ret_type;
 
+    ctx.Cache.insert({this, ret});
     return ret;
 }
 
 AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
+
+    if (ctx.Cache.contains(this)) {
+        return ctx.Cache[this];
+    }
 
     if (!value) {
         if (full_qualification.size() == 1) {
@@ -267,31 +279,41 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
         } else {
             if (full_qualification.size() == 2) {
                 if (!ctx.ModuleNamespaceTable.contains(full_qualification.front())) {
-                    ctx.ErrMan.newError("Undefined qualifier '" + full_qualification.front() + "'", location);
+                    ctx.reportError(
+                        ErrCode::QUALIFIER_UNDEFINED,
+                        {.location = location, .str_1 = full_qualification.front()}
+                        );
                     return {};
-                } value = SymbolManager::getIdInfoFromModule(
+                } value = ctx.SymMan.getIdInfoFromModule(
                     ctx.ModuleNamespaceTable[full_qualification.front()],
                     full_qualification.back()
                     );
 
                 if (value && !ctx.SymMan.lookupDecl(value).is_exported) {
-                    ctx.ErrMan.newError(std::format(
-                        "Symbol '{}::{}' exists, but its parent module doesn't export it.",
-                            full_qualification.front(),
-                            full_qualification.back()
-                        ), location);
+                    ctx.reportError(
+                        ErrCode::SYMBOL_NOT_EXPORTED,
+                        {
+                            .location = location,
+                            .str_1 = full_qualification.front() + "::" + full_qualification.back()
+                        });
                 }
             }
         }
     }
 
     if (!value) {
-        ctx.ErrMan.newError("Undefined identifier '" + full_qualification.back() + "'", location);
-        return {};
+        ctx.reportError(
+            ErrCode::UNDEFINED_IDENTIFIER,
+            {.location = location, .str_1 = full_qualification.back()}
+            );
+        ctx.Cache.insert({this, ret});
+        return ret;
     }
 
     auto decl = ctx.SymMan.lookupDecl(this->value);
     ret.deduced_type = decl.swirl_type;
+
+    ctx.Cache.insert({this, ret});
     return ret;
 }
 
@@ -308,7 +330,6 @@ AnalysisResult WhileLoop::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult Condition::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
-    // bool_expr.setType(&GlobalTypeBool);
     bool_expr.analyzeSemantics(ctx);
 
     for (auto& child : if_children) {
@@ -316,7 +337,6 @@ AnalysisResult Condition::analyzeSemantics(AnalysisContext& ctx) {
     }
 
     for (auto& [cond, children] : elif_children) {
-        // cond.setType(&GlobalTypeBool);
         cond.analyzeSemantics(ctx);
         for (auto& child : children) {
             child->analyzeSemantics(ctx);
@@ -342,9 +362,6 @@ AnalysisResult ReturnStatement::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
-    static std::recursive_mutex mtx;
-    std::lock_guard lock(mtx);
-
     if (ctx.Cache.contains(this))
         return ctx.Cache[this];
 
@@ -383,6 +400,7 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
         fn_type->ret_type = deduced_type;
 
     ctx.restoreCurParentFunc();
+    ctx.Cache.insert({this, ret});
     return ret;
 }
 
@@ -415,7 +433,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             ret.deduced_type = ctx.SymMan.lookupType(operands.at(1)->getIdentInfo());
         } else if (value == "[]") {
             if (!analysis_2.deduced_type->isIntegral()) {
-                ctx.ErrMan.newError("Non-integral values can't be used as indices.", location);
+                // ctx.ErrMan.newError("Non-integral values can't be used as indices.", location);
             } ret.deduced_type = dynamic_cast<ArrayType*>(analysis_1.deduced_type)->of_type;
         } else {
             ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);
@@ -428,12 +446,17 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
+    if (ctx.Cache.contains(this)) {
+        return ret;
+    }
+
     assert(this->expr.size() == 1);
     auto val = this->expr.front()->analyzeSemantics(ctx);
 
     ret.deduced_type = val.deduced_type;
     setType(val.deduced_type);
 
+    ctx.Cache.insert({this, ret});
     return ret;
 }
 
@@ -443,7 +466,7 @@ AnalysisResult Assignment::analyzeSemantics(AnalysisContext& ctx) {
 
     if (l_value.getNodeType() == ND_IDENT) {
         if (ctx.SymMan.lookupDecl(l_value.getIdentInfo()).is_const) {
-            ctx.ErrMan.newError("Cannot assign, " + l_value.getIdentInfo()->toString() + " is const.");
+            // ctx.ErrMan.newError("Cannot assign, " + l_value.getIdentInfo()->toString() + " is const.");
         }
     }
 
@@ -476,7 +499,7 @@ void Expression::setType(Type* to) {
 
 void AnalysisContext::analyzeSemanticsOf(IdentInfo* id) {
     if (!GlobalNodeJmpTable.contains(id)) {
-        ModuleMap.get(id->getModulePath()).GlobalNodeJmpTable.at(id)->analyzeSemantics(*this);
+        // ModuleMap.get(id->getModulePath()).NodeJmpTable.at(id)->analyzeSemantics(*this);
         return;
     } GlobalNodeJmpTable[id]->analyzeSemantics(*this);
 }

@@ -7,9 +7,6 @@
 #include <include/SwirlConfig.h>
 
 
-std::thread::id MAIN_THREAD_ID = std::this_thread::get_id();
-
-
 const std::vector<Argument> application_flags = {
     {{"-h","--help"}, "Show the help message", false, {}},
     {{"-o", "--output"}, "Output file name", true, {}},
@@ -45,7 +42,6 @@ int main(int argc, const char** argv) {
         std::println(stderr, "File \"{}\" not found!", source_file_path.string());
         return 1;
     }
-
 
     auto out_dir = source_file_path.parent_path();
     auto file_name = source_file_path.filename();

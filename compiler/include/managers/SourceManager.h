@@ -2,16 +2,18 @@
 #include <unordered_map>
 #include <filesystem>
 
+
+class IdentInfo;
+
 class SourceManager {
     std::tuple<size_t, size_t, size_t> cache;
     std::string m_CurrentLine;
     std::string m_Source;
     std::size_t m_SourceSize{};
 
-    // maps line no. to: {its starting pos, size}
-    std::unordered_map<std::size_t, std::array<std::size_t, 2>> m_LineOffsets;
+    std::filesystem::path m_SourcePath;
 
-    struct m_LineMeta_t { std::size_t from{}, line_size{}; };
+    std::unordered_map<std::size_t, std::array<std::size_t, 2>> m_LineOffsets;  // line no. : {its starting pos, size}
 
 
 public:
@@ -31,16 +33,15 @@ public:
     /** @brief returns true if no more chars are left in the m_Stream */
     bool eof() const;
 
-    /** @brief saves the current state */
-    void setReturnPoint();
-
-    /** @brief restores cache */
-    void restoreCache();
-
     /** @brief resets the state of the m_Stream */
     void reset();
 
-    std::string getLineAt(std::size_t);
+    /** @brief returns a const-ref to the source's path */
+    const std::filesystem::path& getSourcePath() const {
+        return m_SourcePath;
+    }
+
+    std::string getLineAt(std::size_t) const;
     std::string getCurrentLine() const;
 
 private:

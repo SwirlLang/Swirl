@@ -13,8 +13,18 @@
 #include <managers/SymbolManager.h>
 
 
+class Parser;
+class ModuleManager;
+class AnalysisContext;
+using ErrorCallback_t = std::function<void (ErrCode, ErrorContext)>;
+
+
 class Parser {
-    TokenStream  m_Stream;
+    TokenStream    m_Stream;
+    SourceManager  m_SrcMan;
+    ModuleManager& m_ModuleMap;
+
+    ErrorCallback_t m_ErrorCallback;  // the callback for reporting an error
 
     // ---*--- Flags  ---*---
     Function*    m_LatestFuncNode = nullptr;
@@ -32,25 +42,28 @@ class Parser {
     std::unordered_set<Parser*> m_Dependents;     // the modules which depend on this module
     std::unordered_set<Parser*> m_Dependencies;  // the modules which this module depends on
 
+
     friend class CompilerInst;
-    friend class ModuleMap_t;
+    friend class ModuleManager;
     friend class LLVMBackend;
+    friend class AnalysisContext;
 
 public:
-
-    LegacyErrorManager  ErrMan;
     SymbolManager SymbolTable;
 
     std::vector<std::unique_ptr<Node>> AST;
-    std::unordered_map<IdentInfo*, Node*> GlobalNodeJmpTable;  // maps global symbols to their nodes
+    std::unordered_map<IdentInfo*, Node*> NodeJmpTable;  // maps global symbols to their nodes
 
-    explicit Parser(const std::filesystem::path&);
+    explicit Parser(const std::filesystem::path& path, ErrorCallback_t, ModuleManager&);
 
     Parser(const Parser&) = delete;
     Parser& operator=(const Parser&) = delete;
 
     Parser(Parser&& other) noexcept
     : m_Stream(std::move(other.m_Stream))
+    , m_SrcMan(std::move(other.m_SrcMan))
+    , m_ModuleMap(other.m_ModuleMap)
+    , m_ErrorCallback(std::move(other.m_ErrorCallback))
     , m_LatestFuncNode(other.m_LatestFuncNode)
     , m_LastSymWasExported(other.m_LastSymWasExported)
     , m_UnresolvedDeps(other.m_UnresolvedDeps)
@@ -58,13 +71,10 @@ public:
     , m_RelativeDir(std::move(other.m_RelativeDir))
     , m_Dependents(std::move(other.m_Dependents))
     , m_Dependencies(std::move(other.m_Dependencies))
-    , ErrMan(std::move(other.ErrMan))
     , SymbolTable(std::move(other.SymbolTable))
     , AST(std::move(other.AST))
-    , GlobalNodeJmpTable(std::move(other.GlobalNodeJmpTable))
+    , NodeJmpTable(std::move(other.NodeJmpTable))
     {
-        m_Stream.ErrMan = &ErrMan;
-        SymbolTable.ErrMan = &ErrMan;
         m_RelativeDir = m_FilePath.parent_path();
     }
 
@@ -88,51 +98,14 @@ public:
 
     void parse();
     void performSema();
-    void callBackend();
 
     /// decrements the unresolved-deps counter of dependents
     void decrementUnresolvedDeps();
-};
 
-
-class ModuleMap_t {
-    std::unordered_map<std::filesystem::path, std::unique_ptr<Parser>> m_ModuleMap;
-    std::vector<Parser*> m_ZeroDepVec;  // holds modules with zero dependencies
-    std::vector<Parser*> m_BackBuffer;  // this will be swapped with the above vector after flushing
-
-    friend class Parser;
-
-public:
-    Parser& get(const std::filesystem::path& m) const {
-        return *m_ModuleMap.at(m);
+    void reportError(const ErrCode code, ErrorContext ctx = {}) const {
+        ctx.src_man = &m_SrcMan;
+        if (!ctx.location) {
+            ctx.location = m_Stream.getStreamState();
+        } m_ErrorCallback(code, ctx);
     }
-
-    Parser* popZeroDepVec() {
-        if (m_ZeroDepVec.empty())
-            return nullptr;
-
-        const auto ret = m_ZeroDepVec.back();
-        m_ZeroDepVec.pop_back();
-
-        for (Parser* dependent : ret->m_Dependents) {
-            dependent->decrementUnresolvedDeps();
-        } return ret;
-    }
-
-    void swapBuffers() {
-        m_ZeroDepVec = std::move(m_BackBuffer);
-    }
-
-    void insert(const std::filesystem::path& mod_path) {
-        m_ModuleMap.emplace(mod_path, std::make_unique<Parser>(mod_path));
-        std::println("New Parser instance for: {}", m_ModuleMap[mod_path]->m_FilePath.string());
-    }
-
-    bool zeroVecIsEmpty() const {
-        return m_ZeroDepVec.empty();
-    }
-
-    bool contains(const std::filesystem::path& mod) const {
-        return m_ModuleMap.contains(mod);
-    } 
 };

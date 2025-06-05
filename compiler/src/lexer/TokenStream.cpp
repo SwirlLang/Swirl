@@ -123,12 +123,11 @@ Token TokenStream::readNextTok() {
                     m_Stream.next();
                     return {NUMBER, "0." + readWhile(isNumeric), getStreamState(), CT_FLOAT};
                 }
-            }
-            return punc;
+            } return punc;
     }
 }
 
-TokenStream::TokenStream(const fs::path& file_path) : m_Stream{file_path}, m_Path{file_path} {}
+TokenStream::TokenStream(SourceManager& src_man) : m_Stream{src_man} {}
 
 void TokenStream::setReturnPoint() {
     m_Cache.Line = m_Stream.Line;
@@ -136,7 +135,7 @@ void TokenStream::setReturnPoint() {
     m_Cache.Col  = m_Stream.Col;
 }
 
-void TokenStream::restoreCache() {
+void TokenStream::restoreCache() const {
     m_Stream.Pos  = m_Cache.Pos;
     m_Stream.Line = m_Cache.Line;
     m_Stream.Col  = m_Cache.Col;

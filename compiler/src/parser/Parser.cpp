@@ -16,25 +16,24 @@
 #include <backend/LLVMBackend.h>
 #include <managers/ErrorManager.h>
 #include <managers/SymbolManager.h>
+#include <managers/ModuleManager.h>
 #include <parser/SemanticAnalysis.h>
 
 
 using SwNode = std::unique_ptr<Node>;
 
 
-ModuleMap_t ModuleMap;
-
-
-Parser::Parser(const std::filesystem::path& path)
-    : m_Stream{path}
-    , m_FilePath{path}
-    , ErrMan{&m_Stream}
-    , SymbolTable{m_FilePath}
+Parser::Parser(const std::filesystem::path& path, ErrorCallback_t error_callback, ModuleManager& mod_man)
+    : m_Stream(m_SrcMan)
+    , m_SrcMan(path)
+    , m_ModuleMap(mod_man)
+    , m_ErrorCallback(std::move(error_callback))
+    , m_FilePath(path)
+    , SymbolTable(m_SrcMan.getSourcePath(), m_ModuleMap)
 {
-    m_Stream.ErrMan = &ErrMan;
-    SymbolTable.ErrMan = &ErrMan;
-    m_RelativeDir = path.parent_path();
+    m_RelativeDir = m_FilePath.parent_path();
 }
+
 
 /// returns the current token and forwards the stream
 Token Parser::forwardStream(const uint8_t n) {
@@ -71,13 +70,13 @@ Type* Parser::parseType() {
         base_type = parseType();
 
         if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != ";") {
-            ErrMan.newSyntaxError("Expected ';' (syntax: [<type>; <size>]).");
+            // ErrMan.newSyntaxError("Expected ';' (syntax: [<type>; <size>]).");
             return nullptr;
         }
 
         forwardStream();
         if (m_Stream.CurTok.type != NUMBER || m_Stream.CurTok.meta != CT_INT) {
-            ErrMan.newError("Array sizes can only be integral compile-time constants.");
+            reportError(ErrCode::NON_INT_ARRAY_SIZE);
             return nullptr;
         }
 
@@ -98,6 +97,7 @@ Type* Parser::parseType() {
 
     return base_type;
 }
+
 
 SwNode Parser::dispatch() {
     while (!m_Stream.eof()) {
@@ -178,13 +178,11 @@ SwNode Parser::dispatch() {
                     return std::make_unique<Node>();
                 }
             default:
-                ErrMan.newSyntaxError("");
-                ErrMan.raiseAll();
+                reportError(ErrCode::SYNTAX_ERROR);
         }
     }
 
-    // TODO: make such errors better
-    ErrMan.raiseUnexpectedEOF();
+    reportError(ErrCode::UNEXPECTED_EOF);
     return {};
 }
 
@@ -210,30 +208,27 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
     }
 
     if (is_directory(ret.mod_path)) {
-        ErrMan.newError("Directories cannot be imported (yet).", ret.location);
+        reportError(ErrCode::NO_DIR_IMPORT);
         return {};
     }
 
     ret.mod_path += ".sw";
     if (!exists(ret.mod_path)) {
-        ErrMan.newError(
-            std::format(
-                "No such module exists (inferred path: '{}').",
-                ret.mod_path.string()));
+        reportError(ErrCode::MODULE_NOT_FOUND, {.path_1 = ret.mod_path});
         return {};
     }
 
-    if (!ModuleMap.contains(ret.mod_path)) {
-        ModuleMap.insert(ret.mod_path);
-        ModuleMap.get(ret.mod_path).parse();
+    if (!m_ModuleMap.contains(ret.mod_path)) {
+        m_ModuleMap.insert(ret.mod_path, m_ErrorCallback);
+        m_ModuleMap.get(ret.mod_path).parse();
     }
 
-    if (m_Dependencies.contains(&ModuleMap.get(ret.mod_path))) {
-        ErrMan.newError("Duplicate module import");
+    if (m_Dependencies.contains(&m_ModuleMap.get(ret.mod_path))) {
+        reportError(ErrCode::DUPLICATE_IMPORT);
     }
 
-    m_Dependencies.insert(&ModuleMap.get(ret.mod_path));
-    ModuleMap.get(ret.mod_path).m_Dependents.insert(this);
+    m_Dependencies.insert(&m_ModuleMap.get(ret.mod_path));
+    m_ModuleMap.get(ret.mod_path).m_Dependents.insert(this);
 
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "{") {
         forwardStream();  // skip '{'
@@ -265,25 +260,24 @@ void Parser::parse() {
     forwardStream();
     while (!m_Stream.eof()) {
         AST.emplace_back(dispatch());
-    } ErrMan.raiseAll();
+    }
 
     m_UnresolvedDeps = m_Dependencies.size();
     if (m_Dependencies.empty())
-        ModuleMap.m_ZeroDepVec.push_back(this);
+        m_ModuleMap.m_ZeroDepVec.push_back(this);
 }
 
 /// begin semantic analysis  ///
 void Parser::performSema() {
     AnalysisContext analysis_ctx{*this};
     analysis_ctx.startAnalysis();
-    ErrMan.raiseAll();
 }
 
 
 void Parser::decrementUnresolvedDeps() {
     m_UnresolvedDeps--;
     if (m_UnresolvedDeps == 0) {
-        ModuleMap.m_BackBuffer.push_back(this);
+        m_ModuleMap.m_BackBuffer.push_back(this);
     }
 }
 
@@ -303,7 +297,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     m_Stream.expectTokens({Token{PUNC, "("}});
     forwardStream(2);
     auto function_t = std::make_unique<FunctionType>();
-     
+
     auto parse_params = [function_t = function_t.get(), this] {
         Var param;
         const std::string var_name = m_Stream.CurTok.value;
@@ -359,13 +353,13 @@ std::unique_ptr<Function> Parser::parseFunction() {
     auto ret = std::make_unique<Function>(std::move(func_nd));
     // ReSharper disable once CppDFALocalValueEscapesFunction
     m_LatestFuncNode = ret.get();
-    GlobalNodeJmpTable[ret->ident] = ret.get();
+    NodeJmpTable[ret->ident] = ret.get();
 
     // parse the children
     forwardStream();
     SymbolTable.lockNewScpEmplace();  // to reuse the scope we created for params above
     SymbolTable.newScope();  // increment the scope index
-    SymbolTable.unlockNewScpEmplace();  // undo the locking of scope-emplaces
+    SymbolTable.unlockNewScpEmplace();  // undo the locking of scope-emplace
 
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
         ret->children.push_back(dispatch());
@@ -585,7 +579,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
                 op->operands.push_back(parse_component());
 
                 if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "]") {
-                    ErrMan.newSyntaxError("Expected ']' to match '['.");
+                    reportError(ErrCode::UNMATCHED_SQ_BRACKET);
                     return std::nullopt;
                 }
                 forwardStream();
@@ -646,7 +640,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
                             }
                         }
                         if (m_Stream.peek().type != PUNC && m_Stream.peek().value != "]")
-                            ErrMan.newSyntaxError("Array elements must be separated by a comma (',').");
+                            reportError(ErrCode::COMMA_SEP_REQUIRED);
                     } forwardStream();
 
                     std::unique_ptr<Node> arr_node = std::make_unique<ArrayNode>(std::move(arr));
@@ -665,7 +659,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
             }
 
             default: {
-                ErrMan.newSyntaxError("Expected an expression.");
+                reportError(ErrCode::EXPECTED_EXPRESSION);
                 return nullptr;
             }
         }
@@ -757,7 +751,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
     auto check_for_terminator = [this, &terminator] {
         if (terminator.has_value()) {
             if (m_Stream.CurTok != terminator.value()) {
-                ErrMan.newSyntaxError("Expected '" + terminator->value + "'");
+                // ErrMan.newSyntaxError("Expected '" + terminator->value + "'");
                 m_ReturnFakeToken = terminator.value();
             }
         }

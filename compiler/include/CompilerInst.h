@@ -1,52 +1,90 @@
 #pragma once
+#include <print>
 #include <parser/Parser.h>
 #include <backend/LLVMBackend.h>
+#include <managers/ModuleManager.h>
 
+#include <utility>
 
 namespace fs = std::filesystem;
-extern ModuleMap_t ModuleMap;
 
 
 class CompilerInst {
-    Parser        m_MainModParser;   // the parser of the module from where compilation has been initiated
+    ThreadPool_t  m_ThreadPool;
+    SourceManager m_SourceManager;
+    ErrorManager  m_ErrorManager;
+    ModuleManager m_ModuleManager;
+
+    fs::path      m_SrcPath;
     fs::path      m_OutputPath;     // path/to/executable (absolute)
     unsigned      m_BaseThreadCount = std::thread::hardware_concurrency() / 2;
-    ThreadPool_t  m_ThreadPool;
+
+    std::optional<Parser> m_MainModParser = std::nullopt;
+    ErrorCallback_t       m_ErrorCallback = nullptr;
 
 
 public:
-    explicit CompilerInst(const fs::path& path): m_MainModParser(path) {}
+    explicit CompilerInst(fs::path path)
+        : m_SourceManager(path)
+        , m_SrcPath(std::move(path)) { }
 
-    void setBaseThreadCount(const unsigned count)     { m_BaseThreadCount = count; }
     void setBaseThreadCount(const std::string& count) { m_BaseThreadCount = std::stoi(count); }
 
     void compile() {
-        m_MainModParser.parse();
+        if (m_ErrorCallback == nullptr) {
+            m_ErrorCallback =
+                [this](const ErrCode code, const ErrorContext& ctx) { m_ErrorManager.newErrorLocked(code, ctx); };
+        }
 
+        m_MainModParser.emplace(m_SrcPath, m_ErrorCallback, m_ModuleManager);
+        m_MainModParser->parse();
+
+        if (m_ErrorManager.errorOccurred()) {
+            m_ErrorManager.flush();
+            std::exit(1);
+        }
+
+        // || --- *---*   Sema   *---* --- || //
         int batch_no = 1;
-        while (!ModuleMap.zeroVecIsEmpty()) {
+        while (!m_ModuleManager.zeroVecIsEmpty()) {
             std::println("Batch-{}: ", batch_no++);
 
-            while (auto mod = ModuleMap.popZeroDepVec()) {
+            while (const auto mod = m_ModuleManager.popZeroDepVec()) {
                 mod->performSema();
-                // std::print("{}, ", mod->m_FilePath.string());
+                std::print("{}, ", mod->m_FilePath.string());
                 // m_ThreadPool.enqueue([mod] {
-                //     mod->performSema();
+                    // mod->performSema();
                 // });
             }
 
             std::println("\n-------------");
-            ModuleMap.swapBuffers();
+            m_ModuleManager.swapBuffers();
             // m_ThreadPool.wait();
         }
+        // *---* - *---*  *---* - *---*  *---* - *---* //
 
-        m_MainModParser.performSema();
+        if (m_ErrorManager.errorOccurred()) {
+            m_ErrorManager.flush();
+            std::exit(1);
+        }
 
-        LLVMBackend llvm_bk{m_MainModParser};
+        std::vector<std::unique_ptr<LLVMBackend>> m_Backends;
+        m_Backends.reserve(m_ModuleManager.size());
+
+        for (auto& parser: m_ModuleManager | std::views::values) {
+            m_Backends.emplace_back(new LLVMBackend{*parser});
+            m_Backends.back()->startGeneration();
+            m_Backends.back()->printIR();
+            // m_ThreadPool.enqueue([&m_Backends, this] { m_Backends.back()->startGeneration(); });
+        }
+
+        LLVMBackend llvm_bk{*m_MainModParser};
         llvm_bk.startGeneration();
         llvm_bk.printIR();
+
+        // m_ThreadPool.wait();
     }
 
-    ~CompilerInst() { m_ThreadPool.shutdown(); }
+    // ~CompilerInst() { m_ThreadPool.shutdown(); }
 };
 

@@ -9,8 +9,9 @@
 #include <types/TypeManager.h>
 #include <managers/IdentManager.h>
 #include <llvm/IR/Value.h>
-#include <managers/ErrorManager.h>
 
+
+class ModuleManager;
 
 struct TableEntry {
     bool is_type     = false;
@@ -46,6 +47,7 @@ class SymbolManager {
     std::size_t m_ScopeInt = 0;
 
     TypeManager m_TypeManager;
+    ModuleManager& m_ModuleMap;
     std::vector<Scope> m_IdScopes;
 
     std::unordered_map<IdentInfo*, TableEntry> m_IdToTableEntry;
@@ -53,10 +55,10 @@ class SymbolManager {
     std::filesystem::path m_ModulePath;
     std::unordered_map<std::string, IdentInfo*> m_ImportedSymsIDTable;
 
-public:
-    LegacyErrorManager* ErrMan = nullptr;
 
-    explicit SymbolManager(std::filesystem::path uid): m_ModulePath{std::move(uid)} {
+public:
+    explicit SymbolManager(std::filesystem::path uid, ModuleManager& module_man): m_ModuleMap(module_man), m_ModulePath{std::move(uid)} {
+
         // global scope
         m_IdScopes.emplace_back(m_ModulePath);
 
@@ -95,7 +97,7 @@ public:
     }
 
     /// returns the IdentInfo* of a global name from the module `mod_path`
-    static IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name);
+    IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) const;
 
     Type* lookupType(const std::string& id) {
         return m_TypeManager.getFor(getIDInfoFor(id));
@@ -105,7 +107,7 @@ public:
         m_TypeManager.registerType(id, type);
     }
 
-    void registerIdInfoForImportedSym(const std::string& name, IdentInfo* id) {
+    void registerForeignID(const std::string& name, IdentInfo* id) {
         m_ImportedSymsIDTable.emplace(name, id);
     }
 

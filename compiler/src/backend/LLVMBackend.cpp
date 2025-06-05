@@ -1,40 +1,30 @@
 #include "types/SwTypes.h"
 #include <cassert>
-#include <llvm/IR/DataLayout.h>
-#include <llvm/IR/GlobalVariable.h>
 #include <string>
 #include <ranges>
 #include <unordered_map>
 
-
 #include <backend/LLVMBackend.h>
+#include <managers/ModuleManager.h>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/DataLayout.h>
+#include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Constants.h>
-#include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/MC/TargetRegistry.h>
-#include <llvm/Support/TargetSelect.h>
-#include <llvm/Target/TargetMachine.h>
-#include <llvm/Target/TargetOptions.h>
-#include <llvm/TargetParser/Host.h>
-#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/Casting.h>
-#include <llvm/IR/Verifier.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <parser/Parser.h>
 
 
 // ReSharper disable all CppUseStructuredBinding
-
-
-extern ModuleMap_t ModuleMap;
 
 
 class NewScope {
@@ -606,7 +596,12 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
 
     llvm::Function* func = instance.LModule->getFunction(fn_name->toString());
     if (!func) {
-        instance.codegenTheFunction(fn_name);
+        auto fn = llvm::Function::Create(
+            llvm::dyn_cast<llvm::FunctionType>(instance.SymMan.lookupType(ident.getIdentInfo())->llvmCodegen(instance)),
+            llvm::GlobalValue::ExternalLinkage,
+            ident.getIdentInfo()->toString(),
+            instance.LModule.get()
+            );
         func = instance.LModule->getFunction(fn_name->toString());
     }
 
@@ -680,7 +675,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
 void LLVMBackend::codegenTheFunction(IdentInfo* id) {
     auto ip_cache = this->Builder.saveIP();
     if (!GlobalNodeJmpTable.contains(id)) {
-        ModuleMap.get(id->getModulePath()).GlobalNodeJmpTable.at(id)->llvmCodegen(*this);
+        ModuleMap.get(id->getModulePath()).NodeJmpTable.at(id)->llvmCodegen(*this);
         this->Builder.restoreIP(ip_cache);
         return;
     } GlobalNodeJmpTable[id]->llvmCodegen(*this);

@@ -7,7 +7,6 @@
 
 #include <parser/Nodes.h>
 #include <managers/SymbolManager.h>
-#include <managers/ErrorManager.h>
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
@@ -34,8 +33,8 @@ public:
 
     std::vector<std::unique_ptr<Node>> AST;
     SymbolManager SymMan;
-    LegacyErrorManager  ErrMan;
-    
+    ModuleManager& ModuleMap;
+
     inline static const std::string TargetTriple = llvm::sys::getDefaultTargetTriple();
     inline static const llvm::TargetMachine* TargetMachine = nullptr;
 
@@ -55,8 +54,8 @@ public:
         : LModule{std::make_unique<llvm::Module>(parser.m_FilePath.string(), Context)}
         , AST(std::move(parser.AST))
         , SymMan(std::move(parser.SymbolTable))
-        , ErrMan(std::move(parser.ErrMan))
-        , GlobalNodeJmpTable(std::move(parser.GlobalNodeJmpTable))
+        , ModuleMap(parser.m_ModuleMap)
+        , GlobalNodeJmpTable(std::move(parser.NodeJmpTable))
     {
         m_LatestBoundType.emplace(nullptr);
         if (m_AlreadyInstantiated) {
@@ -91,6 +90,7 @@ public:
 
         m_AlreadyInstantiated = true;
     }
+
 
     /// perform any necessary type casts, then return the llvm::Value*
     /// note: `subject` is supposed to be a "loaded" value
