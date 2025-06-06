@@ -32,7 +32,7 @@ public:
     std::unique_ptr<llvm::Module> LModule;
 
     std::vector<std::unique_ptr<Node>> AST;
-    SymbolManager SymMan;
+    SymbolManager& SymMan;
     ModuleManager& ModuleMap;
 
     inline static const std::string TargetTriple = llvm::sys::getDefaultTargetTriple();
@@ -53,7 +53,7 @@ public:
     explicit LLVMBackend(Parser& parser)
         : LModule{std::make_unique<llvm::Module>(parser.m_FilePath.string(), Context)}
         , AST(std::move(parser.AST))
-        , SymMan(std::move(parser.SymbolTable))
+        , SymMan(parser.SymbolTable)
         , ModuleMap(parser.m_ModuleMap)
         , GlobalNodeJmpTable(std::move(parser.NodeJmpTable))
     {
