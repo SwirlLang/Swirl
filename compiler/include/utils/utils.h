@@ -19,12 +19,13 @@ std::string getWorkingDirectory(const std::string& _path);
 
 
 template <typename... Args>
-std::size_t combineHashes(Args... hashes) {
+constexpr std::size_t combineHashes(Args... hashes) {
     return (hashes ^ ...);
 }
 
 template <typename T1, typename T2>
 struct std::hash<std::pair<T1, T2>> {  // WHY?!?!!1
+    constexpr
     std::size_t operator()(const std::pair<T1, T2>& pair) const noexcept {
         const auto h1 = std::hash<T1>{}(pair.first);
         const auto h2 = std::hash<T2>{}(pair.second);

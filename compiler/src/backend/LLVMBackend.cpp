@@ -206,20 +206,14 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
     using SwNode = std::unique_ptr<Node>;
     using NodesVec = std::vector<SwNode>;
 
-    // Maps {operator, arity} to the corresponding operator 'function'
-    static std::unordered_map<
-        std::pair<std::string, uint8_t>,
-        std::function<llvm::Value*(LLVMBackend&, NodesVec&)>>
-    OpTable = {
-        {{"+", 1}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+    switch (op_type) {
+        case UNARY_ADD:
             return operands.back()->llvmCodegen(instance);
-        }},
 
-        {{"-", 1}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case UNARY_SUB:
             return instance.Builder.CreateNeg(operands.back()->llvmCodegen(instance));
-        }},
 
-        {{"+", 2}, [](LLVMBackend& instance, NodesVec& operands) -> llvm::Value* {
+        case BINARY_ADD: {
             auto lhs = operands.at(0)->llvmCodegen(instance);
             auto rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -229,18 +223,18 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
             assert(lhs->getType()->isFloatingPointTy() && rhs->getType()->isFloatingPointTy());
             return instance.Builder.CreateFAdd(lhs, rhs);
-        }},
+        }
 
-        {{"-", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case BINARY_SUB: {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
             if (instance.getBoundTypeState()->isIntegral()) {
                 return instance.Builder.CreateSub(lhs, rhs);
             }
             return instance.Builder.CreateFSub(lhs, rhs);
-        }},
+        }
 
-        {{"*", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case MUL: {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -249,23 +243,21 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             }
 
             return instance.Builder.CreateFMul(lhs, rhs);
-        }},
+        }
 
-        // the dereference operator
-        {{"*", 1}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case DEREFERENCE: {
             const auto entry = instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo());
             if (entry.is_param)
                 return entry.ptr;
             return instance.Builder.CreateLoad(entry.ptr->getType(), entry.ptr);
-        }},
+        }
 
-        // the "address-taking" operator
-        {{"&", 1}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case ADDRESS_TAKING: {
             auto lookup = instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo());
             return lookup.ptr;
-        }},
+        }
 
-        {{"/", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case DIV: {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -277,17 +269,13 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             }
 
             return instance.Builder.CreateUDiv(lhs, rhs);
-        }},
+        }
 
-        {{"as", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case CAST_OP:
             return operands.at(0)->llvmCodegen(instance);
-        }},
 
-        {{".", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
-            throw;
-        }},
 
-        {{"==", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case LOGICAL_EQUAL: {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -300,9 +288,9 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             if (lhs->getType()->isIntegerTy()) {
                 return instance.Builder.CreateICmpEQ(lhs, rhs);
             }
-        }},
+        }
 
-        {{"!=", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case LOGICAL_NOTEQUAL: {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -315,28 +303,29 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             if (lhs->getType()->isIntegerTy()) {
                 return instance.Builder.CreateICmpNE(lhs, rhs);
             }
-        }},
+            throw;
+        }
 
-        {{"&&", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case LOGICAL_AND: {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
             return instance.Builder.CreateLogicalAnd(lhs, rhs);
-        }},
+        }
 
-        {{"!", 1}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case LOGICAL_NOT: {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             return instance.Builder.CreateNot(lhs);
-        }},
+        }
 
-        {{"||", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case LOGICAL_OR: {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
             return instance.Builder.CreateLogicalOr(lhs, rhs);
-        }},
+        }
 
-        {{">", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case GREATER_THAN: {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -352,27 +341,9 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             }
 
             return instance.Builder.CreateICmpSGT(lhs, rhs);
-        }},
+        }
 
-        {{"<", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
-            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
-            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
-
-            auto lhs_type = instance.fetchSwType(operands.at(0));
-            auto rhs_type = instance.fetchSwType(operands.at(1));
-
-            if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
-                return instance.Builder.CreateFCmpOLT(lhs, rhs);
-            }
-
-            if (lhs_type->isUnsigned() && rhs_type->isUnsigned()) {
-                return instance.Builder.CreateICmpULT(lhs, rhs);
-            }
-
-            return instance.Builder.CreateICmpSLT(lhs, rhs);
-        }},
-
-        {{">=", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case GREATER_THAN_OR_EQUAL: {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -388,9 +359,27 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             }
 
             return instance.Builder.CreateICmpSGE(lhs, rhs);
-        }},
+        }
 
-        {{"<=", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case LESS_THAN: {
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+
+            auto lhs_type = instance.fetchSwType(operands.at(0));
+            auto rhs_type = instance.fetchSwType(operands.at(1));
+
+            if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
+                return instance.Builder.CreateFCmpOLT(lhs, rhs);
+            }
+
+            if (lhs_type->isUnsigned() && rhs_type->isUnsigned()) {
+                return instance.Builder.CreateICmpULT(lhs, rhs);
+            }
+
+            return instance.Builder.CreateICmpSLT(lhs, rhs);
+        }
+
+        case LESS_THAN_OR_EQUAL: {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
@@ -406,9 +395,19 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             }
 
             return instance.Builder.CreateICmpSLE(lhs, rhs);
-        }},
+        }
 
-        {{"[]", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
+        case ASSIGNMENT: {
+            instance.IsAssignmentLHS = true;
+            auto lhs = operands.at(0)->llvmCodegen(instance);
+            instance.IsAssignmentLHS = false;
+            instance.setBoundTypeState(instance.fetchSwType(operands.at(0)));
+            instance.Builder.CreateStore(operands.at(1)->llvmCodegen(instance), lhs);
+            instance.restoreBoundTypeState();
+            return nullptr;
+        }
+
+        case DOT: {
             auto operand_sw_ty = dynamic_cast<ArrayType*>(instance.fetchSwType(operands.at(0)));
             auto operand_ty = operand_sw_ty->llvmCodegen(instance);
 
@@ -433,24 +432,15 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             if (instance.IsAssignmentLHS) {
                 return element_ptr;
             } return instance.Builder.CreateLoad(operand_sw_ty->of_type->llvmCodegen(instance), element_ptr);
-        }},
+        }
 
-        {{"=", 2}, [](LLVMBackend& instance, const NodesVec& operands) -> llvm::Value* {
-            instance.IsAssignmentLHS = true;
-            auto lhs = operands.at(0)->llvmCodegen(instance);
-            instance.IsAssignmentLHS = false;
-            instance.setBoundTypeState(instance.fetchSwType(operands.at(0)));
-            instance.Builder.CreateStore(operands.at(1)->llvmCodegen(instance), lhs);
-            instance.restoreBoundTypeState();
-            return nullptr;
-        }}
-    };
+        default: break;
+    }
 
     using namespace std::string_view_literals;
 
     if (value.ends_with("=") && ("*-+/~&^"sv.find(value.at(0)) != std::string::npos)) {
-        auto op = std::make_unique<Op>();
-        op->value = value.at(0);
+        auto op = std::make_unique<Op>(std::string_view{value.data(), 1}, 2);
         op->operands.push_back(std::move(operands.at(0)));
         op->operands.push_back(std::move(operands.at(1)));
 
@@ -466,7 +456,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         return nullptr;
     }
 
-    return OpTable[{this->value, arity}](instance, operands);
+    throw;
 }
 
 

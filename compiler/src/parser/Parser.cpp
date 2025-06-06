@@ -573,7 +573,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
         auto package_element_access =  [this, parse_component] (SwNode& operand_1) -> std::optional<SwNode> {
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[") {
                 forwardStream();
-                auto op = std::make_unique<Op>("[]");
+                auto op = std::make_unique<Op>("[]", 1);
                 op->location = m_Stream.getStreamState();
                 op->operands.push_back(std::move(operand_1));
                 op->operands.push_back(parse_component());
@@ -669,8 +669,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
     std::function<std::optional<SwNode>()> parse_prefix = [&, this] -> std::optional<SwNode> {
         // assumption: current token is an OP
         if (m_Stream.CurTok.type == OP) {
-            Op op(m_Stream.CurTok.value);
-            op.arity = 1;
+            Op op(m_Stream.CurTok.value, 1);
             op.location = m_Stream.getStreamState();
             forwardStream();
             if (auto next_op = parse_prefix()) {
@@ -692,7 +691,11 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
         // assumption: current token is an OP
 
         is_left_associative = m_Stream.CurTok.value == "." || m_Stream.CurTok.value == "-";
-        SwNode op = std::make_unique<Op>(m_Stream.CurTok.value == "[" ? "[]" : m_Stream.CurTok.value);
+        SwNode op = std::make_unique<Op>(
+            m_Stream.CurTok.value == "[" ? "[]" : m_Stream.CurTok.value,
+            m_Stream.CurTok.value == "[" ? 1 : 2
+            );
+
         op->location = m_Stream.getStreamState();
         const int current_prec = operators.at(m_Stream.CurTok.value == "[" ? "[]" : m_Stream.CurTok.value);
 

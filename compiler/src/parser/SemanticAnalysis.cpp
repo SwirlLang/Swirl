@@ -1,6 +1,6 @@
 #include <cassert>
-#include <print>
 
+#include <utils/utils.h>
 #include <types/SwTypes.h>
 #include <parser/Nodes.h>
 #include <parser/Parser.h>
@@ -281,7 +281,7 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
                 if (!ctx.ModuleNamespaceTable.contains(full_qualification.front())) {
                     ctx.reportError(
                         ErrCode::QUALIFIER_UNDEFINED,
-                        {.location = location, .str_1 = full_qualification.front()}
+                        {.str_1 = full_qualification.front(), .location = location}
                         );
                     return {};
                 } value = ctx.SymMan.getIdInfoFromModule(
@@ -293,8 +293,8 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
                     ctx.reportError(
                         ErrCode::SYMBOL_NOT_EXPORTED,
                         {
-                            .location = location,
-                            .str_1 = full_qualification.front() + "::" + full_qualification.back()
+                            .str_1 = full_qualification.front() + "::" + full_qualification.back(),
+                            .location = location
                         });
                 }
             }

@@ -3,7 +3,10 @@
 #include <stdexcept>
 #include <utility>
 #include <vector>
+#include <string_view>
+#include <unordered_map>
 
+#include <utils/utils.h>
 #include <lexer/Tokens.h>
 
 
@@ -131,12 +134,84 @@ struct Expression : Node {
 };
 
 struct Op final : Node {
-    std::string value;  // the kind of operator (e.g. '+', '-')
+    std::string value;
     int8_t arity = 2;  // the no. of operands the operator requires
     std::vector<std::unique_ptr<Node>> operands;  // the operands
 
+    enum OpType {
+        BINARY_ADD,
+        BINARY_SUB,
+
+        MUL,
+        DIV,
+
+        UNARY_ADD,
+        UNARY_SUB,
+
+        LOGICAL_AND,
+        LOGICAL_OR,
+        LOGICAL_NOT,
+        LOGICAL_NOTEQUAL,
+        LOGICAL_EQUAL,
+
+        GREATER_THAN,
+        GREATER_THAN_OR_EQUAL,
+        LESS_THAN,
+        LESS_THAN_OR_EQUAL,
+
+        DOT,
+        DEREFERENCE,
+        ADDRESS_TAKING,
+        CAST_OP,
+
+        ASSIGNMENT,
+        ADD_ASSIGN,
+        MUL_ASSIGN,
+        SUB_ASSIGN,
+        DIV_ASSIGN,
+    };
+
+    OpType op_type;
+
     Op() = default;
-    explicit Op(std::string val): value(std::move(val)) {}
+
+    explicit Op(std::string_view str, int arity): value(std::string(str)) {
+        const static
+        std::unordered_map<std::pair<std::string_view, int>, OpType> enum_map = {
+            {{"+", 2}, BINARY_ADD},
+            {{"-", 2}, BINARY_SUB},
+
+            {{"+", 1}, UNARY_ADD},
+            {{"-", 1}, UNARY_SUB},
+
+            {{"*", 2}, MUL},
+            {{"/", 2}, DIV},
+
+            {{"!", 1}, LOGICAL_NOT},
+            {{"==", 2}, LOGICAL_EQUAL},
+            {{"!=", 2}, LOGICAL_NOTEQUAL},
+            {{"||", 2}, LOGICAL_OR},
+            {{"&&", 2}, LOGICAL_AND},
+
+            {{">", 2}, GREATER_THAN},
+            {{">=", 2}, GREATER_THAN_OR_EQUAL},
+            {{"<", 2}, LESS_THAN},
+            {{"<=", 2}, LESS_THAN_OR_EQUAL},
+
+            {{".", 1}, DOT},
+            {{"[]", 1}, DOT},
+            {{"*", 1}, DEREFERENCE},
+            {{"&", 1}, ADDRESS_TAKING},
+            {{"as", 2}, CAST_OP},
+
+            {{"=", 2}, ASSIGNMENT},
+            {{"+=", 2}, ADD_ASSIGN},
+            {{"-=", 2}, SUB_ASSIGN},
+            {{"*=", 2}, MUL_ASSIGN},
+            {{"/=", 2}, DIV_ASSIGN},
+
+        }; op_type = enum_map.at({str, arity});
+    }
 
     void setArity(const int8_t val) override {
         arity = val;
