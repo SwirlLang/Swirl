@@ -160,6 +160,7 @@ struct Op final : Node {
         LESS_THAN_OR_EQUAL,
 
         DOT,
+        INDEXING_OP,
         DEREFERENCE,
         ADDRESS_TAKING,
         CAST_OP,
@@ -175,7 +176,7 @@ struct Op final : Node {
 
     Op() = default;
 
-    explicit Op(std::string_view str, int arity): value(std::string(str)) {
+    explicit Op(std::string_view str, int8_t arity): value(std::string(str)), arity(arity) {
         const static
         std::unordered_map<std::pair<std::string_view, int>, OpType> enum_map = {
             {{"+", 2}, BINARY_ADD},
@@ -199,7 +200,7 @@ struct Op final : Node {
             {{"<=", 2}, LESS_THAN_OR_EQUAL},
 
             {{".", 1}, DOT},
-            {{"[]", 1}, DOT},
+            {{"[]", 1}, INDEXING_OP},
             {{"*", 1}, DEREFERENCE},
             {{"&", 1}, ADDRESS_TAKING},
             {{"as", 2}, CAST_OP},

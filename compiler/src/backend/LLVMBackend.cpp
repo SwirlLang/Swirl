@@ -407,7 +407,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return nullptr;
         }
 
-        case DOT: {
+        case INDEXING_OP: {
             auto operand_sw_ty = dynamic_cast<ArrayType*>(instance.fetchSwType(operands.at(0)));
             auto operand_ty = operand_sw_ty->llvmCodegen(instance);
 
@@ -434,6 +434,8 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             } return instance.Builder.CreateLoad(operand_sw_ty->of_type->llvmCodegen(instance), element_ptr);
         }
 
+        case DOT:
+            throw;
         default: break;
     }
 
