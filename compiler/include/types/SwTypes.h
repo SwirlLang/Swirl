@@ -36,6 +36,7 @@ struct Type {
         ARRAY
     };
 
+    bool is_const = false;
 
     virtual SwTypes     getSwType() = 0;
 
@@ -125,8 +126,8 @@ struct ReferenceType final : Type {
 };
 
 struct PointerType final : Type {
-    Type*    of_type;
-    uint16_t pointer_level;
+    Type*    of_type = nullptr;
+    uint16_t pointer_level{};
 
     PointerType() = default;
     explicit PointerType(Type* t, const uint16_t level): of_type(t), pointer_level(level) {}

@@ -33,6 +33,8 @@ class IdentManager {
     std::unordered_map<std::string, std::list<IdentInfo>> m_IdentTable;
     std::filesystem::path m_ModPath;
 
+    friend class SymbolManager;
+
 public:
     explicit IdentManager(std::filesystem::path mod_path): m_ModPath(std::move(mod_path)) {}
 

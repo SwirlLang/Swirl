@@ -52,6 +52,8 @@ struct Node {
     std::size_t scope_id{};
     StreamState location;
 
+    bool is_exported = false;
+
     [[nodiscard]]
     virtual NodeType getNodeType() const { return ND_INVALID; }
 
@@ -335,7 +337,6 @@ struct Var final : Node {
     bool initialized = false;
     bool is_const    = false;
     bool is_volatile = false;
-    bool is_exported = false;
     bool is_extern = false;  // whether it has been extern'd
 
     Var() = default;
@@ -354,7 +355,6 @@ struct Var final : Node {
 struct Function final : Node {
     IdentInfo* ident = nullptr;
 
-    bool is_exported = false;
     bool is_extern = false;  // whether it has been extern'd
 
     std::vector<Var> params;

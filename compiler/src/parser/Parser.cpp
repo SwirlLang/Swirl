@@ -54,6 +54,8 @@ Token Parser::forwardStream(const uint8_t n) {
 
 Type* Parser::parseType() {
     Type* base_type = nullptr;
+    bool  is_const  = false;
+
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
         forwardStream();
@@ -187,11 +189,6 @@ SwNode Parser::dispatch() {
 }
 
 
-/*                 Examples                                *
- *          ------------------------                       *
- * import dir1::dir2::mod::sym1 as stuff;                  *
- * import dir1::dir2::mod::{ sym1, sym2 as other_stuff };  *
- */
 std::unique_ptr<ImportNode> Parser::parseImport() {
     ImportNode ret;
     ret.location = m_Stream.getStreamState();
@@ -249,7 +246,14 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {
             forwardStream();
             ret.alias = forwardStream().value;
-        } else forwardStream();
+        }
+        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {
+            forwardStream();
+            m_ModuleMap.get(ret.mod_path).insertExportedSymbolsInto([&ret](std::string name) {
+                ret.imported_symbols.push_back({.actual_name = std::move(name)});
+            });
+        }
+        else forwardStream();
     }
 
     return std::make_unique<ImportNode>(std::move(ret));

@@ -488,7 +488,9 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
 
 
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
-    assert(expr_type != nullptr && expr.size() == 1);
+    assert(expr_type != nullptr);
+    assert(expr.size() == 1);
+
     instance.setBoundTypeState(expr_type);
     const auto val = expr.back()->llvmCodegen(instance);
     instance.restoreBoundTypeState();

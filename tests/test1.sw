@@ -1,5 +1,6 @@
-import mod::{another_sum};
+import mod::*;
 
 fn main(a: i32, b: i32) {
-    return another_sum(a, b);
+    sum_i32(a, b);
+    sum_i64(a, b);
 }

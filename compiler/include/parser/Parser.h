@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <memory>
 #include <mutex>
+#include <concepts>
 #include <unordered_set>
 #include <utility>
 
@@ -98,6 +99,16 @@ public:
 
     void parse();
     void performSema();
+
+    /// calls `inserter` with the symbol name for each exported-symbol in the AST
+    template <typename Inserter_t> requires std::invocable<Inserter_t, std::string>
+    void insertExportedSymbolsInto(Inserter_t inserter) {
+        for (const auto& node : AST) {
+            if (node->is_exported) {
+                inserter(node->getIdentInfo()->toString());
+            }
+        }
+    }
 
     /// decrements the unresolved-deps counter of dependents
     void decrementUnresolvedDeps();

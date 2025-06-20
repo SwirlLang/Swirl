@@ -86,7 +86,6 @@ public:
 
     Type* lookupType(IdentInfo* id);
 
-
     /// returns the IdentInfo* of a global
     IdentInfo* getIdInfoOfAGlobal(const std::string& name) {
         if (const auto id = m_IdScopes.front().getIDInfoFor(name))
@@ -98,6 +97,7 @@ public:
 
     /// returns the IdentInfo* of a global name from the module `mod_path`
     IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) const;
+
 
     Type* lookupType(const std::string& id) {
         return m_TypeManager.getFor(getIDInfoFor(id));
