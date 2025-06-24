@@ -155,18 +155,21 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
             if (!id) {
                 ctx.reportError(
                     ErrCode::SYMBOL_NOT_FOUND_IN_MOD,
-                    {.location = location, .path_1 = mod_path}
+                    {.location = location, .path_1 = mod_path, .str_1 = symbol.actual_name}
                     );
                 continue;
             }
 
             if (!ctx.SymMan.lookupDecl(id).is_exported) {
-                ctx.reportError(ErrCode::SYMBOL_NOT_EXPORTED, {.location = location, .str_1 = symbol.actual_name});
+                ctx.reportError(
+                    ErrCode::SYMBOL_NOT_EXPORTED,
+                    {.location = location, .str_1 = symbol.actual_name}
+                    );
             }
 
             // make the symbol manager aware of the foreign symbol's `IdentInfo*`
             ctx.SymMan.registerForeignID(
-                symbol.assigned_alias.empty() ? symbol.actual_name : symbol.assigned_alias, id
+                symbol.assigned_alias.empty() ? symbol.actual_name : symbol.assigned_alias, id, is_exported
                 );
 
             ctx.GlobalNodeJmpTable.insert({id, ctx.ModuleMap.get(mod_path).NodeJmpTable.at(id)});
@@ -276,7 +279,8 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     if (!value) {
         if (full_qualification.size() == 1) {
             value = ctx.SymMan.getIdInfoOfAGlobal(full_qualification.front());
-        } else {
+        }
+        else {
             if (full_qualification.size() == 2) {
                 if (!ctx.ModuleNamespaceTable.contains(full_qualification.front())) {
                     ctx.reportError(

@@ -15,7 +15,7 @@
 #include <definitions.h>
 #include <backend/LLVMBackend.h>
 #include <managers/ErrorManager.h>
-#include <managers/SymbolManager.h>
+#include <symbols/SymbolManager.h>
 #include <managers/ModuleManager.h>
 #include <parser/SemanticAnalysis.h>
 
@@ -192,6 +192,9 @@ SwNode Parser::dispatch() {
 std::unique_ptr<ImportNode> Parser::parseImport() {
     ImportNode ret;
     ret.location = m_Stream.getStreamState();
+    ret.is_exported = m_LastSymWasExported;
+
+    m_LastSymWasExported = false;
 
     forwardStream();  // skip 'import'
 
@@ -249,6 +252,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
         }
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {
             forwardStream();
+            ret.is_wildcard = true;
             m_ModuleMap.get(ret.mod_path).insertExportedSymbolsInto([&ret](std::string name) {
                 ret.imported_symbols.push_back({.actual_name = std::move(name)});
             });

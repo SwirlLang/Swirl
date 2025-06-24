@@ -5,25 +5,15 @@
 #include <unordered_map>
 #include <utility>
 
+#include "metadata.h"
+
 #include <types/SwTypes.h>
 #include <types/TypeManager.h>
-#include <managers/IdentManager.h>
+#include <symbols/IdentManager.h>
 #include <llvm/IR/Value.h>
 
 
 class ModuleManager;
-
-struct TableEntry {
-    bool is_type     = false;
-    bool is_const    = false;
-    bool is_param    = false;
-    bool is_exported = false;
-    bool is_volatile = false;
-
-    llvm::Value* ptr        = nullptr;
-    llvm::Type*  llvm_type  = nullptr;
-    Type*        swirl_type = nullptr;
-};
 
 
 class Scope {
@@ -54,6 +44,12 @@ class SymbolManager {
 
     std::filesystem::path m_ModulePath;
     std::unordered_map<std::string, IdentInfo*> m_ImportedSymsIDTable;
+
+    // tracks the exported symbols of the mod
+    std::unordered_map<std::string, ExportedSymbolMeta_t> m_ExportedSymbolTable;
+
+    // maps qualifier-names to their paths
+    std::unordered_map<std::string, fs::path> m_QualifierTable;
 
 
 public:
@@ -86,12 +82,17 @@ public:
 
     Type* lookupType(IdentInfo* id);
 
-    /// returns the IdentInfo* of a global
-    IdentInfo* getIdInfoOfAGlobal(const std::string& name) {
+    /// returns the `IdentInfo*` of a global symbol
+    IdentInfo* getIdInfoOfAGlobal(const std::string& name, bool enforce_export = false) {
         if (const auto id = m_IdScopes.front().getIDInfoFor(name))
             return *id;
-        if (m_ImportedSymsIDTable.contains(name))
-            return m_ImportedSymsIDTable[name];
+
+        // when this flag is true, look only in the exported id's rather than every foreign id
+        if (!enforce_export) {
+            if (m_ImportedSymsIDTable.contains(name))
+                return m_ImportedSymsIDTable[name];
+        } else if (m_ExportedSymbolTable.contains(name))
+            return m_ExportedSymbolTable[name].id;
         return nullptr;
     }
 
@@ -107,8 +108,41 @@ public:
         m_TypeManager.registerType(id, type);
     }
 
-    void registerForeignID(const std::string& name, IdentInfo* id) {
+    /// makes the symbol manager aware of the IDs of foreign (imported) symbols
+    void registerForeignID(const std::string& name, IdentInfo* id, const bool is_exported = false) {
         m_ImportedSymsIDTable.emplace(name, id);
+        if (is_exported)
+            registerExportedSymbol(name, {.id = id});
+    }
+
+    void registerExportedSymbol(const std::string& name, const ExportedSymbolMeta_t& meta) {
+        m_ExportedSymbolTable.insert(std::make_pair(name, meta));
+    }
+
+
+    void registerQualifier(const std::string& name, const fs::path& path, const bool is_exported = false) {
+        m_QualifierTable.insert(std::make_pair(name, path));
+        if (is_exported)
+            registerExportedSymbol(name, {.path = path});
+    }
+
+    std::optional<fs::path> getQualifier(const std::string& name, const bool enforce_export = false) {
+        if (!enforce_export) {
+            if (m_QualifierTable.contains(name)) {
+                return m_QualifierTable[name];
+            }
+        } else if (m_ExportedSymbolTable.contains(name)) {
+            auto sym = m_ExportedSymbolTable[name];
+            if (!sym.path.empty()) {
+                return sym.path;
+            }
+        } return std::nullopt;
+    }
+
+    std::optional<ExportedSymbolMeta_t> getExportedSymbolMeta(const std::string& name) {
+        if (m_ExportedSymbolTable.contains(name))
+            return { m_ExportedSymbolTable[name] };
+        return std::nullopt;
     }
 
     Type* getReferenceType(Type* of_type) {
@@ -128,7 +162,10 @@ public:
         if (m_IdToTableEntry.contains(id))
             throw std::runtime_error("SymbolManager::registerDecl: duplicate declaration");
         m_IdToTableEntry.insert({id, entry});
-        return id;
+
+        if (entry.is_exported) {
+            registerExportedSymbol(name, {.id = id});
+        } return id;
     }
 
     void registerDecl(IdentInfo* id, const TableEntry& entry) {

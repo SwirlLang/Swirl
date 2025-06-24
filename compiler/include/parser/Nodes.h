@@ -405,6 +405,8 @@ struct ImportNode final : Node {
         std::string assigned_alias;
     };
 
+    bool is_wildcard = false;
+
     std::filesystem::path         mod_path;
     std::string                   alias;
     std::vector<ImportedSymbol_t> imported_symbols;

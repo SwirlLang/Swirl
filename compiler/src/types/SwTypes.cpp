@@ -1,7 +1,7 @@
 #include <llvm/IR/DerivedTypes.h>
 #include <types/SwTypes.h>
 #include <backend/LLVMBackend.h>
-#include <managers/IdentManager.h>
+#include <symbols/IdentManager.h>
 
 
 // TODO: assign address spaces to types

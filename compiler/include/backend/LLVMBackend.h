@@ -6,7 +6,7 @@
 #include <vector>
 
 #include <parser/Nodes.h>
-#include <managers/SymbolManager.h>
+#include <symbols/SymbolManager.h>
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>

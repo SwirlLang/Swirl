@@ -3,7 +3,7 @@
 
 
 IdentInfo* SymbolManager::getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) const {
-    return m_ModuleMap.get(mod_path).SymbolTable.getIdInfoOfAGlobal(name);
+    return m_ModuleMap.get(mod_path).SymbolTable.getIdInfoOfAGlobal(name, true);
 }
 
 TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {

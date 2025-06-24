@@ -11,7 +11,7 @@
 #include <lexer/TokenStream.h>
 #include <lexer/Tokens.h>
 #include <managers/ErrorManager.h>
-#include <managers/SymbolManager.h>
+#include <symbols/SymbolManager.h>
 
 
 class Parser;
