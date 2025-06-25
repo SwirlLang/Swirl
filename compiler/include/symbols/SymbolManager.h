@@ -38,7 +38,9 @@ class SymbolManager {
 
     TypeManager m_TypeManager;
     ModuleManager& m_ModuleMap;
-    std::vector<Scope> m_IdScopes;
+
+    std::list<Scope>    m_Scopes;       // for stable-addressing of the scopes
+    std::vector<Scope*> m_ScopeTrack;  // for tracking the insert-points
 
     std::unordered_map<IdentInfo*, TableEntry> m_IdToTableEntry;
 
@@ -54,28 +56,27 @@ class SymbolManager {
 
 public:
     explicit SymbolManager(std::filesystem::path uid, ModuleManager& module_man): m_ModuleMap(module_man), m_ModulePath{std::move(uid)} {
-
-        // global scope
-        m_IdScopes.emplace_back(m_ModulePath);
+        // create the global scope
+        m_ScopeTrack.push_back(&m_Scopes.emplace_back(m_ModulePath));
 
         // register built-in types in the global scope
-        registerType(m_IdScopes.front().getNewIDInfo("i8"),   &GlobalTypeI8);
-        registerType(m_IdScopes.front().getNewIDInfo("i16"),  &GlobalTypeI16);
-        registerType(m_IdScopes.front().getNewIDInfo("i32"),  &GlobalTypeI32);
-        registerType(m_IdScopes.front().getNewIDInfo("i64"),  &GlobalTypeI64);
-        registerType(m_IdScopes.front().getNewIDInfo("i128"), &GlobalTypeI128);
+        registerType(m_Scopes.front().getNewIDInfo("i8"),   &GlobalTypeI8);
+        registerType(m_Scopes.front().getNewIDInfo("i16"),  &GlobalTypeI16);
+        registerType(m_Scopes.front().getNewIDInfo("i32"),  &GlobalTypeI32);
+        registerType(m_Scopes.front().getNewIDInfo("i64"),  &GlobalTypeI64);
+        registerType(m_Scopes.front().getNewIDInfo("i128"), &GlobalTypeI128);
 
-        registerType(m_IdScopes.front().getNewIDInfo("u8"),   &GlobalTypeU8);
-        registerType(m_IdScopes.front().getNewIDInfo("u16"),  &GlobalTypeU16);
-        registerType(m_IdScopes.front().getNewIDInfo("u32"),  &GlobalTypeU32);
-        registerType(m_IdScopes.front().getNewIDInfo("u64"),  &GlobalTypeU64);
-        registerType(m_IdScopes.front().getNewIDInfo("u128"), &GlobalTypeU128);
+        registerType(m_Scopes.front().getNewIDInfo("u8"),   &GlobalTypeU8);
+        registerType(m_Scopes.front().getNewIDInfo("u16"),  &GlobalTypeU16);
+        registerType(m_Scopes.front().getNewIDInfo("u32"),  &GlobalTypeU32);
+        registerType(m_Scopes.front().getNewIDInfo("u64"),  &GlobalTypeU64);
+        registerType(m_Scopes.front().getNewIDInfo("u128"), &GlobalTypeU128);
 
-        registerType(m_IdScopes.front().getNewIDInfo("f32"),  &GlobalTypeF32);
-        registerType(m_IdScopes.front().getNewIDInfo("f64"),  &GlobalTypeF64);
+        registerType(m_Scopes.front().getNewIDInfo("f32"),  &GlobalTypeF32);
+        registerType(m_Scopes.front().getNewIDInfo("f64"),  &GlobalTypeF64);
 
-        registerType(m_IdScopes.front().getNewIDInfo("bool"), &GlobalTypeBool);
-        registerType(m_IdScopes.front().getNewIDInfo("str"),  &GlobalTypeStr);
+        registerType(m_Scopes.front().getNewIDInfo("bool"), &GlobalTypeBool);
+        registerType(m_Scopes.front().getNewIDInfo("str"),  &GlobalTypeStr);
     }
 
     TableEntry& lookupDecl(IdentInfo* id);
@@ -83,8 +84,8 @@ public:
     Type* lookupType(IdentInfo* id);
 
     /// returns the `IdentInfo*` of a global symbol
-    IdentInfo* getIdInfoOfAGlobal(const std::string& name, bool enforce_export = false) {
-        if (const auto id = m_IdScopes.front().getIDInfoFor(name))
+    IdentInfo* getIdInfoOfAGlobal(const std::string& name, const bool enforce_export = false) {
+        if (const auto id = m_Scopes.front().getIDInfoFor(name))
             return *id;
 
         // when this flag is true, look only in the exported id's rather than every foreign id
@@ -157,8 +158,15 @@ public:
         return m_TypeManager.getPointerType(of_type, ptr_level);
     }
 
-    IdentInfo* registerDecl(const std::string& name, const TableEntry& entry) {
-        auto id = m_IdScopes.at(m_ScopeInt).getNewIDInfo(name);
+
+    /// Used to register a declaration, if `scope_index` is passed, registers the declaration at that scope rather than
+    /// the one at the top.
+    IdentInfo* registerDecl(const std::string& name, const TableEntry& entry, std::optional<std::size_t> scope_index = std::nullopt) {
+        IdentInfo* id;
+        if (scope_index.has_value())
+            id = m_ScopeTrack.at(*scope_index)->getNewIDInfo(name);
+        else id = m_ScopeTrack.back()->getNewIDInfo(name);
+
         if (m_IdToTableEntry.contains(id))
             throw std::runtime_error("SymbolManager::registerDecl: duplicate declaration");
         m_IdToTableEntry.insert({id, entry});
@@ -186,21 +194,17 @@ public:
     template <bool create_new = false>
     IdentInfo* getIDInfoFor(const std::string& id) {
         if constexpr (!create_new) {
-            for (auto& scope : m_IdScopes | std::views::take(m_ScopeInt + 1)) {
-                if (const auto decl_id = scope.getIDInfoFor(id))
-                    return decl_id.value();
+            for (Scope* scope : m_ScopeTrack | std::views::reverse) {
+                if (const auto ret = scope->getIDInfoFor(id)) {
+                    return *ret;
+                }
             } return nullptr;
-        } return m_IdScopes.at(m_ScopeInt).getNewIDInfo(id);
+        } return m_ScopeTrack.at(m_ScopeInt)->getNewIDInfo(id);
     }
 
 
     void newScope() {
-        m_ScopeInt++;
-
-        if (m_LockEmplace)
-            return;
-        
-        m_IdScopes.emplace_back(m_ModulePath);
+        m_ScopeTrack.push_back(&m_Scopes.emplace_back(m_ModulePath));
     }
 
     void lockNewScpEmplace() {
@@ -211,7 +215,7 @@ public:
         m_LockEmplace = false;
     }
 
-    void destroyLastScope() {
-        m_ScopeInt--;
+    void moveToPreviousScope() {
+        m_ScopeTrack.pop_back();
     }
 };

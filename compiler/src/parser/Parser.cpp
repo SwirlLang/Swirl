@@ -330,6 +330,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
         return std::move(param);
     };
 
+    // parsing the parameters...
     SymbolTable.newScope();  // emplace the function body scope
     if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != ")") {
         while (m_Stream.CurTok.value != ")" && m_Stream.CurTok.type != PUNC) {
@@ -338,7 +339,6 @@ std::unique_ptr<Function> Parser::parseFunction() {
                 forwardStream();
         }
     }
-    SymbolTable.destroyLastScope();  // decrement the scope index
 
     // current token == ')'
     forwardStream();
@@ -352,9 +352,10 @@ std::unique_ptr<Function> Parser::parseFunction() {
     TableEntry entry;
     entry.swirl_type = function_t.get();
     entry.is_exported = func_nd.is_exported;
-    func_nd.ident = SymbolTable.registerDecl(func_ident, entry);
+    func_nd.ident = SymbolTable.registerDecl(func_ident, entry, 0);
     function_t->ident = func_nd.ident;
 
+    // register the function's signature as a type in the symbol manager
     SymbolTable.registerType(func_nd.ident, function_t.release());
     
     // WARNING: func_nd has been MOVED here!!
@@ -365,14 +366,10 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     // parse the children
     forwardStream();
-    SymbolTable.lockNewScpEmplace();  // to reuse the scope we created for params above
-    SymbolTable.newScope();  // increment the scope index
-    SymbolTable.unlockNewScpEmplace();  // undo the locking of scope-emplace
-
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
         ret->children.push_back(dispatch());
     } forwardStream();
-    SymbolTable.destroyLastScope();  // decrement the scope index, we onto the global scope now
+    SymbolTable.moveToPreviousScope();  // decrement the scope index, back to the global scope!
 
     return std::move(ret);
 }
@@ -474,7 +471,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}"))
         cnd.if_children.push_back(std::move(dispatch()));
     forwardStream();
-    SymbolTable.destroyLastScope();
+    SymbolTable.moveToPreviousScope();
 
     // handle `else(s)`
     if (!(m_Stream.CurTok.type == KEYWORD && (m_Stream.CurTok.value == "else" || m_Stream.CurTok.value == "elif")))
@@ -494,7 +491,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
             } forwardStream();
 
             cnd.elif_children.emplace_back(std::move(children));
-            SymbolTable.destroyLastScope();
+            SymbolTable.moveToPreviousScope();
         }
     }
 
@@ -504,7 +501,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
         while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
             cnd.else_children.push_back(dispatch());
         } forwardStream();
-        SymbolTable.destroyLastScope();
+        SymbolTable.moveToPreviousScope();
     }
 
     return std::make_unique<Condition>(std::move(cnd));
@@ -553,7 +550,7 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     }
 
     forwardStream();
-    SymbolTable.destroyLastScope();
+    SymbolTable.moveToPreviousScope();
     SymbolTable.registerType(ret.ident, struct_t.release());
     return std::make_unique<Struct>(std::move(ret));
 }
@@ -569,7 +566,7 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
         loop.children.push_back(dispatch());
     } forwardStream();
-    SymbolTable.destroyLastScope();
+    SymbolTable.moveToPreviousScope();
 
     return std::make_unique<WhileLoop>(std::move(loop));
 }

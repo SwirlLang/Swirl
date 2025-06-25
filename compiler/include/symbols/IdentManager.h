@@ -30,7 +30,7 @@ public:
 
 
 class IdentManager {
-    std::unordered_map<std::string, std::list<IdentInfo>> m_IdentTable;
+    std::unordered_map<std::string, std::unique_ptr<IdentInfo>> m_IdentTable;
     std::filesystem::path m_ModPath;
 
     friend class SymbolManager;
@@ -40,13 +40,13 @@ public:
 
     /// registers a new IdentInfo and returns its pointer
     IdentInfo* createNew(const std::string& id) {
-        m_IdentTable[id].emplace_back(id, m_ModPath);
-        return &m_IdentTable[id].back();
+        m_IdentTable.emplace(id, new IdentInfo(id, m_ModPath));
+        return m_IdentTable.at(id).get();
     }
 
     /// fetches `id`
-    IdentInfo* fetch(const std::string& id) {
-        return &m_IdentTable.at(id).back();
+    IdentInfo* fetch(const std::string& id) const {
+        return m_IdentTable.at(id).get();
     }
 
     bool contains(const std::string& id) const {
