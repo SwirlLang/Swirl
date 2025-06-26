@@ -6,15 +6,12 @@
 #include <managers/SourceManager.h>
 #include <utils/utils.h>
 
-class LegacyErrorManager;
 
 class TokenStream {
     StreamState                 m_Cache;    // For caching stream state
     SourceManager&              m_Stream;
 
     std::filesystem::path       m_Path;     // a copy of the path for our ErrorManager friend =)
-
-    friend class LegacyErrorManager;
 
     struct Filter {
         bool  is_active = false;
@@ -40,7 +37,6 @@ class TokenStream {
 public:
     Token CurTok;
     Token PeekTok;
-    LegacyErrorManager*  ErrMan = nullptr;
 
     explicit TokenStream(SourceManager& src_man);
 

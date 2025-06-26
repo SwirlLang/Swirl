@@ -1,23 +1,25 @@
 #pragma once
 
 class IdentInfo;
+class Scope;
 
 struct TableEntry {
-    bool is_type     = false;
     bool is_const    = false;
     bool is_param    = false;
     bool is_exported = false;
     bool is_volatile = false;
+    bool is_mod_namespace = false;
 
-    llvm::Value* ptr        = nullptr;
+    Scope*  scope      = nullptr;  // set when the entry also encodes a namespace
+    Type*   swirl_type = nullptr;
+
+    llvm::Value* llvm_value = nullptr;
     llvm::Type*  llvm_type  = nullptr;
-    Type*        swirl_type = nullptr;
 };
 
 
 struct ExportedSymbolMeta_t {
     IdentInfo* id = nullptr;
-    fs::path    path;  // to be set if the exported symbol is a module (say `export import mod`) to the
-                       // absolute path of the exported module
+    Scope* scope = nullptr;
 };
 

@@ -230,6 +230,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
     m_Dependencies.insert(&m_ModuleMap.get(ret.mod_path));
     m_ModuleMap.get(ret.mod_path).m_Dependents.insert(this);
 
+    // specific-symbol import
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "{") {
         forwardStream();  // skip '{'
 
@@ -245,12 +246,12 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
                 forwardStream();
             }
         } forwardStream();
-    } else {
-        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {
+    } else { // otherwise, if non-specific but aliased or wildcard
+        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {  // non-specific but aliased
             forwardStream();
             ret.alias = forwardStream().value;
         }
-        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {
+        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {  // wildcard
             forwardStream();
             ret.is_wildcard = true;
             m_ModuleMap.get(ret.mod_path).insertExportedSymbolsInto([&ret](std::string name) {
@@ -258,6 +259,19 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
             });
         }
         else forwardStream();
+    }
+
+    if (ret.imported_symbols.empty() && !ret.is_wildcard) {
+        const auto name = ret.mod_path.filename().replace_extension().string();
+
+        // register the module-prefix in the symbol manager
+        SymbolTable.registerDecl(
+            ret.alias.empty() ? name : ret.alias,
+            {
+                .is_exported = ret.is_exported,
+                .is_mod_namespace = true,
+                .scope = SymbolTable.getGlobalScopeFromModule(ret.mod_path)
+            });
     }
 
     return std::make_unique<ImportNode>(std::move(ret));

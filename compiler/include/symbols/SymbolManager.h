@@ -25,8 +25,20 @@ public:
     IdentInfo* getNewIDInfo(const std::string& name) {
         return m_IDMan.createNew(name);
     }
-    
-    constexpr std::optional<IdentInfo*> getIDInfoFor(const std::string& name) {
+
+    auto begin() const {
+        return m_IDMan.begin();
+    }
+
+    auto end() const {
+        return m_IDMan.end();
+    }
+
+    const fs::path& getModPath() const {
+        return m_IDMan.getModulePath();
+    }
+
+    constexpr std::optional<IdentInfo*> getIDInfoFor(const std::string& name) const {
         return m_IDMan.contains(name) ? std::optional{m_IDMan.fetch(name)} : std::nullopt;
     }
 };
@@ -51,7 +63,7 @@ class SymbolManager {
     std::unordered_map<std::string, ExportedSymbolMeta_t> m_ExportedSymbolTable;
 
     // maps qualifier-names to their paths
-    std::unordered_map<std::string, fs::path> m_QualifierTable;
+    std::unordered_map<std::string, Scope*> m_QualifierTable;
 
 
 public:
@@ -101,6 +113,15 @@ public:
     IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) const;
 
 
+    /// returns the global scope's pointer
+    Scope* getGlobalScope() const {
+        return m_ScopeTrack.front();
+    }
+
+    /// fetches the global scope of the module mapped to `path`
+    Scope* getGlobalScopeFromModule(const fs::path& path) const;
+
+
     Type* lookupType(const std::string& id) {
         return m_TypeManager.getFor(getIDInfoFor(id));
     }
@@ -114,30 +135,6 @@ public:
         m_ImportedSymsIDTable.emplace(name, id);
         if (is_exported)
             registerExportedSymbol(name, {.id = id});
-    }
-
-    void registerExportedSymbol(const std::string& name, const ExportedSymbolMeta_t& meta) {
-        m_ExportedSymbolTable.insert(std::make_pair(name, meta));
-    }
-
-
-    void registerQualifier(const std::string& name, const fs::path& path, const bool is_exported = false) {
-        m_QualifierTable.insert(std::make_pair(name, path));
-        if (is_exported)
-            registerExportedSymbol(name, {.path = path});
-    }
-
-    std::optional<fs::path> getQualifier(const std::string& name, const bool enforce_export = false) {
-        if (!enforce_export) {
-            if (m_QualifierTable.contains(name)) {
-                return m_QualifierTable[name];
-            }
-        } else if (m_ExportedSymbolTable.contains(name)) {
-            auto sym = m_ExportedSymbolTable[name];
-            if (!sym.path.empty()) {
-                return sym.path;
-            }
-        } return std::nullopt;
     }
 
     std::optional<ExportedSymbolMeta_t> getExportedSymbolMeta(const std::string& name) {
@@ -203,8 +200,10 @@ public:
     }
 
 
-    void newScope() {
-        m_ScopeTrack.push_back(&m_Scopes.emplace_back(m_ModulePath));
+    Scope* newScope() {
+        Scope* ret = &m_Scopes.emplace_back(m_ModulePath);
+        m_ScopeTrack.push_back(ret);
+        return ret;
     }
 
     void lockNewScpEmplace() {
@@ -217,5 +216,11 @@ public:
 
     void moveToPreviousScope() {
         m_ScopeTrack.pop_back();
+    }
+
+
+private:
+    void registerExportedSymbol(const std::string& name, const ExportedSymbolMeta_t& meta) {
+        m_ExportedSymbolTable.insert(std::make_pair(name, meta));
     }
 };

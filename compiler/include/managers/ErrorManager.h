@@ -1,7 +1,8 @@
 #pragma once
-#include <thread>
 #include <mutex>
 #include <print>
+#include <optional>
+#include <filesystem>
 
 #include <lexer/TokenStream.h>
 
@@ -21,6 +22,7 @@ struct ErrorContext {
     std::filesystem::path path_2;
 
     std::string str_1;
+    std::string str_2;
     std::optional<StreamState> location = std::nullopt;
 
     const SourceManager* src_man = nullptr;
@@ -57,13 +59,20 @@ enum class ErrCode {
     MODULE_NOT_FOUND,         // path_1 in the context shall be set to the import-path
     SYMBOL_NOT_FOUND_IN_MOD,  // when a symbol doesn't exist in a module but usage is attempted
     SYMBOL_NOT_EXPORTED,      // when it exists but is not exported by its parent module, str_1 shall be set
+    // ----------*----------- //
+
+
+    // The following error codes are related to symbols
+    NO_SYMBOL_IN_NAMESPACE,   // when no symbol with the name exists in the namespace
+    NOT_A_NAMESPACE,          // when a symbol doesn't name a namespace but is attempted to be used as one
+    UNDEFINED_IDENTIFIER,     // self-explanatory
     SYMBOL_ALREADY_EXISTS,    // when symbol already exists
     // ----------*----------- //
+
 
     INITIALIZER_REQUIRED,     // when initialization is required but not given
     RET_TYPE_REQUIRED,        // when explicitly specifying a return-type is required (e.g. recursive calls)
     QUALIFIER_UNDEFINED,
-    UNDEFINED_IDENTIFIER
 };
 
 
@@ -174,6 +183,14 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return std::format("The qualifier '{}' is undefined.", ctx.str_1);
         case ErrCode::UNDEFINED_IDENTIFIER:
             return std::format("The identifier '{}' is undefined.", ctx.str_1);
+        case ErrCode::NOT_A_NAMESPACE:
+            return std::format("The symbol '{}' doesn't name a namespace.", ctx.str_1);
+        case ErrCode::NO_SYMBOL_IN_NAMESPACE:
+            return std::format(
+                "The symbol '{}' does not exist in the namespace defined by '{}'.",
+                ctx.str_1,
+                ctx.str_2
+                );
         default:
             throw std::runtime_error("Undefined error code");
     }

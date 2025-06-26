@@ -52,4 +52,16 @@ public:
     bool contains(const std::string& id) const {
         return m_IdentTable.contains(id);
     }
+
+    const fs::path& getModulePath() const {
+        return m_ModPath;
+    }
+
+    auto begin() const {
+        return m_IdentTable.begin();
+    }
+
+    auto end() const  {
+        return m_IdentTable.end();
+    }
 };

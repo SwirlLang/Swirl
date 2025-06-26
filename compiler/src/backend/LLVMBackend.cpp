@@ -105,7 +105,7 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
 
     // if this flag is set, the literal shall be written to the storage that it represents
     if (instance.BoundMemory) {
-        // set ptr = array member
+        // set llvm_value = array member
         auto base_ptr = instance.Builder.CreateStructGEP(instance.getBoundLLVMType(), instance.BoundMemory, 0);
 
         for (auto [i, element] : std::views::enumerate(elements)) {
@@ -141,14 +141,14 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
     const auto e = instance.SymMan.lookupDecl(this->value);
-    // if (e.is_param) { return e.ptr; }
-    if (instance.IsAssignmentLHS) { return e.ptr; }
+    // if (e.is_param) { return e.llvm_value; }
+    if (instance.IsAssignmentLHS) { return e.llvm_value; }
 
     return e.is_param
-    ? instance.castIfNecessary(e.swirl_type, e.ptr)
+    ? instance.castIfNecessary(e.swirl_type, e.llvm_value)
     : instance.castIfNecessary(
         e.swirl_type, instance.Builder.CreateLoad(
-            e.swirl_type->llvmCodegen(instance), e.ptr));
+            e.swirl_type->llvmCodegen(instance), e.llvm_value));
 }
 
 llvm::Value* ImportNode::llvmCodegen(LLVMBackend &instance) {
@@ -177,7 +177,7 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
         const auto param = func->getArg(i);
         // param->setName(p_name->toString());
 
-        instance.SymMan.lookupDecl(p_name).ptr = func->getArg(i);
+        instance.SymMan.lookupDecl(p_name).llvm_value = func->getArg(i);
     }
 
     // for (const auto& child : this->children)
@@ -248,13 +248,13 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         case DEREFERENCE: {
             const auto entry = instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo());
             if (entry.is_param)
-                return entry.ptr;
-            return instance.Builder.CreateLoad(entry.ptr->getType(), entry.ptr);
+                return entry.llvm_value;
+            return instance.Builder.CreateLoad(entry.llvm_value->getType(), entry.llvm_value);
         }
 
         case ADDRESS_TAKING: {
             auto lookup = instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo());
-            return lookup.ptr;
+            return lookup.llvm_value;
         }
 
         case DIV: {
@@ -647,7 +647,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
             var->setInitializer(val);
             instance.BoundMemory = nullptr;
         } ret = var;
-        instance.SymMan.lookupDecl(this->var_ident).ptr = var;
+        instance.SymMan.lookupDecl(this->var_ident).llvm_value = var;
     } else {
         llvm::AllocaInst* var_alloca = instance.Builder.CreateAlloca(type, nullptr, var_ident->toString());
 
@@ -660,7 +660,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
         }
         
         ret = var_alloca;
-        instance.SymMan.lookupDecl(this->var_ident).ptr = var_alloca;
+        instance.SymMan.lookupDecl(this->var_ident).llvm_value = var_alloca;
     }
 
     return ret;

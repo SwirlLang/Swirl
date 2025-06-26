@@ -18,3 +18,8 @@ Type* SymbolManager::lookupType(IdentInfo* id) {
         return m_ModuleMap.get(mod_path).SymbolTable.m_TypeManager.getFor(id);
     } return m_TypeManager.getFor(id);
 }
+
+
+Scope* SymbolManager::getGlobalScopeFromModule(const fs::path& path) const {
+    return m_ModuleMap.get(path).SymbolTable.getGlobalScope();
+}

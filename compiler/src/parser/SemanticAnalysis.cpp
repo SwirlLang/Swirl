@@ -176,20 +176,6 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
         } return {};
     }
 
-    if (alias.empty()) {
-        auto name = mod_path.filename().replace_extension();
-        if (ctx.ModuleNamespaceTable.contains(name)) {
-            ctx.reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.location = location, .str_1 = name});
-            return {};
-        } ctx.ModuleNamespaceTable.insert({name, mod_path});
-    } else {
-        if (ctx.ModuleNamespaceTable.contains(alias)) {
-            ctx.reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.location = location, .str_1 = alias});
-            return {};
-        }
-        ctx.ModuleNamespaceTable.insert({alias, mod_path});
-    }
-
     return {};
 }
 
@@ -276,31 +262,64 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
         return ctx.Cache[this];
     }
 
+
     if (!value) {
         if (full_qualification.size() == 1) {
             value = ctx.SymMan.getIdInfoOfAGlobal(full_qualification.front());
         }
         else {
-            if (full_qualification.size() == 2) {
-                if (!ctx.ModuleNamespaceTable.contains(full_qualification.front())) {
-                    ctx.reportError(
-                        ErrCode::QUALIFIER_UNDEFINED,
-                        {.str_1 = full_qualification.front(), .location = location}
-                        );
-                    return {};
-                } value = ctx.SymMan.getIdInfoFromModule(
-                    ctx.ModuleNamespaceTable[full_qualification.front()],
-                    full_qualification.back()
-                    );
+            const Scope* look_at = nullptr;
+            // e.g. a::b::c
+            for (const auto& [counter, str] : full_qualification | std::views::enumerate) {
+                if (counter == full_qualification.size() - 1) break;
+                if (counter == 0) {
+                    auto tmp = ctx.SymMan.lookupDecl(ctx.SymMan.getIdInfoOfAGlobal(str));
+                    look_at = tmp.scope;
+                    continue;
+                }
 
-                if (value && !ctx.SymMan.lookupDecl(value).is_exported) {
+                if (!look_at) {
+                    ctx.reportError(
+                        ErrCode::NOT_A_NAMESPACE,
+                        {
+                            .str_1 = full_qualification.at(counter - 1),
+                            .location = location
+                        });
+                    return {.is_erroneous = true};
+                }
+
+                const auto& tmp = ctx.SymMan.lookupDecl(look_at->getIDInfoFor(str).value());
+                if (!tmp.is_exported) {
                     ctx.reportError(
                         ErrCode::SYMBOL_NOT_EXPORTED,
                         {
-                            .str_1 = full_qualification.front() + "::" + full_qualification.back(),
+                            .str_1 = str,
                             .location = location
                         });
+                    return {.is_erroneous = true};
                 }
+                look_at = tmp.scope;
+            }
+
+            if (!look_at) {
+                ctx.reportError(
+                    ErrCode::NOT_A_NAMESPACE,
+                    {
+                        .str_1 = full_qualification.at(full_qualification.size() - 2),
+                        .location = location}
+                    );
+                return {.is_erroneous = true};
+            }
+
+            value = look_at->getIDInfoFor(full_qualification.back()).value();
+            if (!ctx.SymMan.lookupDecl(value).is_exported) {
+                ctx.reportError(
+                    ErrCode::SYMBOL_NOT_EXPORTED,
+                    {
+                        .str_1 = value->toString(),
+                        .location = location
+                    });
+                return {.is_erroneous = true};
             }
         }
     }
