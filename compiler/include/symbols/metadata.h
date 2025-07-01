@@ -2,6 +2,12 @@
 
 class IdentInfo;
 class Scope;
+struct Type;
+
+namespace llvm {
+    class Value;
+    class Type;
+}
 
 struct TableEntry {
     bool is_const    = false;

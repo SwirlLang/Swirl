@@ -13,7 +13,10 @@
 #include <llvm/IR/Value.h>
 
 
+enum class ErrCode;
+struct ErrorContext;
 class ModuleManager;
+using ErrorCallback_t = std::function<void (ErrCode, ErrorContext)>;
 
 
 class Scope {
@@ -112,6 +115,16 @@ public:
     /// returns the IdentInfo* of a global name from the module `mod_path`
     IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) const;
 
+    IdentInfo* getIDInfoFor(const std::string& id) {
+        for (Scope* scope : m_ScopeTrack | std::views::reverse) {
+            if (const auto ret = scope->getIDInfoFor(id)) {
+                return *ret;
+            }
+        } return nullptr;
+    }
+
+    IdentInfo* getIDInfoFor(const Ident& id, const ErrorCallback_t&);
+
 
     /// returns the global scope's pointer
     Scope* getGlobalScope() const {
@@ -186,19 +199,6 @@ public:
     bool declExists(IdentInfo* id) const {
         return m_IdToTableEntry.contains(id);
     }
-
-
-    template <bool create_new = false>
-    IdentInfo* getIDInfoFor(const std::string& id) {
-        if constexpr (!create_new) {
-            for (Scope* scope : m_ScopeTrack | std::views::reverse) {
-                if (const auto ret = scope->getIDInfoFor(id)) {
-                    return *ret;
-                }
-            } return nullptr;
-        } return m_ScopeTrack.at(m_ScopeInt)->getNewIDInfo(id);
-    }
-
 
     Scope* newScope() {
         Scope* ret = &m_Scopes.emplace_back(m_ModulePath);

@@ -331,7 +331,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
         param.initialized = m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "=";
         if (param.initialized)
             param.value = parseExpr();
-        
+
         assert(function_t != nullptr);
         function_t->param_types.push_back(param.var_type);
 
@@ -371,7 +371,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     // register the function's signature as a type in the symbol manager
     SymbolTable.registerType(func_nd.ident, function_t.release());
-    
+
     // WARNING: func_nd has been MOVED here!!
     auto ret = std::make_unique<Function>(std::move(func_nd));
     // ReSharper disable once CppDFALocalValueEscapesFunction
@@ -538,36 +538,36 @@ Ident Parser::parseIdent() {
     return std::move(ret);
 }
 
+
 std::unique_ptr<Struct> Parser::parseStruct() {
-    forwardStream();
-    Struct ret{};
+    forwardStream();  // skip 'struct'
+    Struct ret;
+    ret.is_exported = m_LastSymWasExported;
+    ret.location = m_Stream.getStreamState();
 
-    ret.ident = SymbolTable.getIDInfoFor<true>(m_Stream.CurTok.value);
+    m_LastSymWasExported = false;
 
-    auto struct_t = std::make_unique<StructType>();
-    struct_t->ident = ret.ident;
+    // ask for a decl registry to the symbol manager
+    ret.ident = SymbolTable.registerDecl(forwardStream().value, {
+        .is_exported = ret.is_exported,
+    });
 
-    forwardStream(2);
+    // create the struct's scope
+    forwardStream();  // skip '{'
+    const auto scope_pointer = SymbolTable.newScope();
+    SymbolTable.lookupDecl(ret.ident).scope = scope_pointer;
 
-    SymbolTable.newScope();
-    int mem_index = 0;
-
+    // parse the children
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
-        auto member = dispatch();
+        m_LastSymWasExported = true;
+        ret.members.push_back(dispatch());
+    } forwardStream();  // skip '}'
 
-        if (member->getNodeType() == ND_VAR) {
-            const auto field_ptr = dynamic_cast<Var*>(member.get());
-            struct_t->fields.insert({
-                field_ptr->var_ident, {mem_index, field_ptr->var_type}
-            }); mem_index++;
-        } ret.members.push_back(std::move(member));
-    }
-
-    forwardStream();
+    // exit the struct's scope
     SymbolTable.moveToPreviousScope();
-    SymbolTable.registerType(ret.ident, struct_t.release());
     return std::make_unique<Struct>(std::move(ret));
 }
+
 
 std::unique_ptr<WhileLoop> Parser::parseWhile() {
     WhileLoop loop{};

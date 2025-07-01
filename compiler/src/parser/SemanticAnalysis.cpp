@@ -1,4 +1,5 @@
 #include <cassert>
+#include <utility>
 
 #include <utils/utils.h>
 #include <types/SwTypes.h>
@@ -180,6 +181,23 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 
+AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
+    const auto ty = new StructType{};
+    ty->ident = ident;
+
+    for (auto& member : members) {
+        member->analyzeSemantics(ctx);
+
+        if (member->getNodeType() == ND_VAR) {
+            ty->field_types.push_back(dynamic_cast<Var*>(member.get())->var_type);
+        }
+    }
+
+    ctx.SymMan.registerType(ident, ty);
+    return {.deduced_type = ty};
+}
+
+
 AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
@@ -262,66 +280,8 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
         return ctx.Cache[this];
     }
 
-
     if (!value) {
-        if (full_qualification.size() == 1) {
-            value = ctx.SymMan.getIdInfoOfAGlobal(full_qualification.front());
-        }
-        else {
-            const Scope* look_at = nullptr;
-            // e.g. a::b::c
-            for (const auto& [counter, str] : full_qualification | std::views::enumerate) {
-                if (counter == full_qualification.size() - 1) break;
-                if (counter == 0) {
-                    auto tmp = ctx.SymMan.lookupDecl(ctx.SymMan.getIdInfoOfAGlobal(str));
-                    look_at = tmp.scope;
-                    continue;
-                }
-
-                if (!look_at) {
-                    ctx.reportError(
-                        ErrCode::NOT_A_NAMESPACE,
-                        {
-                            .str_1 = full_qualification.at(counter - 1),
-                            .location = location
-                        });
-                    return {.is_erroneous = true};
-                }
-
-                const auto& tmp = ctx.SymMan.lookupDecl(look_at->getIDInfoFor(str).value());
-                if (!tmp.is_exported) {
-                    ctx.reportError(
-                        ErrCode::SYMBOL_NOT_EXPORTED,
-                        {
-                            .str_1 = str,
-                            .location = location
-                        });
-                    return {.is_erroneous = true};
-                }
-                look_at = tmp.scope;
-            }
-
-            if (!look_at) {
-                ctx.reportError(
-                    ErrCode::NOT_A_NAMESPACE,
-                    {
-                        .str_1 = full_qualification.at(full_qualification.size() - 2),
-                        .location = location}
-                    );
-                return {.is_erroneous = true};
-            }
-
-            value = look_at->getIDInfoFor(full_qualification.back()).value();
-            if (!ctx.SymMan.lookupDecl(value).is_exported) {
-                ctx.reportError(
-                    ErrCode::SYMBOL_NOT_EXPORTED,
-                    {
-                        .str_1 = value->toString(),
-                        .location = location
-                    });
-                return {.is_erroneous = true};
-            }
-        }
+        value = ctx.SymMan.getIDInfoFor(*this, [ctx](auto a, auto b) { ctx.reportError(a, std::move(b)); });
     }
 
     if (!value) {
@@ -346,7 +306,7 @@ AnalysisResult WhileLoop::analyzeSemantics(AnalysisContext& ctx) {
     condition.analyzeSemantics(ctx);
     for (auto& child : children)
         child->analyzeSemantics(ctx);
-        
+
     return ret;
 }
 
@@ -365,7 +325,7 @@ AnalysisResult Condition::analyzeSemantics(AnalysisContext& ctx) {
             child->analyzeSemantics(ctx);
         }
     }
-    
+
     for (auto& child : else_children) {
         child->analyzeSemantics(ctx);
     }
@@ -373,10 +333,6 @@ AnalysisResult Condition::analyzeSemantics(AnalysisContext& ctx) {
     return ret;
 }
 
-AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
-    AnalysisResult ret;
-    return ret;
-}
 
 AnalysisResult ReturnStatement::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
@@ -397,7 +353,7 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
     ctx.setBoundTypeState(fn_type->ret_type);
 
     for (auto& child : children) {
-        if (child->getNodeType() == ND_RET) { 
+        if (child->getNodeType() == ND_RET) {
             auto ret_analysis = child->analyzeSemantics(ctx);
 
             if (fn_type->ret_type != nullptr) {
@@ -473,7 +429,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             }
         }
     }
-    
+
     return ret;
 }
 
@@ -511,7 +467,7 @@ void Op::setType(Type* to) {
     if (operands.front()->getNodeType() == ND_EXPR) {
         dynamic_cast<Expression*>(operands.front().get())->setType(to);
     }
-    
+
     if (arity == 1) return;
     if (operands.back()->getNodeType() == ND_EXPR) {
         auto expr = dynamic_cast<Expression*>(operands.back().get());

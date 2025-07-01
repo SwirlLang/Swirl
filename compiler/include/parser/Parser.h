@@ -7,7 +7,6 @@
 #include <utility>
 
 #include <parser/Nodes.h>
-#include <types/SwTypes.h>
 #include <lexer/TokenStream.h>
 #include <lexer/Tokens.h>
 #include <managers/ErrorManager.h>

@@ -6,6 +6,65 @@ IdentInfo* SymbolManager::getIdInfoFromModule(const std::filesystem::path& mod_p
     return m_ModuleMap.get(mod_path).SymbolTable.getIdInfoOfAGlobal(name, true);
 }
 
+IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const ErrorCallback_t& error_callback) {
+    if (id.full_qualification.size() == 1) {
+        return getIdInfoOfAGlobal(id.full_qualification.front());
+    }
+
+    const Scope* look_at = nullptr;
+    for (const auto& [counter, str] : id.full_qualification | std::views::enumerate) {
+        if (counter == id.full_qualification.size() - 1) break;
+        if (counter == 0) {
+            auto tmp = lookupDecl(getIdInfoOfAGlobal(str));
+            look_at = tmp.scope;
+            continue;
+        }
+
+        if (!look_at) {
+            error_callback(
+                ErrCode::NOT_A_NAMESPACE,
+                {
+                    .str_1 = id.full_qualification.at(counter - 1),
+                    .location = id.location
+                });
+            return nullptr;
+        }
+
+        const auto& tmp = lookupDecl(look_at->getIDInfoFor(str).value());
+        if (!tmp.is_exported) {
+            error_callback(
+                ErrCode::SYMBOL_NOT_EXPORTED,
+                {
+                    .str_1 = str,
+                    .location = id.location
+                });
+            return nullptr;
+        }
+        look_at = tmp.scope;
+    }
+
+    if (!look_at) {
+        error_callback(
+            ErrCode::NOT_A_NAMESPACE,
+            {
+                .str_1 = id.full_qualification.at(id.full_qualification.size() - 2),
+                .location = id.location}
+            );
+        return nullptr;
+    }
+
+    auto value = look_at->getIDInfoFor(id.full_qualification.back()).value();
+    if (value && !lookupDecl(value).is_exported) {
+        error_callback(
+            ErrCode::SYMBOL_NOT_EXPORTED,
+            {
+                .str_1 = value->toString(),
+                .location = id.location
+            });
+        return nullptr;
+    } return value;
+}
+
 TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {
     if (const auto mod_path = id->getModulePath(); mod_path != m_ModulePath) {
         return m_ModuleMap.get(mod_path).SymbolTable.m_IdToTableEntry.at(id);

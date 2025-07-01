@@ -21,6 +21,7 @@ struct ErrorContext {
     std::filesystem::path path_1;
     std::filesystem::path path_2;
 
+    std::string msg;    // optional error-message, used to convey various syntax errors
     std::string str_1;
     std::string str_2;
     std::optional<StreamState> location = std::nullopt;
@@ -43,6 +44,7 @@ enum class ErrCode {
 
     // The following error codes are related to types, `type_1` and `type_2` shall be set to give context
     // about the types involves
+    NO_SUCH_TYPE,             // when the type can't be resolved
     INCOMPATIBLE_TYPES,       // non-specific
     NO_IMPLICIT_CONVERSION,   // non-specific catch-all for the edgy implicit-conversion cases
     INT_AND_FLOAT_CONV,       // no implicit integral-floating conversions
@@ -80,18 +82,25 @@ class ErrorManager {
 public:
     /// Used to report an error, lock-free
     void newError(ErrCode code, const ErrorContext& ctx) {
+        m_ErrorCounter++;
         writeToBuffer(generateMessage(code, ctx), ctx);
     }
 
     /// Used to report an error, acquires the mutex
     void newErrorLocked(ErrCode code, const ErrorContext& ctx) {
+        m_ErrorCounter++;
         std::lock_guard guard(m_Mutex);
         writeToBuffer(generateMessage(code, ctx), ctx);
     }
 
     /// Write all the errors and clear the buffer
     void flush() {
-        std::println(stderr, "{}", m_ErrorBuffer);
+        std::println(
+            stderr,
+            "{}\n{} error(s) in total reported.\n",
+            m_ErrorBuffer,
+            m_ErrorCounter
+            );
         m_ErrorBuffer.clear();
     }
 
@@ -104,6 +113,9 @@ public:
 private:
     std::string m_ErrorBuffer;
     std::mutex  m_Mutex;
+
+    uint32_t   m_ErrorCounter = 0;
+
 
     void writeToBuffer(const std::string& str, const ErrorContext& ctx) {
         m_ErrorBuffer += std::format(
@@ -127,7 +139,7 @@ private:
 inline std::string ErrorManager::generateMessage(const ErrCode code, const ErrorContext& ctx) {
     switch (code) {
         case ErrCode::SYNTAX_ERROR:
-            return "Syntax error! Unable to parse anything meaningful.";
+            return std::format("Syntax error! {}", ctx.msg);
         case ErrCode::UNEXPECTED_EOF:
             return "Unexpected EOF (end of file)!";
         case ErrCode::EXPECTED_EXPRESSION:
@@ -146,6 +158,8 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return "Arrays sizes must be integral-constants";
 
 
+        case ErrCode::NO_SUCH_TYPE:
+            return "No such type.";
         case ErrCode::INCOMPATIBLE_TYPES:
             return "Incompatible types!";
         case ErrCode::NO_IMPLICIT_CONVERSION:
@@ -173,7 +187,12 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return std::format("The symbol '{}' exists, but isn't exported by its parent module.", ctx.str_1);
         case ErrCode::SYMBOL_ALREADY_EXISTS:
             return std::format("The symbol '{}' already exists.", ctx.str_1);
-
+        case ErrCode::NO_SYMBOL_IN_NAMESPACE:
+            return std::format(
+                "The symbol '{}' does not exist in the namespace defined by '{}'.",
+                ctx.str_1,
+                ctx.str_2
+                );
 
         case ErrCode::INITIALIZER_REQUIRED:
             return "Initialization is required here.";
@@ -185,12 +204,6 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return std::format("The identifier '{}' is undefined.", ctx.str_1);
         case ErrCode::NOT_A_NAMESPACE:
             return std::format("The symbol '{}' doesn't name a namespace.", ctx.str_1);
-        case ErrCode::NO_SYMBOL_IN_NAMESPACE:
-            return std::format(
-                "The symbol '{}' does not exist in the namespace defined by '{}'.",
-                ctx.str_1,
-                ctx.str_2
-                );
         default:
             throw std::runtime_error("Undefined error code");
     }

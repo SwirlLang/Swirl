@@ -36,12 +36,21 @@ llvm::Type* TypeStr::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Type* StructType::llvmCodegen(LLVMBackend& instance) {
+    if (instance.LLVMTypeCache.contains(this)) {
+        return instance.LLVMTypeCache[this];
+    }
+
     std::vector<llvm::Type*> llvm_fields;
-    for (auto& [fst, snd]: this->fields | std::views::values)
-        llvm_fields.push_back(snd->llvmCodegen(instance));
+    llvm_fields.reserve(field_types.size());
+
+    for (const auto& field : field_types) {
+        llvm_fields.push_back(field->llvmCodegen(instance));
+    }
 
     const auto struct_t = llvm::StructType::create(instance.Context, this->ident->toString());
     struct_t->setBody(llvm_fields);
+
+    instance.LLVMTypeCache[this] = struct_t;
     return struct_t;
 }
 

@@ -583,6 +583,12 @@ llvm::Value* WhileLoop::llvmCodegen(LLVMBackend& instance) {
 }
 
 
+llvm::Value* Struct::llvmCodegen(LLVMBackend& instance) {
+    instance.SymMan.lookupType(ident)->llvmCodegen(instance);
+    return nullptr;
+}
+
+
 llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Type*> paramTypes;
 

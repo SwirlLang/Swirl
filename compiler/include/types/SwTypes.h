@@ -73,13 +73,13 @@ struct FunctionType final : Type {
 struct StructType final : Type {
     IdentInfo* ident;
 
-    std::map<IdentInfo*, std::pair<std::size_t, Type*>> fields;
+    std::vector<Type*> field_types;
 
     SwTypes getSwType() override { return STRUCT; }
     [[nodiscard]] IdentInfo* getIdent() const override { return ident; }
 
     bool operator==(Type* other) override {
-        return other->getSwType() == STRUCT && (fields == dynamic_cast<StructType*>(other)->fields);
+        return other->getSwType() == STRUCT && (field_types == dynamic_cast<StructType*>(other)->field_types);
     }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;

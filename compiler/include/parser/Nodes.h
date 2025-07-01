@@ -72,7 +72,7 @@ struct Node {
     virtual void setArity(int8_t val) { throw std::runtime_error("setArity called on base Node instance"); }
 
     virtual std::vector<std::unique_ptr<Node>>& getMutOperands() { throw std::runtime_error("getMutOperands called on base node"); }
-    
+
     virtual AnalysisResult analyzeSemantics(AnalysisContext&) { return {}; }
 
     virtual Type* getSwType() { throw std::runtime_error("getSwType unimplemented!"); }
@@ -251,7 +251,7 @@ struct Assignment final : Node {
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_ASSIGN;
     }
-    
+
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -448,7 +448,7 @@ struct WhileLoop final : Node {
 
 struct Struct final : Node {
     IdentInfo* ident = nullptr;
-    std::vector<std::unique_ptr<Node>> members{};
+    std::vector<std::unique_ptr<Node>> members;
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_STRUCT;
@@ -459,6 +459,8 @@ struct Struct final : Node {
     }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
+    llvm::Value*llvmCodegen(LLVMBackend &instance);
 };
 
 
@@ -480,7 +482,7 @@ struct Condition final : Node {
         return ND_COND;
     }
 
-    
+
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
