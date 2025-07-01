@@ -55,36 +55,35 @@ Token Parser::forwardStream(const uint8_t n) {
 Type* Parser::parseType() {
     Type* base_type = nullptr;
     bool  is_const  = false;
+    bool  is_reference = false;
 
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
         forwardStream();
-        return SymbolTable.getReferenceType(
-            SymbolTable.lookupType(SymbolTable.getIDInfoFor(forwardStream().value)));
+        is_reference = true;
     }
 
-    if (m_Stream.CurTok.type == IDENT) {
-        base_type = SymbolTable.lookupType(SymbolTable.getIDInfoFor(forwardStream().value));
+    if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "const") {
+        is_const = true;
+        forwardStream();
     }
 
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[") {
-        forwardStream();
+        forwardStream();  // skip '['
         base_type = parseType();
 
-        if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != ";") {
-            // ErrMan.newSyntaxError("Expected ';' (syntax: [<type>; <size>]).");
-            return nullptr;
-        }
+        forwardStream();  // skip '|'
 
-        forwardStream();
         if (m_Stream.CurTok.type != NUMBER || m_Stream.CurTok.meta != CT_INT) {
             reportError(ErrCode::NON_INT_ARRAY_SIZE);
             return nullptr;
         }
 
-        const auto ret = SymbolTable.getArrayType(base_type, std::stoi(forwardStream().value));
-        forwardStream();
-        return ret;
+        base_type = SymbolTable.getArrayType(base_type, std::stoi(forwardStream().value));
+        forwardStream();  // skip ']'
+
+    } else if (m_Stream.CurTok.type == IDENT) {
+        base_type = SymbolTable.lookupType(SymbolTable.getIDInfoFor(parseIdent()));
     }
 
     uint16_t ptr_level = 0;
@@ -94,8 +93,14 @@ Type* Parser::parseType() {
     }
 
     if (ptr_level) {
-        return SymbolTable.getPointerType(base_type, ptr_level);
+        base_type = SymbolTable.getPointerType(base_type, ptr_level);
     }
+
+    if (is_reference) {
+        base_type = SymbolTable.getReferenceType(base_type);
+    }
+
+    if (base_type) base_type->is_const = is_const;
 
     return base_type;
 }

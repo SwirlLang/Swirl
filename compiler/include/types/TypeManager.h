@@ -85,11 +85,11 @@ class TypeManager {
     std::unordered_map<detail::Pointer, std::unique_ptr<PointerType>> m_PointerTable;
 
 public:
-    /// returns the type with the id `name`
+    /// returns the type with the id `name`, nullptr otherwise
     Type* getFor(IdentInfo* name) {
         if (const auto it = m_TypeTable.find(name); it != m_TypeTable.end())
             return it->second.get();
-        throw std::invalid_argument("TypeManager::getFor: No such type");
+        return nullptr;
     }
 
     void registerType(IdentInfo* name, Type* type) {

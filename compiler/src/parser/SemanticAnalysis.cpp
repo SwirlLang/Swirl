@@ -65,25 +65,25 @@ void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
     if (!from || !to) return;
 
     if ((from->isIntegral() && to->isFloatingPoint()) || (from->isFloatingPoint() && to->isIntegral())) {
-        reportError(ErrCode::INT_AND_FLOAT_CONV, {.location = location, .type_1 = from, .type_2 = to});
+        reportError(ErrCode::INT_AND_FLOAT_CONV, {.type_1 = from, .type_2 = to, .location = location});
         return;
     }
 
     if (from->isIntegral() && to->isIntegral()) {
         if ((from->isUnsigned() && !to->isUnsigned()) || (!from->isUnsigned() && to->isUnsigned())) {
-            reportError(ErrCode::NO_SIGNED_UNSIGNED_CONV, {.location = location, .type_1 = from, .type_2 = to});
+            reportError(ErrCode::NO_SIGNED_UNSIGNED_CONV, {.type_1 = from, .type_2 = to, .location = location});
             return;
         }
 
         if (to->getBitWidth() < from->getBitWidth()) {
-            reportError(ErrCode::NO_NARROWING_CONVERSION, {.location = location, .type_1 = from, .type_2 = to});
+            reportError(ErrCode::NO_NARROWING_CONVERSION, {.type_1 = from, .type_2 = to, .location = location});
             return;
         }
     }
 
     if (from->isFloatingPoint() && to->isFloatingPoint()) {
         if (to->getBitWidth() < from->getBitWidth()) {
-            reportError(ErrCode::NO_NARROWING_CONVERSION, {.location = location, .type_1 = from, .type_2 = to});
+            reportError(ErrCode::NO_NARROWING_CONVERSION, {.type_1 = from, .type_2 = to, .location = location});
             return;
         }
     }
@@ -93,7 +93,7 @@ void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
         const auto* base_t2 = dynamic_cast<ArrayType*>(to);
 
         if (base_t1->size != base_t2->size) {
-            reportError(ErrCode::DISTINCTLY_SIZED_ARR, {.location = location, .type_1 = from, .type_2 = to});
+            reportError(ErrCode::DISTINCTLY_SIZED_ARR, {.type_1 = from, .type_2 = to, .location = location});
             return;
         }
 
@@ -102,7 +102,7 @@ void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
     }
 
     if (!(from->isIntegral() && to->isIntegral()) && !(from->isFloatingPoint() && to->isFloatingPoint())) {
-        reportError(ErrCode::INCOMPATIBLE_TYPES, {.location = location, .type_1 = from, .type_2 = to});
+        reportError(ErrCode::INCOMPATIBLE_TYPES, {.type_1 = from, .type_2 = to, .location = location});
     }
 }
 
@@ -164,7 +164,7 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
             if (!ctx.SymMan.lookupDecl(id).is_exported) {
                 ctx.reportError(
                     ErrCode::SYMBOL_NOT_EXPORTED,
-                    {.location = location, .str_1 = symbol.actual_name}
+                    {.str_1 = symbol.actual_name, .location = location}
                     );
             }
 
@@ -202,7 +202,10 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
     if (!initialized && !var_type) {
-        ctx.reportError(ErrCode::INITIALIZER_REQUIRED, {.location = location, .ident = var_ident});
+        ctx.reportError(
+            ErrCode::INITIALIZER_REQUIRED,
+            {.ident = var_ident, .location = location}
+            );
         return {};
     }
 
@@ -246,7 +249,7 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
 
     auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(id));
     if (args.size() < fn_type->param_types.size()) {  // TODO: default params-values
-        ctx.reportError(ErrCode::TOO_FEW_ARGS, {.location = location, .ident = ident.getIdentInfo()});
+        ctx.reportError(ErrCode::TOO_FEW_ARGS, {.ident = ident.getIdentInfo(), .location = location});
         ctx.Cache.insert({this, ret});
         return {};
     }

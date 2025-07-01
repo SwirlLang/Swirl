@@ -123,7 +123,7 @@ public:
         } return nullptr;
     }
 
-    IdentInfo* getIDInfoFor(const Ident& id, const ErrorCallback_t&);
+    IdentInfo* getIDInfoFor(const Ident& id, const std::optional<ErrorCallback_t>& err_callback = std::nullopt);
 
 
     /// returns the global scope's pointer

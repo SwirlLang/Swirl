@@ -460,7 +460,7 @@ struct Struct final : Node {
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 
-    llvm::Value*llvmCodegen(LLVMBackend &instance);
+    llvm::Value* llvmCodegen(LLVMBackend &instance) override;
 };
 
 
