@@ -98,6 +98,7 @@ public:
 
     void parse();
     void performSema();
+    void ignoreButExpect(const Token&);
 
     /// calls `inserter` with the symbol name for each exported-symbol in the AST
     template <typename Inserter_t> requires std::invocable<Inserter_t, std::string>

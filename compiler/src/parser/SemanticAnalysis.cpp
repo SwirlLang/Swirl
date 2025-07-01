@@ -214,16 +214,18 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
         ctx.setBoundTypeState(base_type);
     } else ctx.setBoundTypeState(var_type);
 
-    auto val_analysis = value.analyzeSemantics(ctx);
-    ctx.restoreBoundTypeState();
+    if (initialized) {
+        auto val_analysis = value.analyzeSemantics(ctx);
+        ctx.restoreBoundTypeState();
 
-    if (var_type == nullptr) {
-        var_type = val_analysis.deduced_type;
-        ctx.SymMan.lookupDecl(var_ident).swirl_type = var_type;
-    } else {
-        ctx.checkTypeCompatibility(val_analysis.deduced_type, var_type, location);
-        value.setType(var_type);
-    }
+        if (var_type == nullptr) {
+            var_type = val_analysis.deduced_type;
+            ctx.SymMan.lookupDecl(var_ident).swirl_type = var_type;
+        } else {
+            ctx.checkTypeCompatibility(val_analysis.deduced_type, var_type, location);
+            value.setType(var_type);
+        }
+    } else ctx.restoreBoundTypeState();
 
     return ret;
 }
@@ -351,6 +353,10 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
 
     AnalysisResult ret;
     Type* deduced_type = nullptr;
+
+    for (auto& param : params) {
+        param.analyzeSemantics(ctx);
+    }
 
     auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(this->ident));
     ctx.setBoundTypeState(fn_type->ret_type);

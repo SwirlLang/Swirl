@@ -38,18 +38,19 @@ Parser::Parser(const std::filesystem::path& path, ErrorCallback_t error_callback
 /// returns the current token and forwards the stream
 Token Parser::forwardStream(const uint8_t n) {
     Token ret = m_Stream.CurTok;
-
-    if (m_ReturnFakeToken.has_value()) {
-        auto tok = m_ReturnFakeToken.value();
-        m_ReturnFakeToken = std::nullopt;
-        return std::move(tok);
-    }
-
     for (uint8_t _ = 0; _ < n; _++)
         m_Stream.next();
-
     return std::move(ret);
 }
+
+
+/// reports a syntax error if the current token != tok, then forwards the stream
+void Parser::ignoreButExpect(const Token& tok) {
+    if (m_Stream.CurTok != tok) {
+        reportError(ErrCode::SYNTAX_ERROR, {.msg = std::format("Expected '{}'.", tok.value)});
+    } forwardStream();
+}
+
 
 
 Type* Parser::parseType() {
@@ -69,10 +70,10 @@ Type* Parser::parseType() {
     }
 
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[") {
-        forwardStream();  // skip '['
+        forwardStream();
         base_type = parseType();
 
-        forwardStream();  // skip '|'
+        ignoreButExpect({OP, "|"});  // skip '|'
 
         if (m_Stream.CurTok.type != NUMBER || m_Stream.CurTok.meta != CT_INT) {
             reportError(ErrCode::NON_INT_ARRAY_SIZE);
@@ -80,7 +81,7 @@ Type* Parser::parseType() {
         }
 
         base_type = SymbolTable.getArrayType(base_type, std::stoi(forwardStream().value));
-        forwardStream();  // skip ']'
+        ignoreButExpect({PUNC, "]"});  // skip ']'
 
     } else if (m_Stream.CurTok.type == IDENT) {
         base_type = SymbolTable.lookupType(SymbolTable.getIDInfoFor(parseIdent()));
@@ -250,7 +251,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ",") {
                 forwardStream();
             }
-        } forwardStream();
+        } ignoreButExpect({PUNC, "}"});
     } else { // otherwise, if non-specific but aliased or wildcard
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {  // non-specific but aliased
             forwardStream();

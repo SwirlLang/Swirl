@@ -118,15 +118,25 @@ private:
 
 
     void writeToBuffer(const std::string& str, const ErrorContext& ctx) {
+        std::string backticks;
+        backticks.resize(std::format("{} ", ctx.location->Line).size());
+        std::fill(backticks.begin(), backticks.end(), ' ');
+
+        backticks.append("|\t");
+        backticks.append_range(std::views::repeat(' ') | std::views::take(ctx.location->Col));
+        backticks.append("^");
+
         m_ErrorBuffer += std::format(
             "At {}:{}:{}\n"
-            "\n{} |\t{}"
+            "\n{} |\t{}"  // line no., line
+            "{}\n"        // spaces and the `^`
             "\n\tError: {}\n\n",
             ctx.src_man->getSourcePath().string(),
             ctx.location->Line,
             ctx.location->Col,
             ctx.location->Line,
             ctx.src_man->getLineAt(ctx.location->Line),
+            backticks,
             str
         );
     }
