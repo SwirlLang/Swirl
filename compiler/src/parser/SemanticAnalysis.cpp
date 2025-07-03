@@ -426,6 +426,15 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 
             case ASSIGNMENT: {
                 ret.deduced_type = &GlobalTypeVoid;
+
+                if (analysis_1.deduced_type->is_const || (
+                        operands.at(0)->getNodeType() == ND_IDENT &&
+                        ctx.SymMan.lookupDecl(operands.at(0)->getIdentInfo()).is_const
+                        )) {
+                    ctx.reportError(ErrCode::CANNOT_ASSIGN_TO_CONST, {.location = location});
+                    break;
+                }
+
                 ctx.setBoundTypeState(analysis_1.deduced_type);
                 analysis_2 = operands.at(1)->analyzeSemantics(ctx);
                 ctx.checkTypeCompatibility(analysis_2.deduced_type, analysis_1.deduced_type, location);

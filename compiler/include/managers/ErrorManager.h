@@ -38,9 +38,6 @@ enum class ErrCode {
     COMMA_SEP_REQUIRED,
     UNMATCHED_SQ_BRACKET,  // SQ = square
 
-    TOO_FEW_ARGS,
-    INDEX_OUT_OF_BOUNDS,
-    NON_INT_ARRAY_SIZE,
 
     // The following error codes are related to types, `type_1` and `type_2` shall be set to give context
     // about the types involves
@@ -51,6 +48,7 @@ enum class ErrCode {
     NO_NARROWING_CONVERSION,  // narrowing conversions not allowed
     NO_SIGNED_UNSIGNED_CONV,  // signed-unsigned conversions shall be explicit
     DISTINCTLY_SIZED_ARR,     // arrays of distinct sizes are incompatible
+    CANNOT_ASSIGN_TO_CONST,
     // ----------*----------- //
 
 
@@ -72,6 +70,9 @@ enum class ErrCode {
     // ----------*----------- //
 
 
+    TOO_FEW_ARGS,
+    INDEX_OUT_OF_BOUNDS,
+    NON_INT_ARRAY_SIZE,
     INITIALIZER_REQUIRED,     // when initialization is required but not given
     RET_TYPE_REQUIRED,        // when explicitly specifying a return-type is required (e.g. recursive calls)
     QUALIFIER_UNDEFINED,
@@ -217,6 +218,8 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return std::format("The symbol '{}' doesn't name a namespace.", ctx.str_1);
         case ErrCode::NO_SUCH_MEMBER:
             return std::format("No member called '{}' in struct '{}'.", ctx.str_1, ctx.str_2);
+        case ErrCode::CANNOT_ASSIGN_TO_CONST:
+            return "Cannot reassign a value a variable declared with `let`.";
         default:
             throw std::runtime_error("Undefined error code");
     }

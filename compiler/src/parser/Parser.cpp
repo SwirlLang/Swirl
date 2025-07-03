@@ -729,7 +729,7 @@ Expression Parser::parseExpr(const std::optional<Token>& terminator) {
         [&, this](SwNode prev, const int last_prec = -1, bool is_left_associative = false) {
         // assumption: current token is an OP
 
-        is_left_associative = m_Stream.CurTok.value == "." || m_Stream.CurTok.value == "-";
+        is_left_associative =  m_Stream.CurTok.value == "-";
         SwNode op = std::make_unique<Op>(
             m_Stream.CurTok.value == "[" ? "[]" : m_Stream.CurTok.value,
             m_Stream.CurTok.value == "[" ? 1 : 2
