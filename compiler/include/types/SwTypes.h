@@ -33,7 +33,9 @@ struct Type {
         STR,
         REFERENCE,
         POINTER,
-        ARRAY
+        ARRAY,
+
+        VOID
     };
 
     bool is_const = false;
@@ -70,10 +72,13 @@ struct FunctionType final : Type {
 };
 
 
+struct Scope;
 struct StructType final : Type {
     IdentInfo* ident;
+    Scope*     scope;
 
     std::vector<Type*> field_types;
+    std::unordered_map<std::string, std::size_t> field_offsets;
 
     SwTypes getSwType() override { return STRUCT; }
     [[nodiscard]] IdentInfo* getIdent() const override { return ident; }
@@ -137,6 +142,15 @@ struct PointerType final : Type {
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
+
+
+struct VoidType final : Type {
+    [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
+    SwTypes getSwType() override { return VOID; }
+
+    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
+};
+
 
 struct TypeI8 : Type {
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
@@ -269,3 +283,5 @@ inline TypeF64 GlobalTypeF64{};
 
 inline TypeBool GlobalTypeBool{};
 inline TypeStr  GlobalTypeStr{};
+
+inline VoidType GlobalTypeVoid{};

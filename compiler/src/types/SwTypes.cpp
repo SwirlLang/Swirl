@@ -58,6 +58,10 @@ llvm::Type* PointerType::llvmCodegen(LLVMBackend& instance) {
     return llvm::PointerType::get(of_type->llvmCodegen(instance), 1);
 }
 
+llvm::Type* VoidType::llvmCodegen(LLVMBackend& instance) {
+    return llvm::Type::getVoidTy(instance.Context);
+}
+
 llvm::Type* ReferenceType::llvmCodegen(LLVMBackend& instance) {
     return llvm::PointerType::get(of_type->llvmCodegen(instance), 1);
 }

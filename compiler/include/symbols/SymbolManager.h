@@ -92,6 +92,8 @@ public:
 
         registerType(m_Scopes.front().getNewIDInfo("bool"), &GlobalTypeBool);
         registerType(m_Scopes.front().getNewIDInfo("str"),  &GlobalTypeStr);
+
+        registerType(m_Scopes.front().getNewIDInfo("void"), &GlobalTypeVoid);
     }
 
     TableEntry& lookupDecl(IdentInfo* id);
@@ -188,7 +190,9 @@ public:
 
     void registerDecl(IdentInfo* id, const TableEntry& entry) {
         if (m_IdToTableEntry.contains(id))
-            throw std::runtime_error("SymbolManager::registerDecl: duplicate declaration");
+            throw std::runtime_error(
+                "SymbolManager::registerDecl: duplicate declaration of "
+                "'" + id->toString() + "'");
         m_IdToTableEntry.insert({id, entry});
     }
 

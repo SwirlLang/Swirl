@@ -434,8 +434,23 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             } return instance.Builder.CreateLoad(operand_sw_ty->of_type->llvmCodegen(instance), element_ptr);
         }
 
-        case DOT:
-            throw;
+        case DOT: {
+            // instance
+            auto op_1 = operands.at(0)->llvmCodegen(instance);
+            auto struct_type = dynamic_cast<StructType*>(instance.fetchSwType(operands.at(0)));
+            auto member_offset = struct_type->field_offsets.at(dynamic_cast<Ident*>(operands.at(1).get())->full_qualification.front());
+
+            auto member_pointer = instance.Builder.CreateStructGEP(
+                struct_type->llvmCodegen(instance),
+                op_1,
+                member_offset
+                );
+
+            return instance.IsAssignmentLHS ? member_pointer : instance.Builder.CreateLoad(
+                struct_type->field_types.at(member_offset)->llvmCodegen(instance),
+                member_pointer
+            );
+        }
         default: break;
     }
 
@@ -488,7 +503,7 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
 
 
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
-    assert(expr_type != nullptr);
+    // assert(expr_type != nullptr);
     assert(expr.size() == 1);
 
     instance.setBoundTypeState(expr_type);

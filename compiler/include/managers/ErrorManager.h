@@ -75,6 +75,7 @@ enum class ErrCode {
     INITIALIZER_REQUIRED,     // when initialization is required but not given
     RET_TYPE_REQUIRED,        // when explicitly specifying a return-type is required (e.g. recursive calls)
     QUALIFIER_UNDEFINED,
+    NO_SUCH_MEMBER,
 };
 
 
@@ -214,6 +215,8 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return std::format("The identifier '{}' is undefined.", ctx.str_1);
         case ErrCode::NOT_A_NAMESPACE:
             return std::format("The symbol '{}' doesn't name a namespace.", ctx.str_1);
+        case ErrCode::NO_SUCH_MEMBER:
+            return std::format("No member called '{}' in struct '{}'.", ctx.str_1, ctx.str_2);
         default:
             throw std::runtime_error("Undefined error code");
     }

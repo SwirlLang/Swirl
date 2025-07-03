@@ -117,11 +117,11 @@ public:
                 return &GlobalTypeF64;
             case ND_IDENT:
                 return SymMan.lookupDecl(node->getIdentInfo()).swirl_type;
-            case ND_EXPR:
-                return node->getSwType();
             case ND_CALL:
                 return dynamic_cast<FunctionType*>(SymMan.lookupType(node->getIdentInfo()))->ret_type;
+            case ND_EXPR:
             case ND_ARRAY:
+            case ND_OP:
                 return node->getSwType();
             default:
                 throw std::runtime_error("LLVMBackend::fetchSwType: failed to fetch type");

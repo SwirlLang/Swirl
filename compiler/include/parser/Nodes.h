@@ -172,9 +172,12 @@ struct Op final : Node {
         MUL_ASSIGN,
         SUB_ASSIGN,
         DIV_ASSIGN,
+
+        INVALID
     };
 
-    OpType op_type;
+    OpType op_type = INVALID;
+    Type*  inferred_type = nullptr;
 
     Op() = default;
 
@@ -201,12 +204,12 @@ struct Op final : Node {
             {{"<", 2}, LESS_THAN},
             {{"<=", 2}, LESS_THAN_OR_EQUAL},
 
-            {{".", 1}, DOT},
             {{"[]", 1}, INDEXING_OP},
             {{"*", 1}, DEREFERENCE},
             {{"&", 1}, ADDRESS_TAKING},
             {{"as", 2}, CAST_OP},
 
+            {{".", 2}, DOT},
             {{"=", 2}, ASSIGNMENT},
             {{"+=", 2}, ADD_ASSIGN},
             {{"-=", 2}, SUB_ASSIGN},
@@ -234,6 +237,10 @@ struct Op final : Node {
     [[nodiscard]]
     NodeType getNodeType() const override {
         return ND_OP;
+    }
+
+    Type* getSwType() override {
+        return inferred_type;
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;

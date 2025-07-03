@@ -182,8 +182,11 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
 
 
 AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
-    const auto ty = new StructType{};
-    ty->ident = ident;
+    if (ctx.Cache.contains(this)) {
+        return ctx.Cache[this];
+    }
+
+    const auto ty = dynamic_cast<StructType*>(ctx.SymMan.lookupType(ident));
 
     for (auto& member : members) {
         member->analyzeSemantics(ctx);
@@ -193,7 +196,7 @@ AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
         }
     }
 
-    ctx.SymMan.registerType(ident, ty);
+    ctx.Cache[this] = {.deduced_type = ty};
     return {.deduced_type = ty};
 }
 
@@ -413,11 +416,19 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 
     } else {
         // 2nd operand
-        auto analysis_2 = value != "as" ? operands.at(1)->analyzeSemantics(ctx) : AnalysisResult{};
+        auto analysis_2 = value != "as" && op_type != DOT && op_type != ASSIGNMENT ? operands.at(1)->analyzeSemantics(ctx) : AnalysisResult{};
 
         switch (op_type) {
             case DIV: {
                 ret.deduced_type = &GlobalTypeF64;
+                break;
+            }
+
+            case ASSIGNMENT: {
+                ret.deduced_type = &GlobalTypeVoid;
+                ctx.setBoundTypeState(analysis_1.deduced_type);
+                analysis_2 = operands.at(1)->analyzeSemantics(ctx);
+                ctx.checkTypeCompatibility(analysis_2.deduced_type, analysis_1.deduced_type, location);
                 break;
             }
 
@@ -433,12 +444,46 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                 break;
             }
 
+            case DOT: {
+                if (analysis_1.deduced_type->getSwType() != Type::STRUCT || operands.at(1)->getNodeType() != ND_IDENT) {
+                    ctx.reportError(  // TODO: make this its own error code
+                        ErrCode::SYNTAX_ERROR,
+                        {
+                            .msg = "Cannot use the dot operator on an operand of this type.",
+                            .location = location
+                        });
+                    return {.is_erroneous = true};
+                }
+
+                AnalysisContext::DisableErrorCode disable_error_code(ErrCode::UNDEFINED_IDENTIFIER, ctx);
+                analysis_2 = operands.at(1)->analyzeSemantics(ctx);
+
+                const auto instance_id = dynamic_cast<Ident*>(operands.at(0).get())->getIdentInfo();
+                assert(instance_id != nullptr);
+                const auto member_name = dynamic_cast<Ident*>(operands.at(1).get())->full_qualification.front();
+                const auto struct_scope = dynamic_cast<StructType*>(ctx.SymMan.lookupDecl(instance_id).swirl_type)->scope;
+                auto member = struct_scope->getIDInfoFor(member_name);
+
+                if (!member) {
+                    ctx.reportError(ErrCode::NO_SUCH_MEMBER, {
+                        .str_1 = member_name,
+                        .str_2 = operands.at(0)->getIdentInfo()->toString(),
+                        .location = location
+                    });
+                    return {.is_erroneous = true};
+                }
+
+                ret.deduced_type = ctx.SymMan.lookupDecl(*member).swirl_type;
+                break;
+            }  // case DOT
+
             default: {
                 ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);
             }
         }
     }
 
+    inferred_type = ret.deduced_type;
     return ret;
 }
 

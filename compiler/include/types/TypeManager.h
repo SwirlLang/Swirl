@@ -44,6 +44,7 @@ struct Deleter {
             ptr == &GlobalTypeF32  ||
             ptr == &GlobalTypeF64  ||
             ptr == &GlobalTypeBool ||
+            ptr == &GlobalTypeVoid ||
             ptr == &GlobalTypeStr) {
             } else {
                 delete ptr;

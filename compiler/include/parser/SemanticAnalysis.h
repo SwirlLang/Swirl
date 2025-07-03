@@ -62,7 +62,17 @@ public:
         m_BoundTypeState.pop();
     }
 
+    void disableErrorCode(const ErrCode code) {
+        m_DisabledErrorCodes.emplace(code);
+    }
+
+    void enableErrorCode(const ErrCode code) {
+        m_DisabledErrorCodes.erase(code);
+    }
+
     void reportError(const ErrCode code, ErrorContext err_ctx) const {
+        if (m_DisabledErrorCodes.contains(code))
+            return;
         err_ctx.src_man = SrcMan;
         ErrCallback(code, err_ctx);
     }
@@ -77,6 +87,20 @@ public:
     Type* getUnderlyingType(Type*);
 
 
+    struct DisableErrorCode {
+        DisableErrorCode(const ErrCode code, AnalysisContext& ctx): m_Ctx(ctx), m_ErrorCode(code) {
+            m_Ctx.disableErrorCode(code);
+        }
+
+        ~DisableErrorCode() {
+            m_Ctx.enableErrorCode(m_ErrorCode);
+        }
+
+    private:
+        AnalysisContext& m_Ctx;
+        ErrCode m_ErrorCode;
+    };
+
 private:
     SwAST_t& m_AST;
 
@@ -84,4 +108,6 @@ private:
 
     Node* m_CurrentParentFunc = nullptr;
     Node* m_CurrentParentFuncCache = nullptr;
+
+    std::unordered_set<ErrCode> m_DisabledErrorCodes;
 };

@@ -553,24 +553,38 @@ std::unique_ptr<Struct> Parser::parseStruct() {
 
     m_LastSymWasExported = false;
 
+    const auto struct_ty = new StructType{};
+
     // ask for a decl registry to the symbol manager
     ret.ident = SymbolTable.registerDecl(forwardStream().value, {
         .is_exported = ret.is_exported,
     });
 
     // create the struct's scope
-    forwardStream();  // skip '{'
+    ignoreButExpect({PUNC, "{"});  // skip '{'
     const auto scope_pointer = SymbolTable.newScope();
     SymbolTable.lookupDecl(ret.ident).scope = scope_pointer;
 
-    // parse the children
+    // handle the children
+    std::size_t i = 0;
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
         m_LastSymWasExported = true;
-        ret.members.push_back(dispatch());
-    } forwardStream();  // skip '}'
+        auto member = dispatch();
+        if (member->getNodeType() == ND_VAR) {
+            struct_ty->field_offsets.insert({member->getIdentInfo()->toString(), i++});
+        } ret.members.emplace_back(std::move(member));
+    } ignoreButExpect({PUNC, "}"});  // skip '}'
 
     // exit the struct's scope
     SymbolTable.moveToPreviousScope();
+
+    struct_ty->scope = scope_pointer;
+    struct_ty->ident = ret.ident;
+
+    // register the type and the scope of the struct as a qualifier
+    SymbolTable.registerType(ret.ident, struct_ty);
+    SymbolTable.lookupDecl(ret.ident).scope = scope_pointer;
+
     return std::make_unique<Struct>(std::move(ret));
 }
 
