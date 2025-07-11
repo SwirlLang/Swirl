@@ -26,7 +26,7 @@ struct ErrorContext {
     std::string str_2;
     std::optional<StreamState> location = std::nullopt;
 
-    const SourceManager* src_man = nullptr;
+    SourceManager* src_man = nullptr;
     std::unordered_map<IdentInfo*, Node*>* decl_table = nullptr;
 };
 

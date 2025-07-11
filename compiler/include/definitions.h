@@ -1,8 +1,9 @@
 #pragma once
 #include <string>
-#include <cstdint>
 #include <filesystem>
+#include <unordered_set>
 #include <unordered_map>
+#include <string_view>
 
 
 consteval std::filesystem::path getSpmPkgInstallDir() {
@@ -16,15 +17,12 @@ consteval std::filesystem::path getSpmPkgInstallDir() {
 }
 
 
-
-inline const std::unordered_map<std::string, uint8_t> keywords = {
-    {"return", 1},  {"if", 2},        {"else", 3},
-    {"for", 4},       {"while", 5},   {"in", 7},
-    {"or", 8},        {"and", 9},     {"class", 10},  {"public", 11},
-    {"private", 12},  {"const", 15},  {"static", 16}, {"break", 17},
-    {"continue", 18}, {"elif", 19},   {"extern", 20}, {"importc", 21},
-    {"let", 22},      {"import", 23}, {"export", 24}, {"from", 25},
-    {"var", 26},      {"fn", 27}, {"volatile", 28}, {"struct", 29}
+inline const std::unordered_set<std::string_view> keywords = {
+    "return", "if", "else", "for", "while", "in",
+    "or", "and", "class", "public", "private",
+    "const", "static", "break", "continue", "elif",
+    "extern", "importc", "let", "import", "export",
+    "from", "var", "fn", "volatile", "struct"
 };
 
 
@@ -37,7 +35,6 @@ inline std::unordered_map<std::string, int> operators = {
     {"/=", 0},
 
     {"::", 0},
-
 
     {"||", 0},
     {"&&", 1},
@@ -58,6 +55,6 @@ inline std::unordered_map<std::string, int> operators = {
     {"!", 20},
 
     // Misc
-    {".", 32},
-    {"[]", 32}
+    {"[]", 32},
+    {".", 34},
 };

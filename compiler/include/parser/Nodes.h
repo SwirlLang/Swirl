@@ -107,6 +107,12 @@ struct Expression : Node {
         return *this;
     }
 
+    static Expression makeExpression(std::unique_ptr<Node>&& node) {
+        Expression expr;
+        expr.expr.push_back(std::move(node));
+        return std::move(expr);
+    }
+
     // set the type of sub-expression instances to `to`
     void setType(Type* to);
 
@@ -140,7 +146,7 @@ struct Op final : Node {
     int8_t arity = 2;  // the no. of operands the operator requires
     std::vector<std::unique_ptr<Node>> operands;  // the operands
 
-    enum OpType {
+    enum OpTag_t {
         BINARY_ADD,
         BINARY_SUB,
 
@@ -176,48 +182,13 @@ struct Op final : Node {
         INVALID
     };
 
-    OpType op_type = INVALID;
+    OpTag_t op_type = INVALID;
     Type*  inferred_type = nullptr;
 
     Op() = default;
 
-    explicit Op(std::string_view str, int8_t arity): value(std::string(str)), arity(arity) {
-        const static
-        std::unordered_map<std::pair<std::string_view, int>, OpType> enum_map = {
-            {{"+", 2}, BINARY_ADD},
-            {{"-", 2}, BINARY_SUB},
-
-            {{"+", 1}, UNARY_ADD},
-            {{"-", 1}, UNARY_SUB},
-
-            {{"*", 2}, MUL},
-            {{"/", 2}, DIV},
-
-            {{"!", 1}, LOGICAL_NOT},
-            {{"==", 2}, LOGICAL_EQUAL},
-            {{"!=", 2}, LOGICAL_NOTEQUAL},
-            {{"||", 2}, LOGICAL_OR},
-            {{"&&", 2}, LOGICAL_AND},
-
-            {{">", 2}, GREATER_THAN},
-            {{">=", 2}, GREATER_THAN_OR_EQUAL},
-            {{"<", 2}, LESS_THAN},
-            {{"<=", 2}, LESS_THAN_OR_EQUAL},
-
-            {{"[]", 1}, INDEXING_OP},
-            {{"*", 1}, DEREFERENCE},
-            {{"&", 1}, ADDRESS_TAKING},
-            {{"as", 2}, CAST_OP},
-
-            {{".", 2}, DOT},
-            {{"=", 2}, ASSIGNMENT},
-            {{"+=", 2}, ADD_ASSIGN},
-            {{"-=", 2}, SUB_ASSIGN},
-            {{"*=", 2}, MUL_ASSIGN},
-            {{"/=", 2}, DIV_ASSIGN},
-
-        }; op_type = enum_map.at({str, arity});
-    }
+    explicit Op(std::string_view str, int8_t arity);
+    static OpTag_t getTagFor(std::string_view str, int arity);
 
     void setArity(const int8_t val) override {
         arity = val;
@@ -227,21 +198,19 @@ struct Op final : Node {
         return arity;
     }
 
-    std::vector<std::unique_ptr<Node>>& getMutOperands() override {
-        return operands;
-    }
+
+    std::vector<std::unique_ptr<Node>>& getMutOperands() override { return operands; }
 
     // set the type of sub-expression instances to `to`
     void setType(Type* to);
 
     [[nodiscard]]
-    NodeType getNodeType() const override {
-        return ND_OP;
-    }
+    NodeType getNodeType() const override { return ND_OP; }
+    Type* getSwType() override { return inferred_type; }
 
-    Type* getSwType() override {
-        return inferred_type;
-    }
+    static int getLBPFor(OpTag_t op);
+    static int getRBPFor(OpTag_t op);
+
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;

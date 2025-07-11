@@ -12,6 +12,8 @@
 #include <managers/ErrorManager.h>
 #include <symbols/SymbolManager.h>
 
+#include "ExpressionParser.h"
+
 
 class Parser;
 class ModuleManager;
@@ -25,6 +27,7 @@ class Parser {
     ModuleManager& m_ModuleMap;
 
     ErrorCallback_t m_ErrorCallback;  // the callback for reporting an error
+    ExpressionParser m_ExpressionParser{*this};
 
     // ---*--- Flags  ---*---
     Function*    m_LatestFuncNode = nullptr;
@@ -47,6 +50,7 @@ class Parser {
     friend class ModuleManager;
     friend class LLVMBackend;
     friend class AnalysisContext;
+    friend class ExpressionParser;
 
 public:
     SymbolManager SymbolTable;
@@ -93,7 +97,7 @@ public:
     Ident parseIdent();
 
     Token forwardStream(uint8_t n = 1);
-    Expression parseExpr(const std::optional<Token>& terminator = std::nullopt);
+    Expression parseExpr(int min_bp = -1);
     Type* parseType();
 
     void parse();
@@ -113,7 +117,7 @@ public:
     /// decrements the unresolved-deps counter of dependents
     void decrementUnresolvedDeps();
 
-    void reportError(const ErrCode code, ErrorContext ctx = {}) const {
+    void reportError(const ErrCode code, ErrorContext ctx = {}) {
         ctx.src_man = &m_SrcMan;
         if (!ctx.location) {
             ctx.location = m_Stream.getStreamState();

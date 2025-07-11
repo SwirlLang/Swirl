@@ -19,7 +19,7 @@ public:
 
     SymbolManager& SymMan;
     ModuleManager& ModuleMap;
-    const SourceManager* SrcMan;
+    SourceManager* SrcMan;
 
     ErrorCallback_t ErrCallback;
 
