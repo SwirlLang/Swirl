@@ -437,7 +437,9 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 
                 ctx.setBoundTypeState(analysis_1.deduced_type);
                 analysis_2 = operands.at(1)->analyzeSemantics(ctx);
+                ctx.restoreBoundTypeState();
                 ctx.checkTypeCompatibility(analysis_2.deduced_type, analysis_1.deduced_type, location);
+                ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);
                 break;
             }
 
@@ -454,37 +456,29 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             }
 
             case DOT: {
-                if (analysis_1.deduced_type->getSwType() != Type::STRUCT || operands.at(1)->getNodeType() != ND_IDENT) {
-                    ctx.reportError(  // TODO: make this its own error code
-                        ErrCode::SYNTAX_ERROR,
-                        {
-                            .msg = "Cannot use the dot operator on an operand of this type.",
-                            .location = location
-                        });
-                    return {.is_erroneous = true};
-                }
+                AnalysisContext::DisableErrorCode _(ErrCode::UNDEFINED_IDENTIFIER, ctx);
 
-                AnalysisContext::DisableErrorCode disable_error_code(ErrCode::UNDEFINED_IDENTIFIER, ctx);
-                analysis_2 = operands.at(1)->analyzeSemantics(ctx);
+                auto accessed_operand = dynamic_cast<Ident*>(operands.at(1).get());
+                if (!accessed_operand) throw std::runtime_error("accessed operand not an id!");
 
-                const auto instance_id = dynamic_cast<Ident*>(operands.at(0).get())->getIdentInfo();
-                assert(instance_id != nullptr);
-                const auto member_name = dynamic_cast<Ident*>(operands.at(1).get())->full_qualification.front();
-                const auto struct_scope = dynamic_cast<StructType*>(ctx.SymMan.lookupDecl(instance_id).swirl_type)->scope;
-                auto member = struct_scope->getIDInfoFor(member_name);
+                auto accessed_op_id =
+                    analysis_1.deduced_type->scope->getIDInfoFor(
+                        accessed_operand->full_qualification.at(0)
+                        );
 
-                if (!member) {
+                if (!accessed_op_id) {
                     ctx.reportError(ErrCode::NO_SUCH_MEMBER, {
-                        .str_1 = member_name,
+                        .str_1 = accessed_operand->full_qualification.front(),
                         .str_2 = operands.at(0)->getIdentInfo()->toString(),
                         .location = location
-                    });
-                    return {.is_erroneous = true};
+                    }); ret.is_erroneous = true; break;
                 }
 
-                ret.deduced_type = ctx.SymMan.lookupDecl(*member).swirl_type;
+                accessed_operand->value = *accessed_op_id;
+                const auto access_entry = ctx.SymMan.lookupDecl(*accessed_op_id);
+                ret.deduced_type = access_entry.swirl_type;
                 break;
-            }  // case DOT
+            }
 
             default: {
                 ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);

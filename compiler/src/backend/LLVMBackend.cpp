@@ -142,7 +142,7 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
     const auto e = instance.SymMan.lookupDecl(this->value);
     // if (e.is_param) { return e.llvm_value; }
-    if (instance.IsAssignmentLHS) { return e.llvm_value; }
+    if (instance.getAssignmentLhsState()) { return e.llvm_value; }
 
     return e.is_param
     ? instance.castIfNecessary(e.swirl_type, e.llvm_value)
@@ -398,10 +398,10 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         }
 
         case ASSIGNMENT: {
-            instance.IsAssignmentLHS = true;
+            instance.setAssignmentLhsState(true);
             auto lhs = operands.at(0)->llvmCodegen(instance);
-            instance.IsAssignmentLHS = false;
-            instance.setBoundTypeState(instance.fetchSwType(operands.at(0)));
+            instance.restoreAssignmentLhsState();
+            instance.setBoundTypeState(inferred_type);
             instance.Builder.CreateStore(operands.at(1)->llvmCodegen(instance), lhs);
             instance.restoreBoundTypeState();
             return nullptr;
@@ -411,16 +411,15 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             auto operand_sw_ty = dynamic_cast<ArrayType*>(instance.fetchSwType(operands.at(0)));
             auto operand_ty = operand_sw_ty->llvmCodegen(instance);
 
-            auto ass_state_cache = instance.IsAssignmentLHS;
-            instance.IsAssignmentLHS = true;
+            instance.setAssignmentLhsState(true);
             auto arr_ptr = instance.Builder.CreateStructGEP(operand_ty, operands.at(0)->llvmCodegen(instance), 0);
-            instance.IsAssignmentLHS = ass_state_cache;
+            instance.restoreAssignmentLhsState();
 
             llvm::Value* second_op;
-            if (instance.IsAssignmentLHS) {
-                instance.IsAssignmentLHS = false;
+            if (instance.getAssignmentLhsState()) {
+                instance.restoreAssignmentLhsState();
                 second_op = operands.at(1)->llvmCodegen(instance);
-                instance.IsAssignmentLHS = true;
+                instance.setAssignmentLhsState(true);
             } else second_op = operands.at(1)->llvmCodegen(instance);
 
             auto element_ptr = instance.Builder.CreateGEP(
@@ -429,27 +428,64 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
                 {instance.toLLVMInt(0), second_op}
                 );
 
-            if (instance.IsAssignmentLHS) {
+            if (instance.getAssignmentLhsState()) {
                 return element_ptr;
             } return instance.Builder.CreateLoad(operand_sw_ty->of_type->llvmCodegen(instance), element_ptr);
         }
 
         case DOT: {
-            // instance
-            auto op_1 = operands.at(0)->llvmCodegen(instance);
-            auto struct_type = dynamic_cast<StructType*>(instance.fetchSwType(operands.at(0)));
-            auto member_offset = struct_type->field_offsets.at(dynamic_cast<Ident*>(operands.at(1).get())->full_qualification.front());
+            // when nested
+            if (operands.at(0)->getNodeType() == ND_OP) {
+                instance.setAssignmentLhsState(true);
+                auto inst_ptr = operands.at(0)->llvmCodegen(instance);
+                instance.restoreAssignmentLhsState();
 
-            auto member_pointer = instance.Builder.CreateStructGEP(
-                struct_type->llvmCodegen(instance),
-                op_1,
-                member_offset
+                auto field_node = dynamic_cast<Ident*>(operands.at(1).get());
+                auto struct_ty  = dynamic_cast<StructType*>(instance.StructFieldType);
+
+                auto field_ptr = instance.Builder.CreateStructGEP(
+                    instance.StructFieldType->llvmCodegen(instance),
+                    inst_ptr,
+                    struct_ty->field_offsets.at(field_node->full_qualification.front())
+                    );
+
+                auto field_ty = instance.SymMan.lookupDecl(field_node->value).swirl_type;
+
+                instance.StructFieldType = field_ty;
+                instance.StructFieldPtr = field_ptr;
+
+                return instance.getAssignmentLhsState() ? field_ptr : instance.Builder.CreateLoad(
+                    field_ty->llvmCodegen(instance),
+                    field_ptr
+                );
+            // ---- * ---- * ---- * ---- * ---- //
+            } else {  // otherwise...
+                instance.setAssignmentLhsState(true);
+                auto inst_ptr = operands.at(0)->llvmCodegen(instance);
+                instance.restoreAssignmentLhsState();
+
+                // fetch the instance's struct-type
+                auto struct_ty = dynamic_cast<StructType*>(
+                    instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo()).swirl_type
                 );
 
-            return instance.IsAssignmentLHS ? member_pointer : instance.Builder.CreateLoad(
-                struct_type->field_types.at(member_offset)->llvmCodegen(instance),
-                member_pointer
-            );
+                auto field_node = dynamic_cast<Ident*>(operands.at(1).get());
+                auto field_ptr = instance.Builder.CreateStructGEP(
+                    struct_ty->llvmCodegen(instance),
+                    inst_ptr,
+                    struct_ty->field_offsets.at(field_node->full_qualification.front())
+                );
+
+                auto field_type = instance.SymMan.lookupDecl(field_node->getIdentInfo()).swirl_type;
+
+                instance.StructFieldPtr = field_ptr;
+                instance.StructFieldType = field_type;
+
+                return instance.getAssignmentLhsState() ? field_ptr : instance.Builder.CreateLoad(
+                    field_type->llvmCodegen(instance),
+                    field_ptr
+                );
+            }
         }
         default: break;
     }
@@ -465,9 +501,9 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         auto rhs = op->llvmCodegen(instance);
         instance.restoreBoundTypeState();
 
-        instance.IsAssignmentLHS = true;
+        instance.setAssignmentLhsState(true);
         auto lhs = op->operands.at(0)->llvmCodegen(instance);
-        instance.IsAssignmentLHS = false;
+        instance.restoreAssignmentLhsState();
 
         instance.Builder.CreateStore(rhs, lhs);
         return nullptr;
@@ -478,7 +514,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subject) {
-    if (getBoundTypeState() != source_type) {
+    if (getBoundTypeState() != source_type && source_type->getSwType() != Type::STRUCT) {
         if (getBoundTypeState()->isIntegral()) {
             if (getBoundTypeState()->isUnsigned()) {
                 return Builder.CreateZExtOrTrunc(subject, getBoundLLVMType());
@@ -515,9 +551,9 @@ llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Assignment::llvmCodegen(LLVMBackend& instance) {
-    instance.IsAssignmentLHS = true;
+    instance.setAssignmentLhsState(true);
     const auto lv = l_value.llvmCodegen(instance);
-    instance.IsAssignmentLHS = false;
+    instance.restoreAssignmentLhsState();
 
     instance.Builder.CreateStore(r_value.llvmCodegen(instance), lv);
     return nullptr;

@@ -44,10 +44,11 @@ public:
     // ----------------[contextual-states]-------------------
     bool IsLocalScope = false;
     bool ChildHasReturned = false;
-    bool IsAssignmentLHS = false;
     bool InArgumentContext = false;
 
     llvm::Value* BoundMemory = nullptr;
+    llvm::Value* StructFieldPtr = nullptr;  // used to "bubble-up" StructGEPd pointers
+    Type*        StructFieldType = nullptr; // used to "bubble-up" struct-field types
     // -------------------------------------------------------
 
     explicit LLVMBackend(Parser& parser)
@@ -58,6 +59,8 @@ public:
         , GlobalNodeJmpTable(std::move(parser.NodeJmpTable))
     {
         m_LatestBoundType.emplace(nullptr);
+        m_AssignmentLhsStack.emplace(false);
+
         if (m_AlreadyInstantiated) {
             LModule->setDataLayout(TargetMachine->createDataLayout());
             LModule->setTargetTriple(TargetTriple);
@@ -141,6 +144,11 @@ public:
         return m_LatestBoundType.top();
     }
 
+    bool getAssignmentLhsState() const {
+        assert(!m_AssignmentLhsStack.empty());
+        return m_AssignmentLhsStack.top();
+    }
+
     llvm::Type* getBoundLLVMType() {
         return m_LatestBoundType.top()->llvmCodegen(*this);
     }
@@ -149,15 +157,25 @@ public:
         m_LatestBoundType.emplace(to);
     }
 
+    void setAssignmentLhsState(bool value) {
+        m_AssignmentLhsStack.emplace(value);
+    }
+
+    void restoreAssignmentLhsState() {
+        m_AssignmentLhsStack.pop();
+    }
+
     void restoreBoundTypeState() {
         m_LatestBoundType.pop();
     }
 
 private:
     bool m_AlreadyInstantiated = false;
+    bool m_IsAssignmentLHS = false;
 
     std::unordered_set<std::size_t> m_ResolvedList;
     std::size_t m_CurParentIndex = 0;
 
     std::stack<Type*>   m_LatestBoundType;
+    std::stack<bool>    m_AssignmentLhsStack;
 };

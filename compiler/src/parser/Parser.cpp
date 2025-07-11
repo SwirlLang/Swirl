@@ -593,5 +593,6 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
 }
 
 Expression Parser::parseExpr(const int min_bp) {
-    return m_ExpressionParser.parseExpr(min_bp);
+    auto ret = m_ExpressionParser.parseExpr(min_bp);
+    return std::move(ret);
 }

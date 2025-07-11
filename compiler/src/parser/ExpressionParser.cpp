@@ -119,7 +119,7 @@ std::optional<std::unique_ptr<Node>> ExpressionParser::parsePrefix() {
     return parseComponent();
 }
 
-
+/// This method utilizes `Pratt-Parsing`.
 Expression ExpressionParser::parseExpr(int rbp) {
     auto led = [this](SwNode left) -> SwNode {
         auto op_str = m_Parser.forwardStream().value;

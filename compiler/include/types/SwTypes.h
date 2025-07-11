@@ -10,6 +10,7 @@ class  LLVMBackend;
 struct Var;
 
 
+class Scope;
 struct Type {
     enum SwTypes {
         FUNCTION,
@@ -38,7 +39,8 @@ struct Type {
         VOID
     };
 
-    bool is_const = false;
+    bool   is_const = false;
+    Scope* scope = nullptr;  // the pointer to the namespace (if applicable) defined within the type
 
     virtual SwTypes     getSwType() = 0;
 
@@ -72,10 +74,8 @@ struct FunctionType final : Type {
 };
 
 
-struct Scope;
 struct StructType final : Type {
     IdentInfo* ident;
-    Scope*     scope;
 
     std::vector<Type*> field_types;
     std::unordered_map<std::string, std::size_t> field_offsets;
