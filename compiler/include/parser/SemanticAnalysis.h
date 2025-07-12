@@ -81,8 +81,8 @@ public:
 
     Type* deduceType(Type*, Type*, StreamState location) const;
 
-    /// checks whether `from` can be converted to `to`
-    void checkTypeCompatibility(Type* from, Type* to, StreamState location) const;
+    /// checks whether `from` can be converted to `to`, return `false` if incompatible
+    bool checkTypeCompatibility(Type* from, Type* to, StreamState location) const;
 
     Type* getUnderlyingType(Type*);
 

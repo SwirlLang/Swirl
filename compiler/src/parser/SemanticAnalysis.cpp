@@ -56,35 +56,41 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
         return SymMan.getArrayType(deduceType(arr_1->of_type, arr_2->of_type, location), arr_1->size);
     }
 
+    if (type1->getSwType() == Type::STRUCT || type2->getSwType() == Type::STRUCT) {
+        if (checkTypeCompatibility(type1, type2, location)) {
+            return type1;
+        }
+    }
+
     reportError(ErrCode::INCOMPATIBLE_TYPES, {.location = location, .type_1 = type1, .type_2 = type2});
     return nullptr;
 }
 
 
-void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState location) const {
-    if (!from || !to) return;
+bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState location) const {
+    if (!from || !to) return false;
 
     if ((from->isIntegral() && to->isFloatingPoint()) || (from->isFloatingPoint() && to->isIntegral())) {
         reportError(ErrCode::INT_AND_FLOAT_CONV, {.type_1 = from, .type_2 = to, .location = location});
-        return;
+        return false;
     }
 
     if (from->isIntegral() && to->isIntegral()) {
         if ((from->isUnsigned() && !to->isUnsigned()) || (!from->isUnsigned() && to->isUnsigned())) {
             reportError(ErrCode::NO_SIGNED_UNSIGNED_CONV, {.type_1 = from, .type_2 = to, .location = location});
-            return;
+            return false;
         }
 
         if (to->getBitWidth() < from->getBitWidth()) {
             reportError(ErrCode::NO_NARROWING_CONVERSION, {.type_1 = from, .type_2 = to, .location = location});
-            return;
+            return false;
         }
     }
 
     if (from->isFloatingPoint() && to->isFloatingPoint()) {
         if (to->getBitWidth() < from->getBitWidth()) {
             reportError(ErrCode::NO_NARROWING_CONVERSION, {.type_1 = from, .type_2 = to, .location = location});
-            return;
+            return false;
         }
     }
 
@@ -94,16 +100,24 @@ void AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
 
         if (base_t1->size != base_t2->size) {
             reportError(ErrCode::DISTINCTLY_SIZED_ARR, {.type_1 = from, .type_2 = to, .location = location});
-            return;
+            return false;
         }
 
-        checkTypeCompatibility(base_t1->of_type, base_t2->of_type, location);
-        return;
+        return checkTypeCompatibility(base_t1->of_type, base_t2->of_type, location);
     }
 
-    if (!(from->isIntegral() && to->isIntegral()) && !(from->isFloatingPoint() && to->isFloatingPoint())) {
-        reportError(ErrCode::INCOMPATIBLE_TYPES, {.type_1 = from, .type_2 = to, .location = location});
-    }
+    if (from->getSwType() == Type::STRUCT || to->getSwType() == Type::STRUCT) {
+        if (from != to) {
+            reportError(
+                ErrCode::INCOMPATIBLE_TYPES, {
+                    .type_1 = from,
+                    .type_2 = to,
+                    .location = location
+                }
+            );
+            return false;
+        }
+    } return true;
 }
 
 
