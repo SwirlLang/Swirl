@@ -7,7 +7,7 @@
 
 #include "metadata.h"
 
-#include <types/SwTypes.h>
+#include <types/definitions.h>
 #include <types/TypeManager.h>
 #include <symbols/IdentManager.h>
 #include <llvm/IR/Value.h>
@@ -70,30 +70,18 @@ class SymbolManager {
 
 
 public:
-    explicit SymbolManager(std::filesystem::path uid, ModuleManager& module_man): m_ModuleMap(module_man), m_ModulePath{std::move(uid)} {
-        // create the global scope
+     explicit SymbolManager(std::filesystem::path uid, ModuleManager& module_man)
+        : m_ModuleMap(module_man)
+        , m_ModulePath(std::move(uid))
+    {
+        // Create the global scope
         m_ScopeTrack.push_back(&m_Scopes.emplace_back(m_ModulePath));
 
-        // register built-in types in the global scope
-        registerType(m_Scopes.front().getNewIDInfo("i8"),   &GlobalTypeI8);
-        registerType(m_Scopes.front().getNewIDInfo("i16"),  &GlobalTypeI16);
-        registerType(m_Scopes.front().getNewIDInfo("i32"),  &GlobalTypeI32);
-        registerType(m_Scopes.front().getNewIDInfo("i64"),  &GlobalTypeI64);
-        registerType(m_Scopes.front().getNewIDInfo("i128"), &GlobalTypeI128);
-
-        registerType(m_Scopes.front().getNewIDInfo("u8"),   &GlobalTypeU8);
-        registerType(m_Scopes.front().getNewIDInfo("u16"),  &GlobalTypeU16);
-        registerType(m_Scopes.front().getNewIDInfo("u32"),  &GlobalTypeU32);
-        registerType(m_Scopes.front().getNewIDInfo("u64"),  &GlobalTypeU64);
-        registerType(m_Scopes.front().getNewIDInfo("u128"), &GlobalTypeU128);
-
-        registerType(m_Scopes.front().getNewIDInfo("f32"),  &GlobalTypeF32);
-        registerType(m_Scopes.front().getNewIDInfo("f64"),  &GlobalTypeF64);
-
-        registerType(m_Scopes.front().getNewIDInfo("bool"), &GlobalTypeBool);
-        registerType(m_Scopes.front().getNewIDInfo("str"),  &GlobalTypeStr);
-
-        registerType(m_Scopes.front().getNewIDInfo("void"), &GlobalTypeVoid);
+        // Register all built-in types in the global scope
+        for (const auto [str, type] : BuiltinTypes) {
+            const auto id = m_ScopeTrack.back()->getNewIDInfo(std::string(str));
+            registerType(id, type);
+        }
     }
 
     TableEntry& lookupDecl(IdentInfo* id);
