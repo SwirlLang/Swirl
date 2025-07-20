@@ -3,7 +3,6 @@
 #include <parser/Parser.h>
 
 struct Node;
-using SwAST_t = std::vector<std::unique_ptr<Node>>;
 class SymbolManager;
 class SourceManager;
 
@@ -102,7 +101,7 @@ public:
     };
 
 private:
-    SwAST_t& m_AST;
+    AST_t& m_AST;
 
     std::stack<Type*> m_BoundTypeState;
 

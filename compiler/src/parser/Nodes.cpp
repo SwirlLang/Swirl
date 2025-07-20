@@ -37,6 +37,7 @@ std::unordered_map<Op::OpTag_t, OpInfo> OpInfoTable = {
     {Op::MUL, {60, OpInfo::LEFT}},
     {Op::DIV, {60, OpInfo::LEFT}},
 
+    {Op::CAST_OP, {100, OpInfo::LEFT}},
     {Op::DOT, {800, OpInfo::LEFT}},
 };
 

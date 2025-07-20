@@ -1,9 +1,14 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <filesystem>
 #include <unordered_set>
 #include <unordered_map>
 #include <string_view>
+
+
+struct Node;
+using AST_t = std::vector<std::unique_ptr<Node>>;
 
 
 consteval std::filesystem::path getSpmPkgInstallDir() {

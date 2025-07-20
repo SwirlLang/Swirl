@@ -6,11 +6,12 @@
 #include <unordered_set>
 #include <utility>
 
-#include <parser/Nodes.h>
-#include <lexer/TokenStream.h>
-#include <lexer/Tokens.h>
-#include <managers/ErrorManager.h>
-#include <symbols/SymbolManager.h>
+#include "definitions.h"
+#include "parser/Nodes.h"
+#include "lexer/TokenStream.h"
+#include "lexer/Tokens.h"
+#include "managers/ErrorManager.h"
+#include "symbols/SymbolManager.h"
 
 #include "ExpressionParser.h"
 
@@ -55,7 +56,7 @@ class Parser {
 public:
     SymbolManager SymbolTable;
 
-    std::vector<std::unique_ptr<Node>> AST;
+    AST_t AST;
     std::unordered_map<IdentInfo*, Node*> NodeJmpTable;  // maps global symbols to their nodes
 
     explicit Parser(const std::filesystem::path& path, ErrorCallback_t, ModuleManager&);
