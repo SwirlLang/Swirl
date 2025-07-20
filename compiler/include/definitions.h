@@ -55,6 +55,7 @@ inline std::unordered_map<std::string, int> operators = {
     {"-", 8},
     {"*", 16},
     {"/", 16},
+    {"//", 16},
 
     {"as", 19},
     {"!", 20},
