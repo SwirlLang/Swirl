@@ -80,6 +80,12 @@ std::string TokenStream::readWhile(const std::function<bool(char)>& pred) {
 Token TokenStream::readOperator() {
     if (const auto pot_op = std::string(1, m_Stream.getCurrentChar()) + m_Stream.peek(); operators.contains(pot_op)) {
         m_Stream.next();
+
+        // discard the next operator if its a comment
+        if (pot_op == "//") {
+            m_Stream.next();
+        }
+
         return {OP, pot_op, getStreamState()};
     }
 
