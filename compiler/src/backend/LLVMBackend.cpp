@@ -4,6 +4,7 @@
 #include <ranges>
 #include <unordered_map>
 
+#include "CompilerInst.h"
 #include <backend/LLVMBackend.h>
 #include <managers/ModuleManager.h>
 
@@ -43,6 +44,49 @@ public:
      }
 };
 
+
+LLVMBackend::LLVMBackend(Parser& parser)
+    : LModule{std::make_unique<llvm::Module>(parser.m_FilePath.string(), Context)}
+    , AST(std::move(parser.AST))
+    , SymMan(parser.SymbolTable)
+    , ModuleMap(parser.m_ModuleMap)
+    , GlobalNodeJmpTable(std::move(parser.NodeJmpTable))
+{
+    m_LatestBoundType.emplace(nullptr);
+    m_AssignmentLhsStack.emplace(false);
+
+    if (m_AlreadyInstantiated) {
+        LModule->setDataLayout(TargetMachine->createDataLayout());
+        LModule->setTargetTriple(CompilerInst::TargetTriple);
+    }
+
+    if (m_AlreadyInstantiated) return;
+
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
+    llvm::InitializeAllAsmPrinters();
+
+    std::string error;
+    const auto target = llvm::TargetRegistry::lookupTarget(CompilerInst::TargetTriple, error);
+
+    if (!target) {
+        throw std::runtime_error("Failed to lookup target! " + error);
+    }
+
+    llvm::TargetOptions options;
+    auto reloc_model = std::optional<llvm::Reloc::Model>();
+
+    TargetMachine = target->createTargetMachine(
+        CompilerInst::TargetTriple, "generic", "", options, reloc_model
+    );
+
+    LModule->setDataLayout(TargetMachine->createDataLayout());
+    LModule->setTargetTriple(CompilerInst::TargetTriple);
+
+    m_AlreadyInstantiated = true;
+}
 
 
 void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<Node>>& children) {

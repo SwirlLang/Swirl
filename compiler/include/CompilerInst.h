@@ -22,15 +22,23 @@ class CompilerInst {
     std::optional<Parser> m_MainModParser = std::nullopt;
     ErrorCallback_t       m_ErrorCallback = nullptr;
 
-
 public:
+    inline static std::string TargetTriple;
+
     explicit CompilerInst(fs::path path)
         : m_SourceManager(path)
         , m_SrcPath(std::move(path)) { }
 
+
     void setBaseThreadCount(const std::string& count) { m_BaseThreadCount = std::stoi(count); }
+    static void setTargetTriple(const std::string& triple) { TargetTriple = triple; }
+
 
     void compile() {
+        if (TargetTriple.empty()) {
+            TargetTriple = llvm::sys::getDefaultTargetTriple();
+        }
+
         if (m_ErrorCallback == nullptr) {
             m_ErrorCallback =
                 [this](const ErrCode code, const ErrorContext& ctx) { m_ErrorManager.newErrorLocked(code, ctx); };
@@ -84,6 +92,8 @@ public:
 
         // m_ThreadPool.wait();
     }
+
+    std::string_view getTargetTriple() const { return TargetTriple; }
 
     // ~CompilerInst() { m_ThreadPool.shutdown(); }
 };

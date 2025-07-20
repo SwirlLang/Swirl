@@ -1,3 +1,5 @@
+#include <ranges>
+
 #include <parser/Parser.h>
 #include <managers/ModuleManager.h>
 

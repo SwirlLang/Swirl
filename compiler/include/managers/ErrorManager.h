@@ -3,6 +3,7 @@
 #include <print>
 #include <optional>
 #include <filesystem>
+#include <ranges>
 
 #include <lexer/TokenStream.h>
 

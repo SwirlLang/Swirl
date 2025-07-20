@@ -35,7 +35,6 @@ public:
     SymbolManager& SymMan;
     ModuleManager& ModuleMap;
 
-    inline static const std::string TargetTriple = llvm::sys::getDefaultTargetTriple();
     inline static const llvm::TargetMachine* TargetMachine = nullptr;
 
     std::unordered_map<IdentInfo*, Node*>  GlobalNodeJmpTable;
@@ -51,49 +50,7 @@ public:
     Type*        StructFieldType = nullptr; // used to "bubble-up" struct-field types
     // -------------------------------------------------------
 
-    explicit LLVMBackend(Parser& parser)
-        : LModule{std::make_unique<llvm::Module>(parser.m_FilePath.string(), Context)}
-        , AST(std::move(parser.AST))
-        , SymMan(parser.SymbolTable)
-        , ModuleMap(parser.m_ModuleMap)
-        , GlobalNodeJmpTable(std::move(parser.NodeJmpTable))
-    {
-        m_LatestBoundType.emplace(nullptr);
-        m_AssignmentLhsStack.emplace(false);
-
-        if (m_AlreadyInstantiated) {
-            LModule->setDataLayout(TargetMachine->createDataLayout());
-            LModule->setTargetTriple(TargetTriple);
-        }
-
-        if (m_AlreadyInstantiated) return;
-
-        llvm::InitializeAllTargetInfos();
-        llvm::InitializeAllTargets();
-        llvm::InitializeAllTargetMCs();
-        llvm::InitializeAllAsmParsers();
-        llvm::InitializeAllAsmPrinters();
-
-        std::string error;
-        const auto target = llvm::TargetRegistry::lookupTarget(TargetTriple, error);
-
-        if (!target) {
-            throw std::runtime_error("Failed to lookup target! " + error);
-        }
-
-        llvm::TargetOptions options;
-        auto reloc_model = std::optional<llvm::Reloc::Model>();
-
-        TargetMachine = target->createTargetMachine(
-            TargetTriple, "generic", "", options, reloc_model
-        );
-
-        LModule->setDataLayout(TargetMachine->createDataLayout());
-        LModule->setTargetTriple(TargetTriple);
-
-        m_AlreadyInstantiated = true;
-    }
-
+    explicit LLVMBackend(Parser& parser);
 
     /// perform any necessary type casts, then return the llvm::Value*
     /// note: `subject` is supposed to be a "loaded" value
@@ -167,6 +124,10 @@ public:
 
     void restoreBoundTypeState() {
         m_LatestBoundType.pop();
+    }
+
+    const llvm::DataLayout& getDataLayout() const {
+        return LModule->getDataLayout();
     }
 
 private:

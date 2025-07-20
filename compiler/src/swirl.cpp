@@ -12,7 +12,8 @@ const std::vector<Argument> application_flags = {
     {{"-o", "--output"}, "Output file name", true, {}},
     {{"-d", "--debug"}, "Log the steps of compilation", false, {}},
     {{"-v", "--version"}, "Show the version of Swirl", false, {}},
-    {{"-t", "--threads"}, "No. of threads to use (excluding the main-thread).", true}
+    {{"-j", "--threads"}, "No. of threads to use (excluding the main-thread).", true},
+    {{"-t", "--target"}, "The target-triple of the target-platform", true}
 };
 
 
@@ -52,8 +53,11 @@ int main(int argc, const char** argv) {
             source_file_path = absolute(source_file_path);
 
         CompilerInst compiler_inst{source_file_path};
+
+        if (app.contains_flag("-j"))
+            compiler_inst.setBaseThreadCount(app.get_flag_value("-j"));
         if (app.contains_flag("-t"))
-            compiler_inst.setBaseThreadCount(app.get_flag_value("-t"));
+            CompilerInst::setTargetTriple(app.get_flag_value("-t"));
 
         compiler_inst.compile();
     }
