@@ -29,7 +29,7 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
 
         reportError(
             ErrCode::INCOMPATIBLE_TYPES,
-            {.location = location, .type_1 = type1, .type_2 = type2}
+            {.type_1 = type1, .type_2 = type2, .location = location}
             );
 
         return nullptr;
@@ -48,7 +48,7 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
         if (arr_1->size != arr_2->size) {
             reportError(
                 ErrCode::INCOMPATIBLE_TYPES,
-                {.location = location, .type_1 = arr_1, .type_2 = arr_2}
+                {.type_1 = arr_1, .type_2 = arr_2, .location = location}
                 );
             return nullptr;
         }
@@ -62,7 +62,7 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
         }
     }
 
-    reportError(ErrCode::INCOMPATIBLE_TYPES, {.location = location, .type_1 = type1, .type_2 = type2});
+    reportError(ErrCode::INCOMPATIBLE_TYPES, {.type_1 = type1, .type_2 = type2, .location = location});
     return nullptr;
 }
 
@@ -170,7 +170,7 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
             if (!id) {
                 ctx.reportError(
                     ErrCode::SYMBOL_NOT_FOUND_IN_MOD,
-                    {.location = location, .path_1 = mod_path, .str_1 = symbol.actual_name}
+                    {.path_1 = mod_path, .str_1 = symbol.actual_name, .location = location}
                     );
                 continue;
             }
@@ -309,7 +309,7 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     if (!value) {
         ctx.reportError(
             ErrCode::UNDEFINED_IDENTIFIER,
-            {.location = location, .str_1 = full_qualification.back()}
+            {.str_1 = full_qualification.back(), .location = location}
             );
         ctx.Cache.insert({this, ret});
         return ret;
