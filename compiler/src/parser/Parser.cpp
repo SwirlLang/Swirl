@@ -120,6 +120,10 @@ SwNode Parser::dispatch() {
                 if (m_Stream.CurTok.value == "extern") {
                     m_LastSymIsExtern = true;
                     forwardStream();
+
+                    if (m_Stream.CurTok.type == STRING) {
+                        m_ExternAttributes = std::move(m_Stream.CurTok.value);
+                    } forwardStream();
                     continue;
                 }
 
@@ -173,8 +177,8 @@ SwNode Parser::dispatch() {
                     return std::make_unique<Node>();
                 }
             default:
-                forwardStream();
                 reportError(ErrCode::SYNTAX_ERROR);
+                forwardStream();
         }
     }
 
@@ -303,9 +307,11 @@ std::unique_ptr<Function> Parser::parseFunction() {
     func_nd.location = m_Stream.getStreamState();
     func_nd.is_exported = m_LastSymWasExported;
     func_nd.is_extern = m_LastSymIsExtern;
+    func_nd.extern_attributes = m_ExternAttributes;
 
     m_LastSymWasExported = false;
     m_LastSymIsExtern = false;
+    m_ExternAttributes.clear();
 
     m_Stream.expectTypes({IDENT});
     const std::string func_ident = m_Stream.next().value;
@@ -349,7 +355,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     }
 
     // current token == ')'
-    forwardStream();
+    forwardStream();  // skip ')'
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();
@@ -372,8 +378,13 @@ std::unique_ptr<Function> Parser::parseFunction() {
     m_LatestFuncNode = ret.get();
     NodeJmpTable[ret->ident] = ret.get();
 
+    if (ret->is_extern) {
+        // TODO: report an error if a body is provided
+        return std::move(ret);
+    }
+
     // parse the children
-    forwardStream();
+    forwardStream();  // skip '{'
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
         ret->children.push_back(dispatch());
     } forwardStream();
@@ -390,9 +401,11 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     var_node.is_volatile = is_volatile;
     var_node.is_exported = m_LastSymWasExported;
     var_node.is_extern = m_LastSymIsExtern;
+    var_node.extern_attributes = m_ExternAttributes;
 
     m_LastSymWasExported = false;
     m_LastSymIsExtern = false;
+    m_ExternAttributes.clear();
 
     const std::string var_ident = m_Stream.next().value;
     forwardStream();  // [:, =]
@@ -538,8 +551,11 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     Struct ret;
     ret.is_exported = m_LastSymWasExported;
     ret.location = m_Stream.getStreamState();
+    ret.is_externed = m_LastSymIsExtern;
+    ret.extern_attributes = m_ExternAttributes;
 
     m_LastSymWasExported = false;
+    m_LastSymIsExtern = false;
 
     const auto struct_ty = new StructType{};
 

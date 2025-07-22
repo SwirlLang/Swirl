@@ -206,10 +206,16 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
 
     const auto fn_sw_type = dynamic_cast<FunctionType*>(instance.SymMan.lookupType(ident));
 
-    auto linkage = this->is_exported ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
+    auto linkage = (is_exported || is_extern) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
 
     auto*               fn_type  = llvm::dyn_cast<llvm::FunctionType>(fn_sw_type->llvmCodegen(instance));
     llvm::Function*     func     = llvm::Function::Create(fn_type, linkage, ident->toString(), instance.LModule.get());
+
+    if (is_extern) {
+        if (extern_attributes == "C")
+            func->setCallingConv(llvm::CallingConv::C);
+        return func;
+    }
 
     llvm::BasicBlock*   entry_bb = llvm::BasicBlock::Create(instance.Context, "entry", func);
 
@@ -731,7 +737,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     llvm::Value* ret;
     llvm::Value* init = nullptr;
 
-    auto linkage = this->is_exported ? llvm::GlobalVariable::ExternalLinkage : llvm::GlobalVariable::InternalLinkage;
+    auto linkage = (is_exported || is_extern) ? llvm::GlobalVariable::ExternalLinkage : llvm::GlobalVariable::InternalLinkage;
 
     
     if (!instance.IsLocalScope) {
@@ -751,6 +757,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
         instance.SymMan.lookupDecl(this->var_ident).llvm_value = var;
     } else {
         llvm::AllocaInst* var_alloca = instance.Builder.CreateAlloca(type, nullptr, var_ident->toString());
+        if (is_extern) return var_alloca;
 
         if (initialized) {
             instance.BoundMemory = var_alloca;

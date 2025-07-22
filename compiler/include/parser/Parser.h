@@ -35,6 +35,7 @@ class Parser {
     bool         m_LastSymWasExported = false;
     bool         m_LastSymIsExtern = false;
 
+    std::string m_ExternAttributes;
     std::optional<Token> m_ReturnFakeToken = std::nullopt;
     // ---*--- ---*--- ---*---
 

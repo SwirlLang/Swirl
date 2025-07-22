@@ -315,6 +315,8 @@ struct Var final : Node {
     bool is_volatile = false;
     bool is_extern = false;  // whether it has been extern'd
 
+    std::string extern_attributes;
+
     Var() = default;
 
     [[nodiscard]] NodeType getNodeType()  const override { return ND_VAR; }
@@ -331,7 +333,8 @@ struct Var final : Node {
 struct Function final : Node {
     IdentInfo* ident = nullptr;
 
-    bool is_extern = false;  // whether it has been extern'd
+    bool is_extern = false;
+    std::string extern_attributes;
 
     std::vector<Var> params;
     std::vector<std::unique_ptr<Node>> children;
@@ -425,6 +428,9 @@ struct WhileLoop final : Node {
 struct Struct final : Node {
     IdentInfo* ident = nullptr;
     std::vector<std::unique_ptr<Node>> members;
+
+    bool is_externed = false;
+    std::string extern_attributes;
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_STRUCT;
