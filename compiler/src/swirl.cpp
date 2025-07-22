@@ -13,7 +13,8 @@ const std::vector<Argument> application_flags = {
     {{"-d", "--debug"}, "Log the steps of compilation", false, {}},
     {{"-v", "--version"}, "Show the version of Swirl", false, {}},
     {{"-j", "--threads"}, "No. of threads to use (excluding the main-thread).", true},
-    {{"-t", "--target"}, "The target-triple of the target-platform", true}
+    {{"-t", "--target"}, "The target-triple of the target-platform", true},
+    {{"-l", "--link"}, "The name of the library to link against.", true}
 };
 
 
@@ -58,6 +59,8 @@ int main(int argc, const char** argv) {
             compiler_inst.setBaseThreadCount(app.get_flag_value("-j"));
         if (app.contains_flag("-t"))
             CompilerInst::setTargetTriple(app.get_flag_value("-t"));
+        if (app.contains_flag("-l"))  // until the cli supports multiple-values for the same flag...
+            CompilerInst::appendLinkTarget(app.get_flag_value("-l"));
 
         compiler_inst.compile();
     }

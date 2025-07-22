@@ -22,8 +22,10 @@ class CompilerInst {
     std::optional<Parser> m_MainModParser = std::nullopt;
     ErrorCallback_t       m_ErrorCallback = nullptr;
 
+
 public:
     inline static std::string TargetTriple;
+    inline static std::vector<std::string> LinkTargets;
 
     explicit CompilerInst(fs::path path)
         : m_SourceManager(path)
@@ -45,6 +47,8 @@ public:
         }
 
         m_MainModParser.emplace(m_SrcPath, m_ErrorCallback, m_ModuleManager);
+        m_ModuleManager.setMainModParser(&(*m_MainModParser));
+
         m_MainModParser->parse();
 
         if (m_ErrorManager.errorOccurred()) {
@@ -94,6 +98,7 @@ public:
     }
 
     static std::string_view getTargetTriple() { return TargetTriple; }
+    static void appendLinkTarget(std::string_view target) { LinkTargets.emplace_back(target); }
 
     // ~CompilerInst() { m_ThreadPool.shutdown(); }
 };

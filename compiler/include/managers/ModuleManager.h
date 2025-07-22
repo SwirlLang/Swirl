@@ -11,6 +11,8 @@ class ModuleManager {
     std::vector<Parser*> m_ZeroDepVec;  // holds modules with zero dependencies
     std::vector<Parser*> m_BackBuffer;  // this will be swapped with the above vector after flushing
 
+    Parser* m_MainModule = nullptr;
+
     friend class Parser;
 
 public:
@@ -48,6 +50,15 @@ public:
 
     std::size_t size() const {
         return m_ModuleMap.size();
+    }
+
+    void setMainModParser(Parser* parser) {
+        assert(parser != nullptr);
+        m_MainModule = parser;
+    }
+
+    Parser* getMainModParser() const {
+        return m_MainModule;
     }
 
     auto begin()  {
