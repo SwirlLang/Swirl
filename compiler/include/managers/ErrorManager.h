@@ -126,8 +126,9 @@ private:
         std::fill(backticks.begin(), backticks.end(), ' ');
 
         backticks.append("|\t");
-        backticks.append_range(std::views::repeat(' ') | std::views::take(ctx.location->Col));
-        backticks.append("^");
+        for (std::size_t i = 0; i < ctx.location->Col; i++) {
+            backticks.append(" ");
+        } backticks.append("^");
 
         m_ErrorBuffer += std::format(
             "At {}:{}:{}\n"

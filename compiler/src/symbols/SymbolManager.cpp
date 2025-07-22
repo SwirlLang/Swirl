@@ -19,7 +19,7 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
     }
 
     const Scope* look_at = nullptr;
-    for (const auto& [counter, str] : id.full_qualification | std::views::enumerate) {
+    for (const auto& [counter, str] : llvm::enumerate(id.full_qualification)) {
         if (counter == id.full_qualification.size() - 1) break;
         if (counter == 0) {
             auto tmp = lookupDecl(getIdInfoOfAGlobal(str));

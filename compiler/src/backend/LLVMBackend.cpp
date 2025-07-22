@@ -152,7 +152,7 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
         // set llvm_value = array member
         auto base_ptr = instance.Builder.CreateStructGEP(instance.getBoundLLVMType(), instance.BoundMemory, 0);
 
-        for (auto [i, element] : std::views::enumerate(elements)) {
+        for (auto [i, element] : llvm::enumerate(elements)) {
             ptr = instance.Builder.CreateGEP(arr_type, base_ptr, {instance.toLLVMInt(0), instance.toLLVMInt(i)});
             if (element.expr_type->getSwType() == Type::ARRAY) {
                 bound_mem_cache = instance.BoundMemory;
@@ -168,7 +168,7 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
     auto tmp = instance.Builder.CreateAlloca(instance.getBoundLLVMType());
     auto base_ptr = instance.Builder.CreateStructGEP(instance.getBoundLLVMType(), tmp, 0);
 
-    for (auto [i, element] : std::views::enumerate(elements)) {
+    for (auto [i, element] : llvm::enumerate(elements)) {
         ptr = instance.Builder.CreateGEP(arr_type, base_ptr, {instance.toLLVMInt(0), instance.toLLVMInt(i)});
         if (element.expr_type->getSwType() == Type::ARRAY) {
             bound_mem_cache = instance.BoundMemory;
