@@ -188,6 +188,11 @@ llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
     // if (e.is_param) { return e.llvm_value; }
     if (instance.getAssignmentLhsState()) { return e.llvm_value; }
 
+    if (!instance.IsLocalScope) {
+        auto global_var = llvm::dyn_cast<llvm::GlobalVariable>(e.llvm_value);
+        return global_var->getInitializer();
+    }
+
     return e.is_param
     ? instance.castIfNecessary(e.swirl_type, e.llvm_value)
     : instance.castIfNecessary(
