@@ -3,6 +3,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include <definitions.h>
 #include <utils/utils.h>
 
 
@@ -31,24 +32,10 @@ struct Array {
 
 struct Deleter {
     void operator()(const Type* ptr) const {
-        if (ptr == &GlobalTypeI8   ||
-            ptr == &GlobalTypeI16  ||
-            ptr == &GlobalTypeI32  ||
-            ptr == &GlobalTypeI64  ||
-            ptr == &GlobalTypeI128 ||
-            ptr == &GlobalTypeU8   ||
-            ptr == &GlobalTypeU16  ||
-            ptr == &GlobalTypeU32  ||
-            ptr == &GlobalTypeU64  ||
-            ptr == &GlobalTypeU128 ||
-            ptr == &GlobalTypeF32  ||
-            ptr == &GlobalTypeF64  ||
-            ptr == &GlobalTypeBool ||
-            ptr == &GlobalTypeVoid ||
-            ptr == &GlobalTypeStr) {
-            } else {
-                delete ptr;
-            }
+        for (const auto& [key, val] : BuiltinTypes) {
+            if (val == ptr)
+                return;
+        } delete ptr;
     }
 };
 }

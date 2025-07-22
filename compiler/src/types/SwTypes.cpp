@@ -3,8 +3,24 @@
 #include <backend/LLVMBackend.h>
 #include <symbols/IdentManager.h>
 
+#include "CompilerInst.h"
 
-// TODO: assign address spaces to types
+
+std::string FunctionType::toString() const {
+    return ident->toString();
+}
+
+std::string StructType::toString() const {
+    return ident->toString();
+}
+
+std::string PointerType::toString() const {
+    std::string ret = of_type->toString();
+    for (int i = 0; i < pointer_level; i++) {
+        ret.append("*");
+    } return std::move(ret);
+}
+
 
 llvm::Type* FunctionType::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Type*> llvm_param_types;
@@ -53,6 +69,7 @@ llvm::Type* StructType::llvmCodegen(LLVMBackend& instance) {
     instance.LLVMTypeCache[this] = struct_t;
     return struct_t;
 }
+
 
 llvm::Type* PointerType::llvmCodegen(LLVMBackend& instance) {
     return llvm::PointerType::get(of_type->llvmCodegen(instance), 1);
@@ -115,5 +132,178 @@ llvm::Type* TypeF64::llvmCodegen(LLVMBackend& instance) {
 llvm::Type* TypeBool::llvmCodegen(LLVMBackend& instance) {
     auto ret = llvm::Type::getInt1Ty(instance.Context);
     return ret;
+}
+
+
+// generate the method definitions for types which do not diverge significantly
+#define DEFINE_CTYPE_DEF(Name, BitWidth, IsIntegral) \
+    int  Name::getBitWidth() { return BitWidth; } \
+    bool Name::isIntegral() { return IsIntegral; } \
+    bool Name::isFloatingPoint() { return !IsIntegral; } \
+    llvm::Type* Name::llvmCodegen(LLVMBackend& _) { \
+        return llvm::Type::getIntNTy(_.Context, BitWidth); \
+        }
+
+#define DEFINE_ATTRIBUTES(Name, IsIntegral) \
+    bool Name::isIntegral() { return IsIntegral; } \
+    bool Name::isFloatingPoint() { return !IsIntegral; }
+
+DEFINE_CTYPE_DEF(TypeCInt,       32, true )
+DEFINE_CTYPE_DEF(TypeCUInt,      32, true )
+DEFINE_CTYPE_DEF(TypeCLL,        64, true )
+DEFINE_CTYPE_DEF(TypeCULL,       64, true )
+DEFINE_CTYPE_DEF(TypeCSChar,      8, true )     // signed char
+DEFINE_CTYPE_DEF(TypeCUChar,      8, true )      // unsigned char
+DEFINE_CTYPE_DEF(TypeCShort,     16, true )
+DEFINE_CTYPE_DEF(TypeCUShort,    16, true )
+DEFINE_CTYPE_DEF(TypeCBool,       8, true )      // usually 1 byte and unsigned
+DEFINE_CTYPE_DEF(TypeCFloat,     32, false)
+DEFINE_CTYPE_DEF(TypeCDouble,    64, false)
+DEFINE_CTYPE_DEF(TypeCIntMax,    64, true )
+DEFINE_CTYPE_DEF(TypeCUIntMax,   64, true )
+
+DEFINE_ATTRIBUTES(TypeCL, true)
+DEFINE_ATTRIBUTES(TypeCUL, true)
+DEFINE_ATTRIBUTES(TypeCSizeT, true)
+DEFINE_ATTRIBUTES(TypeCSSizeT, true)
+DEFINE_ATTRIBUTES(TypeCPtrDiffT, true)
+
+DEFINE_ATTRIBUTES(TypeCWChar, true)
+DEFINE_ATTRIBUTES(TypeCLDouble, false)
+DEFINE_ATTRIBUTES(TypeCIntPtr, true)
+DEFINE_ATTRIBUTES(TypeCUIntPtr, true)
+
+#undef DEFINE_CTYPE_DEF
+#undef DEFINE_ATTRIBUTES
+
+
+int TypeCL::getBitWidth() {
+    const auto arch = llvm::Triple(CompilerInst::getTargetTriple()).getArch();
+    if (arch == llvm::Triple::x86_64 || arch == llvm::Triple::aarch64)
+        return 64;
+    if (arch == llvm::Triple::x86 || arch == llvm::Triple::arm)
+        return 32;
+    throw std::runtime_error("TypeCL::isUnsigned: unsupported arch");
+}
+
+llvm::Type* TypeCL::llvmCodegen(LLVMBackend& instance) {
+    return llvm::Type::getIntNTy(instance.Context, getBitWidth());
+}
+
+int TypeCSSizeT::getBitWidth() {
+    return LLVMBackend::TargetMachine->getPointerSizeInBits(0);
+}
+
+llvm::Type* TypeCSSizeT::llvmCodegen(LLVMBackend& instance) {
+    return llvm::Type::getIntNTy(instance.Context, getBitWidth());
+}
+
+
+int TypeCSizeT::getBitWidth() {
+    return TypeCSSizeT{}.getBitWidth();
+}
+
+llvm::Type* TypeCSizeT::llvmCodegen(LLVMBackend& instance) {
+    return TypeCSSizeT{}.llvmCodegen(instance);
+}
+
+int TypeCUL::getBitWidth() {
+    return TypeCL{}.getBitWidth();
+}
+
+llvm::Type* TypeCUL::llvmCodegen(LLVMBackend& instance) {
+    return TypeCL{}.llvmCodegen(instance);
+}
+
+
+int TypeCPtrDiffT::getBitWidth() {
+    return LLVMBackend::TargetMachine->getPointerSizeInBits(0);
+}
+
+llvm::Type* TypeCPtrDiffT::llvmCodegen(LLVMBackend& instance) {
+    return llvm::Type::getIntNTy(instance.Context, getBitWidth());
+}
+
+
+int TypeCWChar::getBitWidth() {
+    const auto triple = llvm::Triple(CompilerInst::getTargetTriple());
+    if (triple.getOS() == llvm::Triple::Win32) {
+        return 16;
+    } return 32;
+}
+
+
+llvm::Type* TypeCWChar::llvmCodegen(LLVMBackend& instance) {
+    return llvm::Type::getIntNTy(instance.Context, getBitWidth());
+}
+
+
+int TypeCLDouble::getBitWidth() {
+    const auto triple = llvm::Triple(CompilerInst::getTargetTriple());
+
+    if (triple.getArch() == llvm::Triple::x86_64) {
+        if (triple.getOS() == llvm::Triple::Win32) {
+            return 64;
+        }
+        if (triple.getOS() == llvm::Triple::Linux || triple.getOS() == llvm::Triple::Darwin) {
+            return 128; // 80-bit x87 extended precision, padded to 128 bits
+        }
+    }
+
+    if (triple.getArch() == llvm::Triple::x86) {
+        if (triple.getOS() == llvm::Triple::Win32) {
+            return 64;
+        }
+        if (triple.getOS() == llvm::Triple::Linux) {
+            return 96; // 80-bit x87 extended, padded to 96
+        }
+    }
+
+    if (triple.getArch() == llvm::Triple::aarch64) {
+        // 128 with -mlong-double-128 not handled
+        return 64;
+    }
+
+    if (triple.getArch() == llvm::Triple::arm) {
+        return 64;
+    }
+
+    throw std::runtime_error("TypeCSSizeT::getBitWidth: unsupported arch");
+}
+
+
+llvm::Type* TypeCLDouble::llvmCodegen(LLVMBackend& instance) {
+    const auto triple = llvm::Triple(CompilerInst::getTargetTriple());
+
+    if (triple.getOS() == llvm::Triple::Linux && triple.getArch() == llvm::Triple::x86) {
+        return llvm::Type::getX86_FP80Ty(instance.Context);
+    }
+
+    if ((triple.getOS() == llvm::Triple::Linux || triple.getOS() == llvm::Triple::Darwin) &&
+        triple.getArch() == llvm::Triple::x86_64) {
+        return llvm::Type::getFP128Ty(instance.Context);
+        }
+
+    return llvm::Type::getDoubleTy(instance.Context);
+}
+
+
+int TypeCIntPtr::getBitWidth() {
+    return TypeCSSizeT{}.getBitWidth();
+}
+
+
+llvm::Type* TypeCIntPtr::llvmCodegen(LLVMBackend& instance) {
+    return TypeCSSizeT{}.llvmCodegen(instance);
+}
+
+
+int TypeCUIntPtr::getBitWidth() {
+    return TypeCSSizeT{}.getBitWidth();
+}
+
+
+llvm::Type* TypeCUIntPtr::llvmCodegen(LLVMBackend& instance) {
+    return TypeCSSizeT{}.llvmCodegen(instance);
 }
 

@@ -2,7 +2,6 @@
 #include <utility>
 
 #include <utils/utils.h>
-#include <types/SwTypes.h>
 #include <parser/Nodes.h>
 #include <parser/Parser.h>
 #include <parser/SemanticAnalysis.h>

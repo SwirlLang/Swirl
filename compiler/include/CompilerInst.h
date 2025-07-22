@@ -93,7 +93,7 @@ public:
         // m_ThreadPool.wait();
     }
 
-    std::string_view getTargetTriple() const { return TargetTriple; }
+    static std::string_view getTargetTriple() { return TargetTriple; }
 
     // ~CompilerInst() { m_ThreadPool.shutdown(); }
 };
