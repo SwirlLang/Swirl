@@ -12,11 +12,19 @@ bool TokenStream::isKeyword(const std::string& _str) {
 }
 
 bool TokenStream::isDigit(const char chr) {
-    return ('0' <= chr && chr <= '9');
+    return ('0' <= chr && chr <= '9') || chr == '_';
 }
 
-bool TokenStream::isNumeric(const char chr) {
-    return isDigit(chr) || chr == 'x' || chr == '_' || chr == '.' || chr == 'o';
+bool TokenStream::isHexDigit(const char chr) {
+    return ('0' <= chr && chr <= '9') || ('A' <= chr && chr <= 'F') || ('a' <= chr && chr <= 'f') || chr == '_';
+}
+
+bool TokenStream::isOctalDigit(const char chr) {
+    return ('0' <= chr && chr <= '7') || chr == '_' ; 
+}
+
+bool TokenStream::isBinaryDigit(const char chr) {
+    return chr == '0' || chr == '1' || chr == '_';
 }
 
 bool TokenStream::isIdStart(const char chr) {
@@ -29,10 +37,6 @@ bool TokenStream::isId(const char chr) {
 
 bool TokenStream::isOpChar(const char _chr) {
     return "+-/*><=&@|.:!"sv.find(_chr) != std::string::npos;
-}
-
-bool TokenStream::isWhiteSpace(const char _chr) {
-    return " \t\n"sv.find(_chr) != std::string::npos;
 }
 
 std::string TokenStream::readEscaped(const char _end) {
@@ -65,31 +69,25 @@ std::string TokenStream::readEscaped(const char _end) {
 
 Token TokenStream::readString(const char del) {
     auto str = readEscaped(del);
-    m_Stream.next();  // escape the '"'
+    if (!m_Stream.eof()) m_Stream.next();  // escape the '"'
     return {STRING, std::move(str), getStreamState()};
 }
 
-std::string TokenStream::readWhile(const std::function<bool(char)>& pred) {
-    std::string ret(1, m_Stream.getCurrentChar());
-
-    while (pred(m_Stream.peek()))
-        ret += m_Stream.next();
-    return ret;
-}
-
 Token TokenStream::readOperator() {
-    if (const auto pot_op = std::string(1, m_Stream.getCurrentChar()) + m_Stream.peek(); operators.contains(pot_op)) {
+    Token tok = {OP, std::string(1, m_Stream.getCurrentChar()), getStreamState()};
+    if (m_Stream.eof()) return tok;
+    else if (const auto pot_op = std::string(1, m_Stream.getCurrentChar()) + m_Stream.peek(); operators.contains(pot_op)) {
         m_Stream.next();
 
-        // discard the next operator if its a comment
+        // discard the next operator if it's a comment not at EOF
         if (pot_op == "//") {
+            if (m_Stream.eof()) return {NONE, "TOKEN:EOF", m_Stream.Line};
             m_Stream.next();
         }
 
         return {OP, pot_op, getStreamState()};
     }
 
-    Token tok = {OP, std::string(1, m_Stream.getCurrentChar()), getStreamState()};
     return tok;
 }
 
@@ -101,35 +99,57 @@ Token TokenStream::readNextTok() {
         case '"': return readString('"');
         case '\'': return readString('\'');
         default:
-            if (isIdStart(ch)) {
-                auto val = readWhile(isId);
-                return {
-                    keywords.contains(val)
-                        ? KEYWORD
-                        : val == "as" ? OP : IDENT,
-
-                    std::move(val),
-                    getStreamState()
-                };
-            }
             if (isOpChar(ch)) {
                 Token op = readOperator();
+                if (op.value == ".") {
+                    if (m_isPreviousTokIdent) {m_isPreviousTokIdent = false; return op;}
+                    else if (!m_Stream.eof() && isDigit(m_Stream.peek()) && m_Stream.peek() != '_') {
+                        return {NUMBER, "0" + readWhile(isDigit, [](char c) {return c == '_';}), getStreamState(), CT_FLOAT};
+                    }
+                } 
+                m_isPreviousTokIdent = false;
                 if (op.value == "//") {
                     return {COMMENT, readWhile([](const char c) { return c != '\n'; }), getStreamState()};
                 }
                 return op;
             }
-            if (isDigit(ch)) {
-                auto val = readWhile(isNumeric);
-                return {NUMBER, val, getStreamState(), val.contains('.') ? CT_FLOAT : CT_INT};
+
+            m_isPreviousTokIdent = false;
+            if (isIdStart(ch)) {
+                auto val = readWhile(isId);
+                if (keywords.contains(val))  return {KEYWORD, std::move(val), getStreamState()};
+                else if (val == "as")        return {OP,      std::move(val), getStreamState()};
+                m_isPreviousTokIdent = true; return {IDENT,   std::move(val), getStreamState()};
             }
-            Token punc = {PUNC, std::string(1, ch), getStreamState()};
-            if (punc.value == ".") {
-                if (isDigit(m_Stream.peek())) {
-                    m_Stream.next();
-                    return {NUMBER, "0." + readWhile(isNumeric), getStreamState(), CT_FLOAT};
+
+            if (isDigit(ch)) {
+                if (m_Stream.eof()) return {NUMBER, std::string(1, ch), getStreamState(), CT_INT};
+                if (ch == '0') {
+                    switch (m_Stream.peek()) {
+                        case 'b':
+                            m_Stream.next();
+                            return {NUMBER, "0" + readWhile(isBinaryDigit, [](char c) {return c == '_';}), getStreamState(), CT_INT};
+                        case 'o':
+                            m_Stream.next();
+                            return {NUMBER, "0" + readWhile(isOctalDigit,  [](char c) {return c == '_';}), getStreamState(), CT_INT};
+                        case 'x':
+                            m_Stream.next();
+                            return {NUMBER, "0" + readWhile(isHexDigit,    [](char c) {return c == '_';}), getStreamState(), CT_INT};
+                    }
                 }
-            } return punc;
+                auto val = readWhile(isDigit, [](char c) {return c == '_';});
+                if (m_Stream.eof()) return {NUMBER, std::move(val), getStreamState(), CT_INT};
+                if (m_Stream.peek() == '.') {
+                    if (m_Stream.almostEOF()) return {NUMBER, std::move(val), getStreamState(), CT_INT};
+                    if (isDigit(m_Stream.peekDeeper()) && m_Stream.peekDeeper() != '_') {
+                        m_Stream.next();
+                        return {NUMBER, std::move(val + readWhile(isDigit, [](char c) {return c == '_';})), getStreamState(), CT_FLOAT};
+                    }
+                }
+                return {NUMBER, std::move(val), getStreamState(), CT_INT};
+            }
+
+            return {PUNC, std::string(1, ch), getStreamState()};
     }
 }
 
@@ -160,13 +180,14 @@ void TokenStream::expectTokens(std::initializer_list<Token>&& tokens) {
 }
 
 Token TokenStream::next(const bool modify_cur_tk) {
-    Token cur_tk = readNextTok();
+    Token cur_tk;
+    unsigned char c;
 
     // Discard junk tokens
-    while ((cur_tk.type == PUNC && (cur_tk.value == " " || cur_tk.value == "\t" || cur_tk.value == "\n")) ||
-           cur_tk.type == COMMENT) {
+    do {
         cur_tk = readNextTok();
-    }
+        c = static_cast<unsigned>(cur_tk.value.at(0));
+    } while ((cur_tk.type == PUNC && (c <= ' ' || c == 0x7F)) || cur_tk.type == COMMENT);
 
     if (modify_cur_tk) CurTok = cur_tk;
     return cur_tk;

@@ -25,10 +25,14 @@ public:
     /** @brief Returns the next value without discarding it */
     char peek() const;
 
+    char peekDeeper() const;
+
     /** @brief returns the next value and discards it */
     char next();
 
     char getCurrentChar() const;
+
+    bool almostEOF() const;
 
     /** @brief returns true if no more chars are left in the m_Stream */
     bool eof() const;

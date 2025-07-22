@@ -25,6 +25,10 @@ char SourceManager::peek() const {
     return m_Source.at(Pos);
 }
 
+char SourceManager::peekDeeper() const {
+    return m_Source.at(Pos + 1);
+}
+
 char SourceManager::getCurrentChar() const {
     return m_CurrentChar;
 }
@@ -63,6 +67,9 @@ void SourceManager::reset() {
     Col = Pos = 0; Line = 1;
 }
 
+bool SourceManager::almostEOF() const {
+    return Pos == m_SourceSize - 1;
+}
 
 bool SourceManager::eof() const {
     return Pos == m_SourceSize;

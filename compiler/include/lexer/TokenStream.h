@@ -13,6 +13,8 @@ class TokenStream {
 
     std::filesystem::path       m_Path;     // a copy of the path for our ErrorManager friend =)
 
+    bool m_isPreviousTokIdent = false;
+
     struct Filter {
         bool  is_active = false;
         bool  only_type = false;
@@ -22,15 +24,39 @@ class TokenStream {
 
     static bool isKeyword(const std::string& _str);
     static bool isDigit( char chr);
-    static bool isNumeric( char chr);
+    static bool isHexDigit( char chr);
+    static bool isOctalDigit( char chr);
+    static bool isBinaryDigit( char chr);
     static bool isIdStart( char chr);
     static bool isId( char chr);
     static bool isOpChar( char _chr);
-    static bool isWhiteSpace( char _chr);
 
     std::string readEscaped( char _end);
     Token readString( char del);
-    std::string readWhile(const std::function<bool(char)>& pred);
+
+    template <typename Fn> requires std::invocable<Fn, char> 
+        && std::same_as<std::invoke_result_t<Fn, char>, bool>
+    std::string readWhile(const Fn pred) {
+        std::string ret(1, m_Stream.getCurrentChar());
+
+        while (!m_Stream.eof() && pred(m_Stream.peek()))
+            ret += m_Stream.next();
+        return ret;
+    }
+    
+    template <typename PredFn, typename FilterFn> requires std::invocable<PredFn, char> 
+        && std::same_as<std::invoke_result_t<PredFn, char>, bool>
+        && std::invocable<FilterFn, char>
+        && std::same_as<std::invoke_result_t<FilterFn, char>, bool>
+    std::string readWhile(const PredFn pred, FilterFn filter) {
+        std::string ret(1, m_Stream.getCurrentChar());
+
+        while (!m_Stream.eof() && pred(m_Stream.peek()))
+            if (filter(m_Stream.peek())) m_Stream.next();
+            else ret += m_Stream.next();
+        return ret;
+    }
+
     Token readOperator();
     Token readNextTok();
 

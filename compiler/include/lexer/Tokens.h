@@ -30,8 +30,8 @@ inline const char* to_string(const TokenType e) {
 }
 
 enum TokenMeta {
-    CT_FLOAT,
     CT_INT,
+    CT_FLOAT,
 };
 
 struct StreamState {

@@ -173,6 +173,7 @@ SwNode Parser::dispatch() {
                     return std::make_unique<Node>();
                 }
             default:
+                forwardStream();
                 reportError(ErrCode::SYNTAX_ERROR);
         }
     }
