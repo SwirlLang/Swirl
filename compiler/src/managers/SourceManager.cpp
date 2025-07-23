@@ -6,7 +6,6 @@
 std::size_t prev_col_state = 0;
 
 SourceManager::SourceManager(const std::filesystem::path& file_path): m_SourcePath(file_path) {
-    m_SourceSize = file_size(file_path);
     std::ifstream file_stream{file_path};
 
     std::size_t ln_counter = 1;
@@ -68,11 +67,11 @@ void SourceManager::reset() {
 }
 
 bool SourceManager::almostEOF() const {
-    return Pos == m_SourceSize - 1;
+    return Pos == m_Source.size() - 1;
 }
 
 bool SourceManager::eof() const {
-    return Pos == m_SourceSize;
+    return Pos == m_Source.size();
 }
 
 std::string SourceManager::getCurrentLine() const {

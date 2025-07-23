@@ -9,7 +9,6 @@ class SourceManager {
     std::tuple<size_t, size_t, size_t> cache;
     std::string m_CurrentLine;
     std::string m_Source;
-    std::size_t m_SourceSize{};
 
     std::filesystem::path m_SourcePath;
 
