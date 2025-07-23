@@ -1,7 +1,9 @@
 configure_file(include/SwirlConfig.h.in "${PROJECT_BINARY_DIR}/include/SwirlConfig.h")
 
 find_package(LLVM REQUIRED CONFIG)
+
 include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(${CLANG_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 
@@ -24,7 +26,7 @@ endif (WIN32)
 include_directories("include")
 include_directories("${PROJECT_BINARY_DIR}")
 
-file(GLOB_RECURSE SOURCES "src/*/*.cpp")
+file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 add_executable(swirl src/swirl.cpp
         "${SOURCES}"

@@ -6,7 +6,6 @@
 
 #include "CompilerInst.h"
 #include <backend/LLVMBackend.h>
-#include <managers/ModuleManager.h>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Function.h>
@@ -46,11 +45,11 @@ public:
 
 
 LLVMBackend::LLVMBackend(Parser& parser)
-    : LModule{std::make_unique<llvm::Module>(parser.m_FilePath.string(), Context)}
+    : LModule{
+        std::make_unique<llvm::Module>(parser.m_FilePath.string(), Context)
+    }
     , AST(std::move(parser.AST))
     , SymMan(parser.SymbolTable)
-    , ModuleMap(parser.m_ModuleMap)
-    , GlobalNodeJmpTable(std::move(parser.NodeJmpTable))
 {
     m_LatestBoundType.emplace(nullptr);
     m_AssignmentLhsStack.emplace(false);
@@ -74,9 +73,12 @@ LLVMBackend::LLVMBackend(Parser& parser)
     llvm::TargetOptions options;
     auto reloc_model = std::optional<llvm::Reloc::Model>();
 
-    TargetMachine = target->createTargetMachine(
-        CompilerInst::TargetTriple, "generic", "", options, reloc_model
-    );
+    static std::once_flag _;
+    std::call_once(_, [&, this] {
+        TargetMachine = target->createTargetMachine(
+            CompilerInst::TargetTriple, "generic", "", options, reloc_model
+        );
+    });
 
     LModule->setDataLayout(TargetMachine->createDataLayout());
     LModule->setTargetTriple(CompilerInst::TargetTriple);
@@ -708,10 +710,8 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Value*> arguments{};
     arguments.reserve(args.size());
 
-    instance.InArgumentContext = true;
     for (auto& item : args)
         arguments.push_back(item.llvmCodegen(instance));
-    instance.InArgumentContext = false;
 
     if (!func->getReturnType()->isVoidTy()) {
         Type* ret_type = nullptr;
@@ -771,16 +771,6 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     }
 
     return ret;
-}
-
-void LLVMBackend::codegenTheFunction(IdentInfo* id) {
-    auto ip_cache = this->Builder.saveIP();
-    if (!GlobalNodeJmpTable.contains(id)) {
-        ModuleMap.get(id->getModulePath()).NodeJmpTable.at(id)->llvmCodegen(*this);
-        this->Builder.restoreIP(ip_cache);
-        return;
-    } GlobalNodeJmpTable[id]->llvmCodegen(*this);
-    this->Builder.restoreIP(ip_cache);
 }
 
 

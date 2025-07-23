@@ -20,6 +20,7 @@ public:
         return *m_ModuleMap.at(m);
     }
 
+    /// pops and returns a Parser instance which has no dependency
     Parser* popZeroDepVec() {
         if (m_ZeroDepVec.empty())
             return nullptr;
@@ -27,6 +28,8 @@ public:
         const auto ret = m_ZeroDepVec.back();
         m_ZeroDepVec.pop_back();
 
+        // decrement the dependency counters of all parser instances which
+        // depend on this one
         for (Parser* dependent : ret->m_Dependents) {
             dependent->decrementUnresolvedDeps();
         } return ret;

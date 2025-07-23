@@ -1,10 +1,13 @@
 #pragma once
 #include <print>
-#include <parser/Parser.h>
-#include <backend/LLVMBackend.h>
-#include <managers/ModuleManager.h>
-
 #include <utility>
+#include <filesystem>
+#include <unordered_set>
+
+#include "parser/Parser.h"
+#include "backend/LLVMBackend.h"
+#include "managers/ModuleManager.h"
+
 
 namespace fs = std::filesystem;
 
@@ -22,10 +25,21 @@ class CompilerInst {
     std::optional<Parser> m_MainModParser = std::nullopt;
     ErrorCallback_t       m_ErrorCallback = nullptr;
 
+    using Backends_t = std::vector<std::unique_ptr<LLVMBackend>>;
+
+    /// creates an LLVMBackend instance for all parsers and initiates LLVM Module creation
+    void startLLVMCodegen();
+
+    /// links all object files and dependencies together to produce the final binary
+    void produceExecutable();
+
+    /// generates object files for all the modules
+    void generateObjectFiles(Backends_t&) const;
+
 
 public:
     inline static std::string TargetTriple;
-    inline static std::vector<std::string> LinkTargets;
+    inline static std::unordered_set<std::string> LinkTargets;
 
     explicit CompilerInst(fs::path path)
         : m_SourceManager(path)
@@ -80,25 +94,11 @@ public:
             std::exit(1);
         }
 
-        std::vector<std::unique_ptr<LLVMBackend>> m_Backends;
-        m_Backends.reserve(m_ModuleManager.size());
-
-        for (auto& parser: m_ModuleManager | std::views::values) {
-            m_Backends.emplace_back(new LLVMBackend{*parser});
-            m_Backends.back()->startGeneration();
-            m_Backends.back()->printIR();
-            // m_ThreadPool.enqueue([&m_Backends, this] { m_Backends.back()->startGeneration(); });
-        }
-
-        LLVMBackend llvm_bk{*m_MainModParser};
-        llvm_bk.startGeneration();
-        llvm_bk.printIR();
-
-        // m_ThreadPool.wait();
+        startLLVMCodegen();
     }
 
     static std::string_view getTargetTriple() { return TargetTriple; }
-    static void appendLinkTarget(std::string_view target) { LinkTargets.emplace_back(target); }
+    static void appendLinkTarget(std::string_view target) { LinkTargets.emplace(target); }
 
     // ~CompilerInst() { m_ThreadPool.shutdown(); }
 };

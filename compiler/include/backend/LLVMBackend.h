@@ -33,17 +33,14 @@ public:
 
     std::vector<std::unique_ptr<Node>> AST;
     SymbolManager& SymMan;
-    ModuleManager& ModuleMap;
 
-    inline static const llvm::TargetMachine* TargetMachine = nullptr;
+    inline static llvm::TargetMachine* TargetMachine = nullptr;
 
-    std::unordered_map<IdentInfo*, Node*>  GlobalNodeJmpTable;
     std::unordered_map<Type*, llvm::Type*> LLVMTypeCache;
 
     // ----------------[contextual-states]-------------------
     bool IsLocalScope = false;
     bool ChildHasReturned = false;
-    bool InArgumentContext = false;
 
     llvm::Value* BoundMemory = nullptr;
     llvm::Value* StructFieldPtr = nullptr;  // used to "bubble-up" StructGEPd pointers
@@ -64,10 +61,7 @@ public:
         }
     }
 
-    /// codegens the function with the id `id`
-    void codegenTheFunction(IdentInfo* id);
-
-    Type* fetchSwType(const std::unique_ptr<Node>& node) {
+    Type* fetchSwType(const std::unique_ptr<Node>& node) const {
         switch (node->getNodeType()) {
             case ND_STR:
                 return &GlobalTypeStr;
@@ -128,6 +122,10 @@ public:
 
     const llvm::DataLayout& getDataLayout() const {
         return LModule->getDataLayout();
+    }
+
+    llvm::Module* getLLVMModule() const {
+        return LModule.get();
     }
 
 private:
