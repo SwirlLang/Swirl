@@ -131,7 +131,6 @@ public:
     }
 
 private:
-    bool m_AlreadyInstantiated = false;
     bool m_IsAssignmentLHS = false;
 
     std::unordered_set<std::size_t> m_ResolvedList;
