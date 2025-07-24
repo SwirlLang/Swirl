@@ -3,6 +3,7 @@
 #include <utility>
 #include <filesystem>
 #include <unordered_set>
+#include <llvm/Support/ThreadPool.h>
 
 #include "parser/Parser.h"
 #include "backend/LLVMBackend.h"
@@ -10,10 +11,10 @@
 
 
 namespace fs = std::filesystem;
-
+using ThreadPool = llvm::StdThreadPool;
 
 class CompilerInst {
-    ThreadPool_t  m_ThreadPool;
+    ThreadPool    m_ThreadPool;
     SourceManager m_SourceManager;
     ErrorManager  m_ErrorManager;
     ModuleManager m_ModuleManager;
@@ -46,8 +47,9 @@ public:
         , m_SrcPath(std::move(path)) { }
 
 
-    void setBaseThreadCount(const std::string& count) { m_BaseThreadCount = std::stoi(count); }
-    static void setTargetTriple(const std::string& triple) { TargetTriple = triple; }
+    void setBaseThreadCount(const std::string& count) {
+        m_BaseThreadCount = std::stoi(count);
+    }
 
 
     void compile() {
@@ -65,6 +67,7 @@ public:
 
         m_MainModParser->parse();
 
+        // check for parser errors and abort if present
         if (m_ErrorManager.errorOccurred()) {
             m_ErrorManager.flush();
             std::exit(1);
@@ -76,19 +79,19 @@ public:
             std::println("Batch-{}: ", batch_no++);
 
             while (const auto mod = m_ModuleManager.popZeroDepVec()) {
-                mod->performSema();
                 std::print("{}, ", mod->m_FilePath.string());
-                // m_ThreadPool.enqueue([mod] {
-                    // mod->performSema();
-                // });
+                m_ThreadPool.async([mod] {
+                    mod->performSema();
+                });
             }
 
             std::println("\n-------------");
             m_ModuleManager.swapBuffers();
-            // m_ThreadPool.wait();
-        }
-        // *---* - *---*  *---* - *---*  *---* - *---* //
+            m_ThreadPool.wait();
+        } m_ThreadPool.wait();
 
+        // *---* - *---*  *---* - *---*  *---* - *---* //
+        // check for Sema errors and abort if present
         if (m_ErrorManager.errorOccurred()) {
             m_ErrorManager.flush();
             std::exit(1);
@@ -97,6 +100,7 @@ public:
         startLLVMCodegen();
     }
 
+    static void setTargetTriple(const std::string& triple) { TargetTriple = triple; }
     static std::string_view getTargetTriple() { return TargetTriple; }
     static void appendLinkTarget(std::string_view target) { LinkTargets.emplace(target); }
 

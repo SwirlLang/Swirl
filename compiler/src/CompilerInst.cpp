@@ -5,24 +5,29 @@
 
 
 void CompilerInst::startLLVMCodegen() {
-    Backends_t m_Backends;
-    m_Backends.reserve(m_ModuleManager.size() + 1);
-    m_Backends.emplace_back(new LLVMBackend(*m_MainModParser));
+    Backends_t llvm_backends;
+    llvm_backends.reserve(m_ModuleManager.size() + 1);
 
     for (auto& parser: m_ModuleManager | std::views::values) {
-        m_Backends.emplace_back(new LLVMBackend{*parser});
-        m_Backends.back()->startGeneration();
-        m_Backends.back()->printIR();
-        // m_ThreadPool.enqueue([&m_Backends, this] { m_Backends.back()->startGeneration(); });
-    } // m_ThreadPool.wait();
+        auto* backend = llvm_backends.emplace_back(new LLVMBackend{*parser}).get();
+        m_ThreadPool.async([backend, this] { backend->startGeneration(); });
+    }
 
-    generateObjectFiles(m_Backends);
+    llvm_backends.emplace_back(new LLVMBackend(m_MainModParser.value()));
+    m_ThreadPool.wait();
+
+    llvm_backends.back()->startGeneration();
+    for (const auto& backend: llvm_backends) {
+        backend->printIR();
+    }
+
+    generateObjectFiles(llvm_backends);
 }
 
 
 void CompilerInst::generateObjectFiles(Backends_t& backends) const {
     // create the `.build` directory hierarchy if it doesn't exist
-    auto build_dir = m_SrcPath.parent_path() / ".build";
+    const auto build_dir = m_SrcPath.parent_path() / ".build";
     if (!exists(build_dir)) {
         create_directory(build_dir);
         create_directory(build_dir / "obj");
@@ -33,7 +38,7 @@ void CompilerInst::generateObjectFiles(Backends_t& backends) const {
         llvm::legacy::PassManager pass_man;
         std::error_code ec;
         llvm::raw_fd_ostream dest(
-            (build_dir / "obj" / ("output" + std::to_string(counter))).string(),
+            (build_dir / "obj" / ("output_" + std::to_string(counter))).string(),
             ec,
             llvm::sys::fs::OpenFlags::OF_None
             );
@@ -54,4 +59,6 @@ void CompilerInst::generateObjectFiles(Backends_t& backends) const {
 }
 
 
-void CompilerInst::produceExecutable() {}
+void CompilerInst::produceExecutable() {
+    auto triple = llvm::Triple(TargetTriple);
+}
