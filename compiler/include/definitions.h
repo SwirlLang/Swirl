@@ -22,7 +22,18 @@ consteval std::string_view getBonoPackagesDir() {
 }
 
 
-inline const std::unordered_set<std::string_view> keywords = {
+consteval std::string_view getSwInternalComponentDir() {
+#if defined(_WIN32) || defined(_WIN64)
+    return "C:\\Program Files\\swirl\\bin\\";
+#elif defined(__linux__) || defined(__APPLE__)
+    return "/usr/local/libexec/swirl/";
+#else
+    #error "getSwLLDPath: failed to query platform"
+#endif
+}
+
+
+inline const std::unordered_set<std::string_view> KeywordSet = {
     "return", "if", "else", "for", "while", "in",
     "or", "and", "class", "public", "private",
     "const", "static", "break", "continue", "elif",
@@ -31,36 +42,12 @@ inline const std::unordered_set<std::string_view> keywords = {
 };
 
 
-// map, {operator, precedence}
-inline std::unordered_map<std::string, int> operators = {
-    {"=", 0},
-    {"+=", 0},
-    {"-=", 0},
-    {"*=", 0},
-    {"/=", 0},
-
-    {"::", 0},
-
-    {"||", 0},
-    {"&&", 1},
-    {"!=", 2},
-    {"==", 2},
-
-    {">", 4},
-    {"<", 4},
-    {"<=", 4},
-    {">=", 4},
-
-    {"+", 8},
-    {"-", 8},
-    {"*", 16},
-    {"/", 16},
-    {"//", 16},
-
-    {"as", 19},
-    {"!", 20},
-
-    // Misc
-    {"[]", 32},
-    {".", 34},
+inline std::unordered_set<std::string> OperatorSet = {
+    "=", "+=", "-=", "*=", "/=",
+    "::",
+    "||", "&&", "!=", "==",
+    ">", "<", "<=", ">=",
+    "+", "-", "*", "/", "//",
+    "as", "!",
+    "[]", "."
 };

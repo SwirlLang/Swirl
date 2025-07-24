@@ -8,7 +8,7 @@
 using namespace std::string_view_literals;
 
 bool TokenStream::isKeyword(const std::string& _str) {
-    return keywords.contains(_str);
+    return KeywordSet.contains(_str);
 }
 
 bool TokenStream::isDigit(const char chr) {
@@ -76,7 +76,7 @@ Token TokenStream::readString(const char del) {
 Token TokenStream::readOperator() {
     Token tok = {OP, std::string(1, m_Stream.getCurrentChar()), getStreamState()};
     if (m_Stream.eof()) return tok;
-    else if (const auto pot_op = std::string(1, m_Stream.getCurrentChar()) + m_Stream.peek(); operators.contains(pot_op)) {
+    else if (const auto pot_op = std::string(1, m_Stream.getCurrentChar()) + m_Stream.peek(); OperatorSet.contains(pot_op)) {
         m_Stream.next();
 
         // discard the next operator if it's a comment not at EOF
@@ -117,7 +117,7 @@ Token TokenStream::readNextTok() {
             m_isPreviousTokIdent = false;
             if (isIdStart(ch)) {
                 auto val = readWhile(isId);
-                if (keywords.contains(val))  return {KEYWORD, std::move(val), getStreamState()};
+                if (KeywordSet.contains(val))  return {KEYWORD, std::move(val), getStreamState()};
                 else if (val == "as")        return {OP,      std::move(val), getStreamState()};
                 m_isPreviousTokIdent = true; return {IDENT,   std::move(val), getStreamState()};
             }
