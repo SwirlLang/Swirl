@@ -34,6 +34,7 @@ class Parser {
     Function*    m_LatestFuncNode = nullptr;
     bool         m_LastSymWasExported = false;
     bool         m_LastSymIsExtern = false;
+    bool         m_IsMainModule    = false;  // is the module the parser represents the main one?
 
     std::string m_ExternAttributes;
     std::optional<Token> m_ReturnFakeToken = std::nullopt;
@@ -105,6 +106,8 @@ public:
     void parse();
     void performSema();
     void ignoreButExpect(const Token&);
+
+    void toggleIsMainModule() { m_IsMainModule = !m_IsMainModule; }
 
     /// calls `inserter` with the symbol name for each exported-symbol in the AST
     template <typename Inserter_t> requires std::invocable<Inserter_t, std::string>

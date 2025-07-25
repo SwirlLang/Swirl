@@ -64,7 +64,7 @@ public:
     Type* fetchSwType(const std::unique_ptr<Node>& node) const {
         switch (node->getNodeType()) {
             case ND_STR:
-                return &GlobalTypeStr;
+                return SymMan.getStrType(dynamic_cast<StrLit*>(node.get())->value.size());
             case ND_INT:
                 return &GlobalTypeI32;
             case ND_FLOAT:

@@ -24,6 +24,8 @@ std::string PointerType::toString() const {
 
 llvm::Type* FunctionType::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Type*> llvm_param_types;
+    llvm_param_types.reserve(this->param_types.size());
+
     for (const auto& ptr : this->param_types)
         llvm_param_types.push_back(ptr->llvmCodegen(instance));
 
@@ -72,7 +74,7 @@ llvm::Type* StructType::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Type* PointerType::llvmCodegen(LLVMBackend& instance) {
-    return llvm::PointerType::get(of_type->llvmCodegen(instance), 1);
+    return llvm::PointerType::get(of_type->llvmCodegen(instance), 0);
 }
 
 llvm::Type* VoidType::llvmCodegen(LLVMBackend& instance) {
@@ -80,7 +82,7 @@ llvm::Type* VoidType::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Type* ReferenceType::llvmCodegen(LLVMBackend& instance) {
-    return llvm::PointerType::get(of_type->llvmCodegen(instance), 1);
+    return llvm::PointerType::get(of_type->llvmCodegen(instance), 0);
 }
 
 llvm::Type* ArrayType::llvmCodegen(LLVMBackend& instance) {

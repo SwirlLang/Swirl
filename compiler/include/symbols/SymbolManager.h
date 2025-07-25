@@ -154,6 +154,10 @@ public:
         return m_TypeManager.getArrayType(of_type, size);
     }
 
+    Type* getStrType(const std::size_t size) {
+        return m_TypeManager.getStringType(size);
+    }
+
     Type* getPointerType(Type* of_type, const uint16_t ptr_level) {
         return m_TypeManager.getPointerType(of_type, ptr_level);
     }

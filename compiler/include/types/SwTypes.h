@@ -127,7 +127,9 @@ struct ArrayType final : Type {
 
 
 struct TypeStr final : Type {
-    std::size_t size = 0;
+    std::size_t size;
+
+    explicit TypeStr(const std::size_t size): size(size) {}
 
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes    getSwType() override { return STR; }

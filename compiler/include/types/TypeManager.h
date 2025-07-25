@@ -69,8 +69,11 @@ class TypeManager {
         <Type, detail::Deleter>>                                      m_TypeTable;  // for named types
     std::unordered_map<Type*, std::unique_ptr<ReferenceType>>         m_ReferenceTable;
 
+    using Str_t = std::size_t;
     std::unordered_map<detail::Array, std::unique_ptr<ArrayType>>     m_ArrayTable;
     std::unordered_map<detail::Pointer, std::unique_ptr<PointerType>> m_PointerTable;
+    std::unordered_map<Str_t, std::unique_ptr<TypeStr>> m_StringTable;
+
 
 public:
     /// returns the type with the id `name`, nullptr otherwise
@@ -112,6 +115,13 @@ public:
             return m_ReferenceTable[to].get();
         } m_ReferenceTable[to] = std::make_unique<ReferenceType>(to);
         return m_ReferenceTable[to].get();
+    }
+
+    Type* getStringType(const std::size_t size) {
+        if (m_StringTable.contains(size)) {
+            return m_StringTable[size].get();
+        } m_StringTable[size] = std::make_unique<TypeStr>(size);
+        return m_StringTable[size].get();
     }
 
     bool contains(IdentInfo* name) const {

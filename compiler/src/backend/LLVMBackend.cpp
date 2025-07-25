@@ -207,7 +207,9 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
 
     const auto fn_sw_type = dynamic_cast<FunctionType*>(instance.SymMan.lookupType(ident));
 
-    auto linkage = (is_exported || is_extern) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
+    auto linkage = (
+        is_exported || is_extern || ident->toString() == "main"
+        ) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
 
     auto*               fn_type  = llvm::dyn_cast<llvm::FunctionType>(fn_sw_type->llvmCodegen(instance));
     llvm::Function*     func     = llvm::Function::Create(fn_type, linkage, ident->toString(), instance.LModule.get());

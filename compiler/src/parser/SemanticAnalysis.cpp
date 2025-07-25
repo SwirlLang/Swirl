@@ -138,8 +138,8 @@ AnalysisResult FloatLit::analyzeSemantics(AnalysisContext& ctx) {
     } return {.deduced_type = &GlobalTypeF64};
 }
 
-AnalysisResult StrLit::analyzeSemantics(AnalysisContext&) {
-    return {.deduced_type = &GlobalTypeStr};
+AnalysisResult StrLit::analyzeSemantics(AnalysisContext& ctx) {
+    return {.deduced_type = ctx.SymMan.getStrType(value.size())};
 }
 
 AnalysisResult ArrayNode::analyzeSemantics(AnalysisContext& ctx) {
