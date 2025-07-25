@@ -78,6 +78,7 @@ enum class ErrCode {
     RET_TYPE_REQUIRED,        // when explicitly specifying a return-type is required (e.g. recursive calls)
     QUALIFIER_UNDEFINED,
     NO_SUCH_MEMBER,
+    MAIN_REDEFINED,           // when the main function is redefined
 };
 
 
@@ -222,6 +223,8 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return std::format("No member called '{}' in struct '{}'.", ctx.str_1, ctx.str_2);
         case ErrCode::CANNOT_ASSIGN_TO_CONST:
             return "Cannot reassign a value a variable declared with `let`.";
+        case ErrCode::MAIN_REDEFINED:
+            return "Redefinition of the main function!";
         default:
             throw std::runtime_error("Undefined error code");
     }

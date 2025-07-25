@@ -1,4 +1,8 @@
 #include "CompilerInst.h"
+#include <ranges>
+
+#include <lld/Common/Driver.h>
+
 #include "backend/LLVMBackend.h"
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/FileSystem.h>
@@ -8,15 +12,11 @@ void CompilerInst::startLLVMCodegen() {
     Backends_t llvm_backends;
     llvm_backends.reserve(m_ModuleManager.size() + 1);
 
-    for (auto& parser: m_ModuleManager | std::views::values) {
+    for (Parser* parser : m_ModuleManager) {
         auto* backend = llvm_backends.emplace_back(new LLVMBackend{*parser}).get();
         m_ThreadPool.async([backend, this] { backend->startGeneration(); });
-    }
+    } m_ThreadPool.wait();
 
-    llvm_backends.emplace_back(new LLVMBackend(m_MainModParser.value()));
-    m_ThreadPool.wait();
-
-    llvm_backends.back()->startGeneration();
     for (const auto& backend: llvm_backends) {
         backend->printIR();
     }
@@ -25,7 +25,7 @@ void CompilerInst::startLLVMCodegen() {
 }
 
 
-void CompilerInst::generateObjectFiles(Backends_t& backends) const {
+void CompilerInst::generateObjectFiles(Backends_t& backends) {
     // create the `.build` directory hierarchy if it doesn't exist
     const auto build_dir = m_SrcPath.parent_path() / ".build";
     if (!exists(build_dir)) {
@@ -33,6 +33,10 @@ void CompilerInst::generateObjectFiles(Backends_t& backends) const {
         create_directory(build_dir / "obj");
     }
 
+    // clear all previous object files
+    for (const auto& entry : fs::directory_iterator(build_dir / "obj")) {
+        fs::remove(entry);
+    }
 
     for (const auto& [counter, backend] : llvm::enumerate(backends)) {
         llvm::legacy::PassManager pass_man;
@@ -55,10 +59,29 @@ void CompilerInst::generateObjectFiles(Backends_t& backends) const {
 
         pass_man.run(*backend->getLLVMModule());
         dest.flush();
-    }
+    } produceExecutable();
 }
 
 
 void CompilerInst::produceExecutable() {
     auto triple = llvm::Triple(TargetTriple);
+    auto build_dir = m_SrcPath.parent_path() / ".build";
+    auto lld_path = getSwInternalComponentDir() / fs::path("lld-swirl");
+
+    if (m_OutputPath.empty())
+        m_OutputPath = m_SrcPath.parent_path() / ".build" / (m_SrcPath
+            .filename()
+            .replace_extension()
+            .string() + ".out"
+            );
+
+    std::string object_files_args;
+
+    for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
+        object_files_args.append(" " + file.path().string());
+    }
+
+    const auto command = std::format("gcc -o {}", m_OutputPath.string()) + " " + object_files_args;
+    llvm::outs() << "Issuing command: " << command << "\n";
+    std::system(command.c_str());
 }

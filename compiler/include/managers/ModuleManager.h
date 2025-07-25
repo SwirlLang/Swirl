@@ -10,9 +10,9 @@ class ModuleManager {
     std::unordered_map<std::filesystem::path, std::unique_ptr<Parser>> m_ModuleMap;
     std::vector<Parser*> m_ZeroDepVec;  // holds modules with zero dependencies
     std::vector<Parser*> m_BackBuffer;  // this will be swapped with the above vector after flushing
+    std::vector<Parser*> m_OrderedMods; // keeps parsers in dependencies-dependent order, left-to-right
 
     Parser* m_MainModule = nullptr;
-
     friend class Parser;
 
 public:
@@ -27,6 +27,7 @@ public:
 
         const auto ret = m_ZeroDepVec.back();
         m_ZeroDepVec.pop_back();
+        m_OrderedMods.push_back(ret);
 
         // decrement the dependency counters of all parser instances which
         // depend on this one
@@ -65,18 +66,18 @@ public:
     }
 
     auto begin()  {
-        return m_ModuleMap.begin();
+        return m_OrderedMods.begin();
     }
 
     auto end() {
-        return m_ModuleMap.end();
+        return m_OrderedMods.end();
     }
 
     auto begin() const  {
-        return m_ModuleMap.begin();
+        return m_OrderedMods.begin();
     }
 
     auto end() const  {
-        return m_ModuleMap.end();
+        return m_OrderedMods.end();
     }
 };

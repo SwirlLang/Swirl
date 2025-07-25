@@ -313,8 +313,11 @@ std::unique_ptr<Function> Parser::parseFunction() {
     m_LastSymIsExtern = false;
     m_ExternAttributes.clear();
 
-    m_Stream.expectTypes({IDENT});
+    // handle the special case of `main`
     const std::string func_ident = m_Stream.next().value;
+    if (func_ident == "main" && !m_IsMainModule) {
+        reportError(ErrCode::MAIN_REDEFINED);
+    }
 
     m_Stream.expectTokens({Token{PUNC, "("}});
     forwardStream(2);

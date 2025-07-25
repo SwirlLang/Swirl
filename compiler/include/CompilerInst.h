@@ -35,7 +35,7 @@ class CompilerInst {
     void produceExecutable();
 
     /// generates object files for all the modules
-    void generateObjectFiles(Backends_t&) const;
+    void generateObjectFiles(Backends_t&);
 
 
 public:
@@ -63,6 +63,7 @@ public:
         }
 
         m_MainModParser.emplace(m_SrcPath, m_ErrorCallback, m_ModuleManager);
+        m_MainModParser->toggleIsMainModule();
         m_ModuleManager.setMainModParser(&(*m_MainModParser));
 
         m_MainModParser->parse();

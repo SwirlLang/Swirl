@@ -40,7 +40,7 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
             return std::move(ret);
         }
         case STRING: {
-            std::unique_ptr<Node> str = std::make_unique<StrLit>("");
+            std::unique_ptr<Node> str = std::make_unique<StrLit>(m_Stream.CurTok.value);
             while (m_Stream.CurTok.type == STRING) {  // concatenation of adjacent string literals
                 str->value += m_Stream.CurTok.value;
                 m_Parser.forwardStream();

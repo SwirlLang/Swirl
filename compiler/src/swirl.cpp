@@ -14,7 +14,7 @@ const std::vector<Argument> application_flags = {
     {{"-v", "--version"}, "Show the version of Swirl", false, {}},
     {{"-j", "--threads"}, "No. of threads to use (excluding the main-thread).", true},
     {{"-t", "--target"}, "The target-triple of the target-platform", true},
-    {{"-l", "--link"}, "The name of the library to link against.", true}
+    {{"-l", "--library"}, "The name of the library to link against.", true}
 };
 
 
