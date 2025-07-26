@@ -146,8 +146,13 @@ public:
         return std::nullopt;
     }
 
+
     Type* getReferenceType(Type* of_type) {
         return m_TypeManager.getReferenceType(of_type);
+    }
+
+    Type* getSliceType(Type* of_type) {
+        return m_TypeManager.getSliceType(of_type);
     }
 
     Type* getArrayType(Type* of_type, const std::size_t size) {

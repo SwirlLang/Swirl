@@ -6,6 +6,8 @@
 #include <definitions.h>
 #include <utils/utils.h>
 
+#include "SwTypes.h"
+
 
 struct Type;
 class  IdentInfo;
@@ -32,7 +34,7 @@ struct Array {
 
 struct Deleter {
     void operator()(const Type* ptr) const {
-        for (const auto& [key, val] : BuiltinTypes) {
+        for (const auto& val: BuiltinTypes | std::views::values) {
             if (val == ptr)
                 return;
         } delete ptr;
@@ -63,7 +65,7 @@ struct std::hash<detail::Array> {
 };
 
 
-
+/// Factory class for all children of `Type`
 class TypeManager {
     std::unordered_map<IdentInfo*, std::unique_ptr
         <Type, detail::Deleter>>                                      m_TypeTable;  // for named types
@@ -72,6 +74,7 @@ class TypeManager {
     using Str_t = std::size_t;
     std::unordered_map<detail::Array, std::unique_ptr<ArrayType>>     m_ArrayTable;
     std::unordered_map<detail::Pointer, std::unique_ptr<PointerType>> m_PointerTable;
+    std::unordered_map<detail::Array, std::unique_ptr<SliceType>>     m_SliceTable;
     std::unordered_map<Str_t, std::unique_ptr<TypeStr>> m_StringTable;
 
 
@@ -123,6 +126,20 @@ public:
         } m_StringTable[size] = std::make_unique<TypeStr>(size);
         return m_StringTable[size].get();
     }
+
+    /// returns a slice type instance pointer for the given array type
+    Type* getSliceType(Type* array_type) {
+        const auto arr_type = dynamic_cast<ArrayType*>(array_type);
+        assert(arr_type != nullptr);
+
+        auto slice_entry = detail::Array{arr_type->of_type, arr_type->size};
+        if (m_SliceTable.contains(slice_entry)) {
+            return m_SliceTable[slice_entry].get();
+        } m_SliceTable[slice_entry] =
+            std::make_unique<SliceType>(slice_entry.of_type, slice_entry.size);
+        return m_SliceTable[slice_entry].get();
+    }
+
 
     bool contains(IdentInfo* name) const {
         return m_TypeTable.contains(name);

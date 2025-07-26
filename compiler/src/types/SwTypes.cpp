@@ -77,12 +77,37 @@ llvm::Type* PointerType::llvmCodegen(LLVMBackend& instance) {
     return llvm::PointerType::get(of_type->llvmCodegen(instance), 0);
 }
 
+
+llvm::Type* SliceType::llvmCodegen(LLVMBackend& instance) {
+    if (instance.LLVMTypeCache.contains(this)) {
+        return instance.LLVMTypeCache[this];
+    }
+
+     const auto struct_t = llvm::StructType::create(
+        instance.Context,
+        "__Slice"
+    );
+
+    struct_t->setBody({
+        instance.SymMan.getPointerType(of_type, 1)
+            ->llvmCodegen(instance),
+        llvm::Type::getInt64Ty(instance.Context)
+    });
+
+    instance.LLVMTypeCache[this] = struct_t;
+    return struct_t;
+}
+
+
 llvm::Type* VoidType::llvmCodegen(LLVMBackend& instance) {
     return llvm::Type::getVoidTy(instance.Context);
 }
 
 llvm::Type* ReferenceType::llvmCodegen(LLVMBackend& instance) {
-    return llvm::PointerType::get(of_type->llvmCodegen(instance), 0);
+    // references to arrays are compiled to their corresponding slice-types
+    if (of_type->getSwType() == ARRAY) {
+        return instance.SymMan.getSliceType(of_type)->llvmCodegen(instance);
+    } return llvm::PointerType::get(of_type->llvmCodegen(instance), 0);
 }
 
 llvm::Type* ArrayType::llvmCodegen(LLVMBackend& instance) {

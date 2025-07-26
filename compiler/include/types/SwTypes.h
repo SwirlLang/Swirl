@@ -34,7 +34,7 @@ struct Type {
         REFERENCE,
         POINTER,
         ARRAY,
-
+        SLICE,
         VOID,
 
         C_INT, C_UINT,
@@ -168,6 +168,21 @@ struct PointerType final : Type {
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes    getSwType() override { return POINTER; }
 
+    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
+};
+
+
+struct SliceType final : Type {
+    Type* of_type;
+    std::size_t size;
+
+    explicit SliceType(Type* t, const std::size_t size) : of_type(t), size(size) {}
+
+    [[nodiscard]] std::string toString() const override {
+        return std::format("&[{} | {}]", of_type->toString(), size);
+    }
+
+    SwTypes getSwType() override { return SLICE; }
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
