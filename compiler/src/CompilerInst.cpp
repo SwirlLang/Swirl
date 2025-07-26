@@ -1,5 +1,4 @@
 #include "CompilerInst.h"
-#include <ranges>
 
 #include <lld/Common/Driver.h>
 
@@ -64,9 +63,8 @@ void CompilerInst::generateObjectFiles(Backends_t& backends) {
 
 
 void CompilerInst::produceExecutable() {
-    auto triple = llvm::Triple(TargetTriple);
-    auto build_dir = m_SrcPath.parent_path() / ".build";
-    auto lld_path = getSwInternalComponentDir() / fs::path("lld-swirl");
+    const auto triple = llvm::Triple(TargetTriple);
+    const auto build_dir = m_SrcPath.parent_path() / ".build";
 
     if (m_OutputPath.empty())
         m_OutputPath = m_SrcPath.parent_path() / ".build" / (m_SrcPath
@@ -75,13 +73,23 @@ void CompilerInst::produceExecutable() {
             .string() + ".out"
             );
 
-    std::string object_files_args;
-
+    std::string object_files_args;  // accumulates the absolute object-files' paths
     for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
         object_files_args.append(" " + file.path().string());
     }
 
-    const auto command = std::format("gcc -o {}", m_OutputPath.string()) + " " + object_files_args;
+    std::string command = std::format("cc -o {} {}", m_OutputPath.string(), object_files_args);
+    if (triple.isOSWindows()) {
+        if (triple.getEnvironment() == llvm::Triple::MSVC) {
+            // handle the peculiar case of MSVC
+            command = std::format(
+                "cl.exe /Fe:{} {}",
+                m_OutputPath.string(),
+                object_files_args
+            );
+        }
+    }
+
     llvm::outs() << "Issuing command: " << command << "\n";
     std::system(command.c_str());
 }
