@@ -137,6 +137,31 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
 /// Writes the array literal to 'BoundMemory' if not null, otherwise creates a temporary and
 /// returns a load of it.
 llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
+    Type* element_type = elements.at(0).expr_type;
+    Type* sw_arr_type  = instance.SymMan.getArrayType(element_type, elements.size());
+
+    if (!instance.IsLocalScope) {
+        if (instance.BoundMemory) {
+            auto arr_type = llvm::ArrayType::get(element_type->llvmCodegen(instance), elements.size());
+
+            std::vector<llvm::Constant*> val_array;
+            val_array.reserve(elements.size());
+            for (auto& elem : elements) {
+                val_array.push_back(llvm::dyn_cast<llvm::Constant>(elem.llvmCodegen(instance)));
+            }
+
+            auto array_init = llvm::ConstantArray::get(arr_type, val_array);
+
+            std::vector<llvm::Type*> members = {arr_type};
+
+            auto const_struct = llvm::ConstantStruct::get(
+                llvm::dyn_cast<llvm::StructType>(sw_arr_type->llvmCodegen(instance)),
+                {array_init}
+                );
+            return const_struct;
+        }
+    }
+
     // the array-type which is enclosed within a struct
     assert(instance.getBoundLLVMType()->isStructTy());
     llvm::Type*  arr_type = instance.getBoundLLVMType()->getStructElementType(0);
@@ -164,6 +189,7 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
     auto tmp = instance.Builder.CreateAlloca(instance.getBoundLLVMType());
     auto base_ptr = instance.Builder.CreateStructGEP(instance.getBoundLLVMType(), tmp, 0);
 
+
     for (auto [i, element] : llvm::enumerate(elements)) {
         ptr = instance.Builder.CreateGEP(arr_type, base_ptr, {instance.toLLVMInt(0), instance.toLLVMInt(i)});
         if (element.expr_type->getSwType() == Type::ARRAY) {
@@ -174,7 +200,8 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
         } instance.Builder.CreateStore(element.llvmCodegen(instance), ptr);
     }
 
-    if (bound_mem_cache) instance.BoundMemory = bound_mem_cache;
+    if (bound_mem_cache)
+        instance.BoundMemory = bound_mem_cache;
     return instance.Builder.CreateLoad(instance.getBoundLLVMType(), tmp);
 }
 
@@ -752,6 +779,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
             instance.BoundMemory = var;
             init = value.llvmCodegen(instance);
             const auto val = llvm::dyn_cast<llvm::Constant>(init);
+            assert(val != nullptr);
             var->setInitializer(val);
             instance.BoundMemory = nullptr;
         } ret = var;
