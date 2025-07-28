@@ -36,7 +36,7 @@ bool TokenStream::isId(const char chr) {
 }
 
 bool TokenStream::isOpChar(const char _chr) {
-    return "+-/*><=&@|.:!"sv.find(_chr) != std::string::npos;
+    return "+-*/%><=&@|.:!"sv.find(_chr) != std::string::npos;
 }
 
 std::string TokenStream::readEscaped(const char _end) {
@@ -81,7 +81,7 @@ Token TokenStream::readOperator() {
 
         // discard the next operator if it's a comment not at EOF
         if (pot_op == "//") {
-            if (m_Stream.eof()) return {NONE, "TOKEN:EOF", m_Stream.Line};
+            if (m_Stream.eof()) return {NONE, "TOKEN:EOF", getStreamState()};
             m_Stream.next();
         }
 
@@ -93,7 +93,7 @@ Token TokenStream::readOperator() {
 
 Token TokenStream::readNextTok() {
     if (m_Stream.eof())
-        return {NONE, "TOKEN:EOF", m_Stream.Line};
+        return {NONE, "TOKEN:EOF", getStreamState()};
 
     switch (const char ch = m_Stream.next()) {
         case '"': return readString('"');
@@ -117,9 +117,9 @@ Token TokenStream::readNextTok() {
             m_isPreviousTokIdent = false;
             if (isIdStart(ch)) {
                 auto val = readWhile(isId);
-                if (KeywordSet.contains(val))  return {KEYWORD, std::move(val), getStreamState()};
-                else if (val == "as")        return {OP,      std::move(val), getStreamState()};
-                m_isPreviousTokIdent = true; return {IDENT,   std::move(val), getStreamState()};
+                if (KeywordSet.contains(val)) return {KEYWORD, std::move(val), getStreamState()};
+                else if (val == "as")         return {OP,      std::move(val), getStreamState()};
+                m_isPreviousTokIdent = true;  return {IDENT,   std::move(val), getStreamState()};
             }
 
             if (isDigit(ch)) {

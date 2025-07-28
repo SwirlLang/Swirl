@@ -43,11 +43,11 @@ inline const std::unordered_set<std::string_view> KeywordSet = {
 
 
 inline std::unordered_set<std::string> OperatorSet = {
-    "=", "+=", "-=", "*=", "/=",
+    "=", "+=", "-=", "*=", "/=", "%=",
     "::",
     "||", "&&", "!=", "==",
     ">", "<", "<=", ">=",
-    "+", "-", "*", "/", "//",
+    "+", "-", "*", "/", "%", "//",
     "as", "!",
     "[]", "."
 };

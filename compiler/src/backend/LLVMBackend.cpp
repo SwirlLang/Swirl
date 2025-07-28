@@ -344,11 +344,23 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             if (instance.getBoundTypeState()->isFloatingPoint()) {
                 return instance.Builder.CreateFDiv(lhs, rhs);
             }
-            if (!instance.getBoundTypeState()->isUnsigned()) {
-                return instance.Builder.CreateSDiv(lhs, rhs);
+            if (instance.getBoundTypeState()->isUnsigned()) {
+                return instance.Builder.CreateUDiv(lhs, rhs);
             }
 
-            return instance.Builder.CreateUDiv(lhs, rhs);
+            return instance.Builder.CreateSDiv(lhs, rhs);
+        }
+
+        case MOD: {
+            llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
+            llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
+            
+            // SemanticAnalysis ascertains that integral types are used
+            if (instance.getBoundTypeState()->isUnsigned()) {
+                return instance.Builder.CreateURem(lhs, rhs);
+            }
+
+            return instance.Builder.CreateSRem(lhs, rhs);
         }
 
         case CAST_OP:
@@ -572,7 +584,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
     using namespace std::string_view_literals;
 
-    if (value.ends_with("=") && ("*-+/~&^"sv.find(value.at(0)) != std::string::npos)) {
+    if (value.ends_with("=") && ("+-*/%~&^"sv.find(value.at(0)) != std::string::npos)) {
         auto op = std::make_unique<Op>(std::string_view{value.data(), 1}, 2);
         op->operands.push_back(std::move(operands.at(0)));
         op->operands.push_back(std::move(operands.at(1)));

@@ -447,6 +447,20 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                 break;
             }
 
+            case MOD: {
+                if (analysis_1.deduced_type->isIntegral() && analysis_2.deduced_type->isIntegral()) {
+                    ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);
+                    break;
+                }
+                
+                ctx.reportError(ErrCode::INCOMPATIBLE_TYPES, {
+                    .type_1 = analysis_1.deduced_type,
+                    .type_2 = analysis_2.deduced_type,
+                    .location = location
+                });
+                break;
+            }
+
             case ASSIGNMENT: {
                 ret.deduced_type = &GlobalTypeVoid;
 

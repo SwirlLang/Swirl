@@ -152,6 +152,7 @@ struct Op final : Node {
 
         MUL,
         DIV,
+        MOD,
 
         UNARY_ADD,
         UNARY_SUB,
@@ -178,6 +179,7 @@ struct Op final : Node {
         MUL_ASSIGN,
         SUB_ASSIGN,
         DIV_ASSIGN,
+        MOD_ASSIGN,
 
         INVALID
     };

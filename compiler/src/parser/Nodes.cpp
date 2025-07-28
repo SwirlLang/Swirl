@@ -18,6 +18,7 @@ std::unordered_map<Op::OpTag_t, OpInfo> OpInfoTable = {
     {Op::MUL_ASSIGN, {0, OpInfo::RIGHT}},
     {Op::SUB_ASSIGN, {0, OpInfo::RIGHT}},
     {Op::DIV_ASSIGN, {0, OpInfo::RIGHT}},
+    {Op::MOD_ASSIGN, {0, OpInfo::RIGHT}},
 
 
     {Op::LOGICAL_OR, {10, OpInfo::LEFT}},
@@ -36,6 +37,7 @@ std::unordered_map<Op::OpTag_t, OpInfo> OpInfoTable = {
 
     {Op::MUL, {60, OpInfo::LEFT}},
     {Op::DIV, {60, OpInfo::LEFT}},
+    {Op::MOD, {60, OpInfo::LEFT}},
 
     {Op::CAST_OP, {100, OpInfo::LEFT}},
     {Op::DOT, {800, OpInfo::LEFT}},
@@ -52,6 +54,7 @@ std::unordered_map<std::pair<std::string_view, int>, Op::OpTag_t> OpTagMap = {
 
     {{"*", 2}, Op::MUL},
     {{"/", 2}, Op::DIV},
+    {{"%", 2}, Op::MOD},
 
     {{"!", 1},  Op::LOGICAL_NOT},
     {{"==", 2}, Op::LOGICAL_EQUAL},
@@ -75,6 +78,7 @@ std::unordered_map<std::pair<std::string_view, int>, Op::OpTag_t> OpTagMap = {
     {{"-=", 2}, Op::SUB_ASSIGN},
     {{"*=", 2}, Op::MUL_ASSIGN},
     {{"/=", 2}, Op::DIV_ASSIGN},
+    {{"%=", 2}, Op::MOD_ASSIGN}
 };
 
 
