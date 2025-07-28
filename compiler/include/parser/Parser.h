@@ -48,6 +48,8 @@ class Parser {
     std::unordered_set<Parser*> m_Dependents;     // the modules which depend on this module
     std::unordered_set<Parser*> m_Dependencies;  // the modules which this module depends on
 
+    struct Bracket_t { char val; StreamState location; };
+    std::vector<Bracket_t> m_BracketTracker;
 
     friend class CompilerInst;
     friend class ModuleManager;
