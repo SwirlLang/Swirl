@@ -169,16 +169,16 @@ public:
 
 
     /// Used to register a declaration, if `scope_index` is passed, registers the declaration at that scope rather than
-    /// the one at the top.
+    /// the one at the top. Returns `nullptr` in case of a redefinition.
     IdentInfo* registerDecl(const std::string& name, const TableEntry& entry, std::optional<std::size_t> scope_index = std::nullopt) {
         IdentInfo* id;
         if (scope_index.has_value())
             id = m_ScopeTrack.at(*scope_index)->getNewIDInfo(name);
         else id = m_ScopeTrack.back()->getNewIDInfo(name);
 
-        if (m_IdToTableEntry.contains(id))
-            throw std::runtime_error("SymbolManager::registerDecl: duplicate declaration");
-        m_IdToTableEntry.insert({id, entry});
+        if (m_IdToTableEntry.contains(id)) {
+            return nullptr;
+        } m_IdToTableEntry.insert({id, entry});
 
         if (entry.is_exported) {
             registerExportedSymbol(name, {.id = id});

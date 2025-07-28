@@ -38,9 +38,55 @@ Parser::Parser(const std::filesystem::path& path, ErrorCallback_t error_callback
 /// returns the current token and forwards the stream
 Token Parser::forwardStream(const uint8_t n) {
     Token ret = m_Stream.CurTok;
-    for (uint8_t _ = 0; _ < n; _++)
+    static const
+    auto get_opposite_brack = [](const char ch) {
+        switch (ch) {
+            case '}':
+                return '{';
+            case ')':
+                return '(';
+            case ']':
+                return '[';
+            case '(':
+                return ')';
+            case '[':
+                return ']';
+            case '{':
+                return '}';
+            default:
+                throw;
+        }
+    };
+
+    for (uint8_t _ = 0; _ < n; _++) {
+        if (m_Stream.CurTok.type == PUNC) {
+            if (
+               m_Stream.CurTok.value == "{" ||
+               m_Stream.CurTok.value == "(" ||
+               m_Stream.CurTok.value == "[")
+                m_BracketTracker.emplace_back(m_Stream.CurTok.value[0], m_Stream.getStreamState());
+
+            else if (
+                m_Stream.CurTok.value == "}" ||
+                m_Stream.CurTok.value == "]" ||
+                m_Stream.CurTok.value == ")"
+            ) {
+                if (m_BracketTracker.empty()
+                    || m_BracketTracker.back().val != get_opposite_brack(m_Stream.CurTok.value[0]))
+                {
+                    reportError(ErrCode::SYNTAX_ERROR, {
+                        .msg = std::format(
+                            "No '{}' is present to match '{}'.",
+                            get_opposite_brack(m_Stream.CurTok.value[0]),
+                            m_Stream.CurTok.value
+                        )
+                    });
+                } else m_BracketTracker.pop_back();
+            }
+        }
+
         m_Stream.next();
-    return std::move(ret);
+    } return std::move(ret);
 }
 
 
@@ -269,6 +315,8 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
                 .is_exported = ret.is_exported,
                 .is_mod_namespace = true,
                 .scope = SymbolTable.getGlobalScopeFromModule(ret.mod_path)
+            }) ? void() : reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {
+                .str_1 = ret.alias.empty() ? name : ret.alias
             });
     }
 
@@ -343,6 +391,9 @@ std::unique_ptr<Function> Parser::parseFunction() {
         param_entry.is_param = true;
 
         param.var_ident = SymbolTable.registerDecl(var_name, param_entry);
+        if (!param.var_ident) {
+            reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = var_name});
+        }
 
         return std::move(param);
     };
@@ -371,6 +422,9 @@ std::unique_ptr<Function> Parser::parseFunction() {
     entry.is_exported = func_nd.is_exported;
     func_nd.ident = SymbolTable.registerDecl(func_ident, entry, 0);
     function_t->ident = func_nd.ident;
+
+    if (!func_nd.ident)
+        reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = func_ident});
 
     // register the function's signature as a type in the symbol manager
     SymbolTable.registerType(func_nd.ident, function_t.release());
@@ -429,14 +483,12 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     entry.is_const = var_node.is_const;
     entry.is_volatile = var_node.is_volatile;
     entry.is_exported = var_node.is_exported;
-
-    if (!var_node.var_type)
-        var_node.var_type = var_node.value.expr_type;
-    else
-        var_node.value.expr_type = var_node.var_type;
-
     entry.swirl_type = var_node.var_type;
+
     var_node.var_ident = SymbolTable.registerDecl(var_ident, entry);
+    if (!var_node.var_ident) {
+        reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = var_ident});
+    }
 
     return std::make_unique<Var>(std::move(var_node));
 }
@@ -561,11 +613,16 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     m_LastSymIsExtern = false;
 
     const auto struct_ty = new StructType{};
+    auto struct_name = forwardStream().value;
 
     // ask for a decl registry to the symbol manager
-    ret.ident = SymbolTable.registerDecl(forwardStream().value, {
+    ret.ident = SymbolTable.registerDecl(struct_name, {
         .is_exported = ret.is_exported,
     });
+
+    if (!ret.ident) {
+        reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = struct_name});
+    }
 
     // create the struct's scope
     ignoreButExpect({PUNC, "{"});  // skip '{'
