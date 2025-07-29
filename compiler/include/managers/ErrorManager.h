@@ -49,7 +49,8 @@ enum class ErrCode {
     NO_NARROWING_CONVERSION,  // narrowing conversions not allowed
     NO_SIGNED_UNSIGNED_CONV,  // signed-unsigned conversions shall be explicit
     DISTINCTLY_SIZED_ARR,     // arrays of distinct sizes are incompatible
-    CANNOT_ASSIGN_TO_CONST,
+    CANNOT_ASSIGN_TO_CONST,   // attempt to re-assign a const
+    SLICE_NOT_COMPATIBLE,     // when slice types are not compatible with each other
     // ----------*----------- //
 
 
@@ -222,7 +223,7 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
         case ErrCode::NO_SUCH_MEMBER:
             return std::format("No member called '{}' in struct '{}'.", ctx.str_1, ctx.str_2);
         case ErrCode::CANNOT_ASSIGN_TO_CONST:
-            return "Cannot reassign a value a variable declared with `let`.";
+            return "Cannot reassign an immutable value.";
         case ErrCode::MAIN_REDEFINED:
             return "Redefinition of the main function!";
         default:

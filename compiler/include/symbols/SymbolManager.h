@@ -147,8 +147,8 @@ public:
     }
 
 
-    Type* getReferenceType(Type* of_type) {
-        return m_TypeManager.getReferenceType(of_type);
+    Type* getReferenceType(Type* of_type, const bool is_mutable) {
+        return m_TypeManager.getReferenceType(of_type, is_mutable);
     }
 
     Type* getSliceType(Type* of_type) {

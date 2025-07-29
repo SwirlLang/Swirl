@@ -146,6 +146,9 @@ struct Op final : Node {
     int8_t arity = 2;  // the no. of operands the operator requires
     std::vector<std::unique_ptr<Node>> operands;  // the operands
 
+    // for the special case of the `&` operator, where a `mut` can appear right after it
+    bool is_mutable = false;
+
     enum OpTag_t {
         BINARY_ADD,
         BINARY_SUB,

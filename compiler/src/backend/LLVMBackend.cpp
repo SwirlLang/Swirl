@@ -334,6 +334,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
         case ADDRESS_TAKING: {
             auto lookup = instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo());
+            instance.RefMemory = lookup.llvm_value;
             return lookup.llvm_value;
         }
 
@@ -606,6 +607,17 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subject) {
+    // perform implicit-dereferencing, if applicable
+    if (source_type->getSwType() == Type::REFERENCE) {
+        auto referenced_type = dynamic_cast<ReferenceType*>(source_type)->of_type;
+        if (!(getBoundTypeState()->getSwType() == Type::REFERENCE)) {
+            subject = Builder.CreateLoad(
+                referenced_type->llvmCodegen(*this),
+                subject, "implicit_deref"
+                );
+        } source_type = referenced_type;
+    }
+
     if (getBoundTypeState() != source_type && source_type->getSwType() != Type::STRUCT) {
         if (getBoundTypeState()->isIntegral()) {
             if (getBoundTypeState()->isUnsigned()) {
@@ -774,7 +786,6 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     llvm::Type* type = var_type->llvmCodegen(instance);
 
-    llvm::Value* ret;
     llvm::Value* init = nullptr;
 
     auto linkage = (is_exported || is_extern) ? llvm::GlobalVariable::ExternalLinkage : llvm::GlobalVariable::InternalLinkage;
@@ -794,8 +805,12 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
             assert(val != nullptr);
             var->setInitializer(val);
             instance.BoundMemory = nullptr;
-        } ret = var;
-        instance.SymMan.lookupDecl(this->var_ident).llvm_value = var;
+        }
+
+        // handle references
+        if (value.expr_type->getSwType() == Type::REFERENCE) {
+            instance.SymMan.lookupDecl(this->var_ident).llvm_value = instance.RefMemory;
+        } else instance.SymMan.lookupDecl(this->var_ident).llvm_value = var;
     } else {
         llvm::AllocaInst* var_alloca = instance.Builder.CreateAlloca(type, nullptr, var_ident->toString());
         if (is_extern) return var_alloca;
@@ -807,12 +822,14 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
                 instance.Builder.CreateStore(init, var_alloca, is_volatile);
             instance.BoundMemory = nullptr;
         }
-        
-        ret = var_alloca;
-        instance.SymMan.lookupDecl(this->var_ident).llvm_value = var_alloca;
+
+        // handle references
+        if (value.expr_type->getSwType() == Type::REFERENCE) {
+            instance.SymMan.lookupDecl(this->var_ident).llvm_value = instance.RefMemory;
+        } else instance.SymMan.lookupDecl(this->var_ident).llvm_value = var_alloca;
     }
 
-    return ret;
+    return nullptr;
 }
 
 

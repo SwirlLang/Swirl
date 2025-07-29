@@ -16,7 +16,8 @@ class  IdentInfo;
 namespace detail {
 struct Pointer {
     Type* of_type = nullptr;
-    uint16_t level = 0;
+    uint16_t level = 1;
+    bool is_mutable = false;  // does it point to a mutable object?
 
     bool operator==(const Pointer& other) const {
         return level == other.level && of_type == other.of_type;
@@ -67,15 +68,15 @@ struct std::hash<detail::Array> {
 
 /// Factory class for all children of `Type`
 class TypeManager {
-    std::unordered_map<IdentInfo*, std::unique_ptr
-        <Type, detail::Deleter>>                                      m_TypeTable;  // for named types
-    std::unordered_map<Type*, std::unique_ptr<ReferenceType>>         m_ReferenceTable;
-
     using Str_t = std::size_t;
-    std::unordered_map<detail::Array, std::unique_ptr<ArrayType>>     m_ArrayTable;
-    std::unordered_map<detail::Pointer, std::unique_ptr<PointerType>> m_PointerTable;
-    std::unordered_map<detail::Array, std::unique_ptr<SliceType>>     m_SliceTable;
-    std::unordered_map<Str_t, std::unique_ptr<TypeStr>> m_StringTable;
+    std::unordered_map<IdentInfo*, std::unique_ptr
+        <Type, detail::Deleter>>                          m_TypeTable;  // for named types
+    std::unordered_map<Str_t, std::unique_ptr<TypeStr>>   m_StringTable;
+
+    std::unordered_map<detail::Array, std::unique_ptr<ArrayType>>         m_ArrayTable;
+    std::unordered_map<detail::Pointer, std::unique_ptr<PointerType>>     m_PointerTable;
+    std::unordered_map<detail::Pointer, std::unique_ptr<ReferenceType>>   m_ReferenceTable;
+    std::unordered_map<detail::Array, std::unique_ptr<SliceType>>         m_SliceTable;
 
 
 public:
@@ -113,11 +114,17 @@ public:
     }
 
     /// returns a reference for the type `to`
-    Type* getReferenceType(Type* to) {
-        if (m_ReferenceTable.contains(to)) {
-            return m_ReferenceTable[to].get();
-        } m_ReferenceTable[to] = std::make_unique<ReferenceType>(to);
-        return m_ReferenceTable[to].get();
+    Type* getReferenceType(Type* to, const bool is_mutable) {
+        if (to->getSwType() == Type::REFERENCE && to->is_mutable == is_mutable)
+            return to;  // reference collapsing, & + & = &
+
+        const detail::Pointer obj{.of_type = to, .is_mutable = is_mutable};
+        if (m_ReferenceTable.contains(obj))
+            return m_ReferenceTable[obj].get();
+
+        m_ReferenceTable[obj] = std::make_unique<ReferenceType>(to);
+        m_ReferenceTable[obj]->is_mutable = is_mutable;
+        return m_ReferenceTable[obj].get();
     }
 
     Type* getStringType(const std::size_t size) {

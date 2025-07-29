@@ -105,9 +105,9 @@ llvm::Type* VoidType::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Type* ReferenceType::llvmCodegen(LLVMBackend& instance) {
     // references to arrays are compiled to their corresponding slice-types
-    if (of_type->getSwType() == ARRAY) {
+    if (of_type->getSwType() == ARRAY)
         return instance.SymMan.getSliceType(of_type)->llvmCodegen(instance);
-    } return llvm::PointerType::get(of_type->llvmCodegen(instance), 0);
+    return llvm::PointerType::get(of_type->llvmCodegen(instance), 0);
 }
 
 llvm::Type* ArrayType::llvmCodegen(LLVMBackend& instance) {

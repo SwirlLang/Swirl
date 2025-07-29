@@ -38,10 +38,11 @@ public:
 
     std::unordered_map<Type*, llvm::Type*> LLVMTypeCache;
 
-    // ----------------[contextual-states]-------------------
+    // ----------------[flags]-------------------
     bool IsLocalScope = false;
     bool ChildHasReturned = false;
 
+    llvm::Value* RefMemory = nullptr;
     llvm::Value* BoundMemory = nullptr;
     llvm::Value* StructFieldPtr = nullptr;  // used to "bubble-up" StructGEPd pointers
     Type*        StructFieldType = nullptr; // used to "bubble-up" struct-field types

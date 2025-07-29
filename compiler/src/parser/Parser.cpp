@@ -101,7 +101,7 @@ void Parser::ignoreButExpect(const Token& tok) {
 
 Type* Parser::parseType() {
     Type* base_type = nullptr;
-    bool  is_const  = false;
+    bool  is_mutable  = false;
     bool  is_reference = false;
 
 
@@ -111,7 +111,12 @@ Type* Parser::parseType() {
     }
 
     if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "const") {
-        is_const = true;
+        is_mutable = false;
+        forwardStream();
+    }
+
+    else if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "mut") {
+        is_mutable = true;
         forwardStream();
     }
 
@@ -144,10 +149,8 @@ Type* Parser::parseType() {
     }
 
     if (is_reference) {
-        base_type = SymbolTable.getReferenceType(base_type);
+        base_type = SymbolTable.getReferenceType(base_type, is_mutable);
     }
-
-    if (base_type) base_type->is_const = is_const;
 
     return base_type;
 }

@@ -52,7 +52,7 @@ struct Type {
         C_WCHAR,
     };
 
-    bool   is_const = false;
+    bool   is_mutable = false;
     Scope* scope = nullptr;  // the pointer to the namespace (if applicable) defined within the type
 
     virtual SwTypes     getSwType() = 0;

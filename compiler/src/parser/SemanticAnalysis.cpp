@@ -18,6 +18,10 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
         return nullptr;
     }
 
+    if (type1->getSwType() == Type::REFERENCE) type1 = dynamic_cast<ReferenceType*>(type1)->of_type;
+    if (type2->getSwType() == Type::REFERENCE) type2 = dynamic_cast<ReferenceType*>(type2)->of_type;
+
+
     if (type1->isIntegral() && type2->isIntegral()) {
         // return the greater of the two types
         if ((type1->isUnsigned() && type2->isUnsigned()) || (!type1->isUnsigned() && !type2->isUnsigned())) {
@@ -68,6 +72,8 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
 
 bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState location) const {
     if (!from || !to) return false;
+    if (from->getSwType() == Type::REFERENCE) from = dynamic_cast<ReferenceType*>(from)->of_type;
+    if (to->getSwType() == Type::REFERENCE) to = dynamic_cast<ReferenceType*>(to)->of_type;
 
     if ((from->isIntegral() && to->isFloatingPoint()) || (from->isFloatingPoint() && to->isIntegral())) {
         reportError(ErrCode::INT_AND_FLOAT_CONV, {.type_1 = from, .type_2 = to, .location = location});
@@ -414,13 +420,12 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
     // 1st operand
     auto analysis_1 = operands.at(0)->analyzeSemantics(ctx);
 
+    is_mutable = !ctx.getBoundTypeState() ? is_mutable : ctx.getBoundTypeState()->is_mutable;
+
     if (arity == 1) {
         if (value == "&") {
-            uint16_t ptr_level = 1;
-            if (analysis_1.deduced_type->getSwType() == Type::POINTER) {
-                ptr_level = dynamic_cast<PointerType*>(analysis_1.deduced_type)->pointer_level + 1;
-            }
-            ret.deduced_type = ctx.SymMan.getPointerType(analysis_1.deduced_type, ptr_level);
+            // take a reference
+            ret.deduced_type = ctx.SymMan.getReferenceType(analysis_1.deduced_type, is_mutable);
         }
 
         else {
@@ -464,8 +469,11 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             case ASSIGNMENT: {
                 ret.deduced_type = &GlobalTypeVoid;
 
-                if (analysis_1.deduced_type->is_const || (
-                        operands.at(0)->getNodeType() == ND_IDENT &&
+                if ((!analysis_1.deduced_type->is_mutable &&
+                    (analysis_1.deduced_type->getSwType() == Type::REFERENCE) ||
+                    (analysis_1.deduced_type->getSwType() == Type::POINTER)
+                ) ||
+                    (operands.at(0)->getNodeType() == ND_IDENT &&
                         ctx.SymMan.lookupDecl(operands.at(0)->getIdentInfo()).is_const
                         )) {
                     ctx.reportError(ErrCode::CANNOT_ASSIGN_TO_CONST, {.location = location});
