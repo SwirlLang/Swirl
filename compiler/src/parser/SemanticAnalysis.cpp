@@ -46,7 +46,7 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
 
         if (arr_1->size != arr_2->size) {
             reportError(
-                ErrCode::INCOMPATIBLE_TYPES,
+                ErrCode::DISTINCTLY_SIZED_ARR,
                 {.type_1 = arr_1, .type_2 = arr_2, .location = location}
                 );
             return nullptr;
@@ -59,6 +59,16 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
         if (checkTypeCompatibility(type1, type2, location)) {
             return type1;
         }
+    }
+
+    if (type1->getSwType() == Type::REFERENCE || type2->getSwType() == Type::REFERENCE) {
+        const auto enclosed_type_1 = type1->getSwType() == Type::REFERENCE ?
+            dynamic_cast<ReferenceType*>(type1)->of_type : type1;
+
+        const auto enclosed_type_2 = type2->getSwType() == Type::REFERENCE ?
+            dynamic_cast<ReferenceType*>(type2)->of_type : type2;
+
+        return deduceType(enclosed_type_1, enclosed_type_2, location);
     }
 
     reportError(ErrCode::INCOMPATIBLE_TYPES, {.type_1 = type1, .type_2 = type2, .location = location});
@@ -78,6 +88,22 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
             });
             return false;
         }
+    }
+
+    if (from->getSwType() == Type::REFERENCE && to->getSwType() != Type::REFERENCE) {
+        return checkTypeCompatibility(
+            dynamic_cast<ReferenceType*>(from)->of_type,
+            to,
+            location
+        );
+    }
+
+    if (from->getSwType() != Type::REFERENCE && to->getSwType() == Type::REFERENCE) {
+        return checkTypeCompatibility(
+            from,
+            dynamic_cast<ReferenceType*>(to)->of_type,
+            location
+        );
     }
 
     if ((from->isIntegral() && to->isFloatingPoint()) || (from->isFloatingPoint() && to->isIntegral())) {
@@ -446,7 +472,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
     if (arity == 1) {
         if (value == "&") {
             // take a reference
-            if (ctx.getBoundTypeState()->getSwType() == Type::REFERENCE) {
+            if (ctx.getBoundTypeState() && ctx.getBoundTypeState()->getSwType() == Type::REFERENCE) {
                 is_mutable = ctx.getBoundTypeState()->is_mutable;
             }
 

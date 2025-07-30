@@ -147,7 +147,7 @@ struct ReferenceType final : Type {
 
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     [[nodiscard]] std::string toString() const override {
-        return std::string("&") + (is_mutable ? "mut" : "") + of_type->toString();
+        return std::string("&") + (is_mutable ? "mut " : "") + of_type->toString();
     }
 
     SwTypes    getSwType() override { return REFERENCE; }
