@@ -3,9 +3,10 @@
 #include <print>
 #include <optional>
 #include <filesystem>
-#include <ranges>
 
 #include <lexer/TokenStream.h>
+
+#include "types/SwTypes.h"
 
 
 struct Type;
@@ -50,6 +51,7 @@ enum class ErrCode {
     NO_SIGNED_UNSIGNED_CONV,  // signed-unsigned conversions shall be explicit
     DISTINCTLY_SIZED_ARR,     // arrays of distinct sizes are incompatible
     CANNOT_ASSIGN_TO_CONST,   // attempt to re-assign a const
+    IMMUTABILITY_VIOLATION,   // when immutability rules are violated
     SLICE_NOT_COMPATIBLE,     // when slice types are not compatible with each other
     // ----------*----------- //
 
@@ -177,18 +179,42 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
         case ErrCode::NO_SUCH_TYPE:
             return "No such type.";
         case ErrCode::INCOMPATIBLE_TYPES:
-            return "Incompatible types!";
+            return std::format(
+                "Incompatible types! Cannot convert from `{}` to `{}`.",
+                ctx.type_1->toString(),
+                ctx.type_2->toString()
+                );
+
         case ErrCode::NO_IMPLICIT_CONVERSION:
             return "No implicit conversion is defined for the involved types.";
         case ErrCode::INT_AND_FLOAT_CONV:
             return "Implicit conversion between integral and floating-point types are not allowed.";
         case ErrCode::NO_NARROWING_CONVERSION:
-            return "Swirl forbids any implicit narrowing conversions.";
+            return std::format(
+                "Swirl doesn't support implicit narrowing conversions."
+                " Conversion between `{}` and `{}` is narrowing.",
+                ctx.type_1->toString(),
+                ctx.type_2->toString()
+                );
         case ErrCode::NO_SIGNED_UNSIGNED_CONV:
-            return "Conversions between signed and unsigned types must be explicit in Swirl, "
-                   "use the `as` operator if you intend a conversion.";
+            return std::format(
+                "Conversions between signed (`{}`) and unsigned (`{}`) types must be explicit in Swirl, "
+                   "use the `as` operator if you intend a conversion.",
+                   ctx.type_1->toString(),
+                   ctx.type_2->toString()
+                   );
         case ErrCode::DISTINCTLY_SIZED_ARR:
-            return "Arrays involved are incompatible due to size difference.";
+            return std::format(
+                "The array-types (`{}` and `{}`) are incompatible due to their size difference.",
+                ctx.type_1->toString(),
+                ctx.type_2->toString()
+                );
+        case ErrCode::IMMUTABILITY_VIOLATION:
+            return std::format(
+                "Immutability violation. Cannot convert from `{}` to `{}`.",
+                ctx.type_1->toString(),
+                ctx.type_2->toString()
+                );
 
 
         case ErrCode::NO_DIR_IMPORT:

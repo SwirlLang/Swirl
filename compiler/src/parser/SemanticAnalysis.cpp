@@ -18,10 +18,6 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
         return nullptr;
     }
 
-    if (type1->getSwType() == Type::REFERENCE) type1 = dynamic_cast<ReferenceType*>(type1)->of_type;
-    if (type2->getSwType() == Type::REFERENCE) type2 = dynamic_cast<ReferenceType*>(type2)->of_type;
-
-
     if (type1->isIntegral() && type2->isIntegral()) {
         // return the greater of the two types
         if ((type1->isUnsigned() && type2->isUnsigned()) || (!type1->isUnsigned() && !type2->isUnsigned())) {
@@ -72,8 +68,13 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
 
 bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState location) const {
     if (!from || !to) return false;
-    if (from->getSwType() == Type::REFERENCE) from = dynamic_cast<ReferenceType*>(from)->of_type;
-    if (to->getSwType() == Type::REFERENCE) to = dynamic_cast<ReferenceType*>(to)->of_type;
+
+    if (from->getSwType() == Type::REFERENCE && to->getSwType() == Type::REFERENCE) {
+        if (to->is_mutable && !from->is_mutable) {
+            reportError(ErrCode::IMMUTABILITY_VIOLATION, {.location = location});
+            return false;
+        }
+    }
 
     if ((from->isIntegral() && to->isFloatingPoint()) || (from->isFloatingPoint() && to->isIntegral())) {
         reportError(ErrCode::INT_AND_FLOAT_CONV, {.type_1 = from, .type_2 = to, .location = location});
@@ -109,6 +110,24 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
         }
 
         return checkTypeCompatibility(base_t1->of_type, base_t2->of_type, location);
+    }
+
+    if (from->getSwType() == Type::REFERENCE && to->getSwType() == Type::REFERENCE) {
+        const bool result = checkTypeCompatibility(
+            dynamic_cast<ReferenceType*>(from)->of_type,
+            dynamic_cast<ReferenceType*>(to)->of_type,
+            location
+            );
+
+        if (!result) {
+            reportError(
+                ErrCode::INCOMPATIBLE_TYPES, {
+                    .type_1 = from,
+                    .type_2 = to,
+                    .location = location
+                }
+            );
+        }
     }
 
     if (from->getSwType() == Type::STRUCT || to->getSwType() == Type::STRUCT) {
@@ -420,12 +439,18 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
     // 1st operand
     auto analysis_1 = operands.at(0)->analyzeSemantics(ctx);
 
-    is_mutable = !ctx.getBoundTypeState() ? is_mutable : ctx.getBoundTypeState()->is_mutable;
-
     if (arity == 1) {
         if (value == "&") {
             // take a reference
-            ret.deduced_type = ctx.SymMan.getReferenceType(analysis_1.deduced_type, is_mutable);
+            if (ctx.getBoundTypeState()->getSwType() == Type::REFERENCE) {
+                is_mutable = ctx.getBoundTypeState()->is_mutable;
+            }
+
+            if (analysis_1.deduced_type->getSwType() == Type::REFERENCE) {
+                if (!analysis_1.deduced_type->is_mutable && is_mutable) {
+                    ctx.reportError(ErrCode::IMMUTABILITY_VIOLATION, {.location = location});
+                }
+            } ret.deduced_type = ctx.SymMan.getReferenceType(analysis_1.deduced_type, is_mutable);
         }
 
         else {
