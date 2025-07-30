@@ -12,7 +12,7 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
     auto package_element_access =  [&, this] (SwNode& operand_1) -> std::optional<SwNode> {
         if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[") {
             m_Parser.forwardStream();
-            auto op = std::make_unique<Op>("[]", 1);
+            auto op = std::make_unique<Op>("[]", 2);
             op->location = m_Stream.getStreamState();
             op->operands.push_back(std::move(operand_1));
             op->operands.push_back(parseComponent());
@@ -121,6 +121,7 @@ std::optional<std::unique_ptr<Node>> ExpressionParser::parsePrefix() {
 
 /// This method utilizes `Pratt-Parsing`.
 Expression ExpressionParser::parseExpr(int rbp) {
+    // left-denotation, used to parse an operator when there's something to it's left
     auto led = [this](SwNode left) -> SwNode {
         auto op_str = m_Parser.forwardStream().value;
         const auto tag = Op::getTagFor(op_str, 2);
@@ -139,6 +140,7 @@ Expression ExpressionParser::parseExpr(int rbp) {
         if (m_Stream.CurTok.type != OP)
             break;
 
+        // fetch the left binding power (LBP) and compare it against the right binding power (RBP)
         if (const int lbp = Op::getLBPFor(Op::getTagFor(m_Stream.CurTok.value, 2)); rbp >= lbp)
             break;
 
