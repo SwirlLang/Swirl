@@ -175,7 +175,7 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
 
         for (auto [i, element] : llvm::enumerate(elements)) {
             ptr = instance.Builder.CreateGEP(arr_type, base_ptr, {instance.toLLVMInt(0), instance.toLLVMInt(i)});
-            if (element.expr_type->getSwType() == Type::ARRAY) {
+            if (element.expr_type->getTypeTag() == Type::ARRAY) {
                 bound_mem_cache = instance.BoundMemory;
                 instance.BoundMemory = ptr;
                 element.llvmCodegen(instance);
@@ -192,7 +192,7 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
 
     for (auto [i, element] : llvm::enumerate(elements)) {
         ptr = instance.Builder.CreateGEP(arr_type, base_ptr, {instance.toLLVMInt(0), instance.toLLVMInt(i)});
-        if (element.expr_type->getSwType() == Type::ARRAY) {
+        if (element.expr_type->getTypeTag() == Type::ARRAY) {
             bound_mem_cache = instance.BoundMemory;
             instance.BoundMemory = ptr;
             element.llvmCodegen(instance);
@@ -608,9 +608,9 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subject) {
     // perform implicit-dereferencing, if applicable
-    if (source_type->getSwType() == Type::REFERENCE) {
+    if (source_type->getTypeTag() == Type::REFERENCE) {
         auto referenced_type = dynamic_cast<ReferenceType*>(source_type)->of_type;
-        if (!(getBoundTypeState()->getSwType() == Type::REFERENCE)) {
+        if (!(getBoundTypeState()->getTypeTag() == Type::REFERENCE)) {
             subject = Builder.CreateLoad(
                 referenced_type->llvmCodegen(*this),
                 subject, "implicit_deref"
@@ -618,7 +618,7 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
         } source_type = referenced_type;
     }
 
-    if (getBoundTypeState() != source_type && source_type->getSwType() != Type::STRUCT) {
+    if (getBoundTypeState() != source_type && source_type->getTypeTag() != Type::STRUCT) {
         if (getBoundTypeState()->isIntegral()) {
             if (getBoundTypeState()->isUnsigned()) {
                 return Builder.CreateZExtOrTrunc(subject, getBoundLLVMType());
@@ -808,7 +808,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
         }
 
         // handle references
-        if (value.expr_type->getSwType() == Type::REFERENCE) {
+        if (value.expr_type->getTypeTag() == Type::REFERENCE) {
             instance.SymMan.lookupDecl(this->var_ident).llvm_value = instance.RefMemory;
         } else instance.SymMan.lookupDecl(this->var_ident).llvm_value = var;
     } else {
@@ -824,7 +824,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
         }
 
         // handle references
-        if (value.expr_type->getSwType() == Type::REFERENCE) {
+        if (value.expr_type->getTypeTag() == Type::REFERENCE) {
             instance.SymMan.lookupDecl(this->var_ident).llvm_value = instance.RefMemory;
         } else instance.SymMan.lookupDecl(this->var_ident).llvm_value = var_alloca;
     }

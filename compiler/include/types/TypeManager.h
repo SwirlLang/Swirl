@@ -115,7 +115,7 @@ public:
 
     /// returns a reference for the type `to`
     Type* getReferenceType(Type* to, const bool is_mutable) {
-        if (to->getSwType() == Type::REFERENCE && to->is_mutable == is_mutable)
+        if (to->getTypeTag() == Type::REFERENCE && to->is_mutable == is_mutable)
             return to;  // reference collapsing, & + & = &
 
         const detail::Pointer obj{.of_type = to, .is_mutable = is_mutable};

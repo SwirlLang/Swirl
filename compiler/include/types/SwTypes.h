@@ -55,7 +55,7 @@ struct Type {
     bool   is_mutable = false;
     Scope* scope = nullptr;  // the pointer to the namespace (if applicable) defined within the type
 
-    virtual SwTypes     getSwType() = 0;
+    virtual SwTypes     getTypeTag() = 0;
 
     virtual llvm::Type* llvmCodegen(LLVMBackend&) = 0;
     
@@ -67,7 +67,7 @@ struct Type {
     [[nodiscard]] virtual std::string toString() const = 0;
     [[nodiscard]] virtual IdentInfo* getIdent() const { return nullptr; }
 
-    virtual bool operator==(Type* other) { return getSwType() == other->getSwType(); }
+    virtual bool operator==(Type* other) { return getTypeTag() == other->getTypeTag(); }
 
     virtual ~Type() = default;
 };
@@ -78,13 +78,13 @@ struct FunctionType final : Type {
     Type*              ret_type;
     std::vector<Type*> param_types;
 
-    SwTypes getSwType() override { return FUNCTION; }
+    SwTypes getTypeTag() override { return FUNCTION; }
     [[nodiscard]] IdentInfo* getIdent() const override { return ident; }
 
     [[nodiscard]] std::string toString() const override;
 
     bool operator==(Type* other) override {
-        return other->getSwType() == FUNCTION && (param_types == dynamic_cast<FunctionType*>(other)->param_types);
+        return other->getTypeTag() == FUNCTION && (param_types == dynamic_cast<FunctionType*>(other)->param_types);
     }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
@@ -97,13 +97,13 @@ struct StructType final : Type {
     std::vector<Type*> field_types;
     std::unordered_map<std::string, std::size_t> field_offsets;
 
-    SwTypes getSwType() override { return STRUCT; }
+    SwTypes getTypeTag() override { return STRUCT; }
 
     [[nodiscard]] std::string toString() const override;
     [[nodiscard]] IdentInfo* getIdent() const override { return ident; }
 
     bool operator==(Type* other) override {
-        return other->getSwType() == STRUCT && (field_types == dynamic_cast<StructType*>(other)->field_types);
+        return other->getTypeTag() == STRUCT && (field_types == dynamic_cast<StructType*>(other)->field_types);
     }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
@@ -116,7 +116,7 @@ struct ArrayType final : Type {
 
     ArrayType(Type* of_type, const std::size_t size): of_type(of_type), size(size) {}
 
-    SwTypes getSwType() override { return ARRAY; }
+    SwTypes getTypeTag() override { return ARRAY; }
 
     [[nodiscard]] std::string toString() const override {
         return std::format("[{} | {}]", of_type->toString(), size);
@@ -132,7 +132,7 @@ struct TypeStr final : Type {
     explicit TypeStr(const std::size_t size): size(size) {}
 
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes    getSwType() override { return STR; }
+    SwTypes    getTypeTag() override { return STR; }
 
     [[nodiscard]] std::string toString() const override { return "str"; }
 
@@ -150,10 +150,10 @@ struct ReferenceType final : Type {
         return std::string("&") + (is_mutable ? "mut " : "") + of_type->toString();
     }
 
-    SwTypes    getSwType() override { return REFERENCE; }
+    SwTypes    getTypeTag() override { return REFERENCE; }
 
     bool operator==(Type* other) override {
-        return other->getSwType() == REFERENCE && (of_type == dynamic_cast<ReferenceType*>(other)->of_type);
+        return other->getTypeTag() == REFERENCE && (of_type == dynamic_cast<ReferenceType*>(other)->of_type);
     }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
@@ -168,7 +168,7 @@ struct PointerType final : Type {
 
     [[nodiscard]] std::string toString() const override;
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes    getSwType() override { return POINTER; }
+    SwTypes    getTypeTag() override { return POINTER; }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -184,7 +184,7 @@ struct SliceType final : Type {
         return std::format("&[{} | {}]", of_type->toString(), size);
     }
 
-    SwTypes getSwType() override { return SLICE; }
+    SwTypes getTypeTag() override { return SLICE; }
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
@@ -192,7 +192,7 @@ struct SliceType final : Type {
 struct VoidType final : Type {
     [[nodiscard]] std::string toString() const override { return "void"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes getSwType() override { return VOID; }
+    SwTypes getTypeTag() override { return VOID; }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -201,7 +201,7 @@ struct VoidType final : Type {
 struct TypeI8 : Type {
     [[nodiscard]] std::string toString() const override { return "i8"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes getSwType() override { return I8; }
+    SwTypes getTypeTag() override { return I8; }
 
     bool isIntegral() override { return true; }
     int  getBitWidth() override { return 8; }
@@ -212,7 +212,7 @@ struct TypeI8 : Type {
 struct TypeI16 : Type {
     [[nodiscard]] std::string toString() const override { return "i16"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes getSwType() override { return I16; }
+    SwTypes getTypeTag() override { return I16; }
 
     bool isIntegral() override { return true; }
     int getBitWidth() override { return 16; }
@@ -223,7 +223,7 @@ struct TypeI16 : Type {
 struct TypeI32 : Type {
     [[nodiscard]] std::string toString() const override { return "i32"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes getSwType() override { return I32; }
+    SwTypes getTypeTag() override { return I32; }
 
     bool isIntegral() override { return true; }
     int getBitWidth() override { return 32; }
@@ -234,7 +234,7 @@ struct TypeI32 : Type {
 struct TypeI64 : Type {
     [[nodiscard]] std::string toString() const override { return "i64"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes getSwType() override { return I64; }
+    SwTypes getTypeTag() override { return I64; }
 
     bool isIntegral() override { return true; }
     int getBitWidth() override { return 64; }
@@ -245,7 +245,7 @@ struct TypeI64 : Type {
 struct TypeI128 : Type {
     [[nodiscard]] std::string toString() const override { return "i128"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes getSwType() override { return I128; }
+    SwTypes getTypeTag() override { return I128; }
 
     bool isIntegral() override { return true; }
     int getBitWidth() override { return 128; }
@@ -256,38 +256,38 @@ struct TypeI128 : Type {
 // Unsigned types
 struct TypeU8 final : TypeI8 {
     [[nodiscard]] std::string toString() const override { return "u8"; }
-    SwTypes getSwType() override { return U8; }
+    SwTypes getTypeTag() override { return U8; }
     bool isUnsigned() override { return true; }
 };
 
 struct TypeU16 final : TypeI16 {
     [[nodiscard]] std::string toString() const override { return "u16"; }
-    SwTypes getSwType() override { return U16; }
+    SwTypes getTypeTag() override { return U16; }
     bool isUnsigned() override { return true; }
 };
 
 struct TypeU32 final : TypeI32 {
     [[nodiscard]] std::string toString() const override { return "u32"; }
-    SwTypes getSwType() override { return U32; }
+    SwTypes getTypeTag() override { return U32; }
     bool isUnsigned() override { return true; }
 };
 
 struct TypeU64 final : TypeI64 {
     [[nodiscard]] std::string toString() const override { return "u64"; }
-    SwTypes getSwType() override { return U64; }
+    SwTypes getTypeTag() override { return U64; }
     bool isUnsigned() override { return true; }
 };
 
 struct TypeU128 final : TypeI128 {
     [[nodiscard]] std::string toString() const override { return "u128"; }
-    SwTypes getSwType() override { return U128; }
+    SwTypes getTypeTag() override { return U128; }
     bool isUnsigned() override { return true; }
 };
 
 struct TypeF32 final : Type {
     [[nodiscard]] std::string toString() const override { return "f32"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes getSwType() override { return F32; }
+    SwTypes getTypeTag() override { return F32; }
 
     bool isFloatingPoint() override { return true; }
     int getBitWidth() override { return 32; }
@@ -298,7 +298,7 @@ struct TypeF32 final : Type {
 struct TypeF64 final : Type {
     [[nodiscard]] std::string toString() const override { return "f64"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes getSwType() override { return F64; }
+    SwTypes getTypeTag() override { return F64; }
 
     bool isFloatingPoint() override { return true; }
     int getBitWidth() override { return 64; }
@@ -309,7 +309,7 @@ struct TypeF64 final : Type {
 struct TypeBool final : Type {
     [[nodiscard]] std::string toString() const override { return "bool"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes getSwType() override { return BOOL; }
+    SwTypes getTypeTag() override { return BOOL; }
 
     int getBitWidth() override { return 1; }
 
@@ -322,7 +322,7 @@ struct TypeBool final : Type {
 struct Name final : Type { \
     bool is_usn; \
     [[nodiscard]] std::string toString() const override { return StringName; } \
-    SwTypes getSwType() override { return Tag; } \
+    SwTypes getTypeTag() override { return Tag; } \
     int getBitWidth() override; \
     bool isIntegral() override; \
     bool isFloatingPoint() override; \

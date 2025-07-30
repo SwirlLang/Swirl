@@ -75,7 +75,7 @@ struct Node {
 
     virtual AnalysisResult analyzeSemantics(AnalysisContext&) { return {}; }
 
-    virtual Type* getSwType() { throw std::runtime_error("getSwType unimplemented!"); }
+    virtual Type* getSwType() { throw std::runtime_error("getTypeTag unimplemented!"); }
 
     virtual ~Node() = default;
 };

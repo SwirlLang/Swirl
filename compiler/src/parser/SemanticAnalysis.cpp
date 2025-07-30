@@ -40,7 +40,7 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
         } return type2;
     }
 
-    if (type1->getSwType() == Type::ARRAY && type2->getSwType() == Type::ARRAY) {
+    if (type1->getTypeTag() == Type::ARRAY && type2->getTypeTag() == Type::ARRAY) {
         auto arr_1 = dynamic_cast<ArrayType*>(type1);
         auto arr_2 = dynamic_cast<ArrayType*>(type2);
 
@@ -55,17 +55,17 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
         return SymMan.getArrayType(deduceType(arr_1->of_type, arr_2->of_type, location), arr_1->size);
     }
 
-    if (type1->getSwType() == Type::STRUCT || type2->getSwType() == Type::STRUCT) {
+    if (type1->getTypeTag() == Type::STRUCT || type2->getTypeTag() == Type::STRUCT) {
         if (checkTypeCompatibility(type1, type2, location)) {
             return type1;
         }
     }
 
-    if (type1->getSwType() == Type::REFERENCE || type2->getSwType() == Type::REFERENCE) {
-        const auto enclosed_type_1 = type1->getSwType() == Type::REFERENCE ?
+    if (type1->getTypeTag() == Type::REFERENCE || type2->getTypeTag() == Type::REFERENCE) {
+        const auto enclosed_type_1 = type1->getTypeTag() == Type::REFERENCE ?
             dynamic_cast<ReferenceType*>(type1)->of_type : type1;
 
-        const auto enclosed_type_2 = type2->getSwType() == Type::REFERENCE ?
+        const auto enclosed_type_2 = type2->getTypeTag() == Type::REFERENCE ?
             dynamic_cast<ReferenceType*>(type2)->of_type : type2;
 
         return deduceType(enclosed_type_1, enclosed_type_2, location);
@@ -79,7 +79,7 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
 bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState location) const {
     if (!from || !to) return false;
 
-    if (from->getSwType() == Type::REFERENCE && to->getSwType() == Type::REFERENCE) {
+    if (from->getTypeTag() == Type::REFERENCE && to->getTypeTag() == Type::REFERENCE) {
         if (to->is_mutable && !from->is_mutable) {
             reportError(ErrCode::IMMUTABILITY_VIOLATION, {
                 .type_1 = from,
@@ -90,7 +90,7 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
         }
     }
 
-    if (from->getSwType() == Type::REFERENCE && to->getSwType() != Type::REFERENCE) {
+    if (from->getTypeTag() == Type::REFERENCE && to->getTypeTag() != Type::REFERENCE) {
         return checkTypeCompatibility(
             dynamic_cast<ReferenceType*>(from)->of_type,
             to,
@@ -98,7 +98,7 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
         );
     }
 
-    if (from->getSwType() != Type::REFERENCE && to->getSwType() == Type::REFERENCE) {
+    if (from->getTypeTag() != Type::REFERENCE && to->getTypeTag() == Type::REFERENCE) {
         return checkTypeCompatibility(
             from,
             dynamic_cast<ReferenceType*>(to)->of_type,
@@ -130,7 +130,7 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
         }
     }
 
-    if (from->getSwType() == Type::ARRAY && to->getSwType() == Type::ARRAY) {
+    if (from->getTypeTag() == Type::ARRAY && to->getTypeTag() == Type::ARRAY) {
         const auto* base_t1 = dynamic_cast<ArrayType*>(from);
         const auto* base_t2 = dynamic_cast<ArrayType*>(to);
 
@@ -142,7 +142,7 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
         return checkTypeCompatibility(base_t1->of_type, base_t2->of_type, location);
     }
 
-    if (from->getSwType() == Type::REFERENCE && to->getSwType() == Type::REFERENCE) {
+    if (from->getTypeTag() == Type::REFERENCE && to->getTypeTag() == Type::REFERENCE) {
         const bool result = checkTypeCompatibility(
             dynamic_cast<ReferenceType*>(from)->of_type,
             dynamic_cast<ReferenceType*>(to)->of_type,
@@ -160,7 +160,7 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
         }
     }
 
-    if (from->getSwType() == Type::STRUCT || to->getSwType() == Type::STRUCT) {
+    if (from->getTypeTag() == Type::STRUCT || to->getTypeTag() == Type::STRUCT) {
         if (from != to) {
             reportError(
                 ErrCode::INCOMPATIBLE_TYPES, {
@@ -280,7 +280,7 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
         return {};
     }
 
-    if (var_type && var_type->getSwType() == Type::ARRAY) {
+    if (var_type && var_type->getTypeTag() == Type::ARRAY) {
         const auto base_type = dynamic_cast<ArrayType*>(var_type)->of_type;
         ctx.setBoundTypeState(base_type);
     } else ctx.setBoundTypeState(var_type);
@@ -472,11 +472,11 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
     if (arity == 1) {
         if (value == "&") {
             // take a reference
-            if (ctx.getBoundTypeState() && ctx.getBoundTypeState()->getSwType() == Type::REFERENCE) {
+            if (ctx.getBoundTypeState() && ctx.getBoundTypeState()->getTypeTag() == Type::REFERENCE) {
                 is_mutable = ctx.getBoundTypeState()->is_mutable;
             }
 
-            if (analysis_1.deduced_type->getSwType() == Type::REFERENCE) {
+            if (analysis_1.deduced_type->getTypeTag() == Type::REFERENCE) {
                 if (!analysis_1.deduced_type->is_mutable && is_mutable) {
                     ctx.reportError(ErrCode::IMMUTABILITY_VIOLATION, {.location = location});
                 }
@@ -525,8 +525,8 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                 ret.deduced_type = &GlobalTypeVoid;
 
                 if ((!analysis_1.deduced_type->is_mutable &&
-                    (analysis_1.deduced_type->getSwType() == Type::REFERENCE) ||
-                    (analysis_1.deduced_type->getSwType() == Type::POINTER)
+                    (analysis_1.deduced_type->getTypeTag() == Type::REFERENCE) ||
+                    (analysis_1.deduced_type->getTypeTag() == Type::POINTER)
                 ) ||
                     (operands.at(0)->getNodeType() == ND_IDENT &&
                         ctx.SymMan.lookupDecl(operands.at(0)->getIdentInfo()).is_const
