@@ -40,6 +40,7 @@ std::unordered_map<Op::OpTag_t, OpInfo> OpInfoTable = {
     {Op::MOD, {60, OpInfo::LEFT}},
 
     {Op::CAST_OP, {100, OpInfo::LEFT}},
+    {Op::INDEXING_OP, {150, OpInfo::LEFT}},
     {Op::DOT, {800, OpInfo::LEFT}},
 };
 
@@ -67,7 +68,7 @@ std::unordered_map<std::pair<std::string_view, int>, Op::OpTag_t> OpTagMap = {
     {{"<", 2},  Op::LESS_THAN},
     {{"<=", 2}, Op::LESS_THAN_OR_EQUAL},
 
-    {{"[]", 2}, Op::INDEXING_OP},
+    {{"[", 2},  Op::INDEXING_OP},
     {{"*", 1},  Op::DEREFERENCE},
     {{"&", 1},  Op::ADDRESS_TAKING},
     {{"as", 2}, Op::CAST_OP},

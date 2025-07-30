@@ -75,6 +75,7 @@ enum class ErrCode {
 
 
     TOO_FEW_ARGS,
+    NON_INTEGRAL_INDICES,
     INDEX_OUT_OF_BOUNDS,
     NON_INT_ARRAY_SIZE,
     INITIALIZER_REQUIRED,     // when initialization is required but not given
@@ -238,6 +239,8 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
 
         case ErrCode::INITIALIZER_REQUIRED:
             return "Initialization is required here.";
+        case ErrCode::NON_INTEGRAL_INDICES:
+            return std::format("Type `{}` is not integral.", ctx.type_1->toString());
         case ErrCode::RET_TYPE_REQUIRED:
             return "You will have to explicitly specify a return type here.";
         case ErrCode::QUALIFIER_UNDEFINED:

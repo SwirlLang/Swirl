@@ -9,23 +9,6 @@ ExpressionParser::ExpressionParser(Parser& parser): m_Parser(parser) {}
 
 std::unique_ptr<Node> ExpressionParser::parseComponent() {
     // this helper returns a packaged element-access operator if it detects its presence
-    auto package_element_access =  [&, this] (SwNode& operand_1) -> std::optional<SwNode> {
-        if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[") {
-            m_Parser.forwardStream();
-            auto op = std::make_unique<Op>("[]", 2);
-            op->location = m_Stream.getStreamState();
-            op->operands.push_back(std::move(operand_1));
-            op->operands.push_back(parseComponent());
-
-            if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "]") {
-                m_Parser.reportError(ErrCode::UNMATCHED_SQ_BRACKET);
-                return std::nullopt;
-            }
-            m_Parser.forwardStream();
-            return std::move(op);
-        } return std::nullopt;
-    };
-
     switch (m_Stream.CurTok.type) {
         case NUMBER: {
             if (m_Stream.CurTok.meta == CT_FLOAT) {
@@ -44,24 +27,17 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
             while (m_Stream.CurTok.type == STRING) {  // concatenation of adjacent string literals
                 str->value += m_Stream.CurTok.value;
                 m_Parser.forwardStream();
-            }
-            if (auto op = package_element_access(str)) {
-                return std::move(*op);
             } return std::move(str);
         }
         case IDENT: {
             auto id = m_Parser.parseIdent();
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
                 std::unique_ptr<Node> call_node = m_Parser.parseCall(std::move(id));
-                if (auto op = package_element_access(call_node)) {
-                    return std::move(*op);
-                } return std::move(call_node);
+                return std::move(call_node);
             }
 
             std::unique_ptr<Node> id_node = std::make_unique<Ident>(std::move(id));
-            if (auto op = package_element_access(id_node)) {
-                return std::move(*op);
-            } return std::move(id_node);
+            return std::move(id_node);
         }
         case PUNC: {
             if (m_Stream.CurTok.value == "[") {
@@ -83,9 +59,7 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                 } m_Parser.forwardStream();
 
                 std::unique_ptr<Node> arr_node = std::make_unique<ArrayNode>(std::move(arr));
-                if (auto op = package_element_access(arr_node)) {
-                    return std::move(*op);
-                } return std::move(arr_node);
+                return std::move(arr_node);
             }
 
             if (m_Stream.CurTok.value == "(") {
@@ -120,16 +94,23 @@ std::optional<std::unique_ptr<Node>> ExpressionParser::parsePrefix() {
 }
 
 /// This method utilizes `Pratt-Parsing`.
-Expression ExpressionParser::parseExpr(int rbp) {
+Expression ExpressionParser::parseExpr(const int rbp) {
     // left-denotation, used to parse an operator when there's something to it's left
     auto led = [this](SwNode left) -> SwNode {
         auto op_str = m_Parser.forwardStream().value;
         const auto tag = Op::getTagFor(op_str, 2);
         auto right = parseExpr(Op::getLBPFor(tag));
+
+        if (op_str == "[") {
+            m_Parser.forwardStream();  // skip the ']'
+        }
+
         auto op = std::make_unique<Op>(op_str, 2);
+
         op->operands.push_back(std::move(left));
         op->operands.push_back(std::move(right.expr.front()));
         op->location = m_Stream.getStreamState();
+
         return std::move(op);
     };
 
@@ -137,8 +118,14 @@ Expression ExpressionParser::parseExpr(int rbp) {
     ret.location = m_Stream.getStreamState();
 
     while (true) {
-        if (m_Stream.CurTok.type != OP)
+        // whether to continue with the expression
+        if (m_Stream.CurTok.type != OP && !(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "["))
             break;
+
+        if (m_Stream.eof()) {
+            m_Parser.reportError(ErrCode::UNEXPECTED_EOF);
+            break;
+        }
 
         // fetch the left binding power (LBP) and compare it against the right binding power (RBP)
         if (const int lbp = Op::getLBPFor(Op::getTagFor(m_Stream.CurTok.value, 2)); rbp >= lbp)

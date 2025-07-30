@@ -545,7 +545,12 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 
             case INDEXING_OP: {
                 if (!analysis_2.deduced_type->isIntegral()) {
-                    // ctx.ErrMan.newError("Non-integral values can't be used as indices.", location);
+                    ctx.reportError(
+                        ErrCode::NON_INTEGRAL_INDICES, {
+                            .type_1 = analysis_2.deduced_type,
+                            .location = location
+                        });
+                    break;
                 } ret.deduced_type = dynamic_cast<ArrayType*>(analysis_1.deduced_type)->of_type;
                 break;
             }
