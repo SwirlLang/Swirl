@@ -71,7 +71,11 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
 
     if (from->getSwType() == Type::REFERENCE && to->getSwType() == Type::REFERENCE) {
         if (to->is_mutable && !from->is_mutable) {
-            reportError(ErrCode::IMMUTABILITY_VIOLATION, {.location = location});
+            reportError(ErrCode::IMMUTABILITY_VIOLATION, {
+                .type_1 = from,
+                .type_2 = to,
+                .location = location
+            });
             return false;
         }
     }
