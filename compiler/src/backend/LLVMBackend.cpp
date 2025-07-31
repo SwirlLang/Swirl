@@ -808,7 +808,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
         }
 
         // handle references
-        if (value.expr_type->getTypeTag() == Type::REFERENCE) {
+        if (var_type->getTypeTag() == Type::REFERENCE) {
             instance.SymMan.lookupDecl(this->var_ident).llvm_value = instance.RefMemory;
         } else instance.SymMan.lookupDecl(this->var_ident).llvm_value = var;
     } else {
@@ -824,7 +824,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
         }
 
         // handle references
-        if (value.expr_type->getTypeTag() == Type::REFERENCE) {
+        if (var_type->getTypeTag() == Type::REFERENCE) {
             instance.SymMan.lookupDecl(this->var_ident).llvm_value = instance.RefMemory;
         } else instance.SymMan.lookupDecl(this->var_ident).llvm_value = var_alloca;
     }
