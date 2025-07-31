@@ -4,7 +4,6 @@
 #include <utility>
 #include <vector>
 #include <string_view>
-#include <unordered_map>
 
 #include <utils/utils.h>
 #include <lexer/Tokens.h>
@@ -46,7 +45,7 @@ struct AnalysisResult {
 };
 
 
-// A common base class for all the nodes
+// The common base class of all the nodes
 struct Node {
     std::string value;
     std::size_t scope_id{};
@@ -55,33 +54,51 @@ struct Node {
     bool is_exported = false;
 
     [[nodiscard]]
-    virtual NodeType getNodeType() const { return ND_INVALID; }
+    virtual NodeType getNodeType() const {
+        return ND_INVALID;
+    }
 
-    virtual bool hasScopes() { return false; }
+    virtual bool hasScopes() {
+        return false;
+    }
 
-    virtual IdentInfo* getIdentInfo() { throw std::runtime_error("getIdentInfo called on Node instance"); }
+    virtual IdentInfo* getIdentInfo() {
+        throw std::runtime_error("getIdentInfo called on Node instance");
+    }
 
-    virtual const std::vector<std::unique_ptr<Node>>& getExprValue() { throw std::runtime_error("getExprValue called on Node instance"); }
+    virtual const std::vector<std::unique_ptr<Node>>& getExprValue() {
+        throw std::runtime_error("getExprValue called on Node instance");
+    }
 
-    virtual llvm::Value* llvmCodegen(LLVMBackend& instance) { throw std::runtime_error("llvmCodegen called on Node instance"); }
+    virtual llvm::Value* llvmCodegen(LLVMBackend& instance) {
+        throw std::runtime_error("llvmCodegen called on Node instance");
+    }
 
-    virtual int8_t getArity() { throw std::runtime_error("getArity called on base Node instance "); }
+    virtual int8_t getArity() {
+        throw std::runtime_error("getArity called on base Node instance ");
+    }
 
-    virtual void print() { throw std::runtime_error("debug called on base Node"); }
+    virtual void setArity(int8_t val) {
+        throw std::runtime_error("setArity called on base Node instance");
+    }
 
-    virtual void setArity(int8_t val) { throw std::runtime_error("setArity called on base Node instance"); }
+    virtual std::vector<std::unique_ptr<Node>>& getMutOperands() {
+        throw std::runtime_error("getMutOperands called on base node");
+    }
 
-    virtual std::vector<std::unique_ptr<Node>>& getMutOperands() { throw std::runtime_error("getMutOperands called on base node"); }
+    virtual AnalysisResult analyzeSemantics(AnalysisContext&) {
+        return {};
+    }
 
-    virtual AnalysisResult analyzeSemantics(AnalysisContext&) { return {}; }
-
-    virtual Type* getSwType() { throw std::runtime_error("getTypeTag unimplemented!"); }
+    virtual Type* getSwType() {
+        throw std::runtime_error("getTypeTag unimplemented!");
+    }
 
     virtual ~Node() = default;
 };
 
 
-struct Expression : Node {
+struct Expression final : Node {
     std::vector<std::unique_ptr<Node>> expr;
     Type* expr_type = nullptr;
 
