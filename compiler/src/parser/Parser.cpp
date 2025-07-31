@@ -90,11 +90,11 @@ Token Parser::forwardStream(const uint8_t n) {
 }
 
 
-/// reports a syntax error if the current token != tok, then forwards the stream
+/// If `tok` is the current token in the stream, forward it, report a syntax error otherwise.
 void Parser::ignoreButExpect(const Token& tok) {
     if (m_Stream.CurTok != tok) {
         reportError(ErrCode::SYNTAX_ERROR, {.msg = std::format("Expected '{}'.", tok.value)});
-    } forwardStream();
+    } else forwardStream();
 }
 
 

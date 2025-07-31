@@ -215,7 +215,7 @@ struct Op final : Node {
 
     static int getLBPFor(OpTag_t op);
     static int getRBPFor(OpTag_t op);
-
+    static int getPBPFor(OpTag_t op);
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;

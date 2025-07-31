@@ -23,7 +23,7 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
             return std::move(ret);
         }
         case STRING: {
-            std::unique_ptr<Node> str = std::make_unique<StrLit>(m_Stream.CurTok.value);
+            auto str = std::make_unique<StrLit>(m_Stream.CurTok.value);
             while (m_Stream.CurTok.type == STRING) {  // concatenation of adjacent string literals
                 str->value += m_Stream.CurTok.value;
                 m_Parser.forwardStream();
@@ -32,11 +32,11 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
         case IDENT: {
             auto id = m_Parser.parseIdent();
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
-                std::unique_ptr<Node> call_node = m_Parser.parseCall(std::move(id));
+                auto call_node = m_Parser.parseCall(std::move(id));
                 return std::move(call_node);
             }
 
-            std::unique_ptr<Node> id_node = std::make_unique<Ident>(std::move(id));
+            auto id_node = std::make_unique<Ident>(std::move(id));
             return std::move(id_node);
         }
         case PUNC: {
@@ -58,7 +58,7 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                         m_Parser.reportError(ErrCode::COMMA_SEP_REQUIRED);
                 } m_Parser.forwardStream();
 
-                std::unique_ptr<Node> arr_node = std::make_unique<ArrayNode>(std::move(arr));
+                auto arr_node = std::make_unique<ArrayNode>(std::move(arr));
                 return std::move(arr_node);
             }
 
@@ -79,19 +79,20 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
 }
 
 
-std::optional<std::unique_ptr<Node>> ExpressionParser::parsePrefix() {
+std::unique_ptr<Node> ExpressionParser::parsePrefix() {
     // assumption: current token is an OP
     if (m_Stream.CurTok.type == OP) {
-        Op op(m_Stream.CurTok.value, 1);
-        op.location = m_Stream.getStreamState();
+        auto op = std::make_unique<Op>(m_Stream.CurTok.value, 1);
+        op->location = m_Stream.getStreamState();
         m_Parser.forwardStream();
-        if (auto next_op = parsePrefix()) {
-            op.operands.push_back(std::move(*next_op));
-            return std::make_unique<Op>(std::move(op));
-        } return std::nullopt;
+
+        auto rhs = parseExpr(Op::getPBPFor(Op::getTagFor(op->value, 1)));
+        op->operands.push_back(std::make_unique<Expression>(std::move(rhs)));
+        return std::move(op);
     }
     return parseComponent();
 }
+
 
 /// This method utilizes `Pratt-Parsing`.
 Expression ExpressionParser::parseExpr(const int rbp) {
@@ -102,7 +103,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
         auto right = parseExpr(Op::getLBPFor(tag));
 
         if (op_str == "[") {
-            m_Parser.forwardStream();  // skip the ']'
+            m_Parser.ignoreButExpect({PUNC, "]"});
         }
 
         auto op = std::make_unique<Op>(op_str, 2);
@@ -114,7 +115,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
         return std::move(op);
     };
 
-    auto ret = Expression::makeExpression(m_Stream.CurTok.type == OP ? *parsePrefix() : parseComponent());
+    auto ret = Expression::makeExpression(m_Stream.CurTok.type == OP ? parsePrefix() : parseComponent());
     ret.location = m_Stream.getStreamState();
 
     while (true) {
@@ -123,7 +124,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
             break;
 
         if (m_Stream.eof()) {
-            m_Parser.reportError(ErrCode::UNEXPECTED_EOF);
+            m_Parser.reportError(ErrCode::EXPECTED_EXPRESSION);
             break;
         }
 

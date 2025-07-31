@@ -40,7 +40,12 @@ std::unordered_map<Op::OpTag_t, OpInfo> OpInfoTable = {
     {Op::MOD, {60, OpInfo::LEFT}},
 
     {Op::CAST_OP, {100, OpInfo::LEFT}},
-    {Op::INDEXING_OP, {150, OpInfo::LEFT}},
+
+    {Op::ADDRESS_TAKING, {150, OpInfo::LEFT}},
+    {Op::UNARY_ADD, {150, OpInfo::LEFT}},
+    {Op::UNARY_SUB, {150, OpInfo::LEFT}},
+
+    {Op::INDEXING_OP, {200, OpInfo::LEFT}},
     {Op::DOT, {800, OpInfo::LEFT}},
 };
 
@@ -84,18 +89,32 @@ std::unordered_map<std::pair<std::string_view, int>, Op::OpTag_t> OpTagMap = {
 
 
 Op::Op(const std::string_view str, const int8_t arity): value(std::string(str)), arity(arity) {
-    op_type = getTagFor(str, arity);
+    op_type = getTagFor(str, arity);  // compute and set the tag of the operator node
 }
 
+
+/// Returns the Left-Binding Power of the operator with the tag `op`.
 int Op::getLBPFor(const OpTag_t op) {
     return OpInfoTable.at(op).precedence;
 }
 
+
+/// Returns the Right-Binding Power of the operator with the tag `op`.
 int Op::getRBPFor(const OpTag_t op) {
     const auto info = OpInfoTable.at(op);
     return info.associativity == OpInfo::RIGHT ? info.precedence - 1 : info.precedence;
 }
 
+
+/// Returns the Prefix-Binding Power of the operator with the tag `op`.
+int Op::getPBPFor(const OpTag_t op) {
+    const auto info = OpInfoTable.at(op);
+    return info.precedence;
+}
+
+
+/// Returns a tag which uniquely identifies the operator, given its string-representation and arity.
 Op::OpTag_t Op::getTagFor(const std::string_view str, int arity) {
     return OpTagMap.at({str, arity});
 }
+
