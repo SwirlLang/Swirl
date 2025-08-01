@@ -1,7 +1,5 @@
 #include "CompilerInst.h"
 
-#include <lld/Common/Driver.h>
-
 #include "backend/LLVMBackend.h"
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/FileSystem.h>
