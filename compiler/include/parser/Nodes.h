@@ -27,6 +27,7 @@ enum NodeType {
     ND_STRUCT,      // 14
     ND_IMPORT,      // 15
     ND_ARRAY,       // 16
+    ND_TYPE,        // 17
 };
 
 
@@ -91,7 +92,7 @@ struct Node {
     }
 
     virtual Type* getSwType() {
-        throw std::runtime_error("getTypeTag unimplemented!");
+        throw std::runtime_error("getSwType: unimplemented!");
     }
 
     virtual ~Node() = default;
@@ -157,6 +158,27 @@ struct Expression final : Node {
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
+
+
+/// A wrapper class for some specific cases where Types need to be passed as nodes
+struct TypeWrapper final : Node {
+    Type* type = nullptr;
+
+    [[nodiscard]]
+    Type* getSwType() override {
+        return type;
+    }
+
+    [[nodiscard]]
+    NodeType getNodeType() const override {
+        return ND_TYPE;
+    }
+
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override {
+        return nullptr;
+    }
+};
+
 
 struct Op final : Node {
     std::string value;

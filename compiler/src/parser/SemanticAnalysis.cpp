@@ -556,7 +556,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             }
 
             case CAST_OP: {
-                ret.deduced_type = ctx.SymMan.lookupType(operands.at(1)->getIdentInfo());
+                ret.deduced_type = operands.at(1)->getSwType();
                 break;
             }
 

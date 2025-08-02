@@ -109,7 +109,9 @@ Expression ExpressionParser::parseExpr(const int rbp) {
                 m_Parser.ignoreButExpect({PUNC, "]"});
                 break;
             case Op::CAST_OP: {
-                right.expr_type = m_Parser.parseType();  // the twist
+                auto dummy_node = new TypeWrapper();
+                dummy_node->type = m_Parser.parseType();
+                right.expr.emplace_back(dummy_node);
                 break;
             }
             default:
