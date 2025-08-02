@@ -99,14 +99,22 @@ Expression ExpressionParser::parseExpr(const int rbp) {
     // left-denotation, used to parse an operator when there's something to it's left
     auto led = [this](SwNode left) -> SwNode {
         auto op_str = m_Parser.forwardStream().value;
-        const auto tag = Op::getTagFor(op_str, 2);
-        auto right = parseExpr(Op::getLBPFor(tag));
-
-        if (op_str == "[") {
-            m_Parser.ignoreButExpect({PUNC, "]"});
-        }
-
         auto op = std::make_unique<Op>(op_str, 2);
+
+        Expression right;
+
+        switch (op->op_type) {
+            case Op::INDEXING_OP:
+                right = parseExpr(Op::getRBPFor(Op::INDEXING_OP));
+                m_Parser.ignoreButExpect({PUNC, "]"});
+                break;
+            case Op::CAST_OP: {
+                right.expr_type = m_Parser.parseType();  // the twist
+                break;
+            }
+            default:
+                right = parseExpr(Op::getRBPFor(op->op_type));
+        }
 
         op->operands.push_back(std::move(left));
         op->operands.push_back(std::move(right.expr.front()));
