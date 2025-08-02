@@ -42,8 +42,9 @@ public:
     bool IsLocalScope = false;
     bool ChildHasReturned = false;
 
-    llvm::Value* RefMemory = nullptr;
-    llvm::Value* BoundMemory = nullptr;
+    llvm::Value* RefMemory = nullptr;       // set by the addr-taking op after computation
+    llvm::Value* ComputedPtr = nullptr;     // set GEP operations like `[]` or `.`
+    llvm::Value* BoundMemory = nullptr;     // a temporary used by arrays to handle nesting
     llvm::Value* StructFieldPtr = nullptr;  // used to "bubble-up" StructGEPd pointers
     Type*        StructFieldType = nullptr; // used to "bubble-up" struct-field types
     // -------------------------------------------------------

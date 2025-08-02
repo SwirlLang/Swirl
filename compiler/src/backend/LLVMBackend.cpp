@@ -112,8 +112,8 @@ llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
     else if (instance.getBoundTypeState()->isFloatingPoint()) {
         ret = llvm::ConstantFP::get(instance.getBoundLLVMType(), value);
     } else {
-        throw std::runtime_error("Fatal: IntLit::llvmCodegen called but instance is neither in "
-                                "integral nor FP state.");
+        throw std::runtime_error(std::format("Fatal: IntLit::llvmCodegen called but instance is neither in "
+                                "integral nor FP state. State: `{}`", instance.getBoundTypeState()->toString()));
     }
     return ret;
 }
@@ -137,6 +137,7 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
 /// Writes the array literal to 'BoundMemory' if not null, otherwise creates a temporary and
 /// returns a load of it.
 llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
+    assert(elements.size() > 0);
     Type* element_type = elements.at(0).expr_type;
     Type* sw_arr_type  = instance.SymMan.getArrayType(element_type, elements.size());
 
@@ -147,7 +148,9 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
             std::vector<llvm::Constant*> val_array;
             val_array.reserve(elements.size());
             for (auto& elem : elements) {
+                instance.setBoundTypeState(element_type);
                 val_array.push_back(llvm::dyn_cast<llvm::Constant>(elem.llvmCodegen(instance)));
+                instance.restoreBoundTypeState();
             }
 
             auto array_init = llvm::ConstantArray::get(arr_type, val_array);
@@ -178,7 +181,9 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
             if (element.expr_type->getTypeTag() == Type::ARRAY) {
                 bound_mem_cache = instance.BoundMemory;
                 instance.BoundMemory = ptr;
+                instance.setBoundTypeState(element_type);
                 element.llvmCodegen(instance);
+                instance.restoreBoundTypeState();
                 continue;
             } instance.Builder.CreateStore(element.llvmCodegen(instance), ptr);
         }
@@ -195,7 +200,9 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
         if (element.expr_type->getTypeTag() == Type::ARRAY) {
             bound_mem_cache = instance.BoundMemory;
             instance.BoundMemory = ptr;
+            instance.setBoundTypeState(element_type);
             element.llvmCodegen(instance);
+            instance.restoreBoundTypeState();
             continue;
         } instance.Builder.CreateStore(element.llvmCodegen(instance), ptr);
     }
@@ -208,8 +215,11 @@ llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
     const auto e = instance.SymMan.lookupDecl(this->value);
-    // if (e.is_param) { return e.llvm_value; }
-    if (instance.getAssignmentLhsState()) { return e.llvm_value; }
+
+    if (instance.getAssignmentLhsState()) {
+        assert(e.llvm_value != nullptr);
+        return e.llvm_value;
+    }
 
     if (!instance.IsLocalScope) {
         auto global_var = llvm::dyn_cast<llvm::GlobalVariable>(e.llvm_value);
@@ -333,9 +343,30 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         }
 
         case ADDRESS_TAKING: {
-            auto lookup = instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo());
-            instance.RefMemory = lookup.llvm_value;
-            return lookup.llvm_value;
+            Node* operand = operands.at(0).get();
+            llvm::Value* ret;
+
+            if (auto expr_unwrapped = operand->getExprValue().at(0).get();
+                expr_unwrapped->getNodeType() == ND_OP)
+            {
+                if (auto op_node = dynamic_cast<Op*>(expr_unwrapped);
+                    op_node->op_type == DOT ||
+                    op_node->op_type == INDEXING_OP
+                ) {
+                    instance.setAssignmentLhsState(true);
+                    auto ptr = operand->llvmCodegen(instance);
+                    instance.restoreAssignmentLhsState();
+                    ret =  instance.ComputedPtr;
+                } else throw;
+            }
+
+            else {
+                auto lookup = instance.SymMan.lookupDecl(operand->getIdentInfo());
+                ret = lookup.llvm_value;
+            }
+
+            instance.RefMemory = ret;
+            return ret;
         }
 
         case DIV: {
@@ -509,11 +540,14 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             instance.restoreAssignmentLhsState();
 
             llvm::Value* second_op;
+            instance.setBoundTypeState(instance.fetchSwType(operands.at(1)));
             if (instance.getAssignmentLhsState()) {
                 instance.restoreAssignmentLhsState();
                 second_op = operands.at(1)->llvmCodegen(instance);
                 instance.setAssignmentLhsState(true);
-            } else second_op = operands.at(1)->llvmCodegen(instance);
+            } else {
+                second_op = operands.at(1)->llvmCodegen(instance);
+            } instance.restoreBoundTypeState();
 
             auto element_ptr = instance.Builder.CreateGEP(
                 operand_ty->getStructElementType(0),
@@ -521,6 +555,8 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
                 {instance.toLLVMInt(0), second_op}
                 );
 
+            assert(element_ptr != nullptr);
+            instance.ComputedPtr = element_ptr;
             if (instance.getAssignmentLhsState()) {
                 return element_ptr;
             } return instance.Builder.CreateLoad(operand_sw_ty->of_type->llvmCodegen(instance), element_ptr);
@@ -546,6 +582,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
                 instance.StructFieldType = field_ty;
                 instance.StructFieldPtr = field_ptr;
+                instance.ComputedPtr = field_ptr;
 
                 return instance.getAssignmentLhsState() ? field_ptr : instance.Builder.CreateLoad(
                     field_ty->llvmCodegen(instance),
@@ -573,6 +610,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
                 instance.StructFieldPtr = field_ptr;
                 instance.StructFieldType = field_type;
+                instance.ComputedPtr = field_ptr;
 
                 return instance.getAssignmentLhsState() ? field_ptr : instance.Builder.CreateLoad(
                     field_type->llvmCodegen(instance),
@@ -643,7 +681,7 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
 
 
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
-    // assert(expr_type != nullptr);
+    assert(expr_type != nullptr);
     assert(expr.size() == 1);
 
     instance.setBoundTypeState(expr_type);
@@ -774,7 +812,11 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
 
         return instance.castIfNecessary(
             ret_type,
-            instance.Builder.CreateCall(func, arguments, ident.value->toString())
+            instance.Builder.CreateCall(
+                func,
+                arguments,
+                ident.value->toString()
+                )
             );
     }
 
@@ -788,7 +830,8 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
 
     llvm::Value* init = nullptr;
 
-    auto linkage = (is_exported || is_extern) ? llvm::GlobalVariable::ExternalLinkage : llvm::GlobalVariable::InternalLinkage;
+    auto linkage = (is_exported || is_extern) ?
+        llvm::GlobalVariable::ExternalLinkage : llvm::GlobalVariable::InternalLinkage;
 
     
     if (!instance.IsLocalScope) {
@@ -818,8 +861,10 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
         if (initialized) {
             instance.BoundMemory = var_alloca;
             init = value.llvmCodegen(instance);
-            if (init != nullptr)
+            if (init) {
                 instance.Builder.CreateStore(init, var_alloca, is_volatile);
+            } else std::println("Warning: not creating a store!");
+
             instance.BoundMemory = nullptr;
         }
 

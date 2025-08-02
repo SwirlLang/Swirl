@@ -7,14 +7,22 @@
 
 void CompilerInst::startLLVMCodegen() {
     Backends_t llvm_backends;
-    llvm_backends.reserve(m_ModuleManager.size() + 1);
+    llvm_backends.reserve(m_ModuleManager.size());
+
+    std::vector<std::shared_future<void>> backend_futures;
+    backend_futures.reserve(m_ModuleManager.size());
 
     for (Parser* parser : m_ModuleManager) {
         auto* backend = llvm_backends.emplace_back(new LLVMBackend{*parser}).get();
-        m_ThreadPool.async([backend, this] { backend->startGeneration(); });
+        // backend->startGeneration();
+         backend_futures.emplace_back(m_ThreadPool.async([backend, this] {
+            backend->startGeneration();
+        }));
     } m_ThreadPool.wait();
 
-    for (const auto& backend: llvm_backends) {
+    assert(llvm_backends.size() == backend_futures.size());
+    for (const auto& [i, backend] : llvm::enumerate(llvm_backends)) {
+        backend_futures.at(i).get();
         backend->printIR();
     }
 
