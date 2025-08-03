@@ -346,18 +346,20 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             Node* operand = operands.at(0).get();
             llvm::Value* ret;
 
-            if (auto expr_unwrapped = operand->getExprValue().at(0).get();
-                expr_unwrapped->getNodeType() == ND_OP)
-            {
-                if (auto op_node = dynamic_cast<Op*>(expr_unwrapped);
-                    op_node->op_type == DOT ||
-                    op_node->op_type == INDEXING_OP
-                ) {
-                    instance.setAssignmentLhsState(true);
-                    auto ptr = operand->llvmCodegen(instance);
-                    instance.restoreAssignmentLhsState();
-                    ret =  instance.ComputedPtr;
-                } else throw;
+            if (operand->getNodeType() == ND_EXPR) {
+                if (auto expr_unwrapped = operand->getExprValue().at(0).get();
+                   expr_unwrapped->getNodeType() == ND_OP)
+                {
+                    if (auto op_node = dynamic_cast<Op*>(expr_unwrapped);
+                        op_node->op_type == DOT ||
+                        op_node->op_type == INDEXING_OP
+                    ) {
+                        instance.setAssignmentLhsState(true);
+                        auto ptr = operand->llvmCodegen(instance);
+                        instance.restoreAssignmentLhsState();
+                        ret =  instance.ComputedPtr;
+                    } else throw;
+                }
             }
 
             else {
@@ -787,6 +789,13 @@ llvm::Value* WhileLoop::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* Struct::llvmCodegen(LLVMBackend& instance) {
     instance.SymMan.lookupType(ident)->llvmCodegen(instance);
+
+    for (auto& member : members) {
+        if (member->getNodeType() == ND_FUNC) {
+            member->llvmCodegen(instance);
+        }
+    }
+
     return nullptr;
 }
 

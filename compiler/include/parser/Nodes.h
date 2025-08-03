@@ -68,7 +68,7 @@ struct Node {
     }
 
     virtual const std::vector<std::unique_ptr<Node>>& getExprValue() {
-        throw std::runtime_error("getExprValue called on Node instance");
+        assert(0);
     }
 
     virtual llvm::Value* llvmCodegen(LLVMBackend& instance) {
@@ -358,6 +358,7 @@ struct Var final : Node {
     bool is_const    = false;
     bool is_volatile = false;
     bool is_extern = false;  // whether it has been extern'd
+    bool is_instance_param = false;   // for the special case of `&self` in methods
 
     std::string extern_attributes;
 

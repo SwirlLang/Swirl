@@ -566,8 +566,13 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                 auto accessed_operand = dynamic_cast<Ident*>(operands.at(1).get());
                 if (!accessed_operand) throw std::runtime_error("accessed operand not an id!");
 
+                // automatic dereference
+                auto struct_ty = analysis_1.deduced_type;
+                if (struct_ty->getTypeTag() == Type::REFERENCE)
+                    struct_ty = dynamic_cast<ReferenceType*>(struct_ty)->of_type;
+
                 auto accessed_op_id =
-                    analysis_1.deduced_type->scope->getIDInfoFor(
+                    struct_ty->scope->getIDInfoFor(
                         accessed_operand->full_qualification.at(0)
                         );
 

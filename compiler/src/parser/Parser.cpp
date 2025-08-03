@@ -1,7 +1,6 @@
 #include <filesystem>
 #include <memory>
 #include <fstream>
-#include <stdexcept>
 #include <utility>
 #include <unordered_map>
 #include <vector>
@@ -376,6 +375,30 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     auto parse_params = [function_t = function_t.get(), this] {
         Var param;
+        param.is_const = true;  // all parameters are immutable
+
+        // special case of `&self`
+        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
+            forwardStream();
+            bool is_mutable = false;
+
+            if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "mut") {
+                is_mutable = true;
+                forwardStream();
+            }
+
+            assert(m_CurrentStructTy != nullptr);
+            param.var_type  = SymbolTable.getReferenceType(m_CurrentStructTy, is_mutable);
+            param.var_ident = SymbolTable.registerDecl("self", {
+                .is_param = true,
+                .swirl_type = param.var_type,
+            });
+
+            function_t->param_types.push_back(param.var_type);
+            ignoreButExpect({IDENT, "self"});
+            return std::move(param);
+        }
+
         const std::string var_name = m_Stream.CurTok.value;
         param.location = m_Stream.getStreamState();
 
@@ -617,6 +640,7 @@ std::unique_ptr<Struct> Parser::parseStruct() {
 
     const auto struct_ty = new StructType{};
     auto struct_name = forwardStream().value;
+    m_CurrentStructTy = struct_ty;
 
     // ask for a decl registry to the symbol manager
     ret.ident = SymbolTable.registerDecl(struct_name, {
@@ -639,7 +663,8 @@ std::unique_ptr<Struct> Parser::parseStruct() {
         auto member = dispatch();
         if (member->getNodeType() == ND_VAR) {
             struct_ty->field_offsets.insert({member->getIdentInfo()->toString(), i++});
-        } ret.members.emplace_back(std::move(member));
+        }
+        ret.members.emplace_back(std::move(member));
     } ignoreButExpect({PUNC, "}"});  // skip '}'
 
     // exit the struct's scope
