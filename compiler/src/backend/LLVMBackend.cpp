@@ -594,11 +594,20 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
                 auto inst_ptr = operands.at(0)->llvmCodegen(instance);
                 instance.restoreAssignmentLhsState();
 
+                // in the special case when dot is using with pure-rvalues
+                // e.g., functions returning struct instances
+                if (!inst_ptr->getType()->isPointerTy()) {
+                    auto tmp = instance.Builder.CreateAlloca(inst_ptr->getType());
+                    instance.Builder.CreateStore(inst_ptr, tmp);
+                    inst_ptr = tmp;
+                }
+
                 // fetch the instance's struct-type
                 auto struct_ty = dynamic_cast<StructType*>(
-                    instance.SymMan.lookupDecl(operands.at(0)->getIdentInfo()).swirl_type
+                    instance.fetchSwType(operands.at(0))
                 );
 
+                assert(struct_ty != nullptr);
                 auto field_node = dynamic_cast<Ident*>(operands.at(1).get());
                 auto field_ptr = instance.Builder.CreateStructGEP(
                     struct_ty->llvmCodegen(instance),
