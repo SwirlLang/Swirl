@@ -344,7 +344,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
         case ADDRESS_TAKING: {
             Node* operand = operands.at(0).get();
-            llvm::Value* ret;
+            llvm::Value* ret = nullptr;
 
             if (operand->getNodeType() == ND_EXPR) {
                 if (auto expr_unwrapped = operand->getExprValue().at(0).get();
