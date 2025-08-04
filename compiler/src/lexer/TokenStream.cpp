@@ -204,7 +204,7 @@ Token TokenStream::peek() {
 
     if (m_Stream.eof()) {
         restoreCache();
-        return {NONE, "NULL", m_Stream.Line};
+        return {NONE, "TOKEN:EOF", getStreamState()};
     }
 
     PeekTok = next(false);
