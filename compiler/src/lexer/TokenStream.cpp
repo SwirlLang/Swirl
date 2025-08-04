@@ -81,7 +81,7 @@ Token TokenStream::readOperator() {
 
         // discard the next operator if it's a comment not at EOF
         if (pot_op == "//") {
-            if (m_Stream.eof()) return {NONE, "TOKEN:EOF", getStreamState()};
+            if (m_Stream.eof()) [[unlikely]] return {NONE, "TOKEN:EOF", getStreamState()};
             m_Stream.next();
         }
 
@@ -101,10 +101,16 @@ Token TokenStream::readNextTok() {
         default:
             if (isOpChar(ch)) {
                 Token op = readOperator();
+                if (m_Stream.eof()) [[unlikely]] return op;
                 if (op.value == ".") {
-                    if (m_isPreviousTokIdent) {m_isPreviousTokIdent = false; return op;}
-                    else if (!m_Stream.eof() && isDigit(m_Stream.peek()) && m_Stream.peek() != '_') {
+                    char next_char = m_Stream.peek();
+                    if (!m_isPreviousTokIdent && isDigit(next_char) && next_char != '_')
                         return {NUMBER, "0" + readWhile(isDigit, [](char c) {return c == '_';}), getStreamState(), CT_FLOAT};
+
+                    if (next_char == '.' && !m_Stream.almostEOF() && m_Stream.peekDeeper() == '.') {
+                        m_Stream.next(); m_Stream.next();
+                        m_isPreviousTokIdent = false;
+                        return {OP, "...", getStreamState()};
                     }
                 } 
                 m_isPreviousTokIdent = false;
