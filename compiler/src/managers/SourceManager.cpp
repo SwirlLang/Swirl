@@ -41,7 +41,7 @@ char SourceManager::next() {
         prev_col_state = Col;
         line_size = 0;
         m_CurrentLine.clear();
-        Line++;
+        if (Pos != m_Source.size()) Line++;
         Col = 0;
 
     } else {

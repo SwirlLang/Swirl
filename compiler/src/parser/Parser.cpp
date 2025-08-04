@@ -222,6 +222,7 @@ SwNode Parser::dispatch() {
                     forwardStream();
                     continue;
                 } if (m_Stream.CurTok.value == "}") {
+                    if (m_BracketTracker.empty() || m_BracketTracker.back().val != '{') {forwardStream(); continue;}
                     return std::make_unique<Node>();
                 }
             default:
@@ -280,7 +281,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "{") {
         forwardStream();  // skip '{'
 
-        while (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != "}") {
+        while (m_Stream.CurTok.type != PUNC || m_Stream.CurTok.value != "}") {
             ret.imported_symbols.emplace_back(forwardStream().value);
 
             if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {
