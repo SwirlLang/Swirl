@@ -14,30 +14,30 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
             if (m_Stream.CurTok.meta == CT_FLOAT) {
                 auto ret = std::make_unique<FloatLit>(m_Stream.CurTok.value);
                 m_Parser.forwardStream();
-                return std::move(ret);
+                return ret;
             }
 
             auto ret = std::make_unique<IntLit>(m_Stream.CurTok.value);
 
             m_Parser.forwardStream();
-            return std::move(ret);
+            return ret;
         }
         case STRING: {
             auto str = std::make_unique<StrLit>(m_Stream.CurTok.value);
             while (m_Stream.CurTok.type == STRING) {  // concatenation of adjacent string literals
                 str->value += m_Stream.CurTok.value;
                 m_Parser.forwardStream();
-            } return std::move(str);
+            } return str;
         }
         case IDENT: {
             auto id = m_Parser.parseIdent();
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
                 auto call_node = m_Parser.parseCall(std::move(id));
-                return std::move(call_node);
+                return call_node;
             }
 
             auto id_node = std::make_unique<Ident>(std::move(id));
-            return std::move(id_node);
+            return id_node;
         }
         case PUNC: {
             if (m_Stream.CurTok.value == "[") {
@@ -59,7 +59,7 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                 } m_Parser.forwardStream();
 
                 auto arr_node = std::make_unique<ArrayNode>(std::move(arr));
-                return std::move(arr_node);
+                return arr_node;
             }
 
             if (m_Stream.CurTok.value == "(") {
@@ -67,7 +67,7 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                 auto ret = std::make_unique<Expression>(parseExpr());
                 ret->location = m_Stream.getStreamState();
                 m_Parser.forwardStream();
-                return std::move(ret);
+                return ret;
             } return m_Parser.dispatch();
         }
 
@@ -88,7 +88,7 @@ std::unique_ptr<Node> ExpressionParser::parsePrefix() {
 
         auto rhs = parseExpr(Op::getPBPFor(Op::getTagFor(op->value, 1)));
         op->operands.push_back(std::make_unique<Expression>(std::move(rhs)));
-        return std::move(op);
+        return op;
     }
     return parseComponent();
 }
@@ -139,7 +139,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
         op->operands.push_back(std::move(right.expr.front()));
         op->location = m_Stream.getStreamState();
 
-        return std::move(op);
+        return op;
     };
 
     auto ret = Expression::makeExpression(m_Stream.CurTok.type == OP ? parsePrefix() : parseComponent());
@@ -163,5 +163,5 @@ Expression ExpressionParser::parseExpr(const int rbp) {
     }
 
     ret.location = m_Stream.getStreamState();
-    return std::move(ret);
+    return ret;
 }

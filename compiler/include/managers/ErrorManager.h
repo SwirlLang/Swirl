@@ -20,12 +20,12 @@ struct ErrorContext {
     Type*      type_1 = nullptr;
     Type*      type_2 = nullptr;
 
-    std::filesystem::path path_1;
-    std::filesystem::path path_2;
+    std::filesystem::path path_1{};
+    std::filesystem::path path_2{};
 
-    std::string msg;    // optional error-message, used to convey various syntax errors
-    std::string str_1;
-    std::string str_2;
+    std::string msg{};    // optional error-message, used to convey various syntax errors
+    std::string str_1{};
+    std::string str_2{};
     std::optional<StreamState> location = std::nullopt;
 
     SourceManager* src_man = nullptr;

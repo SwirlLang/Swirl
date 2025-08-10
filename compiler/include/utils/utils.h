@@ -65,7 +65,7 @@ class ThreadPool_t {
     class Thread {
         std::thread m_Handle;
         ThreadPool_t& m_PoolInstance;
-        std::size_t m_CoolDown{};
+        // std::size_t m_CoolDown{};
         bool m_Stop = false;
 
         void task() const {
@@ -117,8 +117,6 @@ class ThreadPool_t {
 
     std::condition_variable m_QCV;
     std::condition_variable m_WaitCV;
-
-    friend ThreadPool_t;
 
 public:
     ThreadPool_t() = default;

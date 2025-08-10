@@ -49,7 +49,7 @@ public:
 
 class SymbolManager {
     bool m_LockEmplace = false;
-    std::size_t m_ScopeInt = 0;
+    // std::size_t m_ScopeInt = 0;
 
     TypeManager m_TypeManager;
     ModuleManager& m_ModuleMap;
@@ -78,7 +78,7 @@ public:
         m_ScopeTrack.push_back(&m_Scopes.emplace_back(m_ModulePath));
 
         // Register all built-in types in the global scope
-        for (const auto [str, type] : BuiltinTypes) {
+        for (const auto &[str, type] : BuiltinTypes) {
             const auto id = m_ScopeTrack.back()->getNewIDInfo(std::string(str));
             registerType(id, type);
         }

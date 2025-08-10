@@ -18,7 +18,7 @@ struct Argument {
 	std::string desc;
 
 	bool value_required;
-	std::string value;
+	std::string value{};
 };	
 
 class cli {

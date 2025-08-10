@@ -176,7 +176,7 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
 
 
 /// Assumes `of` is an "array-like" type, returns its underlying child type
-Type* AnalysisContext::getUnderlyingType(Type* of) {
+Type* AnalysisContext::getUnderlyingType([[maybe_unused]] Type* of) {
     throw;
 }
 
@@ -524,8 +524,8 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             case ASSIGNMENT: {
                 ret.deduced_type = &GlobalTypeVoid;
 
-                if ((!analysis_1.deduced_type->is_mutable &&
-                    (analysis_1.deduced_type->getTypeTag() == Type::REFERENCE) ||
+                if (((!analysis_1.deduced_type->is_mutable &&
+                    (analysis_1.deduced_type->getTypeTag() == Type::REFERENCE)) ||
                     (analysis_1.deduced_type->getTypeTag() == Type::POINTER)
                 ) ||
                     (operands.at(0)->getNodeType() == ND_IDENT &&

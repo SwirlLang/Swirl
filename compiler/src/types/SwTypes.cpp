@@ -18,7 +18,7 @@ std::string PointerType::toString() const {
     std::string ret = (is_mutable ? "mut " : "") + of_type->toString();
     for (int i = 0; i < pointer_level; i++) {
         ret.append("*");
-    } return std::move(ret);
+    } return ret;
 }
 
 

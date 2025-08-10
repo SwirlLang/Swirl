@@ -71,7 +71,7 @@ struct Node {
         assert(0);
     }
 
-    virtual llvm::Value* llvmCodegen(LLVMBackend& instance) {
+    virtual llvm::Value* llvmCodegen([[maybe_unused]] LLVMBackend& instance) {
         throw std::runtime_error("llvmCodegen called on Node instance");
     }
 
@@ -79,7 +79,7 @@ struct Node {
         throw std::runtime_error("getArity called on base Node instance ");
     }
 
-    virtual void setArity(int8_t val) {
+    virtual void setArity([[maybe_unused]] int8_t val) {
         throw std::runtime_error("setArity called on base Node instance");
     }
 
@@ -128,7 +128,7 @@ struct Expression final : Node {
     static Expression makeExpression(std::unique_ptr<Node>&& node) {
         Expression expr;
         expr.expr.push_back(std::move(node));
-        return std::move(expr);
+        return expr;
     }
 
     // set the type of sub-expression instances to `to`
@@ -174,7 +174,7 @@ struct TypeWrapper final : Node {
         return ND_TYPE;
     }
 
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override {
+    llvm::Value* llvmCodegen([[maybe_unused]] LLVMBackend& instance) override {
         return nullptr;
     }
 };
@@ -426,7 +426,7 @@ struct FuncCall final : Node {
 struct ImportNode final : Node {
     struct ImportedSymbol_t {
         std::string actual_name;
-        std::string assigned_alias;
+        std::string assigned_alias{};
     };
 
     bool is_wildcard = false;

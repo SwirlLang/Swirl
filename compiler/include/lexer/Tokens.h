@@ -42,7 +42,7 @@ struct StreamState {
 struct Token {
     TokenType type{};
     std::string value;
-    StreamState location;
+    StreamState location{};
 
     TokenMeta meta{};
 

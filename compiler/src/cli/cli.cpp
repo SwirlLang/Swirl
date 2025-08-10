@@ -29,7 +29,7 @@ std::string cli::generate_help() {
 	for (const Argument& arg : *m_flags) {
 		auto& [v1, v2] = arg.flags;
 		msg += "\t" + v1 + ", " + v2;
-		for (int c = 0; c < max_width - v1.size() - v2.size() - 2; c++) msg += ' ';
+		for (unsigned int c = 0; c < max_width - v1.size() - v2.size() - 2; c++) msg += ' ';
 		msg += "     " + arg.desc + '\n';
 	} return msg;
 }

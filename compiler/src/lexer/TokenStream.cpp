@@ -149,7 +149,7 @@ Token TokenStream::readNextTok() {
                     if (m_Stream.almostEOF()) return {NUMBER, std::move(val), getStreamState(), CT_INT};
                     if (isDigit(m_Stream.peekDeeper()) && m_Stream.peekDeeper() != '_') {
                         m_Stream.next();
-                        return {NUMBER, std::move(val + readWhile(isDigit, [](char c) {return c == '_';})), getStreamState(), CT_FLOAT};
+                        return {NUMBER, val + readWhile(isDigit, [](char c) {return c == '_';}), getStreamState(), CT_FLOAT};
                     }
                 }
                 return {NUMBER, std::move(val), getStreamState(), CT_INT};

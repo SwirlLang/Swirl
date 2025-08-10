@@ -34,18 +34,18 @@ char SourceManager::next() {
     const char chr = m_Source.at(Pos);
     m_CurrentChar = chr;
 
-    static std::size_t line_size = 0;
+    // static std::size_t line_size = 0;
     Pos++;
 
     if (chr == '\n') {
         prev_col_state = Col;
-        line_size = 0;
+        // line_size = 0;
         m_CurrentLine.clear();
         if (Pos != m_Source.size()) Line++;
         Col = 0;
 
     } else {
-        line_size++;
+        // line_size++;
         Col++;
         m_CurrentLine += chr;
     }

@@ -74,7 +74,7 @@ LLVMBackend::LLVMBackend(Parser& parser)
     auto reloc_model = std::optional<llvm::Reloc::Model>();
 
     static std::once_flag _;
-    std::call_once(_, [&, this] {
+    std::call_once(_, [&] {
         TargetMachine = target->createTargetMachine(
             CompilerInst::TargetTriple, "generic", "", options, reloc_model
         );
@@ -233,7 +233,7 @@ llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
             e.swirl_type->llvmCodegen(instance), e.llvm_value));
 }
 
-llvm::Value* ImportNode::llvmCodegen(LLVMBackend &instance) {
+llvm::Value* ImportNode::llvmCodegen([[maybe_unused]] LLVMBackend &instance) {
     return nullptr;  // TODO
 }
 
@@ -262,9 +262,9 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
     NewScope _(instance);
     instance.Builder.SetInsertPoint(entry_bb);
 
-    for (int i = 0; i < params.size(); i++) {
+    for (unsigned int i = 0; i < params.size(); i++) {
         const auto p_name = params[i].var_ident;
-        const auto param = func->getArg(i);
+        [[maybe_unused]] const auto param = func->getArg(i);
         // param->setName(p_name->toString());
 
         instance.SymMan.lookupDecl(p_name).llvm_value = func->getArg(i);
@@ -293,9 +293,6 @@ llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
-    using SwNode = std::unique_ptr<Node>;
-    using NodesVec = std::vector<SwNode>;
-
     switch (op_type) {
         case UNARY_ADD:
             return operands.back()->llvmCodegen(instance);
@@ -355,7 +352,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
                         op_node->op_type == INDEXING_OP
                     ) {
                         instance.setAssignmentLhsState(true);
-                        auto ptr = operand->llvmCodegen(instance);
+                        [[maybe_unused]] auto ptr = operand->llvmCodegen(instance);
                         instance.restoreAssignmentLhsState();
                         ret =  instance.ComputedPtr;
                     } else throw;
@@ -414,6 +411,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             if (lhs->getType()->isIntegerTy()) {
                 return instance.Builder.CreateICmpEQ(lhs, rhs);
             }
+            throw;
         }
 
         case LOGICAL_NOTEQUAL: {
@@ -807,7 +805,7 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
 
     llvm::Function* func = instance.LModule->getFunction(fn_name->toString());
     if (!func) {
-        auto fn = llvm::Function::Create(
+        [[maybe_unused]] auto fn = llvm::Function::Create(
             llvm::dyn_cast<llvm::FunctionType>(instance.SymMan.lookupType(ident.getIdentInfo())->llvmCodegen(instance)),
             llvm::GlobalValue::ExternalLinkage,
             ident.getIdentInfo()->toString(),
@@ -896,7 +894,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
 }
 
 
-void GenerateObjectFileLLVM(const LLVMBackend& instance) {
+void GenerateObjectFileLLVM([[maybe_unused]] const LLVMBackend& instance) {
     // const auto target_triple = llvm::sys::getDefaultTargetTriple();
     // llvm::InitializeAllTargetInfos();
     // llvm::InitializeAllTargets();

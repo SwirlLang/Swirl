@@ -85,7 +85,7 @@ Token Parser::forwardStream(const uint8_t n) {
         }
 
         m_Stream.next();
-    } return std::move(ret);
+    } return ret;
 }
 
 
@@ -162,7 +162,7 @@ SwNode Parser::dispatch() {
             case KEYWORD:
                 if (m_Stream.CurTok.value == "let" || m_Stream.CurTok.value == "var") {
                     auto ret = parseVar(false);
-                    return std::move(ret);
+                    return ret;
                 }
 
                 if (m_Stream.CurTok.value == "extern") {
@@ -187,12 +187,12 @@ SwNode Parser::dispatch() {
 
                 if (m_Stream.CurTok.value == "fn") {
                     auto ret = parseFunction();
-                    return std::move(ret);
+                    return ret;
                 }
 
                 if (m_Stream.CurTok.value == "if") {
                     auto ret = parseCondition();
-                    return std::move(ret);
+                    return ret;
                 }
 
                 if (m_Stream.CurTok.value == "struct")
@@ -209,6 +209,7 @@ SwNode Parser::dispatch() {
                 if (m_Stream.CurTok.value == "return") {
                     return parseRet();
                 }
+                throw std::runtime_error("Error: unhandled keyword token in dispatch()");
 
             case NUMBER:
             case STRING:
@@ -224,7 +225,7 @@ SwNode Parser::dispatch() {
                 } if (m_Stream.CurTok.value == "}") {
                     if (m_BracketTracker.empty() || m_BracketTracker.back().val != '{') {forwardStream(); continue;}
                     return std::make_unique<Node>();
-                }
+                } [[fallthrough]];
             default:
                 reportError(ErrCode::SYNTAX_ERROR);
                 forwardStream();
@@ -397,7 +398,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
             function_t->param_types.push_back(param.var_type);
             ignoreButExpect({IDENT, "self"});
-            return std::move(param);
+            return param;
         }
 
         const std::string var_name = m_Stream.CurTok.value;
@@ -422,7 +423,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
             reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = var_name});
         }
 
-        return std::move(param);
+        return param;
     };
 
     // parsing the parameters...
@@ -464,7 +465,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     if (ret->is_extern) {
         // TODO: report an error if a body is provided
-        return std::move(ret);
+        return ret;
     }
 
     // parse the children
@@ -474,7 +475,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     } forwardStream();
     SymbolTable.moveToPreviousScope();  // decrement the scope index, back to the global scope!
 
-    return std::move(ret);
+    return ret;
 }
 
 std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
@@ -572,7 +573,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
 
     SymbolTable.newScope();
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}"))
-        cnd.if_children.push_back(std::move(dispatch()));
+        cnd.if_children.push_back(dispatch());
     forwardStream();
     SymbolTable.moveToPreviousScope();
 
@@ -624,7 +625,7 @@ Ident Parser::parseIdent() {
         ret.value = SymbolTable.getIDInfoFor(ret.full_qualification.front());
     }
 
-    return std::move(ret);
+    return ret;
 }
 
 
@@ -700,5 +701,5 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
 
 Expression Parser::parseExpr(const int min_bp) {
     auto ret = m_ExpressionParser.parseExpr(min_bp);
-    return std::move(ret);
+    return ret;
 }

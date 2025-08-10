@@ -131,8 +131,6 @@ public:
     }
 
 private:
-    bool m_IsAssignmentLHS = false;
-
     std::unordered_set<std::size_t> m_ResolvedList;
     std::size_t m_CurParentIndex = 0;
 
