@@ -192,7 +192,7 @@ Token TokenStream::next(const bool modify_cur_tk) {
     // Discard junk tokens
     do {
         cur_tk = readNextTok();
-        c = static_cast<unsigned>(cur_tk.value.at(0));
+        c = static_cast<unsigned char>(cur_tk.value.at(0));
     } while ((cur_tk.type == PUNC && (c <= ' ' || c == 0x7F)) || cur_tk.type == COMMENT);
 
     if (modify_cur_tk) CurTok = cur_tk;

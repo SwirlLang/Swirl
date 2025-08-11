@@ -124,7 +124,7 @@ public:
     explicit ThreadPool_t(int base_thread_counts) {
         // TODO: handle the edge-case of 0
         assert(base_thread_counts > 0);
-        m_Threads.reserve(base_thread_counts);
+        m_Threads.reserve(static_cast<size_t>(base_thread_counts));
         while (base_thread_counts--)
             m_Threads.emplace_back(*this);
     }

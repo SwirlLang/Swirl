@@ -164,7 +164,7 @@ llvm::Type* TypeBool::llvmCodegen(LLVMBackend& instance) {
 
 // generate the method definitions for types which do not diverge significantly
 #define DEFINE_CTYPE_DEF(Name, BitWidth, IsIntegral) \
-    int  Name::getBitWidth() { return BitWidth; } \
+    unsigned int  Name::getBitWidth() { return BitWidth; } \
     bool Name::isIntegral() { return IsIntegral; } \
     bool Name::isFloatingPoint() { return !IsIntegral; } \
     llvm::Type* Name::llvmCodegen(LLVMBackend& _) { \
@@ -204,7 +204,7 @@ DEFINE_ATTRIBUTES(TypeCUIntPtr, true)
 #undef DEFINE_ATTRIBUTES
 
 
-int TypeCL::getBitWidth() {
+unsigned int TypeCL::getBitWidth() {
     const auto arch = llvm::Triple(CompilerInst::getTargetTriple()).getArch();
     if (arch == llvm::Triple::x86_64 || arch == llvm::Triple::aarch64)
         return 64;
@@ -217,7 +217,7 @@ llvm::Type* TypeCL::llvmCodegen(LLVMBackend& instance) {
     return llvm::Type::getIntNTy(instance.Context, getBitWidth());
 }
 
-int TypeCSSizeT::getBitWidth() {
+unsigned int TypeCSSizeT::getBitWidth() {
     return LLVMBackend::TargetMachine->getPointerSizeInBits(0);
 }
 
@@ -226,7 +226,7 @@ llvm::Type* TypeCSSizeT::llvmCodegen(LLVMBackend& instance) {
 }
 
 
-int TypeCSizeT::getBitWidth() {
+unsigned int TypeCSizeT::getBitWidth() {
     return TypeCSSizeT{}.getBitWidth();
 }
 
@@ -234,7 +234,7 @@ llvm::Type* TypeCSizeT::llvmCodegen(LLVMBackend& instance) {
     return TypeCSSizeT{}.llvmCodegen(instance);
 }
 
-int TypeCUL::getBitWidth() {
+unsigned int TypeCUL::getBitWidth() {
     return TypeCL{}.getBitWidth();
 }
 
@@ -243,7 +243,7 @@ llvm::Type* TypeCUL::llvmCodegen(LLVMBackend& instance) {
 }
 
 
-int TypeCPtrDiffT::getBitWidth() {
+unsigned int TypeCPtrDiffT::getBitWidth() {
     return LLVMBackend::TargetMachine->getPointerSizeInBits(0);
 }
 
@@ -252,7 +252,7 @@ llvm::Type* TypeCPtrDiffT::llvmCodegen(LLVMBackend& instance) {
 }
 
 
-int TypeCWChar::getBitWidth() {
+unsigned int TypeCWChar::getBitWidth() {
     const auto triple = llvm::Triple(CompilerInst::getTargetTriple());
     if (triple.getOS() == llvm::Triple::Win32) {
         return 16;
@@ -265,7 +265,7 @@ llvm::Type* TypeCWChar::llvmCodegen(LLVMBackend& instance) {
 }
 
 
-int TypeCLDouble::getBitWidth() {
+unsigned int TypeCLDouble::getBitWidth() {
     const auto triple = llvm::Triple(CompilerInst::getTargetTriple());
 
     if (triple.getArch() == llvm::Triple::x86_64) {
@@ -315,7 +315,7 @@ llvm::Type* TypeCLDouble::llvmCodegen(LLVMBackend& instance) {
 }
 
 
-int TypeCIntPtr::getBitWidth() {
+unsigned int TypeCIntPtr::getBitWidth() {
     return TypeCSSizeT{}.getBitWidth();
 }
 
@@ -325,7 +325,7 @@ llvm::Type* TypeCIntPtr::llvmCodegen(LLVMBackend& instance) {
 }
 
 
-int TypeCUIntPtr::getBitWidth() {
+unsigned int TypeCUIntPtr::getBitWidth() {
     return TypeCSSizeT{}.getBitWidth();
 }
 

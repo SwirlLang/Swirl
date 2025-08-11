@@ -59,10 +59,13 @@ struct Type {
 
     virtual llvm::Type* llvmCodegen(LLVMBackend&) = 0;
     
-    virtual bool     isIntegral() { return false; }
-    virtual bool     isFloatingPoint() { return false; }
-    virtual bool     isUnsigned() { return false; }
-    virtual int      getBitWidth() { return -1; }
+    virtual bool         isIntegral()      { return false; }
+    virtual bool         isFloatingPoint() { return false; }
+    virtual bool         isUnsigned()      { return false; }
+
+    virtual unsigned int getBitWidth() {
+        throw std::runtime_error("Error: getBitWidth called on base Type instance");
+    }
 
     [[nodiscard]] virtual std::string toString() const = 0;
     [[nodiscard]] virtual IdentInfo* getIdent() const { return nullptr; }
@@ -114,7 +117,7 @@ struct ArrayType final : Type {
     Type* of_type    = nullptr;
     std::size_t size = 0;
 
-    ArrayType(Type* of_type, const std::size_t size): of_type(of_type), size(size) {}
+    ArrayType(Type* of, const std::size_t len): of_type(of), size(len) {}
 
     SwTypes getTypeTag() override { return ARRAY; }
 
@@ -129,7 +132,7 @@ struct ArrayType final : Type {
 struct TypeStr final : Type {
     std::size_t size;
 
-    explicit TypeStr(const std::size_t size): size(size) {}
+    explicit TypeStr(const std::size_t len): size(len) {}
 
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes    getTypeTag() override { return STR; }
@@ -178,7 +181,7 @@ struct SliceType final : Type {
     Type* of_type;
     std::size_t size;
 
-    explicit SliceType(Type* t, const std::size_t size) : of_type(t), size(size) {}
+    explicit SliceType(Type* t, const std::size_t len) : of_type(t), size(len) {}
 
     [[nodiscard]] std::string toString() const override {
         return std::format("&[{} | {}]", of_type->toString(), size);
@@ -204,7 +207,7 @@ struct TypeI8 : Type {
     SwTypes getTypeTag() override { return I8; }
 
     bool isIntegral() override { return true; }
-    int  getBitWidth() override { return 8; }
+    unsigned int getBitWidth() override { return 8; }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -215,7 +218,7 @@ struct TypeI16 : Type {
     SwTypes getTypeTag() override { return I16; }
 
     bool isIntegral() override { return true; }
-    int getBitWidth() override { return 16; }
+    unsigned int getBitWidth() override { return 16; }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -226,7 +229,7 @@ struct TypeI32 : Type {
     SwTypes getTypeTag() override { return I32; }
 
     bool isIntegral() override { return true; }
-    int getBitWidth() override { return 32; }
+    unsigned int getBitWidth() override { return 32; }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -237,7 +240,7 @@ struct TypeI64 : Type {
     SwTypes getTypeTag() override { return I64; }
 
     bool isIntegral() override { return true; }
-    int getBitWidth() override { return 64; }
+    unsigned int getBitWidth() override { return 64; }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -248,7 +251,7 @@ struct TypeI128 : Type {
     SwTypes getTypeTag() override { return I128; }
 
     bool isIntegral() override { return true; }
-    int getBitWidth() override { return 128; }
+    unsigned int getBitWidth() override { return 128; }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -290,7 +293,7 @@ struct TypeF32 final : Type {
     SwTypes getTypeTag() override { return F32; }
 
     bool isFloatingPoint() override { return true; }
-    int getBitWidth() override { return 32; }
+    unsigned int getBitWidth() override { return 32; }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -301,7 +304,7 @@ struct TypeF64 final : Type {
     SwTypes getTypeTag() override { return F64; }
 
     bool isFloatingPoint() override { return true; }
-    int getBitWidth() override { return 64; }
+    unsigned int getBitWidth() override { return 64; }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -311,7 +314,7 @@ struct TypeBool final : Type {
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getTypeTag() override { return BOOL; }
 
-    int getBitWidth() override { return 1; }
+    unsigned int getBitWidth() override { return 1; }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -323,7 +326,7 @@ struct Name final : Type { \
     bool is_usn; \
     [[nodiscard]] std::string toString() const override { return StringName; } \
     SwTypes getTypeTag() override { return Tag; } \
-    int getBitWidth() override; \
+    unsigned int getBitWidth() override; \
     bool isIntegral() override; \
     bool isFloatingPoint() override; \
     bool isUnsigned() override { return is_usn; } \

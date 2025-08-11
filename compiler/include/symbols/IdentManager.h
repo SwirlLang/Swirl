@@ -13,9 +13,9 @@ class IdentInfo {
 public:
     IdentInfo() = delete;
 
-    explicit IdentInfo(std::string id, std::filesystem::path mod_path)
-        : id(std::move(id))
-        , mod_path(std::move(mod_path)) {}
+    explicit IdentInfo(std::string ident, std::filesystem::path path)
+        : id(std::move(ident))
+        , mod_path(std::move(path)) {}
 
     [[nodiscard]]
     const std::string& toString() const {

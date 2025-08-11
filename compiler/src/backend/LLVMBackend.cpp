@@ -575,8 +575,9 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
                 auto field_ptr = instance.Builder.CreateStructGEP(
                     instance.StructFieldType->llvmCodegen(instance),
                     inst_ptr,
-                    struct_ty->field_offsets.at(field_node->full_qualification.front())
-                    );
+                    static_cast<unsigned int>
+                    (struct_ty->field_offsets.at(field_node->full_qualification.front()))
+                );
 
                 auto field_ty = instance.SymMan.lookupDecl(field_node->value).swirl_type;
 
@@ -612,7 +613,8 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
                 auto field_ptr = instance.Builder.CreateStructGEP(
                     struct_ty->llvmCodegen(instance),
                     inst_ptr,
-                    struct_ty->field_offsets.at(field_node->full_qualification.front())
+                    static_cast<unsigned int>
+                    (struct_ty->field_offsets.at(field_node->full_qualification.front()))
                 );
 
                 auto field_type = instance.SymMan.lookupDecl(field_node->getIdentInfo()).swirl_type;

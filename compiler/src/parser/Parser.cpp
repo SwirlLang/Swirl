@@ -130,7 +130,7 @@ Type* Parser::parseType() {
             return nullptr;
         }
 
-        base_type = SymbolTable.getArrayType(base_type, std::stoi(forwardStream().value));
+        base_type = SymbolTable.getArrayType(base_type, std::stoul(forwardStream().value));
         ignoreButExpect({PUNC, "]"});  // skip ']'
 
     } else if (m_Stream.CurTok.type == IDENT) {

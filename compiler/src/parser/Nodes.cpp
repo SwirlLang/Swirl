@@ -7,7 +7,7 @@ struct OpInfo {
     int precedence;
     Associativity associativity;
 
-    OpInfo(const int prec, const Associativity associativity) : precedence(prec), associativity(associativity) {}
+    OpInfo(const int prec, const Associativity ass) : precedence(prec), associativity(ass) {}
 };
 
 
@@ -88,8 +88,8 @@ std::unordered_map<std::pair<std::string_view, int>, Op::OpTag_t> OpTagMap = {
 };
 
 
-Op::Op(const std::string_view str, const int8_t arity): value(std::string(str)), arity(arity) {
-    op_type = getTagFor(str, arity);  // compute and set the tag of the operator node
+Op::Op(const std::string_view str, const int8_t adicity): value(std::string(str)), arity(adicity) {
+    op_type = getTagFor(str, adicity);  // compute and set the tag of the operator node
 }
 
 
