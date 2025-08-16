@@ -88,7 +88,14 @@ LLVMBackend::LLVMBackend(Parser& parser)
 // TODO: make it take an `IdentInfo*` instead
 std::string LLVMBackend::mangleString(std::string_view str) {
     if (getManglingContext().encapsulator) {  // when encountering a method
-        return "__Sw_" + getManglingContext().encapsulator->toString() + '_' + std::string(str);
+        // unwrap the type if needed
+        Type* inst_type = getManglingContext().encapsulator;
+        if (inst_type->getTypeTag() == Type::REFERENCE)
+            inst_type = dynamic_cast<ReferenceType*>(inst_type)->of_type;
+        if (inst_type->getTypeTag() == Type::POINTER)
+            inst_type = dynamic_cast<PointerType*>(inst_type)->of_type;
+
+        return "__Sw_" + inst_type->toString() + '_' + std::string(str);
     } return "__Sw_" + std::string(str);
 }
 
@@ -367,7 +374,13 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
                         [[maybe_unused]] auto ptr = operand->llvmCodegen(instance);
                         instance.restoreAssignmentLhsState();
                         ret =  instance.ComputedPtr;
-                    } else throw;
+                    }
+                    else throw;
+                }
+
+                else if (expr_unwrapped->getNodeType() == ND_IDENT) {
+                    auto lookup = instance.SymMan.lookupDecl(operand->getIdentInfo());
+                    ret = lookup.llvm_value;
                 }
             }
 
@@ -377,6 +390,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             }
 
             instance.RefMemory = ret;
+            assert(ret);
             return ret;
         }
 
