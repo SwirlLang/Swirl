@@ -114,23 +114,6 @@ Expression ExpressionParser::parseExpr(const int rbp) {
                 right.expr.emplace_back(dummy_node);
                 break;
             }
-            case Op::DOT: {
-                right = parseExpr(Op::getRBPFor(Op::DOT));
-
-                // to lower the a.call(...) into call(&a, ...)
-                if (auto& node = right.expr.front(); node->getNodeType() == ND_CALL) {
-                    // prepare the left operand
-                    auto ref_op = std::make_unique<Op>("&", 1);
-                    ref_op->operands.push_back(std::move(left));
-
-                    const auto call_node = dynamic_cast<FuncCall*>(node.get());
-                    call_node->args.insert(call_node->args.begin(),
-                        Expression::makeExpression(std::move(ref_op))
-                        );
-                    return std::move(node);
-                }
-                break;
-            }
             default:
                 right = parseExpr(Op::getRBPFor(op->op_type));
         }

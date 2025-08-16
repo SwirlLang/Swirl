@@ -185,6 +185,13 @@ public:
         } return id;
     }
 
+    IdentInfo* registerDecl(IdentInfo* id, TableEntry& entry) {
+        if (m_IdToTableEntry.contains(id)) {
+            return nullptr;
+        } m_IdToTableEntry.insert({id, entry});
+        return id;
+    }
+
     void registerDecl(IdentInfo* id, const TableEntry& entry) {
         if (m_IdToTableEntry.contains(id))
             throw std::runtime_error(

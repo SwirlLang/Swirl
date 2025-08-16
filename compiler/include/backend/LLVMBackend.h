@@ -24,6 +24,11 @@
 
 using SwAST_t = std::vector<std::unique_ptr<Node>>;
 
+struct ManglingContext {
+    Type* encapsulator = nullptr;  // if set, signals that a mangled method name is requested
+};
+
+
 class LLVMBackend {
 public:
     llvm::LLVMContext Context;
@@ -50,6 +55,11 @@ public:
     // -------------------------------------------------------
 
     explicit LLVMBackend(Parser& parser);
+
+
+    /// returns a mangled string object based on the `str` passed to it and the instance's
+    /// current mangling context
+    std::string mangleString(std::string_view str);
 
     /// perform any necessary type casts, then return the llvm::Value*
     /// note: `subject` is supposed to be a "loaded" value
@@ -106,6 +116,18 @@ public:
         return m_LatestBoundType.top()->llvmCodegen(*this);
     }
 
+    void setManglingContext(const ManglingContext& ctx) {
+        m_ManglingContexts.push(ctx);
+    }
+
+    void restoreManglingContext() {
+        m_ManglingContexts.pop();
+    }
+
+    auto getManglingContext() {
+        return m_ManglingContexts.top();
+    }
+
     void setBoundTypeState(Type* to) {
         m_LatestBoundType.emplace(to);
     }
@@ -134,6 +156,7 @@ private:
     std::unordered_set<std::size_t> m_ResolvedList;
     std::size_t m_CurParentIndex = 0;
 
-    std::stack<Type*>   m_LatestBoundType;
-    std::stack<bool>    m_AssignmentLhsStack;
+    std::stack<Type*>           m_LatestBoundType;
+    std::stack<bool>            m_AssignmentLhsStack;
+    std::stack<ManglingContext> m_ManglingContexts;
 };

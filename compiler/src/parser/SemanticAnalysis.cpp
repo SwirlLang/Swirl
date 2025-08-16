@@ -292,12 +292,14 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
         if (var_type == nullptr) {
             var_type = val_analysis.deduced_type;
             ctx.SymMan.lookupDecl(var_ident).swirl_type = var_type;
+            value.setType(var_type);
         } else {
             ctx.checkTypeCompatibility(val_analysis.deduced_type, var_type, location);
             value.setType(var_type);
         }
     } else ctx.restoreBoundTypeState();
 
+    ret.deduced_type = var_type;
     return ret;
 }
 
@@ -308,7 +310,10 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
         return ctx.Cache[this];
     }
 
-    ident.analyzeSemantics(ctx);
+    // method calls' id are not simple identifiers, do not analyze them normally
+    if (!ctx.getIsMethodCallState()) {
+        ident.analyzeSemantics(ctx);
+    }
 
     IdentInfo* id = ident.getIdentInfo();
 
@@ -321,7 +326,8 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
         ctx.analyzeSemanticsOf(id);
 
     auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(id));
-    if (args.size() < fn_type->param_types.size()) {  // TODO: default params-values
+
+    if (args.size() < fn_type->param_types.size() && !ctx.getIsMethodCallState()) {  // TODO: default params-values
         ctx.reportError(ErrCode::TOO_FEW_ARGS, {.ident = ident.getIdentInfo(), .location = location});
         ctx.Cache.insert({this, ret});
         return {};
@@ -331,16 +337,22 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
         ctx.reportError(ErrCode::RET_TYPE_REQUIRED, {.location = location});
     }
 
-    assert(fn_type->param_types.size() == args.size());
 
+    if (!ctx.getIsMethodCallState()) {
+        assert(fn_type->param_types.size() == args.size());
+    } else assert(fn_type->param_types.size() - 1 == args.size());
+
+    // the bias is added while indexing into the `param_types` vector (of `Type*`) to account for
+    // the instance-reference Type in methods
+    const auto bias = ctx.getIsMethodCallState() ? 1 : 0;
 
     for (std::size_t i = 0; i < args.size(); ++i) {
-        ctx.setBoundTypeState(fn_type->param_types.at(i));
+        ctx.setBoundTypeState(fn_type->param_types.at(i + bias));
         AnalysisResult arg = args.at(i).analyzeSemantics(ctx);
         ctx.restoreBoundTypeState();
 
-        ctx.checkTypeCompatibility(arg.deduced_type, fn_type->param_types.at(i), location);
-        args[i].setType(fn_type->param_types[i]);
+        ctx.checkTypeCompatibility(arg.deduced_type, fn_type->param_types.at(i + bias), location);
+        args[i].setType(fn_type->param_types[i + bias]);
     }
 
     ret.deduced_type = fn_type->ret_type;
@@ -563,30 +575,52 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             case DOT: {
                 AnalysisContext::DisableErrorCode _(ErrCode::UNDEFINED_IDENTIFIER, ctx);
 
-                auto accessed_operand = dynamic_cast<Ident*>(operands.at(1).get());
-                if (!accessed_operand) throw std::runtime_error("accessed operand not an id!");
+                std::string id_str;
+                Ident*      rhs_id = nullptr;
+                bool        is_method = false;
+
+                if (operands.at(1)->getNodeType() == ND_CALL) {
+                    is_method = true;
+                    rhs_id = &dynamic_cast<FuncCall*>(operands.at(1).get())->ident;
+                    id_str = rhs_id->full_qualification.at(0);
+                } else {
+                    assert(operands.at(1)->getNodeType() == ND_IDENT);
+                    rhs_id = dynamic_cast<Ident*>(operands.at(1).get());
+                    id_str = rhs_id->full_qualification.at(0);
+                }
 
                 // automatic dereference
                 auto struct_ty = analysis_1.deduced_type;
                 if (struct_ty->getTypeTag() == Type::REFERENCE)
                     struct_ty = dynamic_cast<ReferenceType*>(struct_ty)->of_type;
 
-                auto accessed_op_id =
-                    struct_ty->scope->getIDInfoFor(
-                        accessed_operand->full_qualification.at(0)
-                        );
+                auto accessed_op_id = struct_ty->scope->getIDInfoFor(id_str);
 
                 if (!accessed_op_id) {
-                    ctx.reportError(ErrCode::NO_SUCH_MEMBER, {
-                        .str_1 = accessed_operand->full_qualification.front(),
-                        .str_2 = operands.at(0)->getIdentInfo()->toString(),
+                    ctx.reportError(ErrCode::NO_SUCH_MEMBER,{
+                        .str_1 = id_str,
+                        .str_2 = struct_ty->toString(),
                         .location = location
-                    }); ret.is_erroneous = true; break;
+                    }); ret.is_erroneous = true;
                 }
 
-                accessed_operand->value = *accessed_op_id;
-                const auto access_entry = ctx.SymMan.lookupDecl(*accessed_op_id);
-                ret.deduced_type = access_entry.swirl_type;
+                rhs_id->value = *accessed_op_id;
+
+                Type* field_access_ty = nullptr;
+                if (!is_method) {
+                    field_access_ty = ctx.SymMan.lookupDecl(*accessed_op_id).swirl_type;
+                    assert(field_access_ty);
+                } else {  // is a method
+                    ctx.setIsMethodCallState(true);
+                    operands.at(1)->analyzeSemantics(ctx);
+                    ctx.restoreIsMethodCallState();
+                    auto call_node_id = operands.at(1)->getIdentInfo();
+                    assert(call_node_id);
+                    field_access_ty = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(call_node_id))->ret_type;
+                }
+
+                ret.deduced_type = field_access_ty;
+                assert(field_access_ty);
                 break;
             }
 

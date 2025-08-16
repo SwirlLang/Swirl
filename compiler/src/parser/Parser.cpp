@@ -336,6 +336,7 @@ void Parser::parse() {
 
     m_UnresolvedDeps = m_Dependencies.size();
     if (m_Dependencies.empty())
+
         m_ModuleMap.m_ZeroDepVec.push_back(this);
 }
 
@@ -369,6 +370,12 @@ std::unique_ptr<Function> Parser::parseFunction() {
     const std::string func_ident = m_Stream.next().value;
     if (func_ident == "main" && !m_IsMainModule) {
         reportError(ErrCode::MAIN_REDEFINED);
+    }
+
+    if (m_CurrentStructTy) {
+        const auto struct_scope = dynamic_cast<StructType*>(m_CurrentStructTy)->scope;
+        assert(struct_scope);
+        func_nd.ident = struct_scope->getNewIDInfo(func_ident);
     }
 
     m_Stream.expectTokens({Token{PUNC, "("}});
@@ -441,14 +448,18 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();
-        // func_nd.ret_type = parseType();
         function_t->ret_type = parseType();
     }
 
     TableEntry entry;
     entry.swirl_type = function_t.get();
     entry.is_exported = func_nd.is_exported;
-    func_nd.ident = SymbolTable.registerDecl(func_ident, entry, 0);
+
+    if (!m_CurrentStructTy) {  // when the function is not a method
+        // register the function in the global scope
+        func_nd.ident = SymbolTable.registerDecl(func_ident, entry, 0);
+    }
+
     function_t->ident = func_nd.ident;
 
     if (!func_nd.ident)
@@ -656,6 +667,8 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     // create the struct's scope
     ignoreButExpect({PUNC, "{"});  // skip '{'
     const auto scope_pointer = SymbolTable.newScope();
+    struct_ty->scope = scope_pointer;
+
     SymbolTable.lookupDecl(ret.ident).scope = scope_pointer;
 
     // handle the children
@@ -669,10 +682,11 @@ std::unique_ptr<Struct> Parser::parseStruct() {
         ret.members.emplace_back(std::move(member));
     } ignoreButExpect({PUNC, "}"});  // skip '}'
 
+    m_CurrentStructTy = nullptr;
+
     // exit the struct's scope
     SymbolTable.moveToPreviousScope();
 
-    struct_ty->scope = scope_pointer;
     struct_ty->ident = ret.ident;
 
     // register the type and the scope of the struct as a qualifier

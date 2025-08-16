@@ -53,6 +53,7 @@ LLVMBackend::LLVMBackend(Parser& parser)
 {
     m_LatestBoundType.emplace(nullptr);
     m_AssignmentLhsStack.emplace(false);
+    m_ManglingContexts.emplace();
 
     static std::once_flag once_flag;
     std::call_once(once_flag, []{
@@ -82,6 +83,13 @@ LLVMBackend::LLVMBackend(Parser& parser)
 
     LModule->setDataLayout(TargetMachine->createDataLayout());
     LModule->setTargetTriple(CompilerInst::TargetTriple);
+}
+
+// TODO: make it take an `IdentInfo*` instead
+std::string LLVMBackend::mangleString(std::string_view str) {
+    if (getManglingContext().encapsulator) {  // when encountering a method
+        return "__Sw_" + getManglingContext().encapsulator->toString() + '_' + std::string(str);
+    } return "__Sw_" + std::string(str);
 }
 
 
@@ -137,7 +145,7 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
 /// Writes the array literal to 'BoundMemory' if not null, otherwise creates a temporary and
 /// returns a load of it.
 llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
-    assert(elements.size() > 0);
+    assert(!elements.empty());
     Type* element_type = elements.at(0).expr_type;
     Type* sw_arr_type  = instance.SymMan.getArrayType(element_type, elements.size());
 
@@ -244,12 +252,16 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
 
     const auto fn_sw_type = dynamic_cast<FunctionType*>(instance.SymMan.lookupType(ident));
 
+    auto name = is_extern || ident->toString() == "main" ?
+        ident->toString() :
+        instance.mangleString(ident->toString());
+
     auto linkage = (
         is_exported || is_extern || ident->toString() == "main"
         ) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
 
     auto*               fn_type  = llvm::dyn_cast<llvm::FunctionType>(fn_sw_type->llvmCodegen(instance));
-    llvm::Function*     func     = llvm::Function::Create(fn_type, linkage, ident->toString(), instance.LModule.get());
+    llvm::Function*     func     = llvm::Function::Create(fn_type, linkage, name, instance.LModule.get());
 
     if (is_extern) {
         if (extern_attributes == "C")
@@ -604,9 +616,17 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
                 }
 
                 // fetch the instance's struct-type
-                auto struct_ty = dynamic_cast<StructType*>(
-                    instance.fetchSwType(operands.at(0))
-                );
+                auto struct_sw_ty = instance.fetchSwType(operands.at(0));
+                auto struct_ty = dynamic_cast<StructType*>(struct_sw_ty);
+
+                // handle the special case of methods, lower them into regular function calls
+                if (operands.at(1)->getNodeType() == ND_CALL) {
+                    instance.setManglingContext({.encapsulator = struct_sw_ty});
+                    instance.ComputedPtr = inst_ptr;  // set ComputedPtr for the FuncCall node to grab it
+                    auto ret = operands.at(1)->llvmCodegen(instance);
+                    instance.restoreManglingContext();
+                    return ret;
+                }
 
                 assert(struct_ty != nullptr);
                 auto field_node = dynamic_cast<Ident*>(operands.at(1).get());
@@ -788,14 +808,15 @@ llvm::Value* WhileLoop::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Struct::llvmCodegen(LLVMBackend& instance) {
-    instance.SymMan.lookupType(ident)->llvmCodegen(instance);
+    auto struct_sw_ty = instance.SymMan.lookupType(ident);
+    assert(struct_sw_ty);
 
+    instance.setManglingContext({.encapsulator = struct_sw_ty});
     for (auto& member : members) {
         if (member->getNodeType() == ND_FUNC) {
             member->llvmCodegen(instance);
         }
-    }
-
+    } instance.restoreManglingContext();
     return nullptr;
 }
 
@@ -803,21 +824,27 @@ llvm::Value* Struct::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Type*> paramTypes;
 
-    IdentInfo* fn_name = ident.getIdentInfo();
+    assert(ident.getIdentInfo());
+    auto fn_name = ident.getIdentInfo()->toString();
 
-    llvm::Function* func = instance.LModule->getFunction(fn_name->toString());
+    llvm::Function* func = instance.LModule->getFunction(instance.mangleString(fn_name));
     if (!func) {
         [[maybe_unused]] auto fn = llvm::Function::Create(
             llvm::dyn_cast<llvm::FunctionType>(instance.SymMan.lookupType(ident.getIdentInfo())->llvmCodegen(instance)),
             llvm::GlobalValue::ExternalLinkage,
-            ident.getIdentInfo()->toString(),
+            instance.mangleString(fn_name),
             instance.LModule.get()
             );
-        func = instance.LModule->getFunction(fn_name->toString());
+        func = instance.LModule->getFunction(instance.mangleString(fn_name));
     }
 
     std::vector<llvm::Value*> arguments{};
-    arguments.reserve(args.size());
+    arguments.reserve(args.size() + 1);
+
+    if (instance.getManglingContext().encapsulator) {  // is the func call a method call?
+        assert(instance.ComputedPtr);
+        arguments.push_back(instance.ComputedPtr);  // push the ComputedPtr as an implicit argument
+    }
 
     for (auto& item : args)
         arguments.push_back(item.llvmCodegen(instance));
@@ -844,6 +871,7 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
+    assert(var_type != nullptr);
     llvm::Type* type = var_type->llvmCodegen(instance);
 
     llvm::Value* init = nullptr;
@@ -853,10 +881,10 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
 
     
     if (!instance.IsLocalScope) {
-        // TODO
+        auto var_name = is_extern ? var_ident->toString() : instance.mangleString(var_ident->toString());
         auto* var = new llvm::GlobalVariable(
                 *instance.LModule, type, is_const, linkage,
-                nullptr, var_ident->toString()
+                nullptr, var_name
                 );
 
         if (initialized) {
