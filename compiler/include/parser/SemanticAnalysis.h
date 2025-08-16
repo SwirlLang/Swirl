@@ -12,10 +12,6 @@ public:
     std::unordered_map<Node*, AnalysisResult> Cache;
     std::unordered_map<IdentInfo*, Node*>& GlobalNodeJmpTable;
 
-    /// Maps module names (or their aliases) to their path, used for the resolution of  ///
-    /// identifiers' `IdentInfo*`s.                                                    ///
-    std::unordered_map<std::string, std::filesystem::path> ModuleNamespaceTable;
-
     SymbolManager& SymMan;
     ModuleManager& ModuleMap;
     SourceManager* SrcMan;
@@ -28,7 +24,11 @@ public:
     , ModuleMap(parser.m_ModuleMap)
     , SrcMan(&parser.m_SrcMan)
     , ErrCallback(parser.m_ErrorCallback)
-    , m_AST(parser.AST) { m_BoundTypeState.emplace(nullptr); }
+    , m_AST(parser.AST)
+    {
+        m_IsMethodCall.emplace(false);
+        m_BoundTypeState.emplace(nullptr);
+    }
 
     void startAnalysis() {
         for (const auto& child : m_AST) {
@@ -50,6 +50,7 @@ public:
     }
 
     Type* getBoundTypeState() const {
+        assert(!m_BoundTypeState.empty());
         return m_BoundTypeState.top();
     }
 
@@ -59,6 +60,19 @@ public:
 
     void restoreBoundTypeState() {
         m_BoundTypeState.pop();
+    }
+
+    void setIsMethodCallState(const bool val) {
+        m_IsMethodCall.push(val);
+    }
+
+    void restoreIsMethodCallState() {
+        m_IsMethodCall.pop();
+    }
+
+    bool getIsMethodCallState() const {
+        assert(!m_IsMethodCall.empty());
+        return m_IsMethodCall.top();
     }
 
     void disableErrorCode(const ErrCode code) {
@@ -104,6 +118,7 @@ private:
     AST_t& m_AST;
 
     std::stack<Type*> m_BoundTypeState;
+    std::stack<bool>  m_IsMethodCall;
 
     Node* m_CurrentParentFunc = nullptr;
     Node* m_CurrentParentFuncCache = nullptr;
