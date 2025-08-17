@@ -855,7 +855,8 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Value*> arguments{};
     arguments.reserve(args.size() + 1);
 
-    if (instance.getManglingContext().encapsulator) {  // is the func call a method call?
+    assert(ident.value);
+    if (instance.SymMan.lookupDecl(ident.value).is_method) {  // is the func call a method call?
         assert(instance.ComputedPtr);
         arguments.push_back(instance.ComputedPtr);  // push the ComputedPtr as an implicit argument
     }

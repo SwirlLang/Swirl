@@ -461,10 +461,15 @@ std::unique_ptr<Function> Parser::parseFunction() {
     TableEntry entry;
     entry.swirl_type = function_t.get();
     entry.is_exported = func_nd.is_exported;
+    entry.is_method   = m_CurrentStructTy != nullptr;
 
     if (!m_CurrentStructTy) {  // when the function is not a method
         // register the function in the global scope
         func_nd.ident = SymbolTable.registerDecl(func_ident, entry, 0);
+    } else {
+        // not a method, func_nd.ident has been set before
+        assert(func_nd.ident);
+        SymbolTable.registerDecl(func_nd.ident, entry);
     }
 
     function_t->ident = func_nd.ident;

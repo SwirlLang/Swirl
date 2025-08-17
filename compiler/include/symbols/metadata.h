@@ -12,6 +12,7 @@ namespace llvm {
 struct TableEntry {
     bool is_const    = false;
     bool is_param    = false;
+    bool is_method   = false;
     bool is_exported = false;
     bool is_volatile = false;
     bool is_mod_namespace = false;
