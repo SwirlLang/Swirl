@@ -10,11 +10,13 @@
 const std::vector<Argument> application_flags = {
     {{"-h","--help"}, "Show the help message", false, {}},
     {{"-o", "--output"}, "Output file name", true, {}},
-    {{"-d", "--debug"}, "Log the steps of compilation", false, {}},
     {{"-v", "--version"}, "Show the version of Swirl", false, {}},
     {{"-j", "--threads"}, "No. of threads to use (excluding the main-thread).", true},
     {{"-t", "--target"}, "The target-triple of the target-platform", true},
-    {{"-l", "--library"}, "The name of the library to link against.", true}
+    {{"-l", "--library"}, "The name of the library to link against.", true},
+    {{"-p", "--project"}, "/path/to/project/root", true},
+    {{"-d", "--dependency"}, "Register a dependency, in the format `path:name`.", true},
+    {{"-Ld", "--debug"}, "Log the steps of compilation", false, {}},
 };
 
 
@@ -61,6 +63,20 @@ int main(int argc, const char** argv) {
             CompilerInst::setTargetTriple(app.get_flag_value("-t"));
         if (app.contains_flag("-l"))  // until the cli supports multiple-values for the same flag...
             CompilerInst::appendLinkTarget(app.get_flag_value("-l"));
+        if (app.contains_flag("-p"))
+            CompilerInst::PackageTable.insert({
+                fs::path(app.get_flag_value("-p")).filename(),
+                fs::path(app.get_flag_value("-p"))
+            });
+        if (app.contains_flag("-d")) { // until the cli supports multiple-values for the same flag...
+            // format: `path:alias`
+            auto flag_val = app.get_flag_value("-d");
+            auto alias = flag_val.substr(flag_val.find_last_of(':') + 1);
+            auto path = flag_val.erase(flag_val.find_last_of(':'));
+
+            CompilerInst::PackageTable.insert({alias, path});
+        }
+
 
         compiler_inst.compile();
     }

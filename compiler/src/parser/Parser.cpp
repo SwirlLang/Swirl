@@ -18,6 +18,8 @@
 #include <managers/ModuleManager.h>
 #include <parser/SemanticAnalysis.h>
 
+#include "CompilerInst.h"
+
 
 using SwNode = std::unique_ptr<Node>;
 
@@ -246,7 +248,12 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
 
     forwardStream();  // skip 'import'
 
-    ret.mod_path = m_RelativeDir;
+    if (CompilerInst::PackageTable.contains(m_Stream.CurTok.value)) {
+        ret.mod_path = CompilerInst::PackageTable[m_Stream.CurTok.value];
+    } else reportError(ErrCode::PACKAGE_NOT_FOUND, {.str_1 = m_Stream.CurTok.value});
+
+    forwardStream();  // skip the current IDENT
+    ignoreButExpect({OP, "::"});
 
     while (m_Stream.CurTok.type == IDENT) {
         ret.mod_path /= forwardStream().value;

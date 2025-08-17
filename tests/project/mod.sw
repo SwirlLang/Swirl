@@ -1,4 +1,4 @@
-import dir::mod::{sum};
+import project::dir::mod::{sum};
 
 export fn sum_i32(a: i32, b: i32) {
     return sum(a, b);

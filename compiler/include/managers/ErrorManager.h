@@ -63,6 +63,7 @@ enum class ErrCode {
     MODULE_NOT_FOUND,         // path_1 in the context shall be set to the import-path
     SYMBOL_NOT_FOUND_IN_MOD,  // when a symbol doesn't exist in a module but usage is attempted
     SYMBOL_NOT_EXPORTED,      // when it exists but is not exported by its parent module, str_1 shall be set
+    PACKAGE_NOT_FOUND,        // when no registered package of name `str_1` can be found
     // ----------*----------- //
 
 
@@ -236,6 +237,9 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
                 ctx.str_1,
                 ctx.str_2
                 );
+        case ErrCode::PACKAGE_NOT_FOUND:
+            return std::format("No package with the name `{}` is registered.", ctx.str_1);
+
 
         case ErrCode::INITIALIZER_REQUIRED:
             return "Initialization is required here.";

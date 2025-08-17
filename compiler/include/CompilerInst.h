@@ -41,6 +41,8 @@ class CompilerInst {
 public:
     inline static std::string TargetTriple;
     inline static std::unordered_set<std::string> LinkTargets;
+    inline static std::unordered_map<std::string, fs::path> PackageTable;
+
 
     explicit CompilerInst(fs::path path)
         : m_SourceManager(path)
@@ -81,9 +83,9 @@ public:
 
             while (const auto mod = m_ModuleManager.popZeroDepVec()) {
                 std::print("{}, ", mod->m_FilePath.string());
-                m_ThreadPool.async([mod] {
+                // m_ThreadPool.async([mod] {
                     mod->performSema();
-                });
+                // });
             }
 
             std::println("\n-------------");
