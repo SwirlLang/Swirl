@@ -73,14 +73,14 @@ int main(int argc, const char** argv) {
         }
         if (app.contains_flag("-p"))
             CompilerInst::PackageTable.insert({
-                fs::path(app.get_flag_value("-p")).filename(),
+                fs::path(app.get_flag_value("-p")).filename().string(),
                 fs::path(app.get_flag_value("-p"))
             });
         else {
             // if `-p` isn't passed explicitly, assume that the project root is the
             // directory in which the source file resides
             CompilerInst::PackageTable.insert({
-                source_file_path.parent_path().filename(),
+                source_file_path.parent_path().filename().string(),
                 source_file_path.parent_path()
             });
         }
