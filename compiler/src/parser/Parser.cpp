@@ -31,9 +31,7 @@ Parser::Parser(const std::filesystem::path& path, ErrorCallback_t error_callback
     , m_ErrorCallback(std::move(error_callback))
     , m_FilePath(path)
     , SymbolTable(m_SrcMan.getSourcePath(), m_ModuleMap)
-{
-    m_RelativeDir = m_FilePath.parent_path();
-}
+{}
 
 
 /// returns the current token and forwards the stream

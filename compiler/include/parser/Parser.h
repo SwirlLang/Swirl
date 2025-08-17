@@ -44,7 +44,6 @@ class Parser {
     std::size_t  m_UnresolvedDeps{};
 
     std::filesystem::path m_FilePath;
-    std::filesystem::path m_RelativeDir;
 
     std::unordered_set<Parser*> m_Dependents;     // the modules which depend on this module
     std::unordered_set<Parser*> m_Dependencies;  // the modules which this module depends on
@@ -78,15 +77,12 @@ public:
     , m_LastSymWasExported(other.m_LastSymWasExported)
     , m_UnresolvedDeps(other.m_UnresolvedDeps)
     , m_FilePath(std::move(other.m_FilePath))
-    , m_RelativeDir(std::move(other.m_RelativeDir))
     , m_Dependents(std::move(other.m_Dependents))
     , m_Dependencies(std::move(other.m_Dependencies))
     , SymbolTable(std::move(other.SymbolTable))
     , AST(std::move(other.AST))
     , NodeJmpTable(std::move(other.NodeJmpTable))
-    {
-        m_RelativeDir = m_FilePath.parent_path();
-    }
+    {}
 
 
     std::unique_ptr<Node> dispatch();
