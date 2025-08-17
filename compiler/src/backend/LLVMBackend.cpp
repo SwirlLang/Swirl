@@ -85,19 +85,23 @@ LLVMBackend::LLVMBackend(Parser& parser)
     LModule->setTargetTriple(CompilerInst::TargetTriple);
 }
 
-// TODO: make it take an `IdentInfo*` instead
-std::string LLVMBackend::mangleString(std::string_view str) {
-    if (getManglingContext().encapsulator) {  // when encountering a method
-        // unwrap the type if needed
-        Type* inst_type = getManglingContext().encapsulator;
-        if (inst_type->getTypeTag() == Type::REFERENCE)
-            inst_type = dynamic_cast<ReferenceType*>(inst_type)->of_type;
-        if (inst_type->getTypeTag() == Type::POINTER)
-            inst_type = dynamic_cast<PointerType*>(inst_type)->of_type;
+// TODO: mangling still needs to concatenate module UID into the string
+std::string LLVMBackend::mangleString(IdentInfo* id) {
+    auto decl_lookup = SymMan.lookupDecl(id);
+    if (decl_lookup.is_method) {
+        // this shall hold the encapsulating type
+        auto type = getManglingContext().encapsulator;
+        assert(type != nullptr);
 
-        return "__Sw_" + inst_type->toString() + '_' + std::string(str);
-    } return "__Sw_" + std::string(str);
+        // unwrap the type if needed
+        if (type->getTypeTag() == Type::REFERENCE)
+            type = dynamic_cast<ReferenceType*>(type)->of_type;
+        assert(type->getTypeTag() != Type::POINTER);
+
+        return "__Sw_" + type->toString() + "_" + id->toString();
+    } return "__Sw_" + id->toString();
 }
+
 
 
 void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<Node>>& children) {
@@ -261,7 +265,7 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
 
     auto name = is_extern || ident->toString() == "main" ?
         ident->toString() :
-        instance.mangleString(ident->toString());
+        instance.mangleString(ident);
 
     auto linkage = (
         is_exported || is_extern || ident->toString() == "main"
@@ -839,7 +843,7 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Type*> paramTypes;
 
     assert(ident.getIdentInfo());
-    auto fn_name = ident.getIdentInfo()->toString();
+    auto fn_name = ident.getIdentInfo();
 
     llvm::Function* func = instance.LModule->getFunction(instance.mangleString(fn_name));
     if (!func) {
@@ -896,7 +900,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
 
     
     if (!instance.IsLocalScope) {
-        auto var_name = is_extern ? var_ident->toString() : instance.mangleString(var_ident->toString());
+        auto var_name = is_extern ? var_ident->toString() : instance.mangleString(var_ident);
         auto* var = new llvm::GlobalVariable(
                 *instance.LModule, type, is_const, linkage,
                 nullptr, var_name

@@ -57,9 +57,8 @@ public:
     explicit LLVMBackend(Parser& parser);
 
 
-    /// returns a mangled string object based on the `str` passed to it and the instance's
-    /// current mangling context
-    std::string mangleString(std::string_view str);
+    /// Calculates and returns a mangled string which corresponds to the `IdentInfo*`
+    std::string mangleString(IdentInfo*);
 
     /// perform any necessary type casts, then return the llvm::Value*
     /// note: `subject` is supposed to be a "loaded" value
