@@ -175,12 +175,6 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
 }
 
 
-/// Assumes `of` is an "array-like" type, returns its underlying child type
-Type* AnalysisContext::getUnderlyingType([[maybe_unused]] Type* of) {
-    throw;
-}
-
-
 AnalysisResult IntLit::analyzeSemantics(AnalysisContext& ctx) {
     if (ctx.getBoundTypeState() != nullptr && ctx.getBoundTypeState()->isIntegral()) {
         return {.deduced_type = ctx.getBoundTypeState()};
@@ -689,8 +683,6 @@ void Expression::setType(Type* to) {
 
 
 void AnalysisContext::analyzeSemanticsOf(IdentInfo* id) {
-    if (!GlobalNodeJmpTable.contains(id)) {
-        // ModuleMap.get(id->getModulePath()).NodeJmpTable.at(id)->analyzeSemantics(*this);
-        return;
-    } GlobalNodeJmpTable[id]->analyzeSemantics(*this);
+    if (!GlobalNodeJmpTable.contains(id)) { return; }
+    GlobalNodeJmpTable[id]->analyzeSemantics(*this);
 }
