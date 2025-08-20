@@ -76,7 +76,7 @@ class TypeManager {
     std::unordered_map<detail::Array, std::unique_ptr<ArrayType>>         m_ArrayTable;
     std::unordered_map<detail::Pointer, std::unique_ptr<PointerType>>     m_PointerTable;
     std::unordered_map<detail::Pointer, std::unique_ptr<ReferenceType>>   m_ReferenceTable;
-    std::unordered_map<detail::Array, std::unique_ptr<SliceType>>         m_SliceTable;
+    std::unordered_map<detail::Pointer, std::unique_ptr<SliceType>>       m_SliceTable;
 
 
 public:
@@ -115,6 +115,12 @@ public:
 
     /// returns a reference for the type `to`
     Type* getReferenceType(Type* to, const bool is_mutable) {
+        if (to->getTypeTag() == Type::ARRAY) {
+            // return a slice instead if `to` is an array
+            const auto arr_type = dynamic_cast<ArrayType*>(to);
+            return getSliceType(arr_type->of_type, is_mutable);
+        }
+
         if (to->getTypeTag() == Type::REFERENCE && to->is_mutable == is_mutable)
             return to;  // reference collapsing, & + & = &
 
@@ -134,16 +140,15 @@ public:
         return m_StringTable[size].get();
     }
 
-    /// returns a slice type instance pointer for the given array type
-    Type* getSliceType(Type* array_type) {
-        const auto arr_type = dynamic_cast<ArrayType*>(array_type);
-        assert(arr_type != nullptr);
-
-        auto slice_entry = detail::Array{arr_type->of_type, arr_type->size};
+    /// returns the slice type instance pointer for the given type, note that the type
+    /// is supposed to be what's within the array: &[type]
+    Type* getSliceType(Type* type, const bool is_mutable) {
+        auto slice_entry = detail::Pointer{type, is_mutable};
         if (m_SliceTable.contains(slice_entry)) {
             return m_SliceTable[slice_entry].get();
         } m_SliceTable[slice_entry] =
-            std::make_unique<SliceType>(slice_entry.of_type, slice_entry.size);
+            std::make_unique<SliceType>(slice_entry.of_type);
+        m_SliceTable[slice_entry]->is_mutable = is_mutable;
         return m_SliceTable[slice_entry].get();
     }
 

@@ -90,8 +90,8 @@ llvm::Type* SliceType::llvmCodegen(LLVMBackend& instance) {
 
     struct_t->setBody({
         instance.SymMan.getPointerType(of_type, 1)
-            ->llvmCodegen(instance),
-        llvm::Type::getInt64Ty(instance.Context)
+            ->llvmCodegen(instance),  // pointer to the first element
+        llvm::Type::getInt64Ty(instance.Context)  // size
     });
 
     instance.LLVMTypeCache[this] = struct_t;
@@ -104,9 +104,6 @@ llvm::Type* VoidType::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Type* ReferenceType::llvmCodegen(LLVMBackend& instance) {
-    // references to arrays are compiled to their corresponding slice-types
-    if (of_type->getTypeTag() == ARRAY)
-        return instance.SymMan.getSliceType(of_type)->llvmCodegen(instance);
     return llvm::PointerType::get(of_type->llvmCodegen(instance), 0);
 }
 

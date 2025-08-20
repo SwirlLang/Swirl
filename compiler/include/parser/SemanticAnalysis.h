@@ -93,7 +93,7 @@ public:
         return m_IsMethodCall.top();
     }
 
-    /// Changes the value of the state to `to`
+    /// Changes the value of the state to `val`
     void setIsMethodCallState(const bool val) {
         m_IsMethodCall.push(val);
     }

@@ -366,6 +366,56 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             Node* operand = operands.at(0).get();
             llvm::Value* ret = nullptr;
 
+            Type* type = nullptr;
+            if (operand->getNodeType() == ND_EXPR) {
+                auto expr = dynamic_cast<Expression*>(operand);
+                type = instance.fetchSwType(expr->expr.at(0));
+            } else instance.fetchSwType(operands.at(0));
+
+            // handle slice-creation for array types
+            if (type->getTypeTag() == Type::ARRAY) {
+                auto slice_type = instance.SymMan.getSliceType(
+                    dynamic_cast<ArrayType*>(type)->of_type,
+                    is_mutable
+                    );
+
+                auto slice_llvm_ty = slice_type->llvmCodegen(instance);
+
+                auto slice_instance = instance.Builder.CreateAlloca(slice_llvm_ty);
+                auto ptr_field = instance.Builder.CreateStructGEP(
+                    slice_llvm_ty,
+                    slice_instance,
+                    0
+                );
+
+                auto size_field = instance.Builder.CreateStructGEP(
+                    slice_llvm_ty,
+                    slice_instance,
+                    1
+                );
+
+                instance.setAssignmentLhsState(true);
+                auto arr_instance_ptr = operand->llvmCodegen(instance);
+                instance.restoreAssignmentLhsState();
+
+                // calculate the pointer to the array
+                auto element_ptr = instance.Builder.CreateStructGEP(
+                    type->llvmCodegen(instance),
+                    arr_instance_ptr,
+                    0
+                    );
+
+                instance.Builder.CreateStore(element_ptr, ptr_field);
+                instance.Builder.CreateStore(
+                    instance.toLLVMInt(dynamic_cast<ArrayType*>(type)->size),
+                    size_field
+                    );
+
+                return instance.getAssignmentLhsState() ?
+                        llvm::dyn_cast<llvm::Value>(slice_instance) :
+                        instance.Builder.CreateLoad(slice_llvm_ty, slice_instance);
+            }
+
             if (operand->getNodeType() == ND_EXPR) {
                 if (auto expr_unwrapped = operand->getExprValue().at(0).get();
                    expr_unwrapped->getNodeType() == ND_OP)
@@ -562,11 +612,13 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         }
 
         case INDEXING_OP: {
-            auto operand_sw_ty = dynamic_cast<ArrayType*>(instance.fetchSwType(operands.at(0)));
-            auto operand_ty = operand_sw_ty->llvmCodegen(instance);
+            auto underlying_type = instance.fetchSwType(operands.at(0))->getWrappedType();
+
+            auto operand_llvm_ty = instance.fetchSwType(operands.at(0))->llvmCodegen(instance);
 
             instance.setAssignmentLhsState(true);
-            auto arr_ptr = instance.Builder.CreateStructGEP(operand_ty, operands.at(0)->llvmCodegen(instance), 0);
+            auto arr_ptr = instance.Builder.CreateStructGEP(
+                operand_llvm_ty, operands.at(0)->llvmCodegen(instance), 0);
             instance.restoreAssignmentLhsState();
 
             llvm::Value* second_op;
@@ -580,7 +632,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             } instance.restoreBoundTypeState();
 
             auto element_ptr = instance.Builder.CreateGEP(
-                operand_ty->getStructElementType(0),
+                operand_llvm_ty->getStructElementType(0),
                 arr_ptr,
                 {instance.toLLVMInt(0), second_op}
                 );
@@ -589,7 +641,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             instance.ComputedPtr = element_ptr;
             if (instance.getAssignmentLhsState()) {
                 return element_ptr;
-            } return instance.Builder.CreateLoad(operand_sw_ty->of_type->llvmCodegen(instance), element_ptr);
+            } return instance.Builder.CreateLoad(underlying_type->llvmCodegen(instance), element_ptr);
         }
 
         case DOT: {

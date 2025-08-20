@@ -123,14 +123,19 @@ Type* Parser::parseType() {
         forwardStream();
         base_type = parseType();
 
-        ignoreButExpect({OP, "|"});  // skip '|'
+        // special case of `&[T]`, slices do not need a size
+        std::string arr_size{"8888"};  // dummy size
+        if (!is_reference) {
+            ignoreButExpect({OP, "|"});  // skip '|'
 
-        if (m_Stream.CurTok.type != NUMBER || m_Stream.CurTok.meta != CT_INT) {
-            reportError(ErrCode::NON_INT_ARRAY_SIZE);
-            return nullptr;
+            if (m_Stream.CurTok.type != NUMBER || m_Stream.CurTok.meta != CT_INT) {
+                reportError(ErrCode::NON_INT_ARRAY_SIZE);
+                return nullptr;
+            } arr_size = forwardStream().value;
         }
 
-        base_type = SymbolTable.getArrayType(base_type, std::stoul(forwardStream().value));
+        base_type = SymbolTable.getArrayType(base_type, std::stoul(arr_size));
+
         ignoreButExpect({PUNC, "]"});  // skip ']'
 
     } else if (m_Stream.CurTok.type == IDENT) {

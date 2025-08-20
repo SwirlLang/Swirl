@@ -151,8 +151,9 @@ public:
         return m_TypeManager.getReferenceType(of_type, is_mutable);
     }
 
-    Type* getSliceType(Type* of_type) {
-        return m_TypeManager.getSliceType(of_type);
+    /// (of_type, is_mutable) -> &[of_type]
+    Type* getSliceType(Type* of_type, const bool is_mutable) {
+        return m_TypeManager.getSliceType(of_type, is_mutable);
     }
 
     Type* getArrayType(Type* of_type, const std::size_t size) {

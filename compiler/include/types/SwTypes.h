@@ -70,6 +70,11 @@ struct Type {
     [[nodiscard]] virtual std::string toString() const = 0;
     [[nodiscard]] virtual IdentInfo* getIdent() const { return nullptr; }
 
+    /// Returns the wrapped-type, only valid for types which wrap another, e.g. Array, Reference, Slice etc.
+    [[nodiscard]] virtual Type* getWrappedType() {
+        throw std::runtime_error("`getWrappedType` called on a non-wrapper type!");
+    }
+
     virtual bool operator==(Type* other) { return getTypeTag() == other->getTypeTag(); }
 
     virtual ~Type() = default;
@@ -125,6 +130,10 @@ struct ArrayType final : Type {
         return std::format("[{} | {}]", of_type->toString(), size);
     }
 
+    Type* getWrappedType() override {
+        return of_type;
+    }
+
     llvm::Type* llvmCodegen(LLVMBackend&) override;
 };
 
@@ -159,6 +168,10 @@ struct ReferenceType final : Type {
         return other->getTypeTag() == REFERENCE && (of_type == dynamic_cast<ReferenceType*>(other)->of_type);
     }
 
+    Type* getWrappedType() override {
+        return of_type;
+    }
+
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
@@ -173,21 +186,24 @@ struct PointerType final : Type {
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes    getTypeTag() override { return POINTER; }
 
+    Type* getWrappedType() override { return of_type; }
+
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 
 struct SliceType final : Type {
-    Type* of_type;
-    std::size_t size;
+    Type* of_type;  // &[of_type]
 
-    explicit SliceType(Type* t, const std::size_t len) : of_type(t), size(len) {}
+    explicit SliceType(Type* t) : of_type(t) {}
 
     [[nodiscard]] std::string toString() const override {
-        return std::format("&[{} | {}]", of_type->toString(), size);
+        return std::format("&[{}]", of_type->toString());
     }
 
     SwTypes getTypeTag() override { return SLICE; }
+    Type* getWrappedType() override { return of_type; }
+
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
