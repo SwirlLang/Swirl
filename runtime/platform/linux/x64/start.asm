@@ -30,14 +30,23 @@ _start:
 
 .L001: ; handle last string arg
     mov rdi, [rbp]
-    mov ecx, -1
-    lea rdx, [rdi + 1]
-    repne scasb
+    pxor xmm1, xmm1    ; assuring xmm1 == 0 may or may not be necessary for portability
+    mov rdx, rdi
 
+.L002: ; SSE is present on all x64 systems. AVX2 unfortunately isn't.
+    movdqu xmm0, [rdi] ; there are environment variables and extra space after argv, therefore no over-read segfault
+    pcmpeqb xmm0, xmm1
+    pmovmskb ecx, xmm0
+    add rdi, 16
+    test ecx, ecx
+    je .L002
+
+    rep bsf ecx, ecx   ; translates to tzcnt ecx, ecx. CPUs that don't support it still use BSF
     sub rdi, rdx
-    sub rdx, 1
-    mov [rbx + 8], rdi
+    lea edi, [rdi + rcx - 16]
+
     mov [rbx], rdx
+    mov [rbx + 8], rdi
 
     mov rdi, rsp
     mov rbp, rsp
