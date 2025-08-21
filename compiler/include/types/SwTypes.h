@@ -31,6 +31,7 @@ struct Type {
         F64,
         BOOL,
         STR,
+        CHAR,
         REFERENCE,
         POINTER,
         ARRAY,
@@ -138,13 +139,30 @@ struct ArrayType final : Type {
 };
 
 
+struct TypeChar final : Type {
+    SwTypes getTypeTag() override {
+        return CHAR;
+    }
+
+    unsigned int getBitWidth() override {
+        return 8;
+    }
+
+    [[nodiscard]]
+    std::string toString() const override {
+        return "char";
+    }
+
+    llvm::Type* llvmCodegen(LLVMBackend&) override;
+};
+
+
 struct TypeStr final : Type {
     std::size_t size;
 
     explicit TypeStr(const std::size_t len): size(len) {}
 
-    [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
-    SwTypes    getTypeTag() override { return STR; }
+    SwTypes getTypeTag() override { return STR; }
 
     [[nodiscard]] std::string toString() const override { return "str"; }
 

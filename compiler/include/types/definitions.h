@@ -24,6 +24,7 @@ inline TypeF32   GlobalTypeF32{};
 inline TypeF64   GlobalTypeF64{};
 
 inline TypeBool  GlobalTypeBool{};
+inline TypeChar  GlobalTypeChar{};
 
 inline VoidType  GlobalTypeVoid{};
 
@@ -74,6 +75,7 @@ std::unordered_map<std::string_view, Type*> BuiltinTypes = {
     {"f64", &GlobalTypeF64},
 
     {"bool", &GlobalTypeBool},
+    {"char", &GlobalTypeChar},
 
     {"void", &GlobalTypeVoid},
 

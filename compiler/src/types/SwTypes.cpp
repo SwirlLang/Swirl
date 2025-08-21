@@ -43,7 +43,7 @@ llvm::Type* TypeStr::llvmCodegen(LLVMBackend& instance) {
         return instance.LLVMTypeCache[this];
     }
 
-    auto lit_arr = llvm::ArrayType::get(llvm::Type::getInt8Ty(instance.Context), size);
+    auto lit_arr = llvm::ArrayType::get(GlobalTypeChar.llvmCodegen(instance), size);
 
     const auto ret = llvm::StructType::create(instance.Context, "__Str");
     ret->setBody({lit_arr});
@@ -104,6 +104,12 @@ llvm::Type* VoidType::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Type* ReferenceType::llvmCodegen(LLVMBackend& instance) {
+    // references to strings compile to a slice (i8* + i64)
+    if (of_type->getTypeTag() == STR) {
+        SliceType ty{&GlobalTypeI8};
+        return ty.llvmCodegen(instance);
+    }
+
     return llvm::PointerType::get(of_type->llvmCodegen(instance), 0);
 }
 
@@ -115,6 +121,11 @@ llvm::Type* ArrayType::llvmCodegen(LLVMBackend& instance) {
     arr_struct->setBody(llvm::ArrayType::get(of_type->llvmCodegen(instance), size));
     instance.LLVMTypeCache[this] = arr_struct;
     return arr_struct;
+}
+
+
+llvm::Type* TypeChar::llvmCodegen(LLVMBackend& instance) {
+    return llvm::Type::getInt8Ty(instance.Context);
 }
 
 
