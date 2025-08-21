@@ -59,13 +59,18 @@ struct Type {
     virtual SwTypes     getTypeTag() = 0;
 
     virtual llvm::Type* llvmCodegen(LLVMBackend&) = 0;
-    
+
     virtual bool         isIntegral()      { return false; }
     virtual bool         isFloatingPoint() { return false; }
     virtual bool         isUnsigned()      { return false; }
 
+
     virtual unsigned int getBitWidth() {
-        throw std::runtime_error("Error: getBitWidth called on base Type instance");
+        throw std::runtime_error("Error: getBitWidth unimplemented!");
+    }
+
+    virtual std::size_t getAggregateSize() {
+        throw std::runtime_error("Error: `getAggregateSize` called on an invalid type!");
     }
 
     [[nodiscard]] virtual std::string toString() const = 0;
@@ -135,6 +140,10 @@ struct ArrayType final : Type {
         return of_type;
     }
 
+    std::size_t getAggregateSize() override {
+        return size;
+    }
+
     llvm::Type* llvmCodegen(LLVMBackend&) override;
 };
 
@@ -163,8 +172,13 @@ struct TypeStr final : Type {
     explicit TypeStr(const std::size_t len): size(len) {}
 
     SwTypes getTypeTag() override { return STR; }
+    Type* getWrappedType() override;
 
     [[nodiscard]] std::string toString() const override { return "str"; }
+
+    std::size_t getAggregateSize() override {
+        return size;
+    }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };

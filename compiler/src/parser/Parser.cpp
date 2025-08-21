@@ -11,7 +11,6 @@
 #include <parser/Nodes.h>
 #include <parser/Parser.h>
 #include <lexer/Tokens.h>
-#include <definitions.h>
 #include <backend/LLVMBackend.h>
 #include <managers/ErrorManager.h>
 #include <symbols/SymbolManager.h>
@@ -346,7 +345,6 @@ void Parser::parse() {
 
     m_UnresolvedDeps = m_Dependencies.size();
     if (m_Dependencies.empty())
-
         m_ModuleMap.m_ZeroDepVec.push_back(this);
 }
 

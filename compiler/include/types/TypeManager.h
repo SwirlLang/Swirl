@@ -3,7 +3,6 @@
 #include <memory>
 #include <unordered_map>
 
-#include <definitions.h>
 #include <utils/utils.h>
 
 #include "SwTypes.h"
@@ -119,6 +118,11 @@ public:
             // return a slice instead if `to` is an array
             const auto arr_type = dynamic_cast<ArrayType*>(to);
             return getSliceType(arr_type->of_type, is_mutable);
+        }
+
+        if (to->getTypeTag() == Type::STR) {
+            // return a slice of `char`
+            return getSliceType(&GlobalTypeChar, is_mutable);
         }
 
         if (to->getTypeTag() == Type::REFERENCE && to->is_mutable == is_mutable)

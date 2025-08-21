@@ -373,11 +373,8 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             } else instance.fetchSwType(operands.at(0));
 
             // handle slice-creation for array types
-            if (type->getTypeTag() == Type::ARRAY) {
-                auto slice_type = instance.SymMan.getSliceType(
-                    dynamic_cast<ArrayType*>(type)->of_type,
-                    is_mutable
-                    );
+            if (type->getTypeTag() == Type::ARRAY || type->getTypeTag() == Type::STR) {
+                auto slice_type = instance.SymMan.getSliceType(type->getWrappedType(), is_mutable);
 
                 auto slice_llvm_ty = slice_type->llvmCodegen(instance);
 
@@ -407,7 +404,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
                 instance.Builder.CreateStore(element_ptr, ptr_field);
                 instance.Builder.CreateStore(
-                    instance.toLLVMInt(dynamic_cast<ArrayType*>(type)->size),
+                    instance.toLLVMInt(type->getAggregateSize()),
                     size_field
                     );
 

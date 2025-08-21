@@ -4,6 +4,7 @@
 #include <symbols/IdentManager.h>
 
 #include "CompilerInst.h"
+#include "types/definitions.h"
 
 
 std::string FunctionType::toString() const {
@@ -19,6 +20,11 @@ std::string PointerType::toString() const {
     for (int i = 0; i < pointer_level; i++) {
         ret.append("*");
     } return ret;
+}
+
+
+Type* TypeStr::getWrappedType() {
+    return &GlobalTypeChar;
 }
 
 
