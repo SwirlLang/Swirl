@@ -7,10 +7,10 @@ section .text
 _start:
     mov esi, [esp]
     mov edx, esi
-    shl edx, 3
+    shl edx, 4
     lea ebp, [esp + 4]
     sub esp, edx
-    lea edi, [ebp - 12]
+    lea edi, [ebp - 20]
     mov ebx, esp
     cmp esi, 1
     je short .L001
@@ -22,9 +22,11 @@ _start:
         mov [ebx], ecx
         sub edx, 1
         mov [ebx + 4], edx
+        mov [ebx + 8], eax
+        mov [ebx + 12], eax
     
+    add ebx, 16
     add ebp, 4
-    add ebx, 8
     cmp edi, ebx
     jne .L000
 
@@ -36,8 +38,10 @@ _start:
 
     sub edi, edx
     sub edx, 1
-    mov [ebx + 4], edi
     mov [ebx], edx
+    mov [ebx + 4], edi
+    mov [ebx + 8], eax
+    mov [ebx + 12], eax
 
     mov ebp, esp
     mov edi, esp

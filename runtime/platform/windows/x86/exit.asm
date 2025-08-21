@@ -8,10 +8,10 @@ section .text
 
 ; [[noreturn]] void windows_x86_exitThread(uint32_t dwExitCode);
 windows_x86_exitThread:
-    push dword [esp + 4]
-    call _ExitThread@4
+    jmp near _ExitThread@4
+    int3
 
 ; [[noreturn]] void windows_x86_exit(uint32_t uExitCode);
 windows_x86_exit:
-    push dword [esp + 4]
-    call _ExitProcess@4
+    jmp near _ExitProcess@4
+    int3
