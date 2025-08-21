@@ -11,60 +11,53 @@ section .text
     global _start:
 
 _start:
-    sub rsp, 8
+    sub rsp, 8  ; maintain stack alignment but let functions use _start's shadow space since it's not used
     mov rbp, rsp
     call GetCommandLineW
 
-    mov rcx, rax
+    mov ecx, 65001 ; utf-8 code page
+    xor edx, edx
+    mov rdi, rax
+    mov r8, rax
+    mov [rsp + 40], rdx
+    mov [rsp + 48], rdx
+    mov [rsp + 56], rdx
+    mov r9d, -1    ; string is null-terminated
+    call WideCharToMultiByte
+    mov esi, eax
+
+    mov rcx, rdi
     lea rdx, [rsp + 64]
     call CommandLineToArgvW
-
-    mov ebx, [rsp + 64]
-    xor esi, esi
-    mov rdi, rax
     mov r12, rax
     mov r13, rax
-    mov [rsp + 40], rsi
-    mov [rsp + 48], rsi
-    mov [rsp + 56], rsi
-
-.L000:
-        mov r8, [rdi]
-        xor edx, edx
-        mov ecx, 65001
-        mov r9d, -1
-        call WideCharToMultiByte
-        add rdi, 8
-        add esi, eax
-    sub ebx, 1
-    jne .L000
 
     mov edx, esi
     xor ecx, ecx
-    mov r8d, 0x3000
-    mov r9d, 0x04
-    call VirtualAlloc
+    mov r8d, 0x3000 ; reseve and commit
+    mov r9d, 0x04   ; read-write flags
+    call VirtualAlloc  ; this is needed since the documentation states we can't reuse the space of ArgvW
 
     mov ebx, [rsp + 64]
     mov ecx, ebx
     mov rdi, rax
     shl ecx, 4
-    sub rbp, rcx
+    sub rbp, rcx    ; allocate space for string references
     xor edx, edx
-    lea rsp, [rbp - 80]
+    lea rsp, [rbp - 64] ; allocate some more space for stack parameters
     mov [rsp + 40], rsi
     mov [rsp + 48], rdx
     mov [rsp + 56], rdx
-    mov [rsp + 64], rbx
+    mov r14, rbx
     mov rsi, rbp
 
 .L001:
         mov r8, [r12]
-        mov ecx, 65001
-        mov r9d, -1
+        mov ecx, 65001  ; utf-8 code page
         mov [rsp + 32], rdi
+        mov r9d, -1     ; string is null-terminated
         call WideCharToMultiByte
-        sub eax, 1
+        sub eax, 1  ; discard null terminator
         xor edx, edx
         mov [rbp], rdi
         mov [rbp + 8], rax
@@ -74,12 +67,11 @@ _start:
     sub ebx, 1
     jne .L001    
     
-    mov rcx, r13
+    mov rcx, r13    ; free the space used by ArgvW, as the documentation recommends
     call LocalFree
 
-    mov ebx, [rsp + 64]
     mov rsp, rsi
-    push rbx
+    push r14
     push rsi
     mov rcx, rsp
 
