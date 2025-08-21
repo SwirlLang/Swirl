@@ -24,10 +24,12 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
         }
         case STRING: {
             auto str = std::make_unique<StrLit>(m_Stream.CurTok.value);
+            m_Parser.forwardStream();
             while (m_Stream.CurTok.type == STRING) {  // concatenation of adjacent string literals
                 str->value += m_Stream.CurTok.value;
                 m_Parser.forwardStream();
-            } return str;
+            }
+            return str;
         }
         case IDENT: {
             auto id = m_Parser.parseIdent();
