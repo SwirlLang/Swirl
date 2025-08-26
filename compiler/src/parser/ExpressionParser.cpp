@@ -2,6 +2,8 @@
 #include <parser/ExpressionParser.h>
 
 #define m_Stream m_Parser.m_Stream
+#define SET_NODE_ATTRS(x) Parser::NodeAttrHelper GET_UNIQUE_NAME(attr_setter_){x, m_Parser}
+
 using SwNode = std::unique_ptr<Node>;
 
 ExpressionParser::ExpressionParser(Parser& parser): m_Parser(parser) {}
@@ -13,17 +15,20 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
         case NUMBER: {
             if (m_Stream.CurTok.meta == CT_FLOAT) {
                 auto ret = std::make_unique<FloatLit>(m_Stream.CurTok.value);
+                SET_NODE_ATTRS(ret.get());
                 m_Parser.forwardStream();
                 return ret;
             }
 
             auto ret = std::make_unique<IntLit>(m_Stream.CurTok.value);
-
+            SET_NODE_ATTRS(ret.get());
             m_Parser.forwardStream();
             return ret;
         }
         case STRING: {
             auto str = std::make_unique<StrLit>(m_Stream.CurTok.value);
+            SET_NODE_ATTRS(str.get());
+
             m_Parser.forwardStream();
             while (m_Stream.CurTok.type == STRING) {  // concatenation of adjacent string literals
                 str->value += m_Stream.CurTok.value;
@@ -32,23 +37,25 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
             return str;
         }
         case IDENT: {
-            auto id = m_Parser.parseIdent();
+            auto id = std::make_unique<Ident>(m_Parser.parseIdent());
+            SET_NODE_ATTRS(id.get());
+
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
-                auto call_node = m_Parser.parseCall(std::move(id));
+                // `id` HAS BEEN MOVED!
+                auto call_node = m_Parser.parseCall(std::move(*id));
                 return call_node;
             }
 
-            auto id_node = std::make_unique<Ident>(std::move(id));
-            return id_node;
+            return std::move(id);
         }
         case PUNC: {
             if (m_Stream.CurTok.value == "[") {
-                ArrayNode arr;
-                arr.location = m_Stream.getStreamState();
+                auto arr_node = std::make_unique<ArrayNode>();
+                SET_NODE_ATTRS(arr_node.get());
                 m_Parser.forwardStream();  // skip the '['
 
                 while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "]")) {
-                    arr.elements.push_back(parseExpr());
+                    arr_node->elements.push_back(parseExpr());
 
                     if (m_Stream.CurTok.type == PUNC) {
                         if (m_Stream.CurTok.value == ",") {
@@ -60,13 +67,13 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                         m_Parser.reportError(ErrCode::COMMA_SEP_REQUIRED);
                 } m_Parser.forwardStream();
 
-                auto arr_node = std::make_unique<ArrayNode>(std::move(arr));
                 return arr_node;
             }
 
             if (m_Stream.CurTok.value == "(") {
                 m_Parser.forwardStream();
                 auto ret = std::make_unique<Expression>(parseExpr());
+                SET_NODE_ATTRS(ret.get());
                 ret->location = m_Stream.getStreamState();
                 m_Parser.forwardStream();
                 return ret;
@@ -85,7 +92,7 @@ std::unique_ptr<Node> ExpressionParser::parsePrefix() {
     // assumption: current token is an OP
     if (m_Stream.CurTok.type == OP) {
         auto op = std::make_unique<Op>(m_Stream.CurTok.value, 1);
-        op->location = m_Stream.getStreamState();
+        SET_NODE_ATTRS(op.get());
         m_Parser.forwardStream();
 
         auto rhs = parseExpr(Op::getPBPFor(Op::getTagFor(op->value, 1)));
@@ -102,6 +109,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
     auto led = [this](SwNode left) -> SwNode {
         auto op_str = m_Parser.forwardStream().value;
         auto op = std::make_unique<Op>(op_str, 2);
+        SET_NODE_ATTRS(op.get());
 
         Expression right;
 

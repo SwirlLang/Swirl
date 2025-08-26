@@ -46,6 +46,14 @@ struct AnalysisResult {
 };
 
 
+struct NodeLocation {
+    StreamState from;
+    StreamState to;
+
+    NodeLocation(const StreamState& from, const StreamState& to): from(from), to(to) {}
+};
+
+
 // The common base class of all the nodes
 struct Node {
     std::string value;

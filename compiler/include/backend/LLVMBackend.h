@@ -60,10 +60,11 @@ public:
     /// Calculates and returns a mangled string which corresponds to the `IdentInfo*`
     std::string mangleString(IdentInfo*);
 
-    /// perform any necessary type casts, then return the llvm::Value*
+    /// Performs any necessary type casts, then returns the llvm::Value*
     /// note: `subject` is supposed to be a "loaded" value
     llvm::Value* castIfNecessary(Type* source_type, llvm::Value* subject);
 
+    /// Begins the IR generation
     void startGeneration() {
         for (auto& node : AST) {
             if (!m_ResolvedList.contains(m_CurParentIndex))
@@ -72,6 +73,7 @@ public:
         }
     }
 
+    /// Tries to fetch the swirl-type of the node, throws an exception on failure
     Type* fetchSwType(const std::unique_ptr<Node>& node) const {
         switch (node->getNodeType()) {
             case ND_STR:
@@ -93,11 +95,14 @@ public:
         }
     }
 
+    /// Convenient function to construct an llvm `i64` from a `size_t`
     llvm::Value* toLLVMInt(const std::size_t i) {
         return llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), i);
     }
 
+    /// Calls `print` on the llvm module
     void printIR() const {
+        // bonus: run the llvm verifier on the module
         verifyModule(*LModule, &llvm::errs());
         LModule->print(llvm::outs(), nullptr);
     }

@@ -51,11 +51,14 @@ class Parser {
     struct Bracket_t { char val; StreamState location; };
     std::vector<Bracket_t> m_BracketTracker;
 
+    struct NodeAttrHelper;
+
     friend class CompilerInst;
     friend class ModuleManager;
     friend class LLVMBackend;
     friend class AnalysisContext;
     friend class ExpressionParser;
+
 
 public:
     SymbolManager SymbolTable;
@@ -108,7 +111,7 @@ public:
 
     void toggleIsMainModule() { m_IsMainModule = !m_IsMainModule; }
 
-    /// calls `inserter` with the symbol name for each exported-symbol in the AST
+    /// Calls `inserter` with the symbol name for each exported-symbol in the AST
     template <typename Inserter_t> requires std::invocable<Inserter_t, std::string>
     void insertExportedSymbolsInto(Inserter_t inserter) {
         for (const auto& node : AST) {
@@ -118,7 +121,7 @@ public:
         }
     }
 
-    /// decrements the unresolved-deps counter of dependents
+    /// Decrements the unresolved-deps counter of dependents
     void decrementUnresolvedDeps();
 
     void reportError(const ErrCode code, ErrorContext ctx = {}) {
@@ -127,4 +130,44 @@ public:
             ctx.location = m_Stream.getStreamState();
         } m_ErrorCallback(code, ctx);
     }
+};
+
+
+struct Parser::NodeAttrHelper {
+    /// Chief constructor
+    NodeAttrHelper(Node& node, Parser& instance): instance(instance) {
+        node.is_exported = instance.m_LastSymWasExported;
+        node.location = instance.m_Stream.getStreamState();
+
+        switch (node.getNodeType()) {
+            case ND_VAR: {
+                const auto nd = dynamic_cast<Var*>(&node);
+                nd->is_extern = instance.m_LastSymIsExtern;
+                nd->extern_attributes = instance.m_ExternAttributes;
+                break;
+            } case ND_FUNC: {
+                const auto nd = dynamic_cast<Function*>(&node);
+                nd->is_extern = instance.m_LastSymIsExtern;
+                nd->extern_attributes = instance.m_ExternAttributes;
+                break;
+            } default:
+                break;
+        }
+    }
+
+
+    /* Delegators */
+    NodeAttrHelper(Node* node, Parser& instance): NodeAttrHelper(*node, instance) {}
+    NodeAttrHelper(const std::unique_ptr<Node>& node, Parser& instance): NodeAttrHelper(*node, instance) {}
+
+
+    /// Resets the states of the Parser
+    ~NodeAttrHelper() {
+        instance.m_LastSymIsExtern = false;
+        instance.m_LastSymWasExported = false;
+        instance.m_ExternAttributes.clear();
+    }
+
+private:
+    Parser& instance;
 };

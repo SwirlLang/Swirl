@@ -9,12 +9,16 @@
 
 namespace fs = std::filesystem;
 
-
 #if defined(_WIN32)
 #define PATH_SEP "\\"
 #else
 #define PATH_SEP "/"
 #endif
+
+#define SW_PASTE_1_(x, y) x##y
+#define SW_PASTE(x, y) SW_PASTE_1_(x, y)
+#define GET_UNIQUE_NAME(base) SW_PASTE(base, __COUNTER__)
+
 
 std::string getWorkingDirectory(const std::string& _path);
 

@@ -19,6 +19,9 @@
 
 #include "CompilerInst.h"
 
+/// Automatically sets certain node attributes
+#define SET_NODE_ATTRS(x) NodeAttrHelper GET_UNIQUE_NAME(attr_setter_){x, *this}
+
 
 using SwNode = std::unique_ptr<Node>;
 
@@ -243,10 +246,7 @@ SwNode Parser::dispatch() {
 
 std::unique_ptr<ImportNode> Parser::parseImport() {
     ImportNode ret;
-    ret.location = m_Stream.getStreamState();
-    ret.is_exported = m_LastSymWasExported;
-
-    m_LastSymWasExported = false;
+    SET_NODE_ATTRS(&ret);
 
     forwardStream();  // skip 'import'
 
@@ -365,14 +365,7 @@ void Parser::decrementUnresolvedDeps() {
 
 std::unique_ptr<Function> Parser::parseFunction() {
     Function func_nd;
-    func_nd.location = m_Stream.getStreamState();
-    func_nd.is_exported = m_LastSymWasExported;
-    func_nd.is_extern = m_LastSymIsExtern;
-    func_nd.extern_attributes = m_ExternAttributes;
-
-    m_LastSymWasExported = false;
-    m_LastSymIsExtern = false;
-    m_ExternAttributes.clear();
+    SET_NODE_ATTRS(&func_nd);
 
     // handle the special case of `main`
     const std::string func_ident = m_Stream.next().value;
@@ -392,6 +385,8 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     auto parse_params = [function_t = function_t.get(), this] {
         Var param;
+        SET_NODE_ATTRS(&param);
+
         param.is_const = true;  // all parameters are immutable
 
         // special case of `&self`
@@ -417,7 +412,6 @@ std::unique_ptr<Function> Parser::parseFunction() {
         }
 
         const std::string var_name = m_Stream.CurTok.value;
-        param.location = m_Stream.getStreamState();
 
         forwardStream(2);
         param.var_type = parseType();
@@ -504,17 +498,10 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
 std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     Var var_node;
+    SET_NODE_ATTRS(&var_node);
 
-    var_node.location = m_Stream.getStreamState();
     var_node.is_const = m_Stream.CurTok.value[0] == 'l';
     var_node.is_volatile = is_volatile;
-    var_node.is_exported = m_LastSymWasExported;
-    var_node.is_extern = m_LastSymIsExtern;
-    var_node.extern_attributes = m_ExternAttributes;
-
-    m_LastSymWasExported = false;
-    m_LastSymIsExtern = false;
-    m_ExternAttributes.clear();
 
     const std::string var_ident = m_Stream.next().value;
     forwardStream();  // [:, =]
@@ -547,7 +534,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
 
 std::unique_ptr<FuncCall> Parser::parseCall(std::optional<Ident> ident) {
     auto call_node = std::make_unique<FuncCall>();
-    call_node->location = m_Stream.getStreamState();
+    SET_NODE_ATTRS(call_node.get());
     call_node->ident = std::move(ident.value());
 
     forwardStream();  // skip '('
@@ -637,7 +624,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
 
 Ident Parser::parseIdent() {
     Ident ret;
-    ret.location = m_Stream.getStreamState();
+    SET_NODE_ATTRS(&ret);
 
     ret.full_qualification.emplace_back(forwardStream().value);
     while (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "::") {
@@ -656,13 +643,7 @@ Ident Parser::parseIdent() {
 std::unique_ptr<Struct> Parser::parseStruct() {
     forwardStream();  // skip 'struct'
     Struct ret;
-    ret.is_exported = m_LastSymWasExported;
-    ret.location = m_Stream.getStreamState();
-    ret.is_externed = m_LastSymIsExtern;
-    ret.extern_attributes = m_ExternAttributes;
-
-    m_LastSymWasExported = false;
-    m_LastSymIsExtern = false;
+    SET_NODE_ATTRS(&ret);
 
     const auto struct_ty = new StructType{};
     auto struct_name = forwardStream().value;
@@ -712,8 +693,9 @@ std::unique_ptr<Struct> Parser::parseStruct() {
 
 std::unique_ptr<WhileLoop> Parser::parseWhile() {
     WhileLoop loop;
-    forwardStream();
+    SET_NODE_ATTRS(&loop);
 
+    forwardStream();
     loop.condition = parseExpr();
 
     SymbolTable.newScope();
@@ -728,5 +710,6 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
 
 Expression Parser::parseExpr(const int min_bp) {
     auto ret = m_ExpressionParser.parseExpr(min_bp);
+    SET_NODE_ATTRS(&ret);
     return ret;
 }

@@ -14,7 +14,6 @@ class ExpressionParser {
     Parser& m_Parser;
 
     std::unique_ptr<Node> parseComponent();
-
     std::unique_ptr<Node> parsePrefix();
 
 public:
