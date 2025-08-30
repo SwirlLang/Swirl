@@ -364,8 +364,8 @@ void Parser::decrementUnresolvedDeps() {
 
 
 std::unique_ptr<Function> Parser::parseFunction() {
-    Function func_nd;
-    SET_NODE_ATTRS(&func_nd);
+    auto func_nd = std::make_unique<Function>();
+    SET_NODE_ATTRS(func_nd.get());
 
     // handle the special case of `main`
     const std::string func_ident = m_Stream.next().value;
@@ -376,7 +376,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     if (m_CurrentStructTy) {
         const auto struct_scope = dynamic_cast<StructType*>(m_CurrentStructTy)->scope;
         assert(struct_scope);
-        func_nd.ident = struct_scope->getNewIDInfo(func_ident);
+        func_nd->ident = struct_scope->getNewIDInfo(func_ident);
     }
 
     m_Stream.expectTokens({Token{PUNC, "("}});
@@ -439,7 +439,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     SymbolTable.newScope();  // emplace the function body scope
     if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != ")") {
         while (m_Stream.CurTok.value != ")" && m_Stream.CurTok.type != PUNC) {
-            func_nd.params.emplace_back(parse_params());
+            func_nd->params.emplace_back(parse_params());
             if (m_Stream.CurTok.value == ",")
                 forwardStream();
         }
@@ -455,53 +455,51 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     TableEntry entry;
     entry.swirl_type = function_t.get();
-    entry.is_exported = func_nd.is_exported;
+    entry.is_exported = func_nd->is_exported;
     entry.is_method   = m_CurrentStructTy != nullptr;
 
     if (!m_CurrentStructTy) {  // when the function is not a method
         // register the function in the global scope
-        func_nd.ident = SymbolTable.registerDecl(func_ident, entry, 0);
+        func_nd->ident = SymbolTable.registerDecl(func_ident, entry, 0);
     } else {
         // not a method, func_nd.ident has been set before
-        assert(func_nd.ident);
-        SymbolTable.registerDecl(func_nd.ident, entry);
+        assert(func_nd->ident);
+        SymbolTable.registerDecl(func_nd->ident, entry);
     }
 
-    function_t->ident = func_nd.ident;
+    function_t->ident = func_nd->ident;
 
-    if (!func_nd.ident)
+    if (!func_nd->ident)
         reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = func_ident});
 
     // register the function's signature as a type in the symbol manager
-    SymbolTable.registerType(func_nd.ident, function_t.release());
+    SymbolTable.registerType(func_nd->ident, function_t.release());
 
-    // WARNING: func_nd has been MOVED here!!
-    auto ret = std::make_unique<Function>(std::move(func_nd));
     // ReSharper disable once CppDFALocalValueEscapesFunction
-    m_LatestFuncNode = ret.get();
-    NodeJmpTable[ret->ident] = ret.get();
+    m_LatestFuncNode = func_nd.get();
+    NodeJmpTable[func_nd->ident] = func_nd.get();
 
-    if (ret->is_extern) {
+    if (func_nd->is_extern) {
         // TODO: report an error if a body is provided
-        return ret;
+        return func_nd;
     }
 
     // parse the children
     forwardStream();  // skip '{'
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
-        ret->children.push_back(dispatch());
+        func_nd->children.push_back(dispatch());
     } forwardStream();
     SymbolTable.moveToPreviousScope();  // decrement the scope index, back to the global scope!
 
-    return ret;
+    return func_nd;
 }
 
 std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
-    Var var_node;
-    SET_NODE_ATTRS(&var_node);
+    auto var_node = std::make_unique<Var>();
+    SET_NODE_ATTRS(var_node.get());
 
-    var_node.is_const = m_Stream.CurTok.value[0] == 'l';
-    var_node.is_volatile = is_volatile;
+    var_node->is_const = m_Stream.CurTok.value[0] == 'l';
+    var_node->is_volatile = is_volatile;
 
     const std::string var_ident = m_Stream.next().value;
     forwardStream();  // [:, =]
@@ -509,27 +507,27 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();
-        var_node.var_type = parseType();
+        var_node->var_type = parseType();
     }
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "=") {
-        var_node.initialized = true;
+        var_node->initialized = true;
         forwardStream();
-        var_node.value = parseExpr();
+        var_node->value = parseExpr();
     }
 
     TableEntry entry;
-    entry.is_const = var_node.is_const;
-    entry.is_volatile = var_node.is_volatile;
-    entry.is_exported = var_node.is_exported;
-    entry.swirl_type = var_node.var_type;
+    entry.is_const = var_node->is_const;
+    entry.is_volatile = var_node->is_volatile;
+    entry.is_exported = var_node->is_exported;
+    entry.swirl_type = var_node->var_type;
 
-    var_node.var_ident = SymbolTable.registerDecl(var_ident, entry);
-    if (!var_node.var_ident) {
+    var_node->var_ident = SymbolTable.registerDecl(var_ident, entry);
+    if (!var_node->var_ident) {
         reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = var_ident});
     }
 
-    return std::make_unique<Var>(std::move(var_node));
+    return var_node;
 }
 
 std::unique_ptr<FuncCall> Parser::parseCall(std::optional<Ident> ident) {
@@ -562,35 +560,36 @@ std::unique_ptr<FuncCall> Parser::parseCall(std::optional<Ident> ident) {
 }
 
 std::unique_ptr<ReturnStatement> Parser::parseRet() {
-    ReturnStatement ret;
-    ret.location = m_Stream.getStreamState();
+    auto ret = std::make_unique<ReturnStatement>();
+    SET_NODE_ATTRS(ret.get());
 
     forwardStream();
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ";")
-        return std::make_unique<ReturnStatement>(std::move(ret));
+        return ret;
 
-    ret.value = parseExpr();
-    return std::make_unique<ReturnStatement>(std::move(ret));
+    ret->value = parseExpr();
+    return ret;
 }
 
 
 std::unique_ptr<Condition> Parser::parseCondition() {
-    Condition cnd;
+    auto cnd = std::make_unique<Condition>();
+    SET_NODE_ATTRS(cnd.get());
+
     forwardStream();  // skip "if"
-    cnd.bool_expr = parseExpr();
-    cnd.bool_expr.location = m_Stream.getStreamState();
+    cnd->bool_expr = parseExpr();
 
     forwardStream();  // skip the opening brace
 
     SymbolTable.newScope();
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}"))
-        cnd.if_children.push_back(dispatch());
+        cnd->if_children.push_back(dispatch());
     forwardStream();
     SymbolTable.moveToPreviousScope();
 
     // handle `else(s)`
     if (!(m_Stream.CurTok.type == KEYWORD && (m_Stream.CurTok.value == "else" || m_Stream.CurTok.value == "elif")))
-        return std::make_unique<Condition>(std::move(cnd));
+        return cnd;
 
     if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "elif") {
         while (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "elif") {
@@ -605,7 +604,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
                 std::get<1>(children).push_back(dispatch());
             } forwardStream();
 
-            cnd.elif_children.emplace_back(std::move(children));
+            cnd->elif_children.emplace_back(std::move(children));
             SymbolTable.moveToPreviousScope();
         }
     }
@@ -614,12 +613,12 @@ std::unique_ptr<Condition> Parser::parseCondition() {
         SymbolTable.newScope();
         forwardStream(2);
         while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
-            cnd.else_children.push_back(dispatch());
+            cnd->else_children.push_back(dispatch());
         } forwardStream();
         SymbolTable.moveToPreviousScope();
     }
 
-    return std::make_unique<Condition>(std::move(cnd));
+    return cnd;
 }
 
 Ident Parser::parseIdent() {
@@ -642,19 +641,19 @@ Ident Parser::parseIdent() {
 
 std::unique_ptr<Struct> Parser::parseStruct() {
     forwardStream();  // skip 'struct'
-    Struct ret;
-    SET_NODE_ATTRS(&ret);
+    auto ret = std::make_unique<Struct>();
+    SET_NODE_ATTRS(ret.get());
 
     const auto struct_ty = new StructType{};
     auto struct_name = forwardStream().value;
     m_CurrentStructTy = struct_ty;
 
     // ask for a decl registry to the symbol manager
-    ret.ident = SymbolTable.registerDecl(struct_name, {
-        .is_exported = ret.is_exported,
+    ret->ident = SymbolTable.registerDecl(struct_name, {
+        .is_exported = ret->is_exported,
     });
 
-    if (!ret.ident) {
+    if (!ret->ident) {
         reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = struct_name});
     }
 
@@ -663,7 +662,7 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     const auto scope_pointer = SymbolTable.newScope();
     struct_ty->scope = scope_pointer;
 
-    SymbolTable.lookupDecl(ret.ident).scope = scope_pointer;
+    SymbolTable.lookupDecl(ret->ident).scope = scope_pointer;
 
     // handle the children
     std::size_t i = 0;
@@ -673,7 +672,7 @@ std::unique_ptr<Struct> Parser::parseStruct() {
         if (member->getNodeType() == ND_VAR) {
             struct_ty->field_offsets.insert({member->getIdentInfo()->toString(), i++});
         }
-        ret.members.emplace_back(std::move(member));
+        ret->members.emplace_back(std::move(member));
     } ignoreButExpect({PUNC, "}"});  // skip '}'
 
     m_CurrentStructTy = nullptr;
@@ -681,31 +680,31 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     // exit the struct's scope
     SymbolTable.moveToPreviousScope();
 
-    struct_ty->ident = ret.ident;
+    struct_ty->ident = ret->ident;
 
     // register the type and the scope of the struct as a qualifier
-    SymbolTable.registerType(ret.ident, struct_ty);
-    SymbolTable.lookupDecl(ret.ident).scope = scope_pointer;
+    SymbolTable.registerType(ret->ident, struct_ty);
+    SymbolTable.lookupDecl(ret->ident).scope = scope_pointer;
 
-    return std::make_unique<Struct>(std::move(ret));
+    return ret;
 }
 
 
 std::unique_ptr<WhileLoop> Parser::parseWhile() {
-    WhileLoop loop;
-    SET_NODE_ATTRS(&loop);
+    auto loop = std::make_unique<WhileLoop>();
+    SET_NODE_ATTRS(loop.get());
 
     forwardStream();
-    loop.condition = parseExpr();
+    loop->condition = parseExpr();
 
     SymbolTable.newScope();
     forwardStream();
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
-        loop.children.push_back(dispatch());
+        loop->children.push_back(dispatch());
     } forwardStream();
     SymbolTable.moveToPreviousScope();
 
-    return std::make_unique<WhileLoop>(std::move(loop));
+    return loop;
 }
 
 Expression Parser::parseExpr(const int min_bp) {
