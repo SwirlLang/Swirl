@@ -121,7 +121,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
             case Op::CAST_OP: {
                 auto dummy_node = new TypeWrapper();
                 dummy_node->type = m_Parser.parseType();
-                right.expr.emplace_back(dummy_node);
+                right = Expression::makeExpression(dummy_node);
                 break;
             }
             default:
@@ -129,7 +129,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
         }
 
         op->operands.push_back(std::move(left));
-        op->operands.push_back(std::move(right.expr.front()));
+        op->operands.push_back(std::move(right.expr));
         op->location = m_Stream.getStreamState();
 
         return op;
@@ -152,7 +152,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
         if (const int lbp = Op::getLBPFor(Op::getTagFor(m_Stream.CurTok.value, 2)); rbp >= lbp)
             break;
 
-        ret = Expression::makeExpression(led(std::move(ret.expr.front())));
+        ret = Expression::makeExpression(led(std::move(ret.expr)));
     }
 
     ret.location = m_Stream.getStreamState();

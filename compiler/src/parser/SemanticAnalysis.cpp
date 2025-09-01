@@ -174,7 +174,7 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState l
     } return true;
 }
 
-
+#undef SW_EXPAND_WITHIN_SEMA_METHOD
 AnalysisResult IntLit::analyzeSemantics(AnalysisContext& ctx) {
     if (ctx.getBoundTypeState() != nullptr && ctx.getBoundTypeState()->isIntegral()) {
         return {.deduced_type = ctx.getBoundTypeState()};
@@ -635,8 +635,7 @@ AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
         return ret;
     }
 
-    assert(this->expr.size() == 1);
-    auto val = this->expr.front()->analyzeSemantics(ctx);
+    auto val = this->expr->analyzeSemantics(ctx);
 
     ret.deduced_type = val.deduced_type;
     setType(val.deduced_type);
@@ -673,11 +672,11 @@ void Op::setType(Type* to) {
 
 void Expression::setType(Type* to) {
     expr_type = to;
-    if (expr.front()->getNodeType() == ND_EXPR) {
-        dynamic_cast<Expression*>(expr.front().get())->setType(to);
+    if (expr->getNodeType() == ND_EXPR) {
+        dynamic_cast<Expression*>(expr.get())->setType(to);
     }
-    else if (expr.front()->getNodeType() == ND_OP) {
-        dynamic_cast<Op*>(expr.front().get())->setType(to);
+    else if (expr->getNodeType() == ND_OP) {
+        dynamic_cast<Op*>(expr.get())->setType(to);
     }
 }
 

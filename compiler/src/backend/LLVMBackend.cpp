@@ -304,7 +304,7 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
-    if (!value.expr.empty()) {
+    if (value.expr) {
         llvm::Value* ret = value.llvmCodegen(instance);
         instance.Builder.CreateRet(ret);
         return nullptr;
@@ -369,7 +369,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             Type* type = nullptr;
             if (operand->getNodeType() == ND_EXPR) {
                 auto expr = dynamic_cast<Expression*>(operand);
-                type = instance.fetchSwType(expr->expr.at(0));
+                type = instance.fetchSwType(expr->expr);
             } else instance.fetchSwType(operands.at(0));
 
             // handle slice-creation for array types
@@ -414,7 +414,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             }
 
             if (operand->getNodeType() == ND_EXPR) {
-                if (auto expr_unwrapped = operand->getExprValue().at(0).get();
+                if (auto expr_unwrapped = operand->getExprValue().get();
                    expr_unwrapped->getNodeType() == ND_OP)
                 {
                     if (auto op_node = dynamic_cast<Op*>(expr_unwrapped);
@@ -780,10 +780,9 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
 
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
     assert(expr_type != nullptr);
-    assert(expr.size() == 1);
 
     instance.setBoundTypeState(expr_type);
-    const auto val = expr.back()->llvmCodegen(instance);
+    const auto val = expr->llvmCodegen(instance);
     instance.restoreBoundTypeState();
 
     return val;

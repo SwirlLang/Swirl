@@ -31,6 +31,7 @@ enum NodeType {
 };
 
 
+struct Node;
 struct Var;
 struct Type;
 
@@ -38,6 +39,8 @@ class IdentInfo;
 class LLVMBackend;
 class AnalysisContext;
 namespace llvm { class Value; }
+
+using SwNode = std::unique_ptr<Node>;
 
 
 struct AnalysisResult {
@@ -75,7 +78,7 @@ struct Node {
         throw std::runtime_error("getIdentInfo called on Node instance");
     }
 
-    virtual const std::vector<std::unique_ptr<Node>>& getExprValue() {
+    virtual const SwNode& getExprValue() {
         assert(0);
     }
 
@@ -108,45 +111,29 @@ struct Node {
 
 
 struct Expression final : Node {
-    std::vector<std::unique_ptr<Node>> expr;
+    SwNode expr;
     Type* expr_type = nullptr;
 
     Expression() = default;
-    Expression(Expression&& other) noexcept {
-        expr.reserve(other.expr.size());
-        expr_type = other.expr_type;
-
-        std::move(
-                std::make_move_iterator(other.expr.begin()),
-                std::make_move_iterator(other.expr.end()),
-                std::back_inserter(expr));
-    }
-
-    Expression& operator=(Expression&& other) noexcept {
-        expr.clear();
-        expr.reserve(other.expr.size());
-        expr_type = other.expr_type;
-        std::move(
-                std::make_move_iterator(other.expr.begin()),
-                std::make_move_iterator(other.expr.end()),
-                std::back_inserter(expr));
-        return *this;
-    }
 
     static Expression makeExpression(std::unique_ptr<Node>&& node) {
         Expression expr;
-        expr.expr.push_back(std::move(node));
+        expr.expr = std::move(node);
         return expr;
+    }
+
+    static Expression makeExpression(Node* node) {
+        return makeExpression(std::unique_ptr<Node>(node));
     }
 
     // set the type of sub-expression instances to `to`
     void setType(Type* to);
 
     IdentInfo* getIdentInfo() override {
-        return expr.at(0)->getIdentInfo();
+        return expr->getIdentInfo();
     }
 
-    const std::vector<std::unique_ptr<Node>>& getExprValue() override {
+    const SwNode& getExprValue() override {
         return expr;
     }
 
@@ -155,7 +142,7 @@ struct Expression final : Node {
     }
 
     bool operator==(const Expression& other) const {
-        return this->expr.data() == other.expr.data() && this->expr_type == other.expr_type;
+        return this->expr == other.expr && this->expr_type == other.expr_type;
     }
 
     Type* getSwType() override {
@@ -378,7 +365,7 @@ struct Var final : Node {
         return var_ident;
     }
 
-    std::vector<std::unique_ptr<Node>>& getExprValue() override { return value.expr; }
+    const SwNode& getExprValue() override { return value.expr; }
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
@@ -505,7 +492,7 @@ struct Condition final : Node {
     std::vector<std::tuple<Expression, std::vector<std::unique_ptr<Node>>>> elif_children;
     std::vector<std::unique_ptr<Node>> else_children{};
 
-    const std::vector<std::unique_ptr<Node>>& getExprValue() override {
+    const SwNode& getExprValue() override {
         return bool_expr.expr;
     }
 
