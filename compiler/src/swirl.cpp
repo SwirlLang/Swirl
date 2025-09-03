@@ -65,24 +65,20 @@ int main(int argc, const char** argv) {
             CompilerInst::appendLinkTarget(app.get_flag_value("-l"));
         if (app.contains_flag("-d")) { // until the cli supports multiple-values for the same flag...
             // format: `path:alias`
-            auto flag_val = app.get_flag_value("-d");
-            auto alias = flag_val.substr(flag_val.find_last_of(':') + 1);
-            auto path = flag_val.erase(flag_val.find_last_of(':'));
-
-            CompilerInst::PackageTable.insert({alias, path});
+            CompilerInst::addPackageEntry(app.get_flag_value("-d"));
         }
         if (app.contains_flag("-p"))
-            CompilerInst::PackageTable.insert({
-                fs::path(app.get_flag_value("-p")).filename().string(),
-                fs::path(app.get_flag_value("-p"))
-            });
+            CompilerInst::addPackageEntry(
+                app.get_flag_value("-p") + ':' + fs::path(app.get_flag_value("-p")).filename().string(),
+                true
+                );
         else {
             // if `-p` isn't passed explicitly, assume that the project root is the
             // directory in which the source file resides
-            CompilerInst::PackageTable.insert({
-                source_file_path.parent_path().filename().string(),
-                source_file_path.parent_path()
-            });
+            CompilerInst::addPackageEntry(
+                source_file_path.parent_path().string() + ':' + source_file_path.parent_path().filename().string(),
+                true
+                );
         }
 
 

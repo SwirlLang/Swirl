@@ -5,6 +5,25 @@
 #include <llvm/Support/FileSystem.h>
 
 
+void CompilerInst::addPackageEntry(const std::string_view package, const bool is_project) {
+    // when true, do not try to parse the author-name and package-version from the path
+    if (is_project) {
+        const auto alias = package.substr(package.find_last_of(':') + 1);
+        const auto path  = package.substr(0, package.size() - alias.size() - 1);
+
+        assert(!PackageTable.contains(std::string(alias)));
+        PackageTable[std::string(alias)] = PackageInfo{.package_root = fs::path(path)};
+        return;
+    }
+
+    const auto alias = package.substr(package.find_last_of(':') + 1);
+    const auto path  = package.substr(0, package.size() - alias.size() - 1);
+
+    assert(!PackageTable.contains(std::string(alias)));
+    PackageTable[std::string(alias)] = PackageInfo{.package_root = fs::path(path)};
+}
+
+
 void CompilerInst::startLLVMCodegen() {
     Backends_t llvm_backends;
     llvm_backends.reserve(m_ModuleManager.size());

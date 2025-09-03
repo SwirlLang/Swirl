@@ -251,7 +251,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
     forwardStream();  // skip 'import'
 
     if (CompilerInst::PackageTable.contains(m_Stream.CurTok.value)) {
-        ret.mod_path = CompilerInst::PackageTable[m_Stream.CurTok.value];
+        ret.mod_path = CompilerInst::PackageTable[m_Stream.CurTok.value].package_root;
     } else reportError(ErrCode::PACKAGE_NOT_FOUND, {.str_1 = m_Stream.CurTok.value});
 
     forwardStream();  // skip the current IDENT

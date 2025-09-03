@@ -37,11 +37,12 @@ class CompilerInst {
     /// generates object files for all the modules
     void generateObjectFiles(Backends_t&);
 
+    struct PackageInfo;
 
 public:
     inline static std::string TargetTriple;
     inline static std::unordered_set<std::string> LinkTargets;
-    inline static std::unordered_map<std::string, fs::path> PackageTable;
+    inline static std::unordered_map<std::string, PackageInfo> PackageTable;
 
 
     explicit CompilerInst(fs::path path)
@@ -103,6 +104,9 @@ public:
         startLLVMCodegen();
     }
 
+    /// Parses the string and adds an entry to the package table
+    static void addPackageEntry(std::string_view, bool is_project = false);
+
     static void setTargetTriple(const std::string& triple) { TargetTriple = triple; }
     static std::string_view getTargetTriple() { return TargetTriple; }
     static void appendLinkTarget(std::string_view target) { LinkTargets.emplace(target); }
@@ -110,3 +114,9 @@ public:
     // ~CompilerInst() { m_ThreadPool.shutdown(); }
 };
 
+
+struct CompilerInst::PackageInfo {
+    fs::path    package_root;
+    std::string author;
+    std::string version;
+};
