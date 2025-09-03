@@ -10,7 +10,7 @@
 #include "parser/Nodes.h"
 #include "lexer/TokenStream.h"
 #include "lexer/Tokens.h"
-#include "managers/ErrorManager.h"
+#include "errors/ErrorManager.h"
 #include "symbols/SymbolManager.h"
 
 #include "ExpressionParser.h"

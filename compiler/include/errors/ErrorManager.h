@@ -1,6 +1,5 @@
 #pragma once
 #include <mutex>
-#include <print>
 #include <optional>
 #include <filesystem>
 
@@ -13,6 +12,7 @@ struct Type;
 struct Node;
 class IdentInfo;
 class SourceManager;
+class ErrorPipeline;
 
 
 struct ErrorContext {
@@ -90,66 +90,23 @@ enum class ErrCode {
 class ErrorManager {
 public:
     /// Used to report an error, lock-free
-    void newError(ErrCode code, const ErrorContext& ctx) {
-        m_ErrorCounter++;
-        writeToBuffer(generateMessage(code, ctx), ctx);
-    }
+    void newError(ErrCode code, const ErrorContext& ctx) const;
 
     /// Used to report an error, acquires the mutex
-    void newErrorLocked(ErrCode code, const ErrorContext& ctx) {
-        m_ErrorCounter++;
-        std::lock_guard guard(m_Mutex);
-        writeToBuffer(generateMessage(code, ctx), ctx);
-    }
+    void newErrorLocked(ErrCode code, const ErrorContext& ctx);
 
     /// Write all the errors and clear the buffer
-    void flush() {
-        std::println(
-            stderr,
-            "{}\n{} error(s) in total reported.\n",
-            m_ErrorBuffer,
-            m_ErrorCounter
-            );
-        m_ErrorBuffer.clear();
-    }
+    void flush() const;
 
     /// Returns true if any error exists in the buffer
-    [[nodiscard]] bool errorOccurred() const {
-        return !m_ErrorBuffer.empty();
-    }
+    [[nodiscard]] bool errorOccurred() const;
 
 
 private:
-    std::string m_ErrorBuffer;
-    std::mutex  m_Mutex;
+    std::mutex      m_Mutex;
+    ErrorPipeline* m_OutputPipeline = nullptr;
 
-    uint32_t   m_ErrorCounter = 0;
-
-
-    void writeToBuffer(const std::string& str, const ErrorContext& ctx) {
-        std::string backticks;
-        backticks.resize(std::format("{} ", ctx.location->Line).size());
-        std::fill(backticks.begin(), backticks.end(), ' ');
-
-        backticks.append("|\t");
-        for (std::size_t i = 0; i < ctx.location->Col; i++) {
-            backticks.append(" ");
-        } backticks.append("^");
-
-        m_ErrorBuffer += std::format(
-            "At {}:{}:{}\n"
-            "\n{} |\t{}"  // line no., line
-            "{}\n"        // spaces and the `^`
-            "\n\tError: {}\n\n",
-            ctx.src_man->getSourcePath().string(),
-            ctx.location->Line,
-            ctx.location->Col,
-            ctx.location->Line,
-            ctx.src_man->getLineAt(ctx.location->Line),
-            backticks,
-            str
-        );
-    }
+    friend class CompilerInst;
 
     [[nodiscard]]
     static std::string generateMessage(ErrCode code, const ErrorContext& ctx);

@@ -7,11 +7,13 @@
 
 #include "parser/Parser.h"
 #include "backend/LLVMBackend.h"
+#include "errors/ErrorPipeline.h"
 #include "managers/ModuleManager.h"
 
 
 namespace fs = std::filesystem;
 using ThreadPool = llvm::StdThreadPool;
+
 
 class CompilerInst {
     ThreadPool    m_ThreadPool;
@@ -45,13 +47,19 @@ public:
     inline static std::unordered_map<std::string, PackageInfo> PackageTable;
 
 
-    explicit CompilerInst(fs::path path)
-        : m_SourceManager(path)
-        , m_SrcPath(std::move(path)) { }
+    explicit CompilerInst(fs::path path) : m_SourceManager(path), m_SrcPath(std::move(path)) {
+        m_ErrorCallback = [this](const ErrCode code, const ErrorContext& ctx) {
+            m_ErrorManager.newErrorLocked(code, ctx);
+        };
+    }
 
 
     void setBaseThreadCount(const std::string& count) {
         m_BaseThreadCount = static_cast<unsigned>(std::stoi(count));
+    }
+
+    void setErrorPipeline(ErrorPipeline* pipeline) {
+        m_ErrorManager.m_OutputPipeline = pipeline;
     }
 
 
@@ -60,9 +68,10 @@ public:
             TargetTriple = llvm::sys::getDefaultTargetTriple();
         }
 
-        if (m_ErrorCallback == nullptr) {
-            m_ErrorCallback =
-                [this](const ErrCode code, const ErrorContext& ctx) { m_ErrorManager.newErrorLocked(code, ctx); };
+        ErrorPipeline err_pipeline;
+        if (m_ErrorManager.m_OutputPipeline == nullptr) {
+            // ReSharper disable once CppDFALocalValueEscapesFunction
+            m_ErrorManager.m_OutputPipeline = &err_pipeline;
         }
 
         m_MainModParser.emplace(m_SrcPath, m_ErrorCallback, m_ModuleManager);
@@ -102,6 +111,7 @@ public:
         }
 
         startLLVMCodegen();
+        m_ErrorManager.m_OutputPipeline = nullptr;  // just to be safe
     }
 
     /// Parses the string and adds an entry to the package table

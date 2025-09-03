@@ -3,7 +3,7 @@
 #include <optional>
 #include <parser/Nodes.h>
 
-#include "managers/ErrorManager.h"
+#include "errors/ErrorManager.h"
 
 struct Node;
 class Parser;
