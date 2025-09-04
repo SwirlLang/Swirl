@@ -94,14 +94,20 @@ std::vector<Argument> cli::parse() {
                 }
                 // It's repeatable, add the new value
                 if (flag_it->value_required) {
-                    if (arg_iterator + 1 == args.cend()) { std::cout << "Value missing for the flag: " << *arg_iterator << '\n'; exit(1); }
+                    if (arg_iterator + 1 == args.cend() || (*(arg_iterator + 1)).starts_with("-")) {
+                        std::cout << "Value missing for the flag: " << *arg_iterator << '\n';
+                        exit(1);
+                    }
                     supplied_it->values.push_back(std::string(*(arg_iterator + 1)));
                     ++arg_iterator; // Consume the value
                 }
             } else { // First time seeing this flag
                 Argument _arg = *flag_it;
                 if (_arg.value_required) {
-                    if (arg_iterator + 1 == args.cend()) { std::cout << "Value missing for the flag: " << *arg_iterator << '\n'; exit(1); }
+                    if (arg_iterator + 1 == args.cend() || (*(arg_iterator + 1)).starts_with("-")) {
+                        std::cout << "Value missing for the flag: " << *arg_iterator << '\n';
+                        exit(1);
+                    }
                     _arg.values.push_back(std::string(*(arg_iterator + 1)));
                     ++arg_iterator; // Consume the value
                 }
