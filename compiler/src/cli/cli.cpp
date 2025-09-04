@@ -1,4 +1,5 @@
 #include "cli/cli.h"
+#include <algorithm>
 
 cli::cli(int argc, const char** argv, const std::vector<Argument>& flags):
 	m_argc(argc),
@@ -7,11 +8,10 @@ cli::cli(int argc, const char** argv, const std::vector<Argument>& flags):
   m_args(parse()) { }
 
 bool cli::contains_flag(std::string_view flag) {
-	auto flg = get_flag(flag);
-	bool *ptr;
-
-	if ((ptr = std::get_if<bool>(&flg)) == nullptr || *ptr != false) return true;
-	return false;
+    return std::any_of(m_args.cbegin(), m_args.cend(), [&](const Argument& a) {
+        auto& [f1, f2] = a.flags;
+        return f1 == flag || f2 == flag;
+    });
 }
 
 std::string cli::get_flag_value(std::string_view flag) {
@@ -20,8 +20,8 @@ std::string cli::get_flag_value(std::string_view flag) {
 
 std::vector<std::string> cli::get_flag_values(std::string_view flag) {
     auto it = std::find_if(m_args.cbegin(), m_args.cend(), [&](const Argument& a) {
-        auto& [v1, v2] = a.flags;
-        return v1 == flag || v2 == flag;
+        auto& [f1, f2] = a.flags;
+        return f1 == flag || f2 == flag;
     });
 
     if (it != m_args.cend()) {
@@ -33,15 +33,15 @@ std::vector<std::string> cli::get_flag_values(std::string_view flag) {
 std::string cli::generate_help() {
 	std::size_t max_width = 0;
 	std::for_each(m_flags -> cbegin(), m_flags -> cend(), [&](const Argument& arg) {
-		auto& [v1, v2] = arg.flags;
-		if (v1.size() + v2.size() + 2 > max_width) max_width = v1.size() + v2.size() + 3;
+		auto& [f1, f2] = arg.flags;
+		if (f1.size() + f2.size() + 2 > max_width) max_width = f1.size() + f2.size() + 3;
 	});
 
 	std::string msg;
 	for (const Argument& arg : *m_flags) {
-		auto& [v1, v2] = arg.flags;
-		msg += "\t" + v1 + ", " + v2;
-		for (unsigned int c = 0; c < max_width - v1.size() - v2.size() - 2; c++) msg += ' ';
+		auto& [f1, f2] = arg.flags;
+		msg += "\t" + f1 + ", " + f2;
+		for (unsigned int c = 0; c < max_width - f1.size() - f2.size() - 2; c++) msg += ' ';
 		msg += "     " + arg.desc + '\n';
 	} return msg;
 }
@@ -53,8 +53,8 @@ std::optional<std::string> cli::get_file() {
 			(m_argv[i - 1][0] != '-' ||
 			std::find_if(m_flags -> begin(), m_flags -> end(), [&](const Argument& _arg) {
 				if (_arg.value_required) return false;
-				auto &[v1, v2] = _arg.flags;
-				return v1 == m_argv[i - 1] || v2 == m_argv[i - 1];
+				auto &[f1, f2] = _arg.flags;
+				return f1 == m_argv[i - 1] || f2 == m_argv[i - 1];
 			}) != m_flags -> end()
 		)) {
 			return m_argv[i];
@@ -77,7 +77,8 @@ std::vector<Argument> cli::parse() {
 
             // check if the flag exists in the flag vector
             auto flag_it = std::find_if(m_flags -> cbegin(), m_flags -> cend(), [&](const Argument& a) {
-                return std::get<0>(a.flags) == *arg_iterator || std::get<1>(a.flags) == *arg_iterator;
+				auto& [f1, f2] = a.flags;
+				return f1 == *arg_iterator || f2 == *arg_iterator;
             });
 
             if (flag_it == m_flags -> cend()) { std::cerr << "Unknown flag: " << *arg_iterator << '\n'; exit(1); }
@@ -121,8 +122,8 @@ std::vector<Argument> cli::parse() {
 
 std::variant<std::string, bool> cli::get_flag(std::string_view flag) {
 	auto it = std::find_if(m_args.cbegin(), m_args.cend(), [&](const Argument& a) {
-		auto& [v1, v2] = a.flags;
-		return v1 == flag || v2 == flag;
+		auto& [f1, f2] = a.flags;
+		return f1 == flag || f2 == flag;
 	});
 
 	// Flag not found
