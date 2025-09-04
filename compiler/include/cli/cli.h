@@ -17,8 +17,9 @@ struct Argument {
 	std::tuple<std::string, std::string> flags;
 	std::string desc;
 
-	bool value_required;
-	std::string value{};
+  bool value_required;
+  bool repeatable = false; // Add this
+  std::vector<std::string> values{}; // Change this from std::string
 };	
 
 class cli {
@@ -28,6 +29,7 @@ public:
 public:
 	bool contains_flag(std::string_view flag);
 	std::string get_flag_value(std::string_view flag);
+  std::vector<std::string> get_flag_values(std::string_view flag); // Add this
     std::string generate_help();
 
 	std::optional<std::string> get_file();

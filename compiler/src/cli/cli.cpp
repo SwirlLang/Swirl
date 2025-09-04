@@ -15,7 +15,19 @@ bool cli::contains_flag(std::string_view flag) {
 }
 
 std::string cli::get_flag_value(std::string_view flag) {
-	return std::get<std::string>(get_flag(flag));
+    return std::get<std::string>(get_flag(flag));
+}
+
+std::vector<std::string> cli::get_flag_values(std::string_view flag) {
+    auto it = std::find_if(m_args.cbegin(), m_args.cend(), [&](const Argument& a) {
+        auto& [v1, v2] = a.flags;
+        return v1 == flag || v2 == flag;
+    });
+
+    if (it != m_args.cend()) {
+        return it->values;
+    }
+    return {};
 }
 
 std::string cli::generate_help() {
@@ -63,25 +75,40 @@ std::vector<Argument> cli::parse() {
 		// if the current argument starts with `-` sign, its a flag
 		if (arg_iterator->starts_with("-")) {
 
-			// check if the flag exists in the flag vector
-			auto it = std::find_if(m_flags -> cbegin(), m_flags -> cend(), [&](const Argument& a) {
-				auto& [v1, v2] = a.flags;
-				return v1 == *arg_iterator || v2 == *arg_iterator;
-			});
+            // check if the flag exists in the flag vector
+            auto flag_it = std::find_if(m_flags -> cbegin(), m_flags -> cend(), [&](const Argument& a) {
+                return std::get<0>(a.flags) == *arg_iterator || std::get<1>(a.flags) == *arg_iterator;
+            });
 
-			if (it == m_flags -> cend()) { std::cerr << "Unknown flag: " << *arg_iterator << '\n'; exit(1); }
+            if (flag_it == m_flags -> cend()) { std::cerr << "Unknown flag: " << *arg_iterator << '\n'; exit(1); }
 
-			if (!it->value_required) supplied.push_back(*it);
-			else {
-				if (arg_iterator + 1 == args.cend()) { std::cout << "Value missing for the flag: " << *arg_iterator << '\n'; exit(1); }
+            // Check if this flag was already supplied
+            auto supplied_it = std::find_if(supplied.begin(), supplied.end(), [&](const Argument& a) {
+                return std::get<0>(a.flags) == std::get<0>(flag_it->flags);
+            });
 
-				Argument _arg = *it;
-				_arg.value = *(arg_iterator + 1);
-				supplied.push_back(_arg);
-			}
-
-		}
-	}
+            if (supplied_it != supplied.end()) { // Flag was already seen
+                if (!supplied_it->repeatable) {
+                    std::cerr << "Flag " << *arg_iterator << " cannot be repeated.\n";
+                    exit(1);
+                }
+                // It's repeatable, add the new value
+                if (flag_it->value_required) {
+                    if (arg_iterator + 1 == args.cend()) { std::cout << "Value missing for the flag: " << *arg_iterator << '\n'; exit(1); }
+                    supplied_it->values.push_back(std::string(*(arg_iterator + 1)));
+                    ++arg_iterator; // Consume the value
+                }
+            } else { // First time seeing this flag
+                Argument _arg = *flag_it;
+                if (_arg.value_required) {
+                    if (arg_iterator + 1 == args.cend()) { std::cout << "Value missing for the flag: " << *arg_iterator << '\n'; exit(1); }
+                    _arg.values.push_back(std::string(*(arg_iterator + 1)));
+                    ++arg_iterator; // Consume the value
+                }
+                supplied.push_back(_arg);
+            }
+        }
+    }
 
 	return supplied;
 }
@@ -98,5 +125,6 @@ std::variant<std::string, bool> cli::get_flag(std::string_view flag) {
 	// Flag exists
 	if (!it->value_required) return true;
 
-	return it->value;
+	// For repeatable flags, return the first value for backward compatibility
+	return it->values.empty() ? "" : it->values.front();
 }
