@@ -15,7 +15,14 @@ bool cli::contains_flag(std::string_view flag) {
 }
 
 std::string cli::get_flag_value(std::string_view flag) {
-    return std::get<std::string>(get_flag(flag));
+    auto it = std::find_if(m_args.cbegin(), m_args.cend(), [&](const Argument& a) {
+        auto& [f1, f2] = a.flags;
+        return f1 == flag || f2 == flag;
+    });
+    if (it != m_args.cend() && !it->values.empty()) {
+        return it->values.front();
+    }
+    return "";
 }
 
 std::vector<std::string> cli::get_flag_values(std::string_view flag) {
@@ -118,20 +125,4 @@ std::vector<Argument> cli::parse() {
     }
 
 	return supplied;
-}
-
-std::variant<std::string, bool> cli::get_flag(std::string_view flag) {
-	auto it = std::find_if(m_args.cbegin(), m_args.cend(), [&](const Argument& a) {
-		auto& [f1, f2] = a.flags;
-		return f1 == flag || f2 == flag;
-	});
-
-	// Flag not found
-	if (it == m_args.cend()) return false;
-
-	// Flag exists
-	if (!it->value_required) return true;
-
-	// For repeatable flags, return the first value for backward compatibility
-	return it->values.empty() ? "" : it->values.front();
 }
