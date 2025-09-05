@@ -14,28 +14,27 @@ Flags:
 )";
 
 struct Argument {
-	std::tuple<std::string, std::string> flags;
-	std::string desc;
+    std::tuple<std::string, std::string> flags;
+    std::string desc;
 
   bool value_required;
   bool repeatable = false; // Add this
-  std::vector<std::string> values{}; // Change this from std::string
+  std::vector<std::string> values; // Change this from std::string
 };	
 
 class cli {
 public:
-	cli(int argc, const char** argv, const std::vector<Argument>& flags);
+    cli(int argc, const char** argv, const std::vector<Argument>& flags);
 
-public:
-	bool contains_flag(std::string_view flag);
-	std::string get_flag_value(std::string_view flag);
-  std::vector<std::string> get_flag_values(std::string_view flag); // Add this
+    bool contains_flag(std::string_view flag);
+    std::string get_flag_value(std::string_view flag);
+    std::vector<std::string> get_flag_values(std::string_view flag); // Add this
     std::string generate_help();
 
-	std::optional<std::string> get_file();
+    std::optional<std::string> get_file();
 
 private:
-	std::vector<Argument> parse();
+    std::vector<Argument> parse();
 
     /**
     * This function returns the value of the flag requested from the provided args vector.
@@ -49,11 +48,10 @@ private:
     */
     std::variant<std::string, bool> get_flag(std::string_view flag);
 
-private:
-	int m_argc;
-	const char ** m_argv;
+    int m_argc;
+    const char ** m_argv;
 
-	const std::vector<Argument> *m_flags;
-  std::string m_input_file;
-  std::vector<Argument> m_args;
+    const std::vector<Argument> *m_flags;
+    std::string m_input_file;
+    std::vector<Argument> m_args;
 };

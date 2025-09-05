@@ -1,5 +1,4 @@
 #include "cli/cli.h"
-#include <algorithm>
 
 cli::cli(int argc, const char** argv, const std::vector<Argument>& flags):
     m_argc(argc),
