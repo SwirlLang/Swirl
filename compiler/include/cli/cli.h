@@ -1,11 +1,9 @@
 #pragma once
+#include <array>
+#include <string>
 #include <vector>
 #include <variant>
 #include <string_view>
-#include <algorithm>
-#include <optional>
-#include <iostream>
-#include <tuple>
 
 const std::string USAGE = R"(The Swirl compiler
 Usage: Swirl <input-file> [flags]

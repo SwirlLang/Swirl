@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "cli/cli.h"
 
 cli::cli(int argc, const char** argv, const std::vector<Argument>& flags)
