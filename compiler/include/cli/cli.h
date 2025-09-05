@@ -14,7 +14,7 @@ Flags:
 )";
 
 struct Argument {
-    std::tuple<std::string, std::string> flags;
+    std::array<std::string, 2> flags;
     std::string desc;
 
     bool value_required;
