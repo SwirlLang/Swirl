@@ -13,9 +13,9 @@ const std::vector<Argument> application_flags = {
     {{"-v", "--version"}, "Show the version of Swirl", false, {}},
     {{"-j", "--threads"}, "No. of threads to use (excluding the main-thread).", true},
     {{"-t", "--target"}, "The target-triple of the target-platform", true},
-    {{"-l", "--library"}, "The name of the library to link against.", true},
+    {{"-l", "--library"}, "The name of the library to link against.", true, true},
     {{"-p", "--project"}, "/path/to/project/root", true},
-    {{"-d", "--dependency"}, "Register a dependency, in the format `path:name`.", true},
+    {{"-d", "--dependency"}, "Register a dependency, in the format `path:name`.", true, true},
     {{"-Ld", "--debug"}, "Log the steps of compilation", false, {}},
 };
 
@@ -61,11 +61,14 @@ int main(int argc, const char** argv) {
             compiler_inst.setBaseThreadCount(app.get_flag_value("-j"));
         if (app.contains_flag("-t"))
             CompilerInst::setTargetTriple(app.get_flag_value("-t"));
-        if (app.contains_flag("-l"))  // until the cli supports multiple-values for the same flag...
-            CompilerInst::appendLinkTarget(app.get_flag_value("-l"));
-        if (app.contains_flag("-d")) { // until the cli supports multiple-values for the same flag...
+        if (app.contains_flag("-l"))  {
+            for(auto lib: app.get_flag_values("-l"))
+                CompilerInst::appendLinkTarget(lib);
+        }
+        if (app.contains_flag("-d")) {
             // format: `path:alias`
-            CompilerInst::addPackageEntry(app.get_flag_value("-d"));
+            for(auto dep: app.get_flag_values("-d"))
+                CompilerInst::addPackageEntry(dep);
         }
         if (app.contains_flag("-p"))
             CompilerInst::addPackageEntry(
