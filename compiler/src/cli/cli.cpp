@@ -1,11 +1,7 @@
 #include "cli/cli.h"
 
-cli::cli(int argc, const char** argv, const std::vector<Argument>& flags):
-    m_argc(argc),
-    m_argv(argv),
-    m_flags(&flags),
-    m_input_file(),
-    m_args(parse()) { }
+cli::cli(int argc, const char** argv, const std::vector<Argument>& flags)
+    : m_argc(argc), m_argv(argv), m_flags(&flags), m_input_file(), m_args(parse()) {}
 
 bool cli::contains_flag(std::string_view flag) {
     return std::any_of(m_args.cbegin(), m_args.cend(), [&](const Argument& a) {
@@ -41,16 +37,19 @@ std::string cli::generate_help() {
     std::size_t max_width = 0;
     std::for_each(m_flags->cbegin(), m_flags->cend(), [&](const Argument& arg) {
         auto& [f1, f2] = arg.flags;
-        if (f1.size() + f2.size() + 2 > max_width) max_width = f1.size() + f2.size() + 3;
+        if (f1.size() + f2.size() + 2 > max_width)
+            max_width = f1.size() + f2.size() + 3;
     });
 
     std::string msg;
     for (const Argument& arg : *m_flags) {
         auto& [f1, f2] = arg.flags;
         msg += "\t" + f1 + ", " + f2;
-        for (unsigned int c = 0; c < max_width - f1.size() - f2.size() - 2; c++) msg += ' ';
+        for (unsigned int c = 0; c < max_width - f1.size() - f2.size() - 2; c++)
+            msg += ' ';
         msg += "     " + arg.desc + '\n';
-    } return msg;
+    }
+    return msg;
 }
 
 std::optional<std::string> cli::get_file() {
@@ -58,9 +57,9 @@ std::optional<std::string> cli::get_file() {
 }
 
 std::vector<Argument> cli::parse() {
-    if (m_argc <= 1) { 
+    if (m_argc <= 1) {
         std::cout << USAGE << generate_help() << '\n';
-        exit(0); 
+        exit(0);
     }
 
     std::vector<std::string_view> args(m_argv, m_argv + m_argc);
@@ -76,7 +75,10 @@ std::vector<Argument> cli::parse() {
                 return f1 == *arg_iterator || f2 == *arg_iterator;
             });
 
-            if (flag_it == m_flags->cend()) { std::cerr << "Unknown flag: " << *arg_iterator << '\n'; exit(1); }
+            if (flag_it == m_flags->cend()) {
+                std::cerr << "Unknown flag: " << *arg_iterator << '\n';
+                exit(1);
+            }
 
             // Check if this flag was already supplied
             auto supplied_it = std::find_if(supplied.begin(), supplied.end(), [&](const Argument& a) {
@@ -109,9 +111,8 @@ std::vector<Argument> cli::parse() {
                 }
                 supplied.push_back(_arg);
             }
-        }
-        else {
-            if(!m_input_file.empty()) {
+        } else {
+            if (!m_input_file.empty()) {
                 std::cerr << "Multiple input files provided. Only one input file is allowed.\n";
                 exit(1);
             }

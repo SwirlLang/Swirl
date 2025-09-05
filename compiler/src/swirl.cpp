@@ -6,9 +6,8 @@
 #include <CompilerInst.h>
 #include <include/SwirlConfig.h>
 
-
 const std::vector<Argument> application_flags = {
-    {{"-h","--help"}, "Show the help message", false, {}},
+    {{"-h", "--help"}, "Show the help message", false, {}},
     {{"-o", "--output"}, "Output file name", true, {}},
     {{"-v", "--version"}, "Show the version of Swirl", false, {}},
     {{"-j", "--threads"}, "No. of threads to use (excluding the main-thread).", true},
@@ -18,7 +17,6 @@ const std::vector<Argument> application_flags = {
     {{"-d", "--dependency"}, "Register a dependency, in the format `path:name`.", true, true},
     {{"-Ld", "--debug"}, "Log the steps of compilation", false, {}},
 };
-
 
 int main(int argc, const char** argv) {
     cli app(argc, argv, application_flags);
@@ -50,7 +48,6 @@ int main(int argc, const char** argv) {
     auto out_dir = source_file_path.parent_path();
     auto file_name = source_file_path.filename();
 
-
     if (!source_file_path.empty()) {
         if (!source_file_path.is_absolute())
             source_file_path = absolute(source_file_path);
@@ -61,29 +58,25 @@ int main(int argc, const char** argv) {
             compiler_inst.setBaseThreadCount(app.get_flag_value("-j"));
         if (app.contains_flag("-t"))
             CompilerInst::setTargetTriple(app.get_flag_value("-t"));
-        if (app.contains_flag("-l"))  {
-            for(auto lib: app.get_flag_values("-l"))
+        if (app.contains_flag("-l")) {
+            for (auto lib : app.get_flag_values("-l"))
                 CompilerInst::appendLinkTarget(lib);
         }
         if (app.contains_flag("-d")) {
             // format: `path:alias`
-            for(auto dep: app.get_flag_values("-d"))
+            for (auto dep : app.get_flag_values("-d"))
                 CompilerInst::addPackageEntry(dep);
         }
         if (app.contains_flag("-p"))
             CompilerInst::addPackageEntry(
-                app.get_flag_value("-p") + ':' + fs::path(app.get_flag_value("-p")).filename().string(),
-                true
-                );
+                app.get_flag_value("-p") + ':' + fs::path(app.get_flag_value("-p")).filename().string(), true);
         else {
             // if `-p` isn't passed explicitly, assume that the project root is the
             // directory in which the source file resides
-            CompilerInst::addPackageEntry(
-                source_file_path.parent_path().string() + ':' + source_file_path.parent_path().filename().string(),
-                true
-                );
+            CompilerInst::addPackageEntry(source_file_path.parent_path().string() + ':' +
+                                              source_file_path.parent_path().filename().string(),
+                                          true);
         }
-
 
         compiler_inst.compile();
     }
