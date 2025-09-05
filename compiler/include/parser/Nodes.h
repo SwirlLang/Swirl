@@ -49,11 +49,10 @@ struct AnalysisResult {
 };
 
 
-struct NodeLocation {
+struct SourceLocation {
     StreamState from;
     StreamState to;
-
-    NodeLocation(const StreamState& from, const StreamState& to): from(from), to(to) {}
+    fs::path    source;
 };
 
 
@@ -61,7 +60,7 @@ struct NodeLocation {
 struct Node {
     std::string value;
     std::size_t scope_id{};
-    StreamState location;
+    SourceLocation location;
 
     bool is_exported = false;
 
@@ -293,7 +292,7 @@ struct IntLit final : Node {
         return ND_INT;
     }
 
-    llvm::Value *llvmCodegen(LLVMBackend& instance) override;
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 

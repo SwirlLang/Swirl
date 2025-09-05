@@ -1,9 +1,10 @@
 #pragma once
-#include <string_view>
-#include <algorithm>
 #include <print>
+#include <algorithm>
+#include <string_view>
 
-#include "ErrorManager.h"
+#include "managers/SourceManager.h"
+#include "errors/ErrorManager.h"
 
 
 /// This class allows the decoupling of the ErrorManager from error-formatting and output details.
@@ -14,13 +15,19 @@ public:
     /// Responsible for buffering the raw error message and error context.
     virtual void write(const std::string_view message, const ErrorContext& ctx) {
         std::string backticks;
-        backticks.resize(std::format("{} ", ctx.location->Line).size());
+        backticks.resize(std::format("{} ", ctx.location->from.Line).size());
         std::fill(backticks.begin(), backticks.end(), ' ');
 
         backticks.append("|\t");
-        for (std::size_t i = 0; i < ctx.location->Col; i++) {
+        for (int i = 0; i < ctx.location->from.Col; i++) {
             backticks.append(" ");
-        } backticks.append("^");
+        }
+
+        // TODO: make this entire thing more robust, handle errors which span multiple lines
+        backticks.append("^");
+        for (int i = 0; i < (ctx.location->to.Col - ctx.location->from.Col - 1); i++) {
+            backticks.append("~");
+        }
 
         m_ErrorBuffer += std::format(
             "At {}:{}:{}\n"
@@ -28,10 +35,10 @@ public:
             "{}\n"        // spaces and the `^`
             "\n\tError: {}\n\n",
             ctx.src_man->getSourcePath().string(),
-            ctx.location->Line,
-            ctx.location->Col,
-            ctx.location->Line,
-            ctx.src_man->getLineAt(ctx.location->Line),
+            ctx.location->from.Line,
+            ctx.location->from.Col,
+            ctx.location->from.Line,
+            ctx.src_man->getLineAt(ctx.location->from.Line),
             backticks,
             message
         );

@@ -3,8 +3,7 @@
 #include <optional>
 #include <filesystem>
 
-#include <lexer/TokenStream.h>
-
+#include "parser/Nodes.h"
 #include "types/SwTypes.h"
 
 
@@ -26,7 +25,7 @@ struct ErrorContext {
     std::string msg{};    // optional error-message, used to convey various syntax errors
     std::string str_1{};
     std::string str_2{};
-    std::optional<StreamState> location = std::nullopt;
+    std::optional<SourceLocation> location = std::nullopt;
 
     SourceManager* src_man = nullptr;
     std::unordered_map<IdentInfo*, Node*>* decl_table = nullptr;
@@ -151,7 +150,7 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
         case ErrCode::NO_NARROWING_CONVERSION:
             return std::format(
                 "Swirl doesn't support implicit narrowing conversions."
-                " Conversion between `{}` and `{}` is narrowing.",
+                " Conversion from `{}` to `{}` is narrowing.",
                 ctx.type_1->toString(),
                 ctx.type_2->toString()
                 );

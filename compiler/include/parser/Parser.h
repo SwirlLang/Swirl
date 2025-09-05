@@ -22,6 +22,36 @@ class AnalysisContext;
 using ErrorCallback_t = std::function<void (ErrCode, ErrorContext)>;
 
 
+/// A type which can represent either a `Type*` or a `Node*`.
+struct SwObject : std::variant<Type*, Node*> {
+    using std::variant<Type*, Node*>::variant;
+
+    [[nodiscard]] Type* toType() const {
+        return std::get<Type*>(*this);
+    }
+
+    [[nodiscard]] Node* toNode() const {
+        return std::get<Node*>(*this);
+    }
+
+    [[nodiscard]] bool isType() const {
+        return std::holds_alternative<Type*>(*this);
+    }
+
+    [[nodiscard]] bool isNode() const {
+        return std::holds_alternative<Node*>(*this);
+    }
+};
+
+
+template <>
+struct std::hash<SwObject> {
+    std::size_t operator()(const SwObject& obj) const noexcept {
+        return std::hash<std::variant<Type*, Node*>>{}(obj);
+    }
+};
+
+
 class Parser {
     TokenStream    m_Stream;
     SourceManager  m_SrcMan;
@@ -41,14 +71,18 @@ class Parser {
     std::optional<Token> m_ReturnFakeToken = std::nullopt;
     // ---*--- ---*--- ---*---
 
-    std::size_t  m_UnresolvedDeps{};
+    std::size_t           m_UnresolvedDeps{};  // counter for the no. of unresolved dependencies
+    std::vector<SwObject> m_NodeStack;        // currently-being-parsed object pointer stays at the top
 
     std::filesystem::path m_FilePath;
 
     std::unordered_set<Parser*> m_Dependents;     // the modules which depend on this module
     std::unordered_set<Parser*> m_Dependencies;  // the modules which this module depends on
 
-    struct Bracket_t { char val; StreamState location; };
+    // used for buffering error reports until the nodes/types have been completed
+    std::unordered_map<SwObject, std::vector<std::tuple<ErrCode, ErrorContext>>> m_ErrorQueue;
+
+    struct Bracket_t { char val{}; StreamState location; };
     std::vector<Bracket_t> m_BracketTracker;
 
     struct NodeAttrHelper;
@@ -124,29 +158,34 @@ public:
     /// Decrements the unresolved-deps counter of dependents
     void decrementUnresolvedDeps();
 
-    void reportError(const ErrCode code, ErrorContext ctx = {}) {
-        ctx.src_man = &m_SrcMan;
-        if (!ctx.location) {
-            ctx.location = m_Stream.getStreamState();
-        } m_ErrorCallback(code, ctx);
+    /// Buffers the reported errors, also sets certain context attributes automatically
+    void reportError(const ErrCode code, const ErrorContext& ctx = {}) {
+        m_ErrorQueue.at(m_NodeStack.back()).emplace_back(code, ctx);
     }
 };
 
 
 struct Parser::NodeAttrHelper {
-    /// Chief constructor
-    NodeAttrHelper(Node& node, Parser& instance): instance(instance) {
-        node.is_exported = instance.m_LastSymWasExported;
-        node.location = instance.m_Stream.getStreamState();
+    /// Chief Node constructor
+    NodeAttrHelper(Node* node, Parser& instance): node(node), instance(instance) {
+        node->is_exported = instance.m_LastSymWasExported;
+        node->location.from = instance.m_Stream.getStreamState();
+        node->location.source = instance.m_FilePath;
 
-        switch (node.getNodeType()) {
+        // setup error-report buffering
+        if (!instance.m_ErrorQueue.contains(node))
+            instance.m_ErrorQueue.insert({node, {}});
+        instance.m_NodeStack.emplace_back(node);
+
+        // other node specific attributes
+        switch (node->getNodeType()) {
             case ND_VAR: {
-                const auto nd = dynamic_cast<Var*>(&node);
+                const auto nd = dynamic_cast<Var*>(node);
                 nd->is_extern = instance.m_LastSymIsExtern;
                 nd->extern_attributes = instance.m_ExternAttributes;
                 break;
             } case ND_FUNC: {
-                const auto nd = dynamic_cast<Function*>(&node);
+                const auto nd = dynamic_cast<Function*>(node);
                 nd->is_extern = instance.m_LastSymIsExtern;
                 nd->extern_attributes = instance.m_ExternAttributes;
                 break;
@@ -156,9 +195,12 @@ struct Parser::NodeAttrHelper {
     }
 
 
-    /* Delegators */
-    NodeAttrHelper(Node* node, Parser& instance): NodeAttrHelper(*node, instance) {}
-    NodeAttrHelper(const std::unique_ptr<Node>& node, Parser& instance): NodeAttrHelper(*node, instance) {}
+    NodeAttrHelper(Type* type, Parser& instance): instance(instance), type(type) {
+        // setup error-report buffering
+        if (!instance.m_ErrorQueue.contains(type))
+            instance.m_ErrorQueue.insert({type, {}});
+        instance.m_NodeStack.emplace_back(type);
+    }
 
 
     /// Resets the states of the Parser
@@ -166,8 +208,19 @@ struct Parser::NodeAttrHelper {
         instance.m_LastSymIsExtern = false;
         instance.m_LastSymWasExported = false;
         instance.m_ExternAttributes.clear();
+
+        // flush all the errors
+        for (auto& error : instance.m_ErrorQueue.at(node)) {
+            instance.m_ErrorCallback(std::get<0>(error), std::get<1>(error));
+        } instance.m_ErrorQueue.at(node).clear();
+
+        node->location.to = instance.m_Stream.getStreamState();
+        instance.m_NodeStack.pop_back();
     }
 
 private:
+    Node*   node = nullptr;
+    Type*   type = nullptr;
+
     Parser& instance;
 };

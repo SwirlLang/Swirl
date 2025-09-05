@@ -74,7 +74,6 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                 m_Parser.forwardStream();
                 auto ret = std::make_unique<Expression>(parseExpr());
                 SET_NODE_ATTRS(ret.get());
-                ret->location = m_Stream.getStreamState();
                 m_Parser.forwardStream();
                 return ret;
             } return m_Parser.dispatch();
@@ -130,13 +129,11 @@ Expression ExpressionParser::parseExpr(const int rbp) {
 
         op->operands.push_back(std::move(left));
         op->operands.push_back(std::move(right.expr));
-        op->location = m_Stream.getStreamState();
 
         return op;
     };
 
     auto ret = Expression::makeExpression(m_Stream.CurTok.type == OP ? parsePrefix() : parseComponent());
-    ret.location = m_Stream.getStreamState();
 
     while (true) {
         // whether to continue with the expression
@@ -155,6 +152,5 @@ Expression ExpressionParser::parseExpr(const int rbp) {
         ret = Expression::makeExpression(led(std::move(ret.expr)));
     }
 
-    ret.location = m_Stream.getStreamState();
     return ret;
 }

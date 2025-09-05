@@ -12,7 +12,7 @@ using SwNode = std::unique_ptr<Node>;
 using NodesVec = std::vector<SwNode>;
 
 
-Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location) const {
+Type* AnalysisContext::deduceType(Type* type1, Type* type2, const SourceLocation& location) const {
     // either of them being nullptr implies a violation of the typing-rules
     if (type1 == nullptr || type2 == nullptr) {
         return nullptr;
@@ -76,7 +76,7 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, StreamState location
 }
 
 
-bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, StreamState location) const {
+bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, const SourceLocation& location) const {
     if (!from || !to) return false;
 
     if (from->getTypeTag() == Type::REFERENCE && to->getTypeTag() == Type::REFERENCE) {

@@ -126,10 +126,10 @@ public:
     void analyzeSemanticsOf(IdentInfo* id);
 
     /// Returns the common-type of `type1` and `type2`, nullptr if failure
-    Type* deduceType(Type* type1, Type* type2, StreamState location) const;
+    Type* deduceType(Type* type1, Type* type2, const SourceLocation& location) const;
 
     /// Checks whether `from` can be converted to `to`, returns `false` if incompatible
-    bool checkTypeCompatibility(Type* from, Type* to, StreamState location) const;
+    bool checkTypeCompatibility(Type* from, Type* to, const SourceLocation& location) const;
 
 
     /// Disables the error code in its constructor, enables it back in its destructor
