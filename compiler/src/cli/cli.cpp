@@ -65,18 +65,18 @@ std::vector<Argument> cli::parse() {
     std::vector<std::string_view> args(m_argv, m_argv + m_argc);
     std::vector<Argument> supplied;
 
-    for (auto arg_iterator = args.cbegin() + 1; arg_iterator != args.cend(); ++arg_iterator) {
+    for (auto arg_it = args.cbegin() + 1; arg_it != args.cend(); ++arg_it) {
         // if the current argument starts with `-` sign, its a flag
-        if (arg_iterator->starts_with("-")) {
+        if (arg_it->starts_with("-")) {
 
             // check if the flag exists in the flag vector
             auto flag_it = std::find_if(m_flags->cbegin(), m_flags->cend(), [&](const Argument& a) {
                 auto& [f1, f2] = a.flags;
-                return f1 == *arg_iterator || f2 == *arg_iterator;
+                return f1 == *arg_it || f2 == *arg_it;
             });
 
             if (flag_it == m_flags->cend()) {
-                std::cerr << "Unknown flag: " << *arg_iterator << '\n';
+                std::cerr << "Unknown flag: " << *arg_it << '\n';
                 exit(1);
             }
 
@@ -87,27 +87,27 @@ std::vector<Argument> cli::parse() {
 
             if (supplied_it != supplied.end()) { // Flag was already seen
                 if (!supplied_it->repeatable) {
-                    std::cerr << "Flag " << *arg_iterator << " cannot be repeated.\n";
+                    std::cerr << "Flag " << *arg_it << " cannot be repeated.\n";
                     exit(1);
                 }
                 // It's repeatable, add the new value
                 if (flag_it->value_required) {
-                    if (arg_iterator + 1 == args.cend() || (*(arg_iterator + 1)).starts_with("-")) {
-                        std::cout << "Value missing for the flag: " << *arg_iterator << '\n';
+                    if (arg_it + 1 == args.cend() || (*(arg_it + 1)).starts_with("-")) {
+                        std::cout << "Value missing for the flag: " << *arg_it << '\n';
                         exit(1);
                     }
-                    supplied_it->values.push_back(std::string(*(arg_iterator + 1)));
-                    ++arg_iterator; // Consume the value
+                    supplied_it->values.push_back(std::string(*(arg_it + 1)));
+                    ++arg_it; // Consume the value
                 }
             } else { // First time seeing this flag
                 Argument _arg = *flag_it;
                 if (_arg.value_required) {
-                    if (arg_iterator + 1 == args.cend() || (*(arg_iterator + 1)).starts_with("-")) {
-                        std::cout << "Value missing for the flag: " << *arg_iterator << '\n';
+                    if (arg_it + 1 == args.cend() || (*(arg_it + 1)).starts_with("-")) {
+                        std::cout << "Value missing for the flag: " << *arg_it << '\n';
                         exit(1);
                     }
-                    _arg.values.push_back(std::string(*(arg_iterator + 1)));
-                    ++arg_iterator; // Consume the value
+                    _arg.values.push_back(std::string(*(arg_it + 1)));
+                    ++arg_it; // Consume the value
                 }
                 supplied.push_back(_arg);
             }
@@ -116,7 +116,7 @@ std::vector<Argument> cli::parse() {
                 std::cerr << "Multiple input files provided. Only one input file is allowed.\n";
                 exit(1);
             }
-            m_input_file = *arg_iterator;
+            m_input_file = *arg_it;
         }
     }
 
