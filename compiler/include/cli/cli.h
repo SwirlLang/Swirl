@@ -54,5 +54,6 @@ private:
 	const char ** m_argv;
 
 	const std::vector<Argument> *m_flags;
+  std::string m_input_file;
   std::vector<Argument> m_args;
 };

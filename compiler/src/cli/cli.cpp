@@ -5,6 +5,7 @@ cli::cli(int argc, const char** argv, const std::vector<Argument>& flags):
 	m_argc(argc),
 	m_argv(argv),
 	m_flags(&flags),
+	m_input_file(),
   m_args(parse()) { }
 
 bool cli::contains_flag(std::string_view flag) {
@@ -54,19 +55,7 @@ std::string cli::generate_help() {
 }
 
 std::optional<std::string> cli::get_file() {
-	for (int i = 1; i < m_argc; i++) {
-		if (
-			m_argv[i][0] != '-' &&
-			(m_argv[i - 1][0] != '-' ||
-			std::find_if(m_flags -> begin(), m_flags -> end(), [&](const Argument& _arg) {
-				if (_arg.value_required) return false;
-				auto &[f1, f2] = _arg.flags;
-				return f1 == m_argv[i - 1] || f2 == m_argv[i - 1];
-			}) != m_flags -> end()
-		)) {
-			return m_argv[i];
-		}
-	} return {};
+	return m_input_file;
 }
 
 std::vector<Argument> cli::parse() {
@@ -121,6 +110,13 @@ std::vector<Argument> cli::parse() {
                 }
                 supplied.push_back(_arg);
             }
+        }
+        else {
+            if(!m_input_file.empty()) {
+                std::cerr << "Multiple input files provided. Only one input file is allowed.\n";
+                exit(1);
+            }
+            m_input_file = *arg_iterator;
         }
     }
 
