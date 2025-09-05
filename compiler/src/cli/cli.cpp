@@ -4,7 +4,7 @@ cli::cli(int argc, const char** argv, const std::vector<Argument>& flags):
 	m_argc(argc),
 	m_argv(argv),
 	m_flags(&flags),
-  m_args(parse()) { }
+  	m_args(parse()) { }
 
 bool cli::contains_flag(std::string_view flag) {
 	auto flg = get_flag(flag);
