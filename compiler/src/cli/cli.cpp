@@ -52,7 +52,7 @@ std::string cli::generate_help() {
     return msg;
 }
 
-std::optional<std::string> cli::get_file() {
+std::string cli::get_file() {
     return m_input_file;
 }
 

@@ -31,7 +31,7 @@ class cli {
     std::vector<std::string> get_flag_values(std::string_view flag); // Add this
     std::string generate_help();
 
-    std::optional<std::string> get_file();
+    std::string get_file();
 
   private:
     std::vector<Argument> parse();

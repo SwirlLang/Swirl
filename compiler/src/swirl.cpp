@@ -31,14 +31,14 @@ int main(int argc, const char** argv) {
         return 0;
     }
 
-    std::optional<std::string> _file = app.get_file();
+    std::string _file = app.get_file();
 
-    if (!_file.has_value()) {
+    if (_file.empty()) {
         std::println(stderr, "No input file");
         return 1;
     }
 
-    std::filesystem::path source_file_path = *app.get_file();
+    std::filesystem::path source_file_path = _file;
 
     if (!exists(source_file_path)) {
         std::println(stderr, "File \"{}\" not found!", source_file_path.string());
