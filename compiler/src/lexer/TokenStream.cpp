@@ -140,9 +140,6 @@ Token TokenStream::readNextTok() {
                         case 'x':
                             m_Stream.next();
                             return {NUMBER, "0" + readWhile(isHexDigit,    [](char c) {return c == '_';}), getStreamState(), CT_INT};
-                        default:
-                            // TODO: report a syntax error
-                            throw std::runtime_error("Invalid character following the `0`.");
                     }
                 }
                 auto val = readWhile(isDigit, [](char c) {return c == '_';});
