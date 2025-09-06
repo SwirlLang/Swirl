@@ -11,8 +11,6 @@ class TokenStream {
     StreamState                 m_Cache;    // For caching stream state
     SourceManager&              m_Stream;
 
-    std::filesystem::path       m_Path;     // a copy of the path for our ErrorManager friend =)
-
     bool m_isPreviousTokIdent = false;
 
     struct Filter {
@@ -31,8 +29,8 @@ class TokenStream {
     static bool isId( char chr);
     static bool isOpChar( char _chr);
 
-    std::string readEscaped( char _end);
-    Token readString( char del);
+    [[nodiscard]] std::string readEscaped( char _end) const;
+    [[nodiscard]] Token readString( char del) const;
 
     template <typename Fn> requires std::invocable<Fn, char> 
         && std::same_as<std::invoke_result_t<Fn, char>, bool>
@@ -57,8 +55,8 @@ class TokenStream {
         return ret;
     }
 
-    Token readOperator();
     Token readNextTok();
+    [[nodiscard]] Token readOperator() const;
 
 public:
     Token CurTok;

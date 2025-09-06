@@ -35,10 +35,10 @@ bool TokenStream::isId(const char chr) {
 }
 
 bool TokenStream::isOpChar(const char _chr) {
-    return "+-*/%><=&@|.:!"sv.find(_chr) != std::string::npos;
+    return "+-*/%><=&|.:!"sv.find(_chr) != std::string::npos;
 }
 
-std::string TokenStream::readEscaped(const char _end) {
+std::string TokenStream::readEscaped(const char _end) const {
     bool is_escaped = false;
     std::string ret;
 
@@ -66,16 +66,16 @@ std::string TokenStream::readEscaped(const char _end) {
     return ret;
 }
 
-Token TokenStream::readString(const char del) {
+Token TokenStream::readString(const char del) const {
     auto str = readEscaped(del);
     if (!m_Stream.eof()) m_Stream.next();  // escape the '"'
     return {STRING, std::move(str), getStreamState()};
 }
 
-Token TokenStream::readOperator() {
+Token TokenStream::readOperator() const {
     Token tok = {OP, std::string(1, m_Stream.getCurrentChar()), getStreamState()};
     if (m_Stream.eof()) return tok;
-    else if (const auto pot_op = std::string(1, m_Stream.getCurrentChar()) + m_Stream.peek(); OperatorSet.contains(pot_op)) {
+    if (const auto pot_op = std::string(1, m_Stream.getCurrentChar()) + m_Stream.peek(); OperatorSet.contains(pot_op)) {
         m_Stream.next();
 
         // discard the next operator if it's a comment not at EOF
@@ -102,7 +102,7 @@ Token TokenStream::readNextTok() {
                 Token op = readOperator();
                 if (m_Stream.eof()) [[unlikely]] return op;
                 if (op.value == ".") {
-                    char next_char = m_Stream.peek();
+                    const char next_char = m_Stream.peek();
                     if (!m_isPreviousTokIdent && isDigit(next_char) && next_char != '_')
                         return {NUMBER, "0" + readWhile(isDigit, [](char c) {return c == '_';}), getStreamState(), CT_FLOAT};
 
@@ -140,6 +140,9 @@ Token TokenStream::readNextTok() {
                         case 'x':
                             m_Stream.next();
                             return {NUMBER, "0" + readWhile(isHexDigit,    [](char c) {return c == '_';}), getStreamState(), CT_INT};
+                        default:
+                            // TODO: report a syntax error
+                            throw std::runtime_error("Invalid character following the `0`.");
                     }
                 }
                 auto val = readWhile(isDigit, [](char c) {return c == '_';});
