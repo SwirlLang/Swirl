@@ -105,6 +105,9 @@ Type* Parser::parseType() {
     bool  is_mutable  = false;
     bool  is_reference = false;
 
+    SourceLocation loc_cache;
+    loc_cache.from = m_Stream.getStreamState();
+    loc_cache.source = m_FilePath;
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
         forwardStream();
@@ -158,6 +161,8 @@ Type* Parser::parseType() {
         base_type = SymbolTable.getReferenceType(base_type, is_mutable);
     }
 
+    base_type->location = loc_cache;
+    base_type->location.from = m_Stream.getStreamState();
     return base_type;
 }
 
