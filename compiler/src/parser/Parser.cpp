@@ -99,9 +99,9 @@ void Parser::ignoreButExpect(const Token& tok) {
 }
 
 
-
 Type* Parser::parseType() {
     Type* base_type = nullptr;
+
     bool  is_mutable  = false;
     bool  is_reference = false;
 

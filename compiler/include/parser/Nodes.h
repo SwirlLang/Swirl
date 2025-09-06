@@ -154,7 +154,7 @@ struct Expression final : Node {
 };
 
 
-/// A wrapper class for some specific cases where Types need to be passed as nodes
+/// A wrapper class for `Type*`', enables its treatment as a node.
 struct TypeWrapper final : Node {
     Type* type = nullptr;
 

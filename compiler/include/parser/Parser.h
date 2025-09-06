@@ -72,7 +72,7 @@ class Parser {
     // ---*--- ---*--- ---*---
 
     std::size_t           m_UnresolvedDeps{};  // counter for the no. of unresolved dependencies
-    std::vector<SwObject> m_NodeStack;        // currently-being-parsed object pointer stays at the top
+    std::vector<SwObject> m_ParseStack;        // currently-being-parsed object pointer stays at the top
 
     std::filesystem::path m_FilePath;
 
@@ -160,7 +160,7 @@ public:
 
     /// Buffers the reported errors, also sets certain context attributes automatically
     void reportError(const ErrCode code, const ErrorContext& ctx = {}) {
-        m_ErrorQueue.at(m_NodeStack.back()).emplace_back(code, ctx);
+        m_ErrorQueue.at(m_ParseStack.back()).emplace_back(code, ctx);
     }
 };
 
@@ -175,7 +175,7 @@ struct Parser::NodeAttrHelper {
         // setup error-report buffering
         if (!instance.m_ErrorQueue.contains(node))
             instance.m_ErrorQueue.insert({node, {}});
-        instance.m_NodeStack.emplace_back(node);
+        instance.m_ParseStack.emplace_back(node);
 
         // other node specific attributes
         switch (node->getNodeType()) {
@@ -195,11 +195,12 @@ struct Parser::NodeAttrHelper {
     }
 
 
-    NodeAttrHelper(Type* type, Parser& instance): instance(instance), type(type) {
+    NodeAttrHelper(Type* type, Parser& instance): type(type), instance(instance) {
+        // type->location.from = instance.m_Stream.getStreamState();
         // setup error-report buffering
         if (!instance.m_ErrorQueue.contains(type))
             instance.m_ErrorQueue.insert({type, {}});
-        instance.m_NodeStack.emplace_back(type);
+        instance.m_ParseStack.emplace_back(type);
     }
 
 
@@ -213,9 +214,10 @@ struct Parser::NodeAttrHelper {
         for (auto& error : instance.m_ErrorQueue.at(node)) {
             instance.m_ErrorCallback(std::get<0>(error), std::get<1>(error));
         } instance.m_ErrorQueue.at(node).clear();
+        instance.m_ParseStack.pop_back();
 
         node->location.to = instance.m_Stream.getStreamState();
-        instance.m_NodeStack.pop_back();
+        // else type->location.to = instance.m_Stream.getStreamState();
     }
 
 private:

@@ -2,59 +2,43 @@
 #include <format>
 #include <vector>
 
-#include <llvm/IR/Type.h>
+#include "parser/Nodes.h"
 
-
-class IdentInfo;
-class  LLVMBackend;
-struct Var;
 
 class Scope;
+class IdentInfo;
+class  LLVMBackend;
+
+struct Var;
+namespace llvm { class Type; }
+
+
 struct Type {
     enum SwTypes {
-        FUNCTION,
-        STRUCT,
+        FUNCTION, STRUCT,
 
-        I8,
-        I16,
-        I32,
-        I64,
-        I128,
+        I8, I16, I32, I64, I128,
+        U8, U16, U32, U64, U128,
+        F32, F64,
 
-        U8,
-        U16,
-        U32,
-        U64,
-        U128,
+        BOOL, STR, CHAR,
+        REFERENCE, POINTER, ARRAY, SLICE, VOID,
 
-        F32,
-        F64,
-        BOOL,
-        STR,
-        CHAR,
-        REFERENCE,
-        POINTER,
-        ARRAY,
-        SLICE,
-        VOID,
-
-        C_INT, C_UINT,
-        C_LL, C_ULL,
-        C_L, C_UL,
-
+        C_INT, C_UINT, C_LL, C_ULL, C_L, C_UL,
         C_SIZE_T, C_SSIZE_T,
 
         C_CHAR, C_SCHAR, C_UCHAR,
         C_SHORT, C_USHORT,
-        C_BOOL,
-        C_FLOAT, C_DOUBLE, C_LDOUBLE,
-        C_INTPTR, C_UINTPTR,
-        C_PTRDIFF_T, C_INTMAX, C_UINTMAX,
+        C_BOOL, C_FLOAT, C_DOUBLE, C_LDOUBLE,
+        C_INTPTR, C_UINTPTR, C_PTRDIFF_T,
+        C_INTMAX, C_UINTMAX,
         C_WCHAR,
     };
 
+
     bool   is_mutable = false;
     Scope* scope = nullptr;  // the pointer to the namespace (if applicable) defined within the type
+    SourceLocation location;
 
     virtual SwTypes     getTypeTag() = 0;
 
