@@ -75,7 +75,7 @@ std::vector<Argument> cli::parse() {
     }
 
     std::vector<std::string_view> args(m_argv, m_argv + m_argc);
-    std::vector<Argument> supplied;
+    std::vector<Argument> parsedArgs;
 
     for (auto arg_it = args.cbegin() + 1; arg_it != args.cend(); ++arg_it) {
         // if the current argument starts with `-` sign, its a flag
@@ -93,11 +93,11 @@ std::vector<Argument> cli::parse() {
             }
 
             // Check if this flag was already supplied
-            auto supplied_it = std::find_if(supplied.begin(), supplied.end(), [&](const Argument& a) {
+            auto supplied_it = std::find_if(parsedArgs.begin(), parsedArgs.end(), [&](const Argument& a) {
                 return std::get<0>(a.flags) == std::get<0>(flag_it->flags);
             });
 
-            if (supplied_it != supplied.end()) { // Flag was already seen
+            if (supplied_it != parsedArgs.end()) { // Flag was already seen
                 if (!supplied_it->repeatable) {
                     std::cerr << "Flag " << *arg_it << " cannot be repeated.\n";
                     exit(1);
@@ -121,7 +121,7 @@ std::vector<Argument> cli::parse() {
                     _arg.values.push_back(std::string(*(arg_it + 1)));
                     ++arg_it; // Consume the value
                 }
-                supplied.push_back(_arg);
+                parsedArgs.push_back(_arg);
             }
         } else {
             if (!m_input_file.empty()) {
@@ -132,5 +132,5 @@ std::vector<Argument> cli::parse() {
         }
     }
 
-    return supplied;
+    return parsedArgs;
 }
