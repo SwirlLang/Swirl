@@ -35,6 +35,16 @@ std::vector<std::string> cli::get_flag_values(std::string_view flag) {
     return {};
 }
 
+std::string cli::print_usage(std::string exe_name) {
+    const std::string usage = R"(The Swirl compiler
+Usage: )" + exe_name +
+                              R"( <input-file> [flags]
+
+Flags:
+)";
+    return usage;
+}
+
 std::string cli::generate_help() {
     std::size_t max_width = 0;
     std::for_each(m_flags->cbegin(), m_flags->cend(), [&](const Argument& arg) {
@@ -60,7 +70,7 @@ std::string cli::get_file() {
 
 std::vector<Argument> cli::parse() {
     if (m_argc <= 1) {
-        std::cout << USAGE << generate_help() << '\n';
+        std::cout << print_usage(m_argv[0]) << generate_help() << '\n';
         exit(0);
     }
 

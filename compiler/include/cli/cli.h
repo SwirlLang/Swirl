@@ -5,12 +5,6 @@
 #include <variant>
 #include <string_view>
 
-const std::string USAGE = R"(The Swirl compiler
-Usage: Swirl <input-file> [flags]
-
-Flags:
-)";
-
 struct Argument {
     std::array<std::string, 2> flags;
     std::string desc;
@@ -27,6 +21,7 @@ class cli {
     bool contains_flag(std::string_view flag);
     std::string get_flag_value(std::string_view flag);
     std::vector<std::string> get_flag_values(std::string_view flag); // Add this
+    std::string print_usage(std::string exe_name);
     std::string generate_help();
 
     std::string get_file();
@@ -45,6 +40,7 @@ class cli {
      * @return The value of the flag
      */
     std::variant<std::string, bool> get_flag(std::string_view flag);
+
 
     int m_argc;
     const char** m_argv;

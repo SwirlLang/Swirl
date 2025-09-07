@@ -22,7 +22,7 @@ int main(int argc, const char** argv) {
     cli app(argc, argv, application_flags);
 
     if (app.contains_flag("-h")) {
-        std::println("{}{}", USAGE, app.generate_help());
+        std::println("{}{}", app.print_usage(argv[0]), app.generate_help());
         return 0;
     }
 
