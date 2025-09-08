@@ -10,10 +10,10 @@
 #include <types/definitions.h>
 #include <types/TypeManager.h>
 #include <symbols/IdentManager.h>
+#include <errors/ErrorManager.h>
 #include <llvm/IR/Value.h>
 
 
-enum class ErrCode;
 struct ErrorContext;
 class ModuleManager;
 using ErrorCallback_t = std::function<void (ErrCode, ErrorContext)>;
@@ -173,7 +173,7 @@ public:
 
 
     /// Used to register a declaration, if `scope_index` is passed, registers the declaration at that scope rather than
-    /// the one at the top. Returns `nullptr` in case of a redefinition.
+    /// the one at the top.
     IdentInfo* registerDecl(const std::string& name, const TableEntry& entry, std::optional<std::size_t> scope_index = std::nullopt) {
         IdentInfo* id;
         if (scope_index.has_value())
@@ -181,6 +181,7 @@ public:
         else id = m_ScopeTrack.back()->getNewIDInfo(name);
 
         if (m_IdToTableEntry.contains(id)) {
+            m_ErrorCallback(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = name});
             return nullptr;
         } m_IdToTableEntry.insert({id, entry});
 

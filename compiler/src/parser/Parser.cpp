@@ -442,11 +442,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
         TableEntry param_entry;
         param_entry.swirl_type = param.var_type;
         param_entry.is_param = true;
-
         param.var_ident = SymbolTable.registerDecl(var_name, param_entry);
-        if (!param.var_ident) {
-            reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = var_name});
-        }
 
         return param;
     };
@@ -485,8 +481,6 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     function_t->ident = func_nd->ident;
 
-    if (!func_nd->ident)
-        reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = func_ident});
 
     // register the function's signature as a type in the symbol manager
     SymbolTable.registerType(func_nd->ident, function_t.release());
@@ -544,10 +538,6 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     entry.swirl_type = var_node->var_type;
 
     var_node->var_ident = SymbolTable.registerDecl(var_ident, entry);
-    if (!var_node->var_ident) {
-        reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = var_ident});
-    }
-
     return var_node;
 }
 
@@ -673,10 +663,6 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     ret->ident = SymbolTable.registerDecl(struct_name, {
         .is_exported = ret->is_exported,
     });
-
-    if (!ret->ident) {
-        reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = struct_name});
-    }
 
     // create the struct's scope
     ignoreButExpect({PUNC, "{"});  // skip '{'
