@@ -73,6 +73,11 @@ struct Node {
         return false;
     }
 
+    [[nodiscard]]
+    virtual bool isLiteral() const {
+        return false;
+    }
+
     virtual IdentInfo* getIdentInfo() {
         throw std::runtime_error("getIdentInfo called on Node instance");
     }
@@ -287,9 +292,12 @@ struct IntLit final : Node {
 
     explicit IntLit(std::string val): value(std::move(val)) {}
 
-
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_INT;
+    }
+
+    [[nodiscard]] bool isLiteral() const override {
+        return true;
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
@@ -305,6 +313,10 @@ struct FloatLit final : Node {
         return ND_FLOAT;
     }
 
+    [[nodiscard]] bool isLiteral() const override {
+        return true;
+    }
+
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
@@ -314,8 +326,14 @@ struct StrLit final : Node {
 
     explicit StrLit(std::string  val): value(std::move(val)) {}
 
-    [[nodiscard]] NodeType getNodeType() const override {
+    [[nodiscard]]
+    NodeType getNodeType() const override {
         return ND_STR;
+    }
+
+    [[nodiscard]]
+    bool isLiteral() const override {
+        return true;
     }
 
     llvm::Value *llvmCodegen(LLVMBackend& instance) override;
@@ -351,7 +369,8 @@ struct Var final : Node {
     bool initialized = false;
     bool is_const    = false;
     bool is_volatile = false;
-    bool is_extern = false;  // whether it has been extern'd
+    bool is_config   = false;
+    bool is_extern   = false;
     bool is_instance_param = false;   // for the special case of `&self` in methods
 
     std::string extern_attributes;
@@ -438,12 +457,17 @@ struct ImportNode final : Node {
 };
 
 
-struct ArrayNode final : Node {
+struct ArrayLit final : Node {
     Type* type = nullptr;
     std::vector<Expression> elements;
 
     Type* getSwType() override {
         return type;
+    }
+
+    [[nodiscard]]
+    bool isLiteral() const override {
+        return true;
     }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;

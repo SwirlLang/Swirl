@@ -1,7 +1,6 @@
 #include "types/SwTypes.h"
 #include <cassert>
 #include <string>
-#include <ranges>
 #include <unordered_map>
 
 #include "CompilerInst.h"
@@ -155,7 +154,7 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
 
 /// Writes the array literal to 'BoundMemory' if not null, otherwise creates a temporary and
 /// returns a load of it.
-llvm::Value* ArrayNode::llvmCodegen(LLVMBackend& instance) {
+llvm::Value* ArrayLit::llvmCodegen(LLVMBackend& instance) {
     assert(!elements.empty());
     Type* element_type = elements.at(0).expr_type;
     Type* sw_arr_type  = instance.SymMan.getArrayType(element_type, elements.size());
@@ -939,6 +938,8 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     assert(var_type != nullptr);
+    if (is_config) { return nullptr; }
+
     llvm::Type* type = var_type->llvmCodegen(instance);
 
     llvm::Value* init = nullptr;

@@ -1,7 +1,6 @@
 #include <cassert>
 #include <utility>
 
-#include <utils/utils.h>
 #include <parser/Nodes.h>
 #include <parser/Parser.h>
 #include <parser/SemanticAnalysis.h>
@@ -191,7 +190,7 @@ AnalysisResult StrLit::analyzeSemantics(AnalysisContext& ctx) {
     return {.deduced_type = ctx.SymMan.getStrType(value.size())};
 }
 
-AnalysisResult ArrayNode::analyzeSemantics(AnalysisContext& ctx) {
+AnalysisResult ArrayLit::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
     Type* common_type = nullptr;
 
@@ -266,6 +265,13 @@ AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
+    if (is_config && !initialized) {
+        ctx.reportError(ErrCode::CONFIG_VAR_UNINITIALIZED, {
+            .location = location
+        });
+        return {};
+    }
+
     if (!initialized && !var_type) {
         ctx.reportError(
             ErrCode::INITIALIZER_REQUIRED,
@@ -280,6 +286,13 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     } else ctx.setBoundTypeState(var_type);
 
     if (initialized) {
+        if (is_config && !value.expr->getExprValue()->isLiteral()) {
+            ctx.reportError(ErrCode::CONFIG_INIT_NOT_LITERAL, {
+                .location = location
+            });
+            return {};
+        }
+
         auto val_analysis = value.analyzeSemantics(ctx);
         ctx.restoreBoundTypeState();
 

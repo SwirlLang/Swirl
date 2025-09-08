@@ -78,11 +78,13 @@ enum class ErrCode {
     NON_INTEGRAL_INDICES,
     INDEX_OUT_OF_BOUNDS,
     NON_INT_ARRAY_SIZE,
-    INITIALIZER_REQUIRED,     // when initialization is required but not given
-    RET_TYPE_REQUIRED,        // when explicitly specifying a return-type is required (e.g. recursive calls)
+    INITIALIZER_REQUIRED,      // when initialization is required but not given
+    RET_TYPE_REQUIRED,         // when explicitly specifying a return-type is required (e.g. recursive calls)
     QUALIFIER_UNDEFINED,
     NO_SUCH_MEMBER,
-    MAIN_REDEFINED,           // when the main function is redefined
+    MAIN_REDEFINED,            // when the main function is redefined
+    CONFIG_VAR_UNINITIALIZED,  // a config-variable is left uninitialized
+    CONFIG_INIT_NOT_LITERAL    // a config variable is initialized with a non-literal
 };
 
 
@@ -215,6 +217,12 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return "Cannot reassign an immutable value.";
         case ErrCode::MAIN_REDEFINED:
             return "Redefinition of the main function!";
+        case ErrCode::CONFIG_VAR_UNINITIALIZED:
+            return "Configuration variables require initialization.";
+        case ErrCode::CONFIG_INIT_NOT_LITERAL:
+            return "Configuration variables must be initialized with literals.";
+        case ErrCode::SLICE_NOT_COMPATIBLE:
+            return "Incompatible slice.";  // TODO
         default:
             throw std::runtime_error("Undefined error code");
     }

@@ -68,11 +68,14 @@ class SymbolManager {
     // maps qualifier-names to their paths
     std::unordered_map<std::string, Scope*> m_QualifierTable;
 
+    ErrorCallback_t m_ErrorCallback;
+
 
 public:
-     explicit SymbolManager(std::filesystem::path uid, ModuleManager& module_man)
+     explicit SymbolManager(std::filesystem::path uid, ModuleManager& module_man, ErrorCallback_t err_c)
         : m_ModuleMap(module_man)
         , m_ModulePath(std::move(uid))
+        , m_ErrorCallback(std::move(err_c))
     {
         // Create the global scope
         m_ScopeTrack.push_back(&m_Scopes.emplace_back(m_ModulePath));

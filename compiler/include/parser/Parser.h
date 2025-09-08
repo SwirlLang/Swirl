@@ -159,7 +159,8 @@ public:
     void decrementUnresolvedDeps();
 
     /// Buffers the reported errors, also sets certain context attributes automatically
-    void reportError(const ErrCode code, const ErrorContext& ctx = {}) {
+    void reportError(const ErrCode code, ErrorContext ctx = {}) {
+        ctx.src_man = &m_SrcMan;
         m_ErrorQueue.at(m_ParseStack.back()).emplace_back(code, ctx);
     }
 };
@@ -195,28 +196,24 @@ struct Parser::NodeAttrHelper {
     }
 
 
-    NodeAttrHelper(Type* type, Parser& instance): type(type), instance(instance) {
-        // type->location.from = instance.m_Stream.getStreamState();
-        // setup error-report buffering
-        if (!instance.m_ErrorQueue.contains(type))
-            instance.m_ErrorQueue.insert({type, {}});
-        instance.m_ParseStack.emplace_back(type);
-    }
-
-
     /// Resets the states of the Parser
     ~NodeAttrHelper() {
         instance.m_LastSymIsExtern = false;
         instance.m_LastSymWasExported = false;
         instance.m_ExternAttributes.clear();
 
+        if (node)
+            node->location.to = instance.m_Stream.getStreamState();
+
         // flush all the errors
         for (auto& error : instance.m_ErrorQueue.at(node)) {
-            instance.m_ErrorCallback(std::get<0>(error), std::get<1>(error));
+            auto& context = std::get<1>(error);
+            if (!context.location.has_value()) {
+                if (node) context.location = node->location;
+            } instance.m_ErrorCallback(std::get<0>(error), context);
         } instance.m_ErrorQueue.at(node).clear();
         instance.m_ParseStack.pop_back();
 
-        node->location.to = instance.m_Stream.getStreamState();
         // else type->location.to = instance.m_Stream.getStreamState();
     }
 

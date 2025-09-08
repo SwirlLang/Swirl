@@ -50,7 +50,7 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
         }
         case PUNC: {
             if (m_Stream.CurTok.value == "[") {
-                auto arr_node = std::make_unique<ArrayNode>();
+                auto arr_node = std::make_unique<ArrayLit>();
                 SET_NODE_ATTRS(arr_node.get());
                 m_Parser.forwardStream();  // skip the '['
 

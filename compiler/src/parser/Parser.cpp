@@ -32,8 +32,12 @@ Parser::Parser(const std::filesystem::path& path, ErrorCallback_t error_callback
     , m_ModuleMap(mod_man)
     , m_ErrorCallback(std::move(error_callback))
     , m_FilePath(path)
-    , SymbolTable(m_SrcMan.getSourcePath(), m_ModuleMap)
-{}
+    , SymbolTable(
+    m_SrcMan.getSourcePath(),
+        m_ModuleMap,
+        [this](auto code, const auto& ctx) {
+        reportError(code, ctx);
+    }) {}
 
 
 /// returns the current token and forwards the stream
@@ -100,14 +104,12 @@ void Parser::ignoreButExpect(const Token& tok) {
 
 
 Type* Parser::parseType() {
-    Type* base_type = nullptr;
+    TypeWrapper wrapper;
+    SET_NODE_ATTRS(&wrapper);
 
     bool  is_mutable  = false;
     bool  is_reference = false;
 
-    SourceLocation loc_cache;
-    loc_cache.from = m_Stream.getStreamState();
-    loc_cache.source = m_FilePath;
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
         forwardStream();
@@ -126,7 +128,7 @@ Type* Parser::parseType() {
 
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[") {
         forwardStream();
-        base_type = parseType();
+        wrapper.type = parseType();
 
         // special case of `&[T]`, slices do not need a size
         std::string arr_size{"8888"};  // dummy size
@@ -134,17 +136,16 @@ Type* Parser::parseType() {
             ignoreButExpect({OP, "|"});  // skip '|'
 
             if (m_Stream.CurTok.type != NUMBER || m_Stream.CurTok.meta != CT_INT) {
-                reportError(ErrCode::NON_INT_ARRAY_SIZE);
                 return nullptr;
             } arr_size = forwardStream().value;
         }
 
-        base_type = SymbolTable.getArrayType(base_type, std::stoul(arr_size));
+        wrapper.type = SymbolTable.getArrayType(wrapper.type, std::stoul(arr_size));
 
         ignoreButExpect({PUNC, "]"});  // skip ']'
 
     } else if (m_Stream.CurTok.type == IDENT) {
-        base_type = SymbolTable.lookupType(SymbolTable.getIDInfoFor(parseIdent()));
+        wrapper.type = SymbolTable.lookupType(SymbolTable.getIDInfoFor(parseIdent()));
     }
 
     uint16_t ptr_level = 0;
@@ -154,16 +155,14 @@ Type* Parser::parseType() {
     }
 
     if (ptr_level) {
-        base_type = SymbolTable.getPointerType(base_type, ptr_level);
+        wrapper.type = SymbolTable.getPointerType(wrapper.type, ptr_level);
     }
 
     if (is_reference) {
-        base_type = SymbolTable.getReferenceType(base_type, is_mutable);
+        wrapper.type = SymbolTable.getReferenceType(wrapper.type, is_mutable);
     }
 
-    base_type->location = loc_cache;
-    base_type->location.from = m_Stream.getStreamState();
-    return base_type;
+    return wrapper.type;
 }
 
 
@@ -231,10 +230,22 @@ SwNode Parser::dispatch() {
             case PUNC:
                 if (m_Stream.CurTok.value == "[" || m_Stream.CurTok.value == "(")
                     return std::make_unique<Expression>(parseExpr());
+
+                if (m_Stream.CurTok.value == "@") {
+                    forwardStream();
+                    if (m_Stream.CurTok.type == IDENT && m_Stream.CurTok.value == "config")
+                        // config-variables detected
+                        parseVar();
+
+                }
+
+                // ignore semicolons
                 if (m_Stream.CurTok.value == ";") {
                     forwardStream();
                     continue;
-                } if (m_Stream.CurTok.value == "}") {
+                }
+
+                if (m_Stream.CurTok.value == "}") {
                     if (m_BracketTracker.empty() || m_BracketTracker.back().val != '{') {forwardStream(); continue;}
                     return std::make_unique<Node>();
                 } [[fallthrough]];
@@ -502,6 +513,11 @@ std::unique_ptr<Function> Parser::parseFunction() {
 std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     auto var_node = std::make_unique<Var>();
     SET_NODE_ATTRS(var_node.get());
+
+    if (m_Stream.CurTok.type == IDENT && m_Stream.CurTok.value == "config") {
+        forwardStream();
+        var_node->is_config = true;
+    }
 
     var_node->is_const = m_Stream.CurTok.value[0] == 'l';
     var_node->is_volatile = is_volatile;
