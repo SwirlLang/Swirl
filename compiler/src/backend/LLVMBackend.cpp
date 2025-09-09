@@ -17,7 +17,6 @@
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/Support/FileSystem.h>
-#include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <parser/Parser.h>
@@ -56,11 +55,9 @@ LLVMBackend::LLVMBackend(Parser& parser)
 
     static std::once_flag once_flag;
     std::call_once(once_flag, []{
-        llvm::InitializeAllTargetInfos();
-        llvm::InitializeAllTargets();
-        llvm::InitializeAllTargetMCs();
-        llvm::InitializeAllAsmParsers();
-        llvm::InitializeAllAsmPrinters();
+        llvm::InitializeNativeTarget();
+        llvm::InitializeNativeTargetAsmParser();
+        llvm::InitializeNativeTargetAsmPrinter();
     });
 
     std::string error;
@@ -81,7 +78,7 @@ LLVMBackend::LLVMBackend(Parser& parser)
     });
 
     LModule->setDataLayout(TargetMachine->createDataLayout());
-    LModule->setTargetTriple(CompilerInst::TargetTriple);
+    LModule->setTargetTriple(llvm::Triple(CompilerInst::TargetTriple).getTriple());
 }
 
 // TODO: mangling still needs to concatenate module UID into the string

@@ -32,8 +32,25 @@ add_executable(swirl src/swirl.cpp
         "${SOURCES}"
 )
 
-llvm_config(swirl USE_SHARED irreader support core)
-
 install(TARGETS swirl 
         RUNTIME DESTINATION bin)
 
+# only statically link on release
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    find_package(ZLIB REQUIRED)
+    find_package(LibXml2 REQUIRED)
+
+    llvm_map_components_to_libnames(LLVM_LIBS native)
+
+    target_link_libraries(swirl PRIVATE ${LLVM_LIBS} ${ZLIB_LIBRARIES} ${FFI_LIBRARIES} ${LIBXML2_LIBRARIES})
+        add_custom_command(TARGET swirl POST_BUILD
+                            COMMAND ${CMAKE_STRIP} $<TARGET_FILE:swirl>
+                            COMMENT "Stripping swirl executable")
+endif()
+
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    llvm_config(swirl USE_SHARED irreader support core)
+endif()
+
+
+    
