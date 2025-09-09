@@ -152,6 +152,15 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
     return instance.Builder.CreateLoad(instance.getBoundLLVMType(), struct_instance);
 }
 
+
+llvm::Value* BoolLit::llvmCodegen(LLVMBackend& instance) {
+    return llvm::ConstantInt::get(
+        llvm::Type::getInt1Ty(instance.Context),
+        value
+    );
+}
+
+
 /// Writes the array literal to 'BoundMemory' if not null, otherwise creates a temporary and
 /// returns a load of it.
 llvm::Value* ArrayLit::llvmCodegen(LLVMBackend& instance) {

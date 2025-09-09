@@ -44,9 +44,7 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                 // `id` HAS BEEN MOVED!
                 auto call_node = m_Parser.parseCall(std::move(*id));
                 return call_node;
-            }
-
-            return std::move(id);
+            } return id;
         }
         case PUNC: {
             if (m_Stream.CurTok.value == "[") {
@@ -77,6 +75,14 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                 m_Parser.forwardStream();
                 return ret;
             } return m_Parser.dispatch();
+        }
+        case KEYWORD: {
+            if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false") {
+                auto ret = std::make_unique<BoolLit>(m_Stream.CurTok.value == "true");
+                SET_NODE_ATTRS(ret.get());
+                m_Parser.forwardStream();
+                return ret;
+            }
         }
 
         default: {
@@ -118,7 +124,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
                 m_Parser.ignoreButExpect({PUNC, "]"});
                 break;
             case Op::CAST_OP: {
-                auto dummy_node = new TypeWrapper();
+                const auto dummy_node = new TypeWrapper();
                 dummy_node->type = m_Parser.parseType();
                 right = Expression::makeExpression(dummy_node);
                 break;

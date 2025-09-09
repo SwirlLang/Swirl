@@ -186,6 +186,11 @@ AnalysisResult FloatLit::analyzeSemantics(AnalysisContext& ctx) {
     } return {.deduced_type = &GlobalTypeF64};
 }
 
+AnalysisResult BoolLit::analyzeSemantics(AnalysisContext &analysis_context) {
+    return {.deduced_type = &GlobalTypeBool};
+}
+
+
 AnalysisResult StrLit::analyzeSemantics(AnalysisContext& ctx) {
     return {.deduced_type = ctx.SymMan.getStrType(value.size())};
 }
@@ -376,7 +381,11 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     }
 
     if (!value) {
-        value = ctx.SymMan.getIDInfoFor(*this, [ctx](auto a, auto b) { ctx.reportError(a, std::move(b)); });
+        value = ctx.SymMan.getIDInfoFor(
+            *this,
+            [ctx](auto a, auto b) {
+                ctx.reportError(a, std::move(b));
+            });
     }
 
     if (!value) {

@@ -28,6 +28,7 @@ enum NodeType {
     ND_IMPORT,      // 15
     ND_ARRAY,       // 16
     ND_TYPE,        // 17
+    ND_BOOL,        // 18
 };
 
 
@@ -320,6 +321,24 @@ struct FloatLit final : Node {
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
+
+
+struct BoolLit final : Node {
+    bool value;
+    explicit BoolLit(const bool is_true) : value(is_true) {}
+
+    [[nodiscard]] NodeType getNodeType() const override {
+        return ND_BOOL;
+    }
+
+    [[nodiscard]] bool isLiteral() const override {
+        return true;
+    }
+
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+};
+
 
 struct StrLit final : Node {
     std::string value;

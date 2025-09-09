@@ -31,6 +31,9 @@ public:
     {
         m_IsMethodCall.emplace(false);
         m_BoundTypeState.emplace(nullptr);
+        SymMan.setErrorCallback([this](auto code, const auto& ctx) {
+            reportError(code, ctx);
+         });
     }
 
     /// Begins semantic analysis
