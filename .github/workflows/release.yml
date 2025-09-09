@@ -36,26 +36,34 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Check out the repository
         uses: actions/checkout@v3
         with:
-          persist-credentials: false
+          token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ github.event.inputs.sha }}
 
-      - name: Configure CMake
+      - name: Authenticate GitHub CLI
+        run: gh auth login --with-token <<< ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies and Configure CMake
         run: |
+            if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+                wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+                sudo apt update
+                sudo apt install clang llvm-20-dev clang-20
+            fi
             if [ "${{ matrix.os }}" == "windows-latest" ]; then
               cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S . -G "MinGW Makefiles"
             else
-              cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S .
+              cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DLLVM_DIR=$(llvm-config-20 --prefix)/lib/cmake/llvm -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20 -S .
             fi
-      
+
       - name: Build
-        run: cmake --build build --config ${{env.BUILD_TYPE}}
+        run: cmake --build build --config ${{env.BUILD_TYPE}} -j 14
 
       - name: Package with CPack
         run: |
@@ -69,7 +77,7 @@ jobs:
               cpack -G NSIS
             fi
             cd ..
-        
+
 
       - name: rename and run the app
         run: |
@@ -85,10 +93,15 @@ jobs:
           fi
 
       - name: Upload binaries and packages
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: binary
           path: build/swirl-*
+
+      - name: Create Tag
+        run: |
+          git tag v${{ github.event.inputs.version_number }} ${{ github.event.inputs.sha }}
+          git push origin v${{ github.event.inputs.version_number }}
 
   github-release:
     name: GitHub Release
@@ -102,17 +115,17 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      
-      - uses: actions/download-artifact@v2
+
+      - uses: actions/download-artifact@v5
         with:
           name: binary
           path: .
-        
+
       - name: Generate release notes
         run: npx git-cliff@latest --unreleased --tag ${{github.event.inputs.version_number}} --output CHANGELOG.md
-      
+
       - name: Creating GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: v${{github.event.inputs.version_number}}
           tag_name: v${{github.event.inputs.version_number}}
