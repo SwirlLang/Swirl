@@ -172,8 +172,7 @@ SwNode Parser::dispatch() {
         switch (m_Stream.CurTok.type) {
             case KEYWORD:
                 if (m_Stream.CurTok.value == "let" || m_Stream.CurTok.value == "var") {
-                    auto ret = parseVar(false);
-                    return ret;
+                    return parseVar(false);
                 }
 
                 if (m_Stream.CurTok.value == "extern") {
@@ -197,13 +196,11 @@ SwNode Parser::dispatch() {
                 }
 
                 if (m_Stream.CurTok.value == "fn") {
-                    auto ret = parseFunction();
-                    return ret;
+                    return parseFunction();
                 }
 
                 if (m_Stream.CurTok.value == "if") {
-                    auto ret = parseCondition();
-                    return ret;
+                    return parseCondition();
                 }
 
                 if (m_Stream.CurTok.value == "struct")
@@ -220,7 +217,14 @@ SwNode Parser::dispatch() {
                 if (m_Stream.CurTok.value == "return") {
                     return parseRet();
                 }
-                throw std::runtime_error("Error: unhandled keyword token in dispatch()");
+
+                if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false") {
+                    return std::make_unique<Expression>(parseExpr());
+                }
+
+                reportError(ErrCode::UNEXPECTED_KEYWORD, {.str_1 = m_Stream.CurTok.value});
+                forwardStream();
+                continue;
 
             case NUMBER:
             case STRING:
@@ -246,8 +250,10 @@ SwNode Parser::dispatch() {
                 }
 
                 if (m_Stream.CurTok.value == "}") {
-                    if (m_BracketTracker.empty() || m_BracketTracker.back().val != '{') {forwardStream(); continue;}
-                    return std::make_unique<Node>();
+                    if (m_BracketTracker.empty() || m_BracketTracker.back().val != '{') {
+                        forwardStream();
+                        continue;
+                    } return std::make_unique<Node>();
                 } [[fallthrough]];
             default:
                 reportError(ErrCode::SYNTAX_ERROR);

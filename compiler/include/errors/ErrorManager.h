@@ -38,6 +38,7 @@ enum class ErrCode {
     EXPECTED_EXPRESSION,
     COMMA_SEP_REQUIRED,
     UNMATCHED_SQ_BRACKET,  // SQ = square
+    UNEXPECTED_KEYWORD,
 
 
     // The following error codes are related to types, `type_1` and `type_2` shall be set to give context
@@ -126,6 +127,8 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return "Comma-separation is required here.";
         case ErrCode::UNMATCHED_SQ_BRACKET:
             return "Square bracket(s) are unmatched (missing a matching ']' or '[').";
+        case ErrCode::UNEXPECTED_KEYWORD:
+            return std::format("Unexpected keyword `{}`.", ctx.str_1);
 
 
         case ErrCode::TOO_FEW_ARGS:
