@@ -25,7 +25,7 @@ public:
 
         // TODO: make this entire thing more robust, handle errors which span multiple lines
         backticks.append("^");
-        for (int i = 0; i < (ctx.location->to.Col - ctx.location->from.Col - 1); i++) {
+        for (int i = 0; i < (ctx.location->to.Col - ctx.location->from.Col); i++) {
             backticks.append("~");
         }
 

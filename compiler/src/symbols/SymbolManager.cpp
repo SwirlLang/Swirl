@@ -22,7 +22,11 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
     for (const auto& [counter, str] : llvm::enumerate(id.full_qualification)) {
         if (counter == id.full_qualification.size() - 1) break;
         if (counter == 0) {
-            auto tmp = lookupDecl(getIdInfoOfAGlobal(str));
+            const auto qual_id = getIdInfoOfAGlobal(str);
+            if (!qual_id)
+                return nullptr;
+
+            auto tmp = lookupDecl(qual_id);
             look_at = tmp.scope;
             continue;
         }

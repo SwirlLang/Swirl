@@ -121,7 +121,11 @@ public:
         if (m_DisabledErrorCodes.contains(code))
             return;
         err_ctx.src_man = SrcMan;
-        ErrCallback(code, err_ctx);
+
+        if (!err_ctx.location) {
+            assert(!m_NodeStack.empty());
+            err_ctx.location = m_NodeStack.top()->location;
+        } ErrCallback(code, err_ctx);
     }
 
 
@@ -136,19 +140,8 @@ public:
 
 
     /// Disables the error code in its constructor, enables it back in its destructor
-    struct DisableErrorCode {
-        DisableErrorCode(const ErrCode code, AnalysisContext& ctx): m_Ctx(ctx), m_ErrorCode(code) {
-            m_Ctx.disableErrorCode(code);
-        }
-
-        ~DisableErrorCode() {
-            m_Ctx.enableErrorCode(m_ErrorCode);
-        }
-
-    private:
-        AnalysisContext& m_Ctx;
-        ErrCode m_ErrorCode;
-    };
+    struct DisableErrorCode;
+    struct SemaSetupHandler;
 
 
 private:
@@ -156,9 +149,42 @@ private:
 
     std::stack<Type*> m_BoundTypeState;
     std::stack<bool>  m_IsMethodCall;
+    std::stack<Node*> m_NodeStack;
 
     Node* m_CurrentParentFunc = nullptr;
     Node* m_CurrentParentFuncCache = nullptr;
 
     std::unordered_set<ErrCode> m_DisabledErrorCodes;
+};
+
+
+struct AnalysisContext::DisableErrorCode {
+    /// Disables the error code
+    DisableErrorCode(const ErrCode code, AnalysisContext& ctx): m_Ctx(ctx), m_ErrorCode(code) {
+        m_Ctx.disableErrorCode(code);
+    }
+
+    /// Enables it back
+    ~DisableErrorCode() {
+        m_Ctx.enableErrorCode(m_ErrorCode);
+    }
+
+private:
+    AnalysisContext& m_Ctx;
+    ErrCode m_ErrorCode;
+};
+
+
+struct AnalysisContext::SemaSetupHandler {
+    SemaSetupHandler(AnalysisContext& ctx, Node* node): node(node), ctx(ctx) {
+        ctx.m_NodeStack.push(node);
+    }
+
+    ~SemaSetupHandler() {
+        ctx.m_NodeStack.pop();
+    }
+
+private:
+    Node* node;
+    AnalysisContext& ctx;
 };

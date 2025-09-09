@@ -102,6 +102,8 @@ public:
                 return m_ImportedSymsIDTable[name];
         } else if (m_ExportedSymbolTable.contains(name))
             return m_ExportedSymbolTable[name].id;
+
+        m_ErrorCallback(ErrCode::QUALIFIER_UNDEFINED, {.str_1 = name});
         return nullptr;
     }
 
@@ -229,6 +231,10 @@ public:
 
     void moveToPreviousScope() {
         m_ScopeTrack.pop_back();
+    }
+
+    void setErrorCallback(const ErrorCallback_t& err_callback) {
+        m_ErrorCallback = err_callback;
     }
 
 

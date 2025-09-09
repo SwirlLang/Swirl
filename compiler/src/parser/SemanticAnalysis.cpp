@@ -10,6 +10,8 @@
 using SwNode = std::unique_ptr<Node>;
 using NodesVec = std::vector<SwNode>;
 
+#define PRE_SETUP() AnalysisContext::SemaSetupHandler GET_UNIQUE_NAME(presetup){ctx, this};
+
 
 Type* AnalysisContext::deduceType(Type* type1, Type* type2, const SourceLocation& location) const {
     // either of them being nullptr implies a violation of the typing-rules
@@ -175,27 +177,32 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, const SourceL
 
 #undef SW_EXPAND_WITHIN_SEMA_METHOD
 AnalysisResult IntLit::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     if (ctx.getBoundTypeState() != nullptr && ctx.getBoundTypeState()->isIntegral()) {
         return {.deduced_type = ctx.getBoundTypeState()};
     } return {.deduced_type = &GlobalTypeI32};
 }
 
 AnalysisResult FloatLit::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     if (ctx.getBoundTypeState() != nullptr && ctx.getBoundTypeState()->isFloatingPoint()) {
         return {.deduced_type = ctx.getBoundTypeState()};
     } return {.deduced_type = &GlobalTypeF64};
 }
 
-AnalysisResult BoolLit::analyzeSemantics(AnalysisContext &analysis_context) {
+AnalysisResult BoolLit::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     return {.deduced_type = &GlobalTypeBool};
 }
 
 
 AnalysisResult StrLit::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     return {.deduced_type = ctx.SymMan.getStrType(value.size())};
 }
 
 AnalysisResult ArrayLit::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     AnalysisResult ret;
     Type* common_type = nullptr;
 
@@ -214,6 +221,7 @@ AnalysisResult ArrayLit::analyzeSemantics(AnalysisContext& ctx) {
 
 
 AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     // specific-symbol imports
     if (!imported_symbols.empty()) {
         for (auto& symbol : imported_symbols) {
@@ -222,7 +230,7 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
             if (!id) {
                 ctx.reportError(
                     ErrCode::SYMBOL_NOT_FOUND_IN_MOD,
-                    {.path_1 = mod_path, .str_1 = symbol.actual_name, .location = location}
+                    {.path_1 = mod_path, .str_1 = symbol.actual_name}
                     );
                 continue;
             }
@@ -230,7 +238,7 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
             if (!ctx.SymMan.lookupDecl(id).is_exported) {
                 ctx.reportError(
                     ErrCode::SYMBOL_NOT_EXPORTED,
-                    {.str_1 = symbol.actual_name, .location = location}
+                    {.str_1 = symbol.actual_name}
                     );
             }
 
@@ -248,6 +256,7 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
 
 
 AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     if (ctx.Cache.contains(this)) {
         return ctx.Cache[this];
     }
@@ -268,19 +277,18 @@ AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
 
 
 AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     AnalysisResult ret;
 
     if (is_config && !initialized) {
-        ctx.reportError(ErrCode::CONFIG_VAR_UNINITIALIZED, {
-            .location = location
-        });
+        ctx.reportError(ErrCode::CONFIG_VAR_UNINITIALIZED, {});
         return {};
     }
 
     if (!initialized && !var_type) {
         ctx.reportError(
             ErrCode::INITIALIZER_REQUIRED,
-            {.ident = var_ident, .location = location}
+            {.ident = var_ident}
             );
         return {};
     }
@@ -292,9 +300,7 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
 
     if (initialized) {
         if (is_config && !value.expr->getExprValue()->isLiteral()) {
-            ctx.reportError(ErrCode::CONFIG_INIT_NOT_LITERAL, {
-                .location = location
-            });
+            ctx.reportError(ErrCode::CONFIG_INIT_NOT_LITERAL, {});
             return {};
         }
 
@@ -316,6 +322,7 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     AnalysisResult ret;
 
     if (ctx.Cache.contains(this)) {
@@ -340,13 +347,13 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(id));
 
     if (args.size() < fn_type->param_types.size() && !ctx.getIsMethodCallState()) {  // TODO: default params-values
-        ctx.reportError(ErrCode::TOO_FEW_ARGS, {.ident = ident.getIdentInfo(), .location = location});
+        ctx.reportError(ErrCode::TOO_FEW_ARGS, {.ident = ident.getIdentInfo()});
         ctx.Cache.insert({this, ret});
         return {};
     }
 
     if (fn_type->ret_type == nullptr && id == ctx.getCurParentFunc()->getIdentInfo()) {
-        ctx.reportError(ErrCode::RET_TYPE_REQUIRED, {.location = location});
+        ctx.reportError(ErrCode::RET_TYPE_REQUIRED, {});
     }
 
 
@@ -374,6 +381,7 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     AnalysisResult ret;
 
     if (ctx.Cache.contains(this)) {
@@ -391,7 +399,7 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     if (!value) {
         ctx.reportError(
             ErrCode::UNDEFINED_IDENTIFIER,
-            {.str_1 = full_qualification.back(), .location = location}
+            {.str_1 = full_qualification.back()}
             );
         ctx.Cache.insert({this, ret});
         return ret;
@@ -405,6 +413,7 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 AnalysisResult WhileLoop::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     AnalysisResult ret;
 
     condition.analyzeSemantics(ctx);
@@ -415,6 +424,7 @@ AnalysisResult WhileLoop::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 AnalysisResult Condition::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     AnalysisResult ret;
 
     bool_expr.analyzeSemantics(ctx);
@@ -439,12 +449,14 @@ AnalysisResult Condition::analyzeSemantics(AnalysisContext& ctx) {
 
 
 AnalysisResult ReturnStatement::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     AnalysisResult ret;
     ret.deduced_type = this->value.analyzeSemantics(ctx).deduced_type;
     return ret;
 }
 
 AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     if (ctx.Cache.contains(this))
         return ctx.Cache[this];
 
@@ -493,6 +505,7 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
 
 
 AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     AnalysisResult ret;
     // 1st operand
     auto analysis_1 = operands.at(0)->analyzeSemantics(ctx);
@@ -506,7 +519,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 
             if (analysis_1.deduced_type->getTypeTag() == Type::REFERENCE) {
                 if (!analysis_1.deduced_type->is_mutable && is_mutable) {
-                    ctx.reportError(ErrCode::IMMUTABILITY_VIOLATION, {.location = location});
+                    ctx.reportError(ErrCode::IMMUTABILITY_VIOLATION, {});
                 }
             } ret.deduced_type = ctx.SymMan.getReferenceType(analysis_1.deduced_type, is_mutable);
         }
@@ -530,7 +543,6 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                 } ctx.reportError(ErrCode::INCOMPATIBLE_TYPES, {
                     .type_1 = analysis_1.deduced_type,
                     .type_2 = analysis_2.deduced_type,
-                    .location = location
                 });
                 break;
             }
@@ -544,7 +556,6 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                 ctx.reportError(ErrCode::INCOMPATIBLE_TYPES, {
                     .type_1 = analysis_1.deduced_type,
                     .type_2 = analysis_2.deduced_type,
-                    .location = location
                 });
                 break;
             }
@@ -559,7 +570,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                     (operands.at(0)->getNodeType() == ND_IDENT &&
                         ctx.SymMan.lookupDecl(operands.at(0)->getIdentInfo()).is_const
                         )) {
-                    ctx.reportError(ErrCode::CANNOT_ASSIGN_TO_CONST, {.location = location});
+                    ctx.reportError(ErrCode::CANNOT_ASSIGN_TO_CONST, {});
                     break;
                 }
 
@@ -576,7 +587,6 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                     ctx.reportError(
                         ErrCode::NON_INTEGRAL_INDICES, {
                             .type_1 = analysis_2.deduced_type,
-                            .location = location
                         });
                     break;
                 } ret.deduced_type = analysis_1.deduced_type->getWrappedType();
@@ -616,7 +626,6 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                     ctx.reportError(ErrCode::NO_SUCH_MEMBER,{
                         .str_1 = id_str,
                         .str_2 = struct_ty->toString(),
-                        .location = location
                     }); ret.is_erroneous = true;
                 }
 
@@ -651,6 +660,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     AnalysisResult ret;
 
     if (ctx.Cache.contains(this)) {
@@ -668,6 +678,7 @@ AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
 
 
 AnalysisResult Assignment::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     AnalysisResult ret;
 
     if (l_value.getNodeType() == ND_IDENT) {
