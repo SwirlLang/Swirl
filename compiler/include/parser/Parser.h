@@ -73,6 +73,7 @@ class Parser {
     std::optional<Token> m_ReturnFakeToken = std::nullopt;
     // ---*--- ---*--- ---*---
 
+    int                   m_Depth = 0;
     std::size_t           m_UnresolvedDeps{};  // counter for the no. of unresolved dependencies
     std::vector<SwObject> m_ParseStack;        // currently-being-parsed object pointer stays at the top
 
@@ -126,6 +127,7 @@ public:
     void parse();
     void performSema();
     void ignoreButExpect(const Token&);
+    void stackSafeguard() const;
 
     void toggleIsMainModule() { m_IsMainModule = !m_IsMainModule; }
 
@@ -156,6 +158,9 @@ struct Parser::NodeAttrHelper {
         node->is_exported = instance.m_LastSymWasExported;
         node->location.from = instance.m_Stream.getStreamState();
         node->location.source = instance.m_FilePath;
+        instance.m_Depth++;
+
+        instance.stackSafeguard();
 
         // setup error-report buffering
         if (!instance.m_ErrorQueue.contains(node))
@@ -182,6 +187,7 @@ struct Parser::NodeAttrHelper {
 
     /// Resets the states of the Parser
     ~NodeAttrHelper() {
+        instance.m_Depth--;
         instance.m_LastSymIsExtern = false;
         instance.m_LastSymWasExported = false;
         instance.m_ExternAttributes.clear();

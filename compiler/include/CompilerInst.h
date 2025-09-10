@@ -42,6 +42,7 @@ class CompilerInst {
     struct PackageInfo;
 
 public:
+    inline static int RecursionDepth = 1024;
     inline static std::string TargetTriple;
     inline static std::unordered_set<std::string> LinkTargets;
     inline static std::unordered_map<std::string, PackageInfo> PackageTable;
@@ -60,6 +61,14 @@ public:
 
     void setErrorPipeline(ErrorPipeline* pipeline) {
         m_ErrorManager.m_OutputPipeline = pipeline;
+    }
+
+    static void setRecursionDepth(const unsigned depth) {
+        RecursionDepth = depth;
+    }
+
+    static void setRecursionDepth(const std::string& str) {
+        setRecursionDepth(std::stoi(str));
     }
 
 

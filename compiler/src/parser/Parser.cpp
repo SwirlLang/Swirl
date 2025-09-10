@@ -40,6 +40,18 @@ Parser::Parser(const std::filesystem::path& path, ErrorCallback_t error_callback
     }) {}
 
 
+void Parser::stackSafeguard() const {
+    if (m_Depth > CompilerInst::RecursionDepth) {
+        std::println(stderr,
+            "Max recursion depth ({}) exceeded! "
+            "Use the `-depth <i>` flag to increase it.",
+            CompilerInst::RecursionDepth
+            );
+        std::exit(1);
+    }
+}
+
+
 /// returns the current token and forwards the stream
 Token Parser::forwardStream(const uint8_t n) {
     Token ret = m_Stream.CurTok;

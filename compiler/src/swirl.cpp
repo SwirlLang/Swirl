@@ -7,18 +7,20 @@
 #include <include/SwirlConfig.h>
 
 const std::vector<Argument> application_flags = {
-    {{"-h", "--help"}, "Show the help message", false, {}},
-    {{"-o", "--output"}, "Output file name", true, {}},
-    {{"-v", "--version"}, "Show the version of Swirl", false, {}},
+    {{"-h", "--help"}, "Show the help message.", false, {}},
+    {{"-o", "--output"}, "Output file name.", true, {}},
+    {{"-v", "--version"}, "Show the version of Swirl.", false, {}},
     {{"-j", "--threads"}, "No. of threads to use (excluding the main-thread).", true},
-    {{"-t", "--target"}, "The target-triple of the target-platform", true},
+    {{"-t", "--target"}, "The target-triple of the target-platform.", true},
     {{"-l", "--library"}, "The name of the library to link against.", true, true},
-    {{"-p", "--project"}, "/path/to/project/root", true},
+    {{"-p", "--project"}, "/path/to/project/root.", true},
     {{"-d", "--dependency"}, "Register a dependency, in the format `path:name`.", true, true},
-    {{"-Ld", "--debug"}, "Log the steps of compilation", false, {}},
+    {{"-depth", "--depth"}, "Set the recursion-depth.", true, false},
+    {{"-Ld", "--debug"}, "Log the steps of compilation.", false, {}},
 };
 
-int main(int argc, const char** argv) {
+
+int main(const int argc, const char** argv) {
     cli app(argc, argv, application_flags);
 
     if (app.contains_flag("-h")) {
@@ -58,8 +60,10 @@ int main(int argc, const char** argv) {
             compiler_inst.setBaseThreadCount(app.get_flag_value("-j"));
         if (app.contains_flag("-t"))
             CompilerInst::setTargetTriple(app.get_flag_value("-t"));
+        if (app.contains_flag("-depth"))
+            CompilerInst::setRecursionDepth(app.get_flag_value("-depth"));
         if (app.contains_flag("-l")) {
-            for (auto lib : app.get_flag_values("-l"))
+            for (const auto& lib : app.get_flag_values("-l"))
                 CompilerInst::appendLinkTarget(lib);
         }
         if (app.contains_flag("-d")) {
