@@ -27,12 +27,12 @@ struct SwObject : std::variant<Type*, Node*> {
     using std::variant<Type*, Node*>::variant;
 
     [[nodiscard]] Type* toType() const {
-        assert(std::holds_alternative<Type*>(*this));
+        assert(isType());
         return std::get<Type*>(*this);
     }
 
     [[nodiscard]] Node* toNode() const {
-        assert(std::holds_alternative<Node*>(*this));
+        assert(isNode());
         return std::get<Node*>(*this);
     }
 

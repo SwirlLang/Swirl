@@ -269,16 +269,26 @@ llvm::Value* ImportNode::llvmCodegen([[maybe_unused]] LLVMBackend& instance) {
 }
 
 
-// TODO
 llvm::Value* Scope::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
-    auto bb = llvm::BasicBlock::Create(
-        instance.Context,
-        "scope_0",
-        instance.getCurrentParent()
-        );
+    assert(instance.getCurrentParent() != nullptr);
 
-    instance.Builder.SetInsertPoint(bb);
+    // create a new basic block if:
+    // - no active basic blocks exist, or
+    // - the last active basic block's last instruction is a terminator
+    if (
+        !instance.Builder.GetInsertBlock() ||
+        instance.Builder.GetInsertBlock()->back().isTerminator()
+        ) {
+
+        auto bb = llvm::BasicBlock::Create(
+           instance.Context,
+           "scope_0",
+           instance.getCurrentParent()
+           );
+
+        instance.Builder.SetInsertPoint(bb);
+    }
 
     for (auto& node : children) {
         if (node->getNodeType() == ND_INVALID) {
