@@ -19,11 +19,11 @@ class ModuleManager;
 using ErrorCallback_t = std::function<void (ErrCode, ErrorContext)>;
 
 
-class Scope {
+class Namespace {
     IdentManager m_IDMan;
 
 public:
-    explicit Scope(std::filesystem::path mod_path): m_IDMan(std::move(mod_path)) {}
+    explicit Namespace(std::filesystem::path mod_path): m_IDMan(std::move(mod_path)) {}
 
     IdentInfo* getNewIDInfo(const std::string& name) {
         return m_IDMan.createNew(name);
@@ -54,8 +54,8 @@ class SymbolManager {
     TypeManager m_TypeManager;
     ModuleManager& m_ModuleMap;
 
-    std::list<Scope>    m_Scopes;       // for stable-addressing of the scopes
-    std::vector<Scope*> m_ScopeTrack;  // for tracking the insert-points
+    std::list<Namespace>    m_Scopes;       // for stable-addressing of the scopes
+    std::vector<Namespace*> m_ScopeTrack;  // for tracking the insert-points
 
     std::unordered_map<IdentInfo*, TableEntry> m_IdToTableEntry;
 
@@ -66,7 +66,7 @@ class SymbolManager {
     std::unordered_map<std::string, ExportedSymbolMeta_t> m_ExportedSymbolTable;
 
     // maps qualifier-names to their paths
-    std::unordered_map<std::string, Scope*> m_QualifierTable;
+    std::unordered_map<std::string, Namespace*> m_QualifierTable;
 
     ErrorCallback_t m_ErrorCallback;
 
@@ -111,7 +111,7 @@ public:
     IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) const;
 
     IdentInfo* getIDInfoFor(const std::string& id) {
-        for (Scope* scope : m_ScopeTrack | std::views::reverse) {
+        for (Namespace* scope : m_ScopeTrack | std::views::reverse) {
             if (const auto ret = scope->getIDInfoFor(id)) {
                 return *ret;
             }
@@ -122,12 +122,12 @@ public:
 
 
     /// returns the global scope's pointer
-    Scope* getGlobalScope() const {
+    Namespace* getGlobalScope() const {
         return m_ScopeTrack.front();
     }
 
     /// fetches the global scope of the module mapped to `path`
-    Scope* getGlobalScopeFromModule(const fs::path& path) const;
+    Namespace* getGlobalScopeFromModule(const fs::path& path) const;
 
 
     Type* lookupType(const std::string& id) {
@@ -215,8 +215,8 @@ public:
         return m_IdToTableEntry.contains(id);
     }
 
-    Scope* newScope() {
-        Scope* ret = &m_Scopes.emplace_back(m_ModulePath);
+    Namespace* newScope() {
+        Namespace* ret = &m_Scopes.emplace_back(m_ModulePath);
         m_ScopeTrack.push_back(ret);
         return ret;
     }

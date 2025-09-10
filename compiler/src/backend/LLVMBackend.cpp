@@ -22,6 +22,8 @@
 #include <parser/Parser.h>
 
 
+#define PRE_SETUP() LLVMBackend::SetupHandler GET_UNIQUE_NAME(backend_helper_){instance, this};
+
 // ReSharper disable all CppUseStructuredBinding
 
 
@@ -99,7 +101,6 @@ std::string LLVMBackend::mangleString(IdentInfo* id) {
 }
 
 
-
 void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<Node>>& children) {
     for (const auto& child : children) {
         if (child->getNodeType() == ND_RET) {
@@ -111,6 +112,7 @@ void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<
 }
 
 llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     llvm::Value* ret = nullptr;
 
     if (instance.getBoundTypeState()->isIntegral()) {
@@ -134,10 +136,12 @@ llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
 }
 
 llvm::Value* FloatLit::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     return llvm::ConstantFP::get(instance.getBoundLLVMType(), value);
 }
 
 llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     auto struct_instance = instance.Builder.CreateAlloca(instance.getBoundLLVMType());
     auto literal_mem = instance.Builder.CreateStructGEP(instance.getBoundLLVMType(), struct_instance, 0);
 
@@ -151,6 +155,7 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* BoolLit::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     return llvm::ConstantInt::get(
         llvm::Type::getInt1Ty(instance.Context),
         value
@@ -161,6 +166,7 @@ llvm::Value* BoolLit::llvmCodegen(LLVMBackend& instance) {
 /// Writes the array literal to 'BoundMemory' if not null, otherwise creates a temporary and
 /// returns a load of it.
 llvm::Value* ArrayLit::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     assert(!elements.empty());
     Type* element_type = elements.at(0).expr_type;
     Type* sw_arr_type  = instance.SymMan.getArrayType(element_type, elements.size());
@@ -238,6 +244,7 @@ llvm::Value* ArrayLit::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     const auto e = instance.SymMan.lookupDecl(this->value);
 
     if (instance.getAssignmentLhsState()) {
@@ -257,12 +264,32 @@ llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
             e.swirl_type->llvmCodegen(instance), e.llvm_value));
 }
 
-llvm::Value* ImportNode::llvmCodegen([[maybe_unused]] LLVMBackend &instance) {
-    return nullptr;  // TODO
+llvm::Value* ImportNode::llvmCodegen([[maybe_unused]] LLVMBackend& instance) {
+    return nullptr;
+}
+
+
+// TODO
+llvm::Value* Scope::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
+    auto bb = llvm::BasicBlock::Create(
+        instance.Context,
+        "scope_0",
+        instance.getCurrentParent()
+        );
+
+    instance.Builder.SetInsertPoint(bb);
+
+    for (auto& node : children) {
+        if (node->getNodeType() == ND_INVALID) {
+            continue;
+        } node->llvmCodegen(instance);
+    } return nullptr;
 }
 
 
 llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     std::recursive_mutex mtx;
     std::lock_guard guard(mtx);
 
@@ -278,6 +305,8 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
 
     auto*               fn_type  = llvm::dyn_cast<llvm::FunctionType>(fn_sw_type->llvmCodegen(instance));
     llvm::Function*     func     = llvm::Function::Create(fn_type, linkage, name, instance.LModule.get());
+
+    instance.setCurrentParent(func);
 
     if (is_extern) {
         if (extern_attributes == "C")
@@ -309,6 +338,7 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     if (value.expr) {
         llvm::Value* ret = value.llvmCodegen(instance);
         instance.Builder.CreateRet(ret);
@@ -321,6 +351,7 @@ llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     switch (op_type) {
         case UNARY_ADD:
             return operands.back()->llvmCodegen(instance);
@@ -784,6 +815,7 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
 
 
 llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     assert(expr_type != nullptr);
 
     instance.setBoundTypeState(expr_type);
@@ -795,6 +827,7 @@ llvm::Value* Expression::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Assignment::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     instance.setAssignmentLhsState(true);
     const auto lv = l_value.llvmCodegen(instance);
     instance.restoreAssignmentLhsState();
@@ -805,6 +838,7 @@ llvm::Value* Assignment::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     const auto parent      = instance.Builder.GetInsertBlock()->getParent();
     const auto if_block    = llvm::BasicBlock::Create(instance.Context, "if", parent);
     const auto else_block  = llvm::BasicBlock::Create(instance.Context, "else", parent);
@@ -852,6 +886,7 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* WhileLoop::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     const auto parent = instance.Builder.GetInsertBlock()->getParent();
     const auto last_inst = instance.Builder.GetInsertBlock()->getTerminator();
     
@@ -879,6 +914,7 @@ llvm::Value* WhileLoop::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Struct::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     auto struct_sw_ty = instance.SymMan.lookupType(ident);
     assert(struct_sw_ty);
 
@@ -893,6 +929,7 @@ llvm::Value* Struct::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     std::vector<llvm::Type*> paramTypes;
 
     assert(ident.getIdentInfo());
@@ -943,6 +980,7 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
+    PRE_SETUP();
     assert(var_type != nullptr);
     if (is_config) { return nullptr; }
 
@@ -995,47 +1033,4 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     }
 
     return nullptr;
-}
-
-
-void GenerateObjectFileLLVM([[maybe_unused]] const LLVMBackend& instance) {
-    // const auto target_triple = llvm::sys::getDefaultTargetTriple();
-    // llvm::InitializeAllTargetInfos();
-    // llvm::InitializeAllTargets();
-    // llvm::InitializeAllTargetMCs();
-    // llvm::InitializeAllAsmParsers();
-    // llvm::InitializeAllAsmPrinters();
-    //
-    // std::string err;
-    // if (const auto target = llvm::TargetRegistry::lookupTarget(target_triple, err)) {
-    //     const auto cpu  = "generic";
-    //     const auto feat = "";
-    //
-    //     const llvm::TargetOptions opt;
-    //     const auto machine = target->createTargetMachine(target_triple, cpu, feat, opt, llvm::Reloc::PIC_);
-    //
-    //     instance.LModule->setDataLayout(machine->createDataLayout());
-    //     instance.LModule->setTargetTriple(target_triple);
-    //
-    //     std::error_code f_ec;
-    //     llvm::raw_fd_ostream dest(OUTPUT_FILE_PATH, f_ec, llvm::sys::fs::OF_None);
-    //
-    //     if (f_ec) {
-    //         llvm::errs() << "Could not open output file! " << f_ec.message();
-    //         return;
-    //     }
-    //
-    //     llvm::legacy::PassManager pass{};
-    //
-    //     if ( constexpr auto file_type = llvm::CodeGenFileType::ObjectFile;
-    //          machine->addPassesToEmitFile(pass, dest, nullptr, file_type)
-    //         ) { llvm::errs() << "TargetMachine can't emit a file of this type";
-    //         return;
-    //     }
-    //
-    //     pass.run(*instance.LModule);
-    //     dest.flush();
-    // } else {
-    //     llvm::errs() << err;
-    // }
 }

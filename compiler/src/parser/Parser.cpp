@@ -171,8 +171,39 @@ SwNode Parser::dispatch() {
         // pattern matching in C++ when?
         switch (m_Stream.CurTok.type) {
             case KEYWORD:
-                if (m_Stream.CurTok.value == "let" || m_Stream.CurTok.value == "var") {
+                if (m_Stream.CurTok.value == "let" || m_Stream.CurTok.value == "var")
                     return parseVar(false);
+
+                if (m_Stream.CurTok.value == "import")
+                    return parseImport();
+
+                if (m_Stream.CurTok.value == "fn")
+                    return parseFunction();
+
+                if (m_Stream.CurTok.value == "if")
+                    return parseCondition();
+
+                if (m_Stream.CurTok.value == "struct")
+                    return parseStruct();
+
+                if (m_Stream.CurTok.value == "while")
+                    return parseWhile();
+
+                if (m_Stream.CurTok.value == "return")
+                    return parseRet();
+
+                if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false")
+                    return std::make_unique<Expression>(parseExpr());
+
+                if (m_Stream.CurTok.value == "volatile") {
+                    forwardStream();
+                    return parseVar(true);
+                }
+
+                if (m_Stream.CurTok.value == "export") {
+                    m_LastSymWasExported = true;
+                    forwardStream();
+                    continue;
                 }
 
                 if (m_Stream.CurTok.value == "extern") {
@@ -183,43 +214,6 @@ SwNode Parser::dispatch() {
                         m_ExternAttributes = std::move(m_Stream.CurTok.value);
                     } forwardStream();
                     continue;
-                }
-
-                if (m_Stream.CurTok.value == "export") {
-                    m_LastSymWasExported = true;
-                    forwardStream();
-                    continue;
-                }
-
-                if (m_Stream.CurTok.value == "import") {
-                    return parseImport();
-                }
-
-                if (m_Stream.CurTok.value == "fn") {
-                    return parseFunction();
-                }
-
-                if (m_Stream.CurTok.value == "if") {
-                    return parseCondition();
-                }
-
-                if (m_Stream.CurTok.value == "struct")
-                    return parseStruct();
-
-                if (m_Stream.CurTok.value == "while")
-                    return parseWhile();
-
-                if (m_Stream.CurTok.value == "volatile") {
-                    forwardStream();
-                    return parseVar(true);
-                }
-
-                if (m_Stream.CurTok.value == "return") {
-                    return parseRet();
-                }
-
-                if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false") {
-                    return std::make_unique<Expression>(parseExpr());
                 }
 
                 reportError(ErrCode::UNEXPECTED_KEYWORD, {.str_1 = m_Stream.CurTok.value});
@@ -235,12 +229,14 @@ SwNode Parser::dispatch() {
                 if (m_Stream.CurTok.value == "[" || m_Stream.CurTok.value == "(")
                     return std::make_unique<Expression>(parseExpr());
 
+                if (m_Stream.CurTok.value == "{")
+                    return parseScope();
+
                 if (m_Stream.CurTok.value == "@") {
                     forwardStream();
                     if (m_Stream.CurTok.type == IDENT && m_Stream.CurTok.value == "config")
                         // config-variables detected
                         parseVar();
-
                 }
 
                 // ignore semicolons
@@ -586,6 +582,27 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
 
     ret->value = parseExpr();
     return ret;
+}
+
+
+std::unique_ptr<Scope> Parser::parseScope() {
+    auto scope = std::make_unique<Scope>();
+    SET_NODE_ATTRS(scope.get());
+
+    forwardStream(); // skip '{'
+    while (true) {
+        if (m_Stream.eof()) {
+            reportError(ErrCode::UNEXPECTED_EOF);
+            break;
+        }
+
+        if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}") {
+            forwardStream();
+            break;
+        }
+
+        scope->children.emplace_back(dispatch());
+    } return scope;
 }
 
 

@@ -255,6 +255,14 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 
+AnalysisResult Scope::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
+    for (const auto& node : children) {
+        node->analyzeSemantics(ctx);
+    } return {};
+}
+
+
 AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     if (ctx.Cache.contains(this)) {
@@ -510,6 +518,9 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
     // 1st operand
     auto analysis_1 = operands.at(0)->analyzeSemantics(ctx);
 
+    if (analysis_1.deduced_type == nullptr)
+        return {};
+
     if (arity == 1) {
         if (value == "&") {
             // take a reference
@@ -534,6 +545,9 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 
         switch (op_type) {
             case DIV: {
+                if (analysis_2.deduced_type == nullptr)
+                    return {};
+
                 if (analysis_1.deduced_type->isIntegral() && analysis_2.deduced_type->isIntegral()) {
                     ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);
                     break;
@@ -548,6 +562,9 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             }
 
             case MOD: {
+                if (analysis_2.deduced_type == nullptr)
+                    return {};
+
                 if (analysis_1.deduced_type->isIntegral() && analysis_2.deduced_type->isIntegral()) {
                     ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);
                     break;

@@ -54,6 +54,7 @@ public:
     Type*        StructFieldType = nullptr; // used to "bubble-up" struct-field types
     // -------------------------------------------------------
 
+    struct   SetupHandler;
     explicit LLVMBackend(Parser& parser);
 
 
@@ -66,7 +67,7 @@ public:
 
     /// Begins the IR generation
     void startGeneration() {
-        for (auto& node : AST) {
+        for (const auto& node : AST) {
             if (!m_ResolvedList.contains(m_CurParentIndex))
                 node->llvmCodegen(*this);
             m_CurParentIndex++;
@@ -156,11 +157,30 @@ public:
         return LModule.get();
     }
 
+    llvm::Function* getCurrentParent() const {
+        return m_CurParent;
+    }
+
+    void setCurrentParent(llvm::Function* parent) {
+        m_CurParent = parent;
+    }
+
 private:
     std::unordered_set<std::size_t> m_ResolvedList;
     std::size_t m_CurParentIndex = 0;
+    llvm::Function* m_CurParent = nullptr;
 
     std::stack<Type*>           m_LatestBoundType;
     std::stack<bool>            m_AssignmentLhsStack;
     std::stack<ManglingContext> m_ManglingContexts;
+};
+
+
+struct LLVMBackend::SetupHandler {
+    SetupHandler(LLVMBackend& instance, Node* ptr): instance(instance), node(ptr) {}
+    ~SetupHandler() = default;
+
+private:
+    LLVMBackend& instance;
+    Node* node;
 };

@@ -1,7 +1,7 @@
 #pragma once
 
 class IdentInfo;
-class Scope;
+class Namespace;
 struct Type;
 
 namespace llvm {
@@ -17,7 +17,7 @@ struct TableEntry {
     bool is_volatile = false;
     bool is_mod_namespace = false;
 
-    Scope*  scope      = nullptr;  // set when the entry also encodes a namespace
+    Namespace*  scope      = nullptr;  // set when the entry also encodes a namespace
     Type*   swirl_type = nullptr;
 
     llvm::Value* llvm_value = nullptr;
@@ -27,6 +27,6 @@ struct TableEntry {
 
 struct ExportedSymbolMeta_t {
     IdentInfo* id = nullptr;
-    Scope* scope = nullptr;
+    Namespace* scope = nullptr;
 };
 

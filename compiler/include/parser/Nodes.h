@@ -29,6 +29,7 @@ enum NodeType {
     ND_ARRAY,       // 16
     ND_TYPE,        // 17
     ND_BOOL,        // 18
+    ND_SCOPE,       // 19
 };
 
 
@@ -359,6 +360,7 @@ struct StrLit final : Node {
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
+
 struct Ident final : Node {
     IdentInfo* value = nullptr;
     std::vector<std::string> full_qualification;
@@ -377,6 +379,7 @@ struct Ident final : Node {
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
+
 
 struct Var final : Node {
     IdentInfo* var_ident = nullptr;
@@ -406,6 +409,19 @@ struct Var final : Node {
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
+
+
+struct Scope final : Node {
+    std::vector<SwNode> children;
+
+    [[nodiscard]] NodeType getNodeType() const override {
+        return ND_SCOPE;
+    }
+
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+};
+
 
 struct Function final : Node {
     IdentInfo* ident = nullptr;
