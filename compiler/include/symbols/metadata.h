@@ -18,7 +18,8 @@ struct TableEntry {
     bool is_mod_namespace = false;
 
     Namespace*  scope      = nullptr;  // set when the entry also encodes a namespace
-    Type*   swirl_type = nullptr;
+    Type*       swirl_type = nullptr;
+    Node*       node_loc   = nullptr;
 
     llvm::Value* llvm_value = nullptr;
     llvm::Type*  llvm_type  = nullptr;

@@ -192,8 +192,12 @@ struct Parser::NodeAttrHelper {
         instance.m_LastSymWasExported = false;
         instance.m_ExternAttributes.clear();
 
-        if (node)
+        if (node) {
             node->location.to = instance.m_Stream.getStreamState();
+            if (node->getNodeType() == ND_VAR) {
+                instance.SymbolTable.lookupDecl(node->getIdentInfo()).node_loc = node;
+            }
+        }
 
         // flush all the errors
         for (auto& error : instance.m_ErrorQueue.at(node)) {

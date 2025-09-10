@@ -5,8 +5,9 @@
 #include <vector>
 #include <string_view>
 
-#include <utils/utils.h>
-#include <lexer/Tokens.h>
+#include "utils/utils.h"
+#include "lexer/Tokens.h"
+#include "parser/evaluation.h"
 
 
 enum NodeType {
@@ -37,6 +38,7 @@ struct Node;
 struct Var;
 struct Type;
 
+class Parser;
 class IdentInfo;
 class LLVMBackend;
 class AnalysisContext;
@@ -91,6 +93,8 @@ struct Node {
     virtual llvm::Value* llvmCodegen([[maybe_unused]] LLVMBackend& instance) {
         throw std::runtime_error("llvmCodegen called on Node instance");
     }
+
+    virtual EvalResult evaluate(Parser&);
 
     virtual int8_t getArity() {
         throw std::runtime_error("getArity called on base Node instance ");
@@ -155,8 +159,8 @@ struct Expression final : Node {
         return expr_type;
     }
 
+    EvalResult   evaluate(Parser&) override;
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
-
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -258,6 +262,7 @@ struct Op final : Node {
     static int getPBPFor(OpTag_t op);
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    EvalResult   evaluate(Parser& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -376,6 +381,7 @@ struct Ident final : Node {
         return ND_IDENT;
     }
 
+    EvalResult   evaluate(Parser&) override;
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
