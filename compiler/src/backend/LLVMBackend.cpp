@@ -1,10 +1,11 @@
-#include "types/SwTypes.h"
 #include <cassert>
 #include <string>
 #include <unordered_map>
 
 #include "CompilerInst.h"
-#include <backend/LLVMBackend.h>
+#include "types/SwTypes.h"
+#include "backend/LLVMBackend.h"
+#include "parser/Parser.h"
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Function.h>
@@ -19,7 +20,6 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
-#include <parser/Parser.h>
 
 
 #define PRE_SETUP() LLVMBackend::SetupHandler GET_UNIQUE_NAME(backend_helper_){instance, this};
@@ -992,7 +992,7 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
     assert(var_type != nullptr);
-    if (is_config) { return nullptr; }
+    if (is_comptime) { return nullptr; }
 
     llvm::Type* type = var_type->llvmCodegen(instance);
 

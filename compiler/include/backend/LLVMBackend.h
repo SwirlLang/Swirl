@@ -2,11 +2,12 @@
 #include <memory>
 #include <stack>
 #include <stdexcept>
-#include <unordered_set>
 #include <vector>
+#include <unordered_set>
 
-#include <parser/Nodes.h>
-#include <symbols/SymbolManager.h>
+#include "parser/Parser.h"
+#include "parser/Nodes.h"
+#include "symbols/SymbolManager.h"
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
@@ -19,7 +20,6 @@
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/TargetParser/Host.h>
 
-#include <parser/Parser.h>
 
 
 using SwAST_t = std::vector<std::unique_ptr<Node>>;

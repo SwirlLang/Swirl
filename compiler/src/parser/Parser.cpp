@@ -183,8 +183,10 @@ SwNode Parser::dispatch() {
         // pattern matching in C++ when?
         switch (m_Stream.CurTok.type) {
             case KEYWORD:
-                if (m_Stream.CurTok.value == "let" || m_Stream.CurTok.value == "var")
-                    return parseVar(false);
+                if (m_Stream.CurTok.value == "let" ||
+                    m_Stream.CurTok.value == "var" ||
+                    m_Stream.CurTok.value == "comptime"
+                    ) return parseVar(false);
 
                 if (m_Stream.CurTok.value == "import")
                     return parseImport();
@@ -243,6 +245,12 @@ SwNode Parser::dispatch() {
 
                 if (m_Stream.CurTok.value == "{")
                     return parseScope();
+
+                if (m_Stream.CurTok.value == "#") {
+                    forwardStream();
+                    m_AttributeList = parseExpr();
+                    continue;
+                }
 
                 if (m_Stream.CurTok.value == "@") {
                     forwardStream();
@@ -522,9 +530,8 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     auto var_node = std::make_unique<Var>();
     SET_NODE_ATTRS(var_node.get());
 
-    if (m_Stream.CurTok.type == IDENT && m_Stream.CurTok.value == "config") {
-        forwardStream();
-        var_node->is_config = true;
+    if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "comptime") {
+        var_node->is_comptime = true;
     }
 
     var_node->is_const = m_Stream.CurTok.value[0] == 'l';
@@ -545,11 +552,18 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
         var_node->value = parseExpr();
     }
 
+    if (var_node->is_comptime && !var_node->initialized) {
+        reportError(ErrCode::INITIALIZER_REQUIRED);
+    } else if (var_node->is_comptime && var_node->initialized) {
+        var_node->value.evaluate(*this);
+    }
+
     TableEntry entry;
-    entry.is_const = var_node->is_const;
+    entry.is_const    = var_node->is_const;
     entry.is_volatile = var_node->is_volatile;
     entry.is_exported = var_node->is_exported;
-    entry.swirl_type = var_node->var_type;
+    entry.swirl_type  = var_node->var_type;
+    entry.node_loc    = var_node.get();
 
     var_node->var_ident = SymbolTable.registerDecl(var_ident, entry);
     return var_node;
@@ -749,8 +763,8 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
     return loop;
 }
 
-Expression Parser::parseExpr(const int min_bp) {
-    auto ret = m_ExpressionParser.parseExpr(min_bp);
+Expression Parser::parseExpr() {
+    auto ret = m_ExpressionParser.parseExpr();
     SET_NODE_ATTRS(&ret);
     return ret;
 }

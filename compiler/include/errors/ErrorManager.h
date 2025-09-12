@@ -88,7 +88,8 @@ enum class ErrCode {
     CONFIG_INIT_NOT_LITERAL,   // a config variable is initialized with a non-literal
 
     NOT_ALLOWED_CT_CTX,        // when a construct isn't allowed in compile-time evaluated context
-    NOT_A_CONFIG_VAR,          // referenced ID is not of a config var
+    NOT_A_CT_VAR,              // referenced ID is not of a comptime var
+    OP_NOT_ALLOWED_HERE,       // when an operator isn't allowed in a context
 };
 
 
@@ -232,8 +233,10 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
 
         case ErrCode::NOT_ALLOWED_CT_CTX:
             return "This construct is not allowed in compile-time evaluated context.";
-        case ErrCode::NOT_A_CONFIG_VAR:
-            return "Only other config variables' IDs can be written in this context.";
+        case ErrCode::NOT_A_CT_VAR:
+            return "Only other comptime variables' IDs can be written in this context.";
+        case ErrCode::OP_NOT_ALLOWED_HERE:
+            return std::format("The operator '{}' isn't allowed in this context.", ctx.str_1);
         default:
             throw std::runtime_error("Undefined error code");
     }

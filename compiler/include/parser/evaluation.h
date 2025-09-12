@@ -35,7 +35,7 @@
 
 
 
-using SwEvalResultBase = std::variant<bool, double, std::size_t, std::string>;
+using SwEvalResultBase = std::variant<std::monostate, bool, double, std::size_t, std::string>;
 struct EvalResult : SwEvalResultBase {
     using SwEvalResultBase::variant;
 

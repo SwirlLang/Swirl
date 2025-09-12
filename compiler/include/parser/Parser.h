@@ -70,6 +70,7 @@ class Parser {
     Type*        m_CurrentStructTy  = nullptr;  // the type of the struct being parsed
 
     std::string m_ExternAttributes;
+    Expression  m_AttributeList;
     std::optional<Token> m_ReturnFakeToken = std::nullopt;
     // ---*--- ---*--- ---*---
 
@@ -122,7 +123,7 @@ public:
 
     Type*      parseType();
     Ident      parseIdent();
-    Expression parseExpr(int min_bp = -1);
+    Expression parseExpr();
 
     void parse();
     void performSema();
@@ -194,9 +195,6 @@ struct Parser::NodeAttrHelper {
 
         if (node) {
             node->location.to = instance.m_Stream.getStreamState();
-            if (node->getNodeType() == ND_VAR) {
-                instance.SymbolTable.lookupDecl(node->getIdentInfo()).node_loc = node;
-            }
         }
 
         // flush all the errors

@@ -4,7 +4,7 @@
 
 
 struct OpInfo {
-    enum Associativity { LEFT, RIGHT};
+    enum Associativity { LEFT, RIGHT };
 
     int precedence;
     Associativity associativity;
@@ -126,6 +126,22 @@ EvalResult Node::evaluate(Parser& ctx) {
     return {};
 }
 
+EvalResult IntLit::evaluate(Parser&) {
+    return toInteger(value);
+}
+
+EvalResult FloatLit::evaluate(Parser&) {
+    return std::stod(value);
+}
+
+EvalResult BoolLit::evaluate(Parser&) {
+    return value;
+}
+
+EvalResult StrLit::evaluate(Parser&) {
+    return value;
+}
+
 
 EvalResult Ident::evaluate(Parser& ctx) {
     if (const auto node = ctx.SymbolTable.lookupDecl(getIdentInfo()).node_loc) {
@@ -133,8 +149,8 @@ EvalResult Ident::evaluate(Parser& ctx) {
             const auto var = dynamic_cast<Var*>(node);
 
             // only allow config variables
-            if (!var->is_config) {
-                ctx.reportError(ErrCode::NOT_A_CONFIG_VAR);
+            if (!var->is_comptime) {
+                ctx.reportError(ErrCode::NOT_A_CT_VAR);
                 return {};
             } return var->value.evaluate(ctx);
         } ctx.reportError(ErrCode::NOT_ALLOWED_CT_CTX);
@@ -169,7 +185,12 @@ EvalResult Op::evaluate(Parser& ctx) {
             return operands.at(0)->evaluate(ctx) || operands.at(1)->evaluate(ctx);
         case Op::LOGICAL_AND:
             return operands.at(0)->evaluate(ctx) && operands.at(1)->evaluate(ctx);
+        case Op::LOGICAL_EQUAL:
+            return operands.at(0)->evaluate(ctx) == operands.at(1)->evaluate(ctx);
+        case Op::LOGICAL_NOTEQUAL:
+            return !(operands.at(0)->evaluate(ctx) == operands.at(1)->evaluate(ctx)).toBool();
         default:
-            throw std::runtime_error("Unrecognized operator type");
+            ctx.reportError(ErrCode::OP_NOT_ALLOWED_HERE, {.str_1 = value});
+            return {};
     }
 }

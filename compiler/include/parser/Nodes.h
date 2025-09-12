@@ -87,7 +87,7 @@ struct Node {
     }
 
     virtual const SwNode& getExprValue() {
-        assert(0);
+        throw std::runtime_error("getExprValue called on Node instance");
     }
 
     virtual llvm::Value* llvmCodegen([[maybe_unused]] LLVMBackend& instance) {
@@ -307,6 +307,7 @@ struct IntLit final : Node {
         return true;
     }
 
+    EvalResult   evaluate(Parser &) override;
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
@@ -324,6 +325,7 @@ struct FloatLit final : Node {
         return true;
     }
 
+    EvalResult   evaluate(Parser &) override;
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
@@ -341,6 +343,7 @@ struct BoolLit final : Node {
         return true;
     }
 
+    EvalResult   evaluate(Parser &) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -361,7 +364,8 @@ struct StrLit final : Node {
         return true;
     }
 
-    llvm::Value *llvmCodegen(LLVMBackend& instance) override;
+    EvalResult   evaluate(Parser &) override;
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -397,8 +401,8 @@ struct Var final : Node {
     bool initialized = false;
     bool is_const    = false;
     bool is_volatile = false;
-    bool is_config   = false;
     bool is_extern   = false;
+    bool is_comptime = false;
     bool is_instance_param = false;   // for the special case of `&self` in methods
 
     std::string extern_attributes;
