@@ -25,8 +25,10 @@ public:
 
         // TODO: make this entire thing more robust, handle errors which span multiple lines
         backticks.append("^");
-        for (int i = 0; i < (ctx.location->to.Col - ctx.location->from.Col); i++) {
-            backticks.append("~");
+        if (ctx.location->from.Col == ctx.location->to.Col) {
+            for (int i = 0; i < (ctx.location->to.Col - ctx.location->from.Col); i++) {
+                backticks.append("~");
+            }
         }
 
         m_ErrorBuffer += std::format(

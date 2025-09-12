@@ -1,10 +1,10 @@
 #include <cassert>
 #include <utility>
 
-#include <parser/Nodes.h>
-#include <parser/Parser.h>
-#include <parser/SemanticAnalysis.h>
-#include <managers/ModuleManager.h>
+#include "parser/Nodes.h"
+#include "parser/Parser.h"
+#include "parser/SemanticAnalysis.h"
+#include "managers/ModuleManager.h"
 
 
 using SwNode = std::unique_ptr<Node>;
@@ -255,6 +255,14 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 
+AnalysisResult Scope::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
+    for (const auto& node : children) {
+        node->analyzeSemantics(ctx);
+    } return {};
+}
+
+
 AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     if (ctx.Cache.contains(this)) {
@@ -280,11 +288,6 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     AnalysisResult ret;
 
-    if (is_config && !initialized) {
-        ctx.reportError(ErrCode::CONFIG_VAR_UNINITIALIZED, {});
-        return {};
-    }
-
     if (!initialized && !var_type) {
         ctx.reportError(
             ErrCode::INITIALIZER_REQUIRED,
@@ -299,11 +302,6 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     } else ctx.setBoundTypeState(var_type);
 
     if (initialized) {
-        if (is_config && !value.expr->getExprValue()->isLiteral()) {
-            ctx.reportError(ErrCode::CONFIG_INIT_NOT_LITERAL, {});
-            return {};
-        }
-
         auto val_analysis = value.analyzeSemantics(ctx);
         ctx.restoreBoundTypeState();
 
@@ -510,6 +508,9 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
     // 1st operand
     auto analysis_1 = operands.at(0)->analyzeSemantics(ctx);
 
+    if (analysis_1.deduced_type == nullptr)
+        return {};
+
     if (arity == 1) {
         if (value == "&") {
             // take a reference
@@ -534,6 +535,9 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
 
         switch (op_type) {
             case DIV: {
+                if (analysis_2.deduced_type == nullptr)
+                    return {};
+
                 if (analysis_1.deduced_type->isIntegral() && analysis_2.deduced_type->isIntegral()) {
                     ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);
                     break;
@@ -548,6 +552,9 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             }
 
             case MOD: {
+                if (analysis_2.deduced_type == nullptr)
+                    return {};
+
                 if (analysis_1.deduced_type->isIntegral() && analysis_2.deduced_type->isIntegral()) {
                     ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);
                     break;

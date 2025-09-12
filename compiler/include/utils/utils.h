@@ -39,6 +39,21 @@ struct std::hash<std::pair<T1, T2>> {  // WHY?!?!!1
 };
 
 
+/// Respects the radices during conversion.
+inline std::size_t toInteger(const std::string& str) {
+    switch (str[1]) {
+        case 'x':
+            return std::stoi(str.substr(2), nullptr, 16);
+        case 'o':
+            return std::stoi(str.substr(2), nullptr, 8);
+        case 'b':
+            return std::stoi(str.substr(2), nullptr, 2);
+        default:
+            return std::stoi(str);  // base-10
+    }
+}
+
+
 /// A helper to execute a callback when a scope ends
 template <typename Fn>
 class ScopeEndCallback {

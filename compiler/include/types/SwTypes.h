@@ -5,7 +5,7 @@
 #include "parser/Nodes.h"
 
 
-class Scope;
+class Namespace;
 class IdentInfo;
 class  LLVMBackend;
 
@@ -37,7 +37,7 @@ struct Type {
 
 
     bool   is_mutable = false;
-    Scope* scope = nullptr;  // the pointer to the namespace (if applicable) defined within the type
+    Namespace* scope = nullptr;  // the pointer to the namespace (if applicable) defined within the type
     SourceLocation location;
 
     virtual SwTypes     getTypeTag() = 0;

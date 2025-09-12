@@ -7,15 +7,15 @@
 #include <optional>
 #include <functional>
 
-#include <utils/utils.h>
-#include <parser/Nodes.h>
-#include <parser/Parser.h>
-#include <lexer/Tokens.h>
-#include <backend/LLVMBackend.h>
-#include <errors/ErrorManager.h>
-#include <symbols/SymbolManager.h>
-#include <managers/ModuleManager.h>
-#include <parser/SemanticAnalysis.h>
+#include "utils/utils.h"
+#include "parser/Nodes.h"
+#include "parser/Parser.h"
+#include "lexer/Tokens.h"
+#include "backend/LLVMBackend.h"
+#include "errors/ErrorManager.h"
+#include "symbols/SymbolManager.h"
+#include "managers/ModuleManager.h"
+#include "parser/SemanticAnalysis.h"
 
 #include "CompilerInst.h"
 
@@ -38,6 +38,18 @@ Parser::Parser(const std::filesystem::path& path, ErrorCallback_t error_callback
         [this](auto code, const auto& ctx) {
         reportError(code, ctx);
     }) {}
+
+
+void Parser::stackSafeguard() const {
+    if (m_Depth > CompilerInst::RecursionDepth) {
+        std::println(stderr,
+            "Max recursion depth ({}) exceeded! "
+            "Use the `-depth <i>` flag to increase it.",
+            CompilerInst::RecursionDepth
+            );
+        std::exit(1);
+    }
+}
 
 
 /// returns the current token and forwards the stream
@@ -171,8 +183,41 @@ SwNode Parser::dispatch() {
         // pattern matching in C++ when?
         switch (m_Stream.CurTok.type) {
             case KEYWORD:
-                if (m_Stream.CurTok.value == "let" || m_Stream.CurTok.value == "var") {
-                    return parseVar(false);
+                if (m_Stream.CurTok.value == "let" ||
+                    m_Stream.CurTok.value == "var" ||
+                    m_Stream.CurTok.value == "comptime"
+                    ) return parseVar(false);
+
+                if (m_Stream.CurTok.value == "import")
+                    return parseImport();
+
+                if (m_Stream.CurTok.value == "fn")
+                    return parseFunction();
+
+                if (m_Stream.CurTok.value == "if")
+                    return parseCondition();
+
+                if (m_Stream.CurTok.value == "struct")
+                    return parseStruct();
+
+                if (m_Stream.CurTok.value == "while")
+                    return parseWhile();
+
+                if (m_Stream.CurTok.value == "return")
+                    return parseRet();
+
+                if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false")
+                    return std::make_unique<Expression>(parseExpr());
+
+                if (m_Stream.CurTok.value == "volatile") {
+                    forwardStream();
+                    return parseVar(true);
+                }
+
+                if (m_Stream.CurTok.value == "export") {
+                    m_LastSymWasExported = true;
+                    forwardStream();
+                    continue;
                 }
 
                 if (m_Stream.CurTok.value == "extern") {
@@ -183,43 +228,6 @@ SwNode Parser::dispatch() {
                         m_ExternAttributes = std::move(m_Stream.CurTok.value);
                     } forwardStream();
                     continue;
-                }
-
-                if (m_Stream.CurTok.value == "export") {
-                    m_LastSymWasExported = true;
-                    forwardStream();
-                    continue;
-                }
-
-                if (m_Stream.CurTok.value == "import") {
-                    return parseImport();
-                }
-
-                if (m_Stream.CurTok.value == "fn") {
-                    return parseFunction();
-                }
-
-                if (m_Stream.CurTok.value == "if") {
-                    return parseCondition();
-                }
-
-                if (m_Stream.CurTok.value == "struct")
-                    return parseStruct();
-
-                if (m_Stream.CurTok.value == "while")
-                    return parseWhile();
-
-                if (m_Stream.CurTok.value == "volatile") {
-                    forwardStream();
-                    return parseVar(true);
-                }
-
-                if (m_Stream.CurTok.value == "return") {
-                    return parseRet();
-                }
-
-                if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false") {
-                    return std::make_unique<Expression>(parseExpr());
                 }
 
                 reportError(ErrCode::UNEXPECTED_KEYWORD, {.str_1 = m_Stream.CurTok.value});
@@ -235,12 +243,20 @@ SwNode Parser::dispatch() {
                 if (m_Stream.CurTok.value == "[" || m_Stream.CurTok.value == "(")
                     return std::make_unique<Expression>(parseExpr());
 
+                if (m_Stream.CurTok.value == "{")
+                    return parseScope();
+
+                if (m_Stream.CurTok.value == "#") {
+                    forwardStream();
+                    m_AttributeList = parseExpr();
+                    continue;
+                }
+
                 if (m_Stream.CurTok.value == "@") {
                     forwardStream();
                     if (m_Stream.CurTok.type == IDENT && m_Stream.CurTok.value == "config")
                         // config-variables detected
                         parseVar();
-
                 }
 
                 // ignore semicolons
@@ -514,9 +530,8 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     auto var_node = std::make_unique<Var>();
     SET_NODE_ATTRS(var_node.get());
 
-    if (m_Stream.CurTok.type == IDENT && m_Stream.CurTok.value == "config") {
-        forwardStream();
-        var_node->is_config = true;
+    if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "comptime") {
+        var_node->is_comptime = true;
     }
 
     var_node->is_const = m_Stream.CurTok.value[0] == 'l';
@@ -537,11 +552,18 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
         var_node->value = parseExpr();
     }
 
+    if (var_node->is_comptime && !var_node->initialized) {
+        reportError(ErrCode::INITIALIZER_REQUIRED);
+    } else if (var_node->is_comptime && var_node->initialized) {
+        var_node->value.evaluate(*this);
+    }
+
     TableEntry entry;
-    entry.is_const = var_node->is_const;
+    entry.is_const    = var_node->is_const;
     entry.is_volatile = var_node->is_volatile;
     entry.is_exported = var_node->is_exported;
-    entry.swirl_type = var_node->var_type;
+    entry.swirl_type  = var_node->var_type;
+    entry.node_loc    = var_node.get();
 
     var_node->var_ident = SymbolTable.registerDecl(var_ident, entry);
     return var_node;
@@ -586,6 +608,27 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
 
     ret->value = parseExpr();
     return ret;
+}
+
+
+std::unique_ptr<Scope> Parser::parseScope() {
+    auto scope = std::make_unique<Scope>();
+    SET_NODE_ATTRS(scope.get());
+
+    forwardStream(); // skip '{'
+    while (true) {
+        if (m_Stream.eof()) {
+            reportError(ErrCode::UNEXPECTED_EOF);
+            break;
+        }
+
+        if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}") {
+            forwardStream();
+            break;
+        }
+
+        scope->children.emplace_back(dispatch());
+    } return scope;
 }
 
 
@@ -720,8 +763,8 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
     return loop;
 }
 
-Expression Parser::parseExpr(const int min_bp) {
-    auto ret = m_ExpressionParser.parseExpr(min_bp);
+Expression Parser::parseExpr() {
+    auto ret = m_ExpressionParser.parseExpr();
     SET_NODE_ATTRS(&ret);
     return ret;
 }

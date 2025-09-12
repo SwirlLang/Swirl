@@ -4,9 +4,11 @@
 #include <utility>
 #include <vector>
 #include <string_view>
+#include <variant>
 
-#include <utils/utils.h>
-#include <lexer/Tokens.h>
+#include "utils/utils.h"
+#include "lexer/Tokens.h"
+#include "parser/evaluation.h"
 
 
 enum NodeType {
@@ -29,6 +31,7 @@ enum NodeType {
     ND_ARRAY,       // 16
     ND_TYPE,        // 17
     ND_BOOL,        // 18
+    ND_SCOPE,       // 19
 };
 
 
@@ -36,6 +39,7 @@ struct Node;
 struct Var;
 struct Type;
 
+class Parser;
 class IdentInfo;
 class LLVMBackend;
 class AnalysisContext;
@@ -84,12 +88,14 @@ struct Node {
     }
 
     virtual const SwNode& getExprValue() {
-        assert(0);
+        throw std::runtime_error("getExprValue called on Node instance");
     }
 
     virtual llvm::Value* llvmCodegen([[maybe_unused]] LLVMBackend& instance) {
         throw std::runtime_error("llvmCodegen called on Node instance");
     }
+
+    virtual EvalResult evaluate(Parser&);
 
     virtual int8_t getArity() {
         throw std::runtime_error("getArity called on base Node instance ");
@@ -154,8 +160,8 @@ struct Expression final : Node {
         return expr_type;
     }
 
+    EvalResult   evaluate(Parser&) override;
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
-
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -257,6 +263,7 @@ struct Op final : Node {
     static int getPBPFor(OpTag_t op);
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    EvalResult   evaluate(Parser& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -301,6 +308,7 @@ struct IntLit final : Node {
         return true;
     }
 
+    EvalResult   evaluate(Parser &) override;
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
@@ -318,6 +326,7 @@ struct FloatLit final : Node {
         return true;
     }
 
+    EvalResult   evaluate(Parser &) override;
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
@@ -335,6 +344,7 @@ struct BoolLit final : Node {
         return true;
     }
 
+    EvalResult   evaluate(Parser &) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 };
@@ -355,9 +365,11 @@ struct StrLit final : Node {
         return true;
     }
 
-    llvm::Value *llvmCodegen(LLVMBackend& instance) override;
+    EvalResult   evaluate(Parser &) override;
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
+
 
 struct Ident final : Node {
     IdentInfo* value = nullptr;
@@ -374,9 +386,11 @@ struct Ident final : Node {
         return ND_IDENT;
     }
 
+    EvalResult   evaluate(Parser&) override;
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
+
 
 struct Var final : Node {
     IdentInfo* var_ident = nullptr;
@@ -388,8 +402,8 @@ struct Var final : Node {
     bool initialized = false;
     bool is_const    = false;
     bool is_volatile = false;
-    bool is_config   = false;
     bool is_extern   = false;
+    bool is_comptime = false;
     bool is_instance_param = false;   // for the special case of `&self` in methods
 
     std::string extern_attributes;
@@ -406,6 +420,19 @@ struct Var final : Node {
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
+
+
+struct Scope final : Node {
+    std::vector<SwNode> children;
+
+    [[nodiscard]] NodeType getNodeType() const override {
+        return ND_SCOPE;
+    }
+
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+};
+
 
 struct Function final : Node {
     IdentInfo* ident = nullptr;

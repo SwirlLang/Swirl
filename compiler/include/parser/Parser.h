@@ -1,15 +1,15 @@
 #pragma once
-#include <filesystem>
 #include <memory>
 #include <mutex>
-#include <concepts>
-#include <unordered_set>
 #include <utility>
+#include <concepts>
+#include <filesystem>
+#include <unordered_set>
 
 #include "definitions.h"
 #include "parser/Nodes.h"
-#include "lexer/TokenStream.h"
 #include "lexer/Tokens.h"
+#include "lexer/TokenStream.h"
 #include "errors/ErrorManager.h"
 #include "symbols/SymbolManager.h"
 
@@ -27,10 +27,12 @@ struct SwObject : std::variant<Type*, Node*> {
     using std::variant<Type*, Node*>::variant;
 
     [[nodiscard]] Type* toType() const {
+        assert(isType());
         return std::get<Type*>(*this);
     }
 
     [[nodiscard]] Node* toNode() const {
+        assert(isNode());
         return std::get<Node*>(*this);
     }
 
@@ -68,9 +70,11 @@ class Parser {
     Type*        m_CurrentStructTy  = nullptr;  // the type of the struct being parsed
 
     std::string m_ExternAttributes;
+    Expression  m_AttributeList;
     std::optional<Token> m_ReturnFakeToken = std::nullopt;
     // ---*--- ---*--- ---*---
 
+    int                   m_Depth = 0;
     std::size_t           m_UnresolvedDeps{};  // counter for the no. of unresolved dependencies
     std::vector<SwObject> m_ParseStack;        // currently-being-parsed object pointer stays at the top
 
@@ -102,46 +106,29 @@ public:
 
     explicit Parser(const std::filesystem::path& path, ErrorCallback_t, ModuleManager&);
 
-    Parser(const Parser&) = delete;
-    Parser& operator=(const Parser&) = delete;
 
-    Parser(Parser&& other) noexcept
-    : m_Stream(std::move(other.m_Stream))
-    , m_SrcMan(std::move(other.m_SrcMan))
-    , m_ModuleMap(other.m_ModuleMap)
-    , m_ErrorCallback(std::move(other.m_ErrorCallback))
-    , m_LatestFuncNode(other.m_LatestFuncNode)
-    , m_LastSymWasExported(other.m_LastSymWasExported)
-    , m_UnresolvedDeps(other.m_UnresolvedDeps)
-    , m_FilePath(std::move(other.m_FilePath))
-    , m_Dependents(std::move(other.m_Dependents))
-    , m_Dependencies(std::move(other.m_Dependencies))
-    , SymbolTable(std::move(other.SymbolTable))
-    , AST(std::move(other.AST))
-    , NodeJmpTable(std::move(other.NodeJmpTable))
-    {}
-
-
-    std::unique_ptr<Node> dispatch();
-    std::unique_ptr<Function> parseFunction();
-    std::unique_ptr<Condition> parseCondition();
-    std::unique_ptr<WhileLoop> parseWhile();
+    std::unique_ptr<Node>            dispatch();
+    std::unique_ptr<Function>        parseFunction();
+    std::unique_ptr<Condition>       parseCondition();
+    std::unique_ptr<WhileLoop>       parseWhile();
+    std::unique_ptr<Struct>          parseStruct();
+    std::unique_ptr<ImportNode>      parseImport();
+    std::unique_ptr<Scope>           parseScope();
     std::unique_ptr<ReturnStatement> parseRet();
-    std::unique_ptr<Struct> parseStruct();
-    std::unique_ptr<ImportNode> parseImport();
 
-    std::unique_ptr<Var> parseVar(bool is_volatile = false);
+    std::unique_ptr<Var>      parseVar(bool is_volatile = false);
     std::unique_ptr<FuncCall> parseCall(std::optional<Ident> _ = std::nullopt);
 
-    Ident parseIdent();
-
     Token forwardStream(uint8_t n = 1);
-    Expression parseExpr(int min_bp = -1);
-    Type* parseType();
+
+    Type*      parseType();
+    Ident      parseIdent();
+    Expression parseExpr();
 
     void parse();
     void performSema();
     void ignoreButExpect(const Token&);
+    void stackSafeguard() const;
 
     void toggleIsMainModule() { m_IsMainModule = !m_IsMainModule; }
 
@@ -172,6 +159,9 @@ struct Parser::NodeAttrHelper {
         node->is_exported = instance.m_LastSymWasExported;
         node->location.from = instance.m_Stream.getStreamState();
         node->location.source = instance.m_FilePath;
+        instance.m_Depth++;
+
+        instance.stackSafeguard();
 
         // setup error-report buffering
         if (!instance.m_ErrorQueue.contains(node))
@@ -198,12 +188,14 @@ struct Parser::NodeAttrHelper {
 
     /// Resets the states of the Parser
     ~NodeAttrHelper() {
+        instance.m_Depth--;
         instance.m_LastSymIsExtern = false;
         instance.m_LastSymWasExported = false;
         instance.m_ExternAttributes.clear();
 
-        if (node)
+        if (node) {
             node->location.to = instance.m_Stream.getStreamState();
+        }
 
         // flush all the errors
         for (auto& error : instance.m_ErrorQueue.at(node)) {

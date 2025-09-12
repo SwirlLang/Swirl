@@ -1,8 +1,9 @@
 #include "parser/Nodes.h"
+#include "parser/Parser.h"
 
 
 struct OpInfo {
-    enum Associativity { LEFT, RIGHT};
+    enum Associativity { LEFT, RIGHT };
 
     int precedence;
     Associativity associativity;
@@ -118,3 +119,77 @@ Op::OpTag_t Op::getTagFor(const std::string_view str, int arity) {
     return OpTagMap.at({str, arity});
 }
 
+
+EvalResult Node::evaluate(Parser& ctx) {
+    ctx.reportError(ErrCode::NOT_ALLOWED_CT_CTX);
+    return {};
+}
+
+EvalResult IntLit::evaluate(Parser&) {
+    return toInteger(value);
+}
+
+EvalResult FloatLit::evaluate(Parser&) {
+    return std::stod(value);
+}
+
+EvalResult BoolLit::evaluate(Parser&) {
+    return value;
+}
+
+EvalResult StrLit::evaluate(Parser&) {
+    return value;
+}
+
+
+EvalResult Ident::evaluate(Parser& ctx) {
+    if (const auto node = ctx.SymbolTable.lookupDecl(getIdentInfo()).node_loc) {
+        if (node->getNodeType() == ND_VAR) {
+            const auto var = dynamic_cast<Var*>(node);
+
+            // only allow config variables
+            if (!var->is_comptime) {
+                ctx.reportError(ErrCode::NOT_A_CT_VAR);
+                return {};
+            } return var->value.evaluate(ctx);
+        } ctx.reportError(ErrCode::NOT_ALLOWED_CT_CTX);
+    } return {};
+}
+
+
+EvalResult Expression::evaluate(Parser& ctx) {
+    return expr->evaluate(ctx);
+}
+
+
+EvalResult Op::evaluate(Parser& ctx) {
+    switch (op_type) {
+        case Op::MUL:
+            return operands.at(0)->evaluate(ctx) * operands.at(1)->evaluate(ctx);
+        case Op::DIV:
+            return operands.at(0)->evaluate(ctx) / operands.at(1)->evaluate(ctx);
+        case Op::BINARY_ADD:
+            return operands.at(0)->evaluate(ctx) + operands.at(1)->evaluate(ctx);
+        case Op::BINARY_SUB:
+            return operands.at(0)->evaluate(ctx) - operands.at(1)->evaluate(ctx);
+        case Op::GREATER_THAN:
+            return operands.at(0)->evaluate(ctx) > operands.at(1)->evaluate(ctx);
+        case Op::GREATER_THAN_OR_EQUAL:
+            return operands.at(0)->evaluate(ctx) >= operands.at(1)->evaluate(ctx);
+        case Op::LESS_THAN:
+            return operands.at(0)->evaluate(ctx) < operands.at(1)->evaluate(ctx);
+        case Op::LESS_THAN_OR_EQUAL:
+            return operands.at(0)->evaluate(ctx) <= operands.at(1)->evaluate(ctx);
+        case Op::LOGICAL_OR:
+            return operands.at(0)->evaluate(ctx) || operands.at(1)->evaluate(ctx);
+        case Op::LOGICAL_AND:
+            return operands.at(0)->evaluate(ctx) && operands.at(1)->evaluate(ctx);
+        case Op::LOGICAL_EQUAL:
+            return operands.at(0)->evaluate(ctx) == operands.at(1)->evaluate(ctx);
+        case Op::LOGICAL_NOTEQUAL:
+            return !(operands.at(0)->evaluate(ctx) == operands.at(1)->evaluate(ctx)).toBool();
+        default:
+            ctx.reportError(ErrCode::OP_NOT_ALLOWED_HERE, {.str_1 = value});
+            return {};
+    }
+}

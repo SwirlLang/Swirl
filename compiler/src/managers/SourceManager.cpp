@@ -2,6 +2,7 @@
 #include <string>
 #include <fstream>
 #include <managers/SourceManager.h>
+#include <array>
 
 std::size_t prev_col_state = 0;
 

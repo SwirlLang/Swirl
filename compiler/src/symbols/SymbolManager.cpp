@@ -1,5 +1,3 @@
-#include <ranges>
-
 #include <parser/Parser.h>
 #include <managers/ModuleManager.h>
 
@@ -18,7 +16,7 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
         return getIdInfoOfAGlobal(id.full_qualification.front());
     }
 
-    const Scope* look_at = nullptr;
+    const Namespace* look_at = nullptr;
     for (const auto& [counter, str] : llvm::enumerate(id.full_qualification)) {
         if (counter == id.full_qualification.size() - 1) break;
         if (counter == 0) {
@@ -84,12 +82,13 @@ TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {
 
 
 Type* SymbolManager::lookupType(IdentInfo* id) {
+    if (!id) return nullptr;
     if (const auto mod_path = id->getModulePath(); mod_path != m_ModulePath) {
         return m_ModuleMap.get(mod_path).SymbolTable.m_TypeManager.getFor(id);
     } return m_TypeManager.getFor(id);
 }
 
 
-Scope* SymbolManager::getGlobalScopeFromModule(const fs::path& path) const {
+Namespace* SymbolManager::getGlobalScopeFromModule(const fs::path& path) const {
     return m_ModuleMap.get(path).SymbolTable.getGlobalScope();
 }
