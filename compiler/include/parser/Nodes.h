@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 #include <string_view>
+#include <variant>
 
 #include "utils/utils.h"
 #include "lexer/Tokens.h"
