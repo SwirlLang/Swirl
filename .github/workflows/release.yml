@@ -68,9 +68,10 @@ jobs:
       - name: Install dependencies and Configure CMake
         run: |
             if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+              wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
                 sudo apt update
-                sudo apt install gcc g++
-                cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S .
+                sudo apt install clang llvm-20-dev clang-20
+                cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S . -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20
             fi
             if [ "${{ matrix.os }}" == "windows-latest" ]; then
               # use msvc compiler
