@@ -38,8 +38,7 @@ std::vector<std::string> cli::get_flag_values(std::string_view flag) {
 
 std::string cli::print_usage(std::string exe_name) {
     const std::string usage = R"(The Swirl compiler
-Usage: )" + exe_name +
-                              R"( <input-file> [flags]
+Usage: )" + exe_name + R"( <input-file> [flags]
 
 Flags:
 )";
