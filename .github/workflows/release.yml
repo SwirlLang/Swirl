@@ -52,12 +52,12 @@ jobs:
       - name: Download LLVM
         run: |
           if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            curl -L https://github.com/SwirlLang/llvm-builds/releases/download/20.1.8/LLVM-20.1.8-linux-x86_64-gcc.tar.gz 
+            curl -L -o llvm-linux.tar.gz https://github.com/SwirlLang/llvm-builds/releases/download/20.1.8/LLVM-20.1.8-linux-x86_64-gcc.tar.gz 
             mkdir -p $HOME/llvm
-            tar -xzf LLVM-20.1.8-linux-x86_64-gcc.tar.gz -C $HOME/llvm
+            tar -xzf llvm-linux.tar.gz -C $HOME/llvm
             # set PATH for llvm tools
             echo "LLVM_DIR=$HOME/llvm/lib/cmake/llvm" >> $GITHUB_ENV
-          f1
+          fi
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
             Invoke-WebRequest -Uri https://github.com/SwirlLang/llvm-builds/releases/download/20.1.8/LLVM-20.1.8-windows-x86_64-msvc.zip -OutFile llvm.zip
             Expand-Archive llvm.zip -DestinationPath $env:USERPROFILE\llvm
