@@ -2,9 +2,9 @@
 #include <vector>
 #include <filesystem>
 
-#include <cli/cli.h>
-#include <CompilerInst.h>
-#include <include/SwirlConfig.h>
+#include "cli/cli.h"
+#include "CompilerInst.h"
+#include "include/SwirlConfig.h"
 
 const std::vector<Argument> application_flags = {
     {{"-h", "--help"}, "Show the help message.", false, {}},

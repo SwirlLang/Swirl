@@ -7,15 +7,15 @@
 #include <optional>
 #include <functional>
 
-#include <utils/utils.h>
-#include <parser/Nodes.h>
-#include <parser/Parser.h>
-#include <lexer/Tokens.h>
-#include <backend/LLVMBackend.h>
-#include <errors/ErrorManager.h>
-#include <symbols/SymbolManager.h>
-#include <managers/ModuleManager.h>
-#include <parser/SemanticAnalysis.h>
+#include "utils/utils.h"
+#include "parser/Nodes.h"
+#include "parser/Parser.h"
+#include "lexer/Tokens.h"
+#include "backend/LLVMBackend.h"
+#include "errors/ErrorManager.h"
+#include "symbols/SymbolManager.h"
+#include "managers/ModuleManager.h"
+#include "parser/SemanticAnalysis.h"
 
 #include "CompilerInst.h"
 

@@ -1,15 +1,15 @@
 #pragma once
-#include <filesystem>
 #include <memory>
 #include <mutex>
-#include <concepts>
-#include <unordered_set>
 #include <utility>
+#include <concepts>
+#include <filesystem>
+#include <unordered_set>
 
 #include "definitions.h"
 #include "parser/Nodes.h"
-#include "lexer/TokenStream.h"
 #include "lexer/Tokens.h"
+#include "lexer/TokenStream.h"
 #include "errors/ErrorManager.h"
 #include "symbols/SymbolManager.h"
 

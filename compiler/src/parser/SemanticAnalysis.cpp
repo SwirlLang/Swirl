@@ -1,10 +1,10 @@
 #include <cassert>
 #include <utility>
 
-#include <parser/Nodes.h>
-#include <parser/Parser.h>
-#include <parser/SemanticAnalysis.h>
-#include <managers/ModuleManager.h>
+#include "parser/Nodes.h"
+#include "parser/Parser.h"
+#include "parser/SemanticAnalysis.h"
+#include "managers/ModuleManager.h"
 
 
 using SwNode = std::unique_ptr<Node>;
