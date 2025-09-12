@@ -18,10 +18,10 @@ if(BUILD_STDLIB)
 endif()
 
 
-# for windows
-if (WIN32)
-    set(CMAKE_CXX_STANDARD_LIBRARIES "-static-libgcc -static-libstdc++ -static")
-endif (WIN32)
+# only for clang or gcc on windows
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++ -static")
+endif()
 
 include_directories("include")
 include_directories("${PROJECT_BINARY_DIR}")
@@ -37,15 +37,13 @@ install(TARGETS swirl
 
 # only statically link on release
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
-    find_package(ZLIB REQUIRED)
-    find_package(LibXml2 REQUIRED)
 
     llvm_map_components_to_libnames(LLVM_LIBS native)
 
-    target_link_libraries(swirl PRIVATE ${LLVM_LIBS} ${ZLIB_LIBRARIES} ${FFI_LIBRARIES} ${LIBXML2_LIBRARIES})
-        add_custom_command(TARGET swirl POST_BUILD
-                            COMMAND ${CMAKE_STRIP} $<TARGET_FILE:swirl>
-                            COMMENT "Stripping swirl executable")
+    target_link_libraries(swirl PRIVATE ${LLVM_LIBS})
+    add_custom_command(TARGET swirl POST_BUILD
+                        COMMAND ${CMAKE_STRIP} $<TARGET_FILE:swirl>
+                        COMMENT "Stripping swirl executable")
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
