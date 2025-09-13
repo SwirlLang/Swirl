@@ -59,8 +59,9 @@ jobs:
             echo "LLVM_DIR=$HOME/llvm/lib/cmake/llvm" >> $GITHUB_ENV
           fi
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            dir C:\Program Files (x86)
-            C:\Program Files (x86)\Microsoft Visual Studio\2022
+            ls "C:\Program Files (x86)"
+            ls "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools"
+            exit 1
             curl -L -o llvm-windows.rar https://github.com/SwirlLang/llvm-builds/releases/download/20.1.8/LLVM-20.1.8-windows-x86_64-msvc.rar
             7z x llvm-windows.rar -o$HOME/llvm
             # set PATH for llvm tools
