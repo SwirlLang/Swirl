@@ -59,9 +59,8 @@ jobs:
             echo "LLVM_DIR=$HOME/llvm/lib/cmake/llvm" >> $GITHUB_ENV
           fi
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            curl -L -o llvm-windows.tar.gz https://github.com/SwirlLang/llvm-builds/releases/download/20.1.8/LLVM-20.1.8-windows-x86_64-msvc.tar.gz 
-            mkdir -p $HOME/llvm
-            tar -xzf llvm-windows.tar.gz -C $HOME/llvm
+            curl -L -o llvm-windows.rar https://github.com/SwirlLang/llvm-builds/releases/download/20.1.8/LLVM-20.1.8-windows-x86_64-msvc.rar
+            7z x llvm-windows.rar -o $HOME/llvm
             # set PATH for llvm tools
             echo "LLVM_DIR=$HOME/llvm/lib/cmake/llvm" >> $GITHUB_ENV
           fi
@@ -69,10 +68,8 @@ jobs:
       - name: Install dependencies and Configure CMake
         run: |
             if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-              wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-                sudo apt update
-                sudo apt install clang clang-20
-                cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S . -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20
+                sudo apt update && sudo apt upgrade
+                cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S .
             fi
             if [ "${{ matrix.os }}" == "windows-latest" ]; then
               # use msvc compiler
