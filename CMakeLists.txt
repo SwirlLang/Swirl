@@ -8,4 +8,4 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     install(FILES "misc/man/swirl.1" DESTINATION share/man/man1)
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
-include(CPackConfig.cmake)
+include(CPackConfig.cmake) 
