@@ -102,7 +102,7 @@ jobs:
       - name: Upload binaries and packages
         uses: actions/upload-artifact@v4
         with:
-          name: binary
+          name: binary-${{ matrix.os }}
           path: build/swirl-*
 
   github-release:
@@ -116,7 +116,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.inputs.sha }}
       
       - name: Create Tag
         run: |
@@ -125,7 +126,8 @@ jobs:
       
       - uses: actions/download-artifact@v5
         with:
-          name: binary
+          pattern: binary-*
+          merge-multiple: true
           path: .
 
       - name: Generate release notes
