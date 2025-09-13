@@ -52,6 +52,8 @@ jobs:
       - name: Download LLVM
         run: |
           if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            dpkg -l | grep gcc
+            exit 1
             curl -L -o llvm-linux.tar.gz https://github.com/SwirlLang/llvm-builds/releases/download/20.1.8/LLVM-20.1.8-linux-x86_64-gcc.tar.gz 
             mkdir -p $HOME/llvm
             tar -xzf llvm-linux.tar.gz -C $HOME/llvm
@@ -60,7 +62,7 @@ jobs:
           fi
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
             curl -L -o llvm-windows.rar https://github.com/SwirlLang/llvm-builds/releases/download/20.1.8/LLVM-20.1.8-windows-x86_64-msvc.rar
-            7z x llvm-windows.rar -o $HOME/llvm
+            7z x llvm-windows.rar -o$HOME/llvm
             # set PATH for llvm tools
             echo "LLVM_DIR=$HOME/llvm/lib/cmake/llvm" >> $GITHUB_ENV
           fi
@@ -69,7 +71,7 @@ jobs:
         run: |
             if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
                 sudo apt update && sudo apt upgrade
-                cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S .
+                cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S . -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20
             fi
             if [ "${{ matrix.os }}" == "windows-latest" ]; then
               # use msvc compiler
