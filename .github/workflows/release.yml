@@ -40,10 +40,6 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Test
-        run: |
-          ls "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
-          exit 1
       - name: Check out the repository
         uses: actions/checkout@v3
         with:
@@ -75,7 +71,6 @@ jobs:
                 cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S . -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14
             fi
             if [ "${{ matrix.os }}" == "windows-latest" ]; then
-              # use msvc compiler
               cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S . -G "Visual Studio 17 2022" -A x64
             fi
 
