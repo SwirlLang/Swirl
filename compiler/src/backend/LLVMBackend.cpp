@@ -23,6 +23,7 @@
 
 
 #define PRE_SETUP() LLVMBackend::SetupHandler GET_UNIQUE_NAME(backend_helper_){instance, this};
+#define SET_BOUND_TYPE_STATE(x) LLVMBackend::BoundTypeStateHelper(instance, x);
 
 // ReSharper disable all CppUseStructuredBinding
 
@@ -128,7 +129,11 @@ llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
 
     else if (instance.getBoundTypeState()->isFloatingPoint()) {
         ret = llvm::ConstantFP::get(instance.getBoundLLVMType(), value);
-    } else {
+    } else if (instance.getBoundTypeState()->getTypeTag() == Type::BOOL) {
+        ret = llvm::ConstantInt::get(llvm::Type::getInt32Ty(instance.Context), std::to_string(toInteger(value)), 10);
+    }
+
+    else {
         throw std::runtime_error(std::format("Fatal: IntLit::llvmCodegen called but instance is neither in "
                                 "integral nor FP state. State: `{}`", instance.getBoundTypeState()->toString()));
     }
@@ -862,7 +867,10 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
         instance.Builder.SetInsertPoint(if_block);
         codegenChildrenUntilRet(instance, if_children);
 
-        if (!instance.Builder.GetInsertBlock()->back().isTerminator())
+        // insert a jump to the merge block if the scope either doesn't end with a
+        // terminator or is empty
+        if (!instance.Builder.GetInsertBlock()->back().isTerminator() ||
+            instance.Builder.GetInsertBlock()->empty())
             instance.Builder.CreateBr(merge_block);
     }
 
@@ -880,14 +888,24 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
             instance.Builder.CreateCondBr(cnd, elif_block, next_elif);
             instance.Builder.SetInsertPoint(elif_block);
             codegenChildrenUntilRet(instance, children);
-            if (!instance.Builder.GetInsertBlock()->back().isTerminator())
+
+            // insert a jump to the merge block if the scope either doesn't end with a
+            // terminator or is empty
+            if (!instance.Builder.GetInsertBlock()->back().isTerminator() ||
+                instance.Builder.GetInsertBlock()->empty())
                 instance.Builder.CreateBr(merge_block);
+
             instance.Builder.SetInsertPoint(next_elif);
         }
 
         codegenChildrenUntilRet(instance, else_children);
-        if (!instance.Builder.GetInsertBlock()->back().isTerminator())
+
+        // insert a jump to the merge block if the scope either doesn't end with a
+        // terminator or is empty
+        if (!instance.Builder.GetInsertBlock()->back().isTerminator() ||
+            instance.Builder.GetInsertBlock()->empty())
             instance.Builder.CreateBr(merge_block);
+
         instance.Builder.SetInsertPoint(merge_block);
     }
 
@@ -1001,7 +1019,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     auto linkage = (is_exported || is_extern) ?
         llvm::GlobalVariable::ExternalLinkage : llvm::GlobalVariable::InternalLinkage;
 
-    
+
     if (!instance.IsLocalScope) {
         auto var_name = is_extern ? var_ident->toString() : instance.mangleString(var_ident);
         auto* var = new llvm::GlobalVariable(
@@ -1031,7 +1049,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
             init = value.llvmCodegen(instance);
             if (init) {
                 instance.Builder.CreateStore(init, var_alloca, is_volatile);
-            } else std::println("Warning: not creating a store!");
+            }
 
             instance.BoundMemory = nullptr;
         }

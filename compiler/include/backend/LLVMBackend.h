@@ -55,6 +55,7 @@ public:
     // -------------------------------------------------------
 
     struct   SetupHandler;
+    struct   BoundTypeStateHelper;
     explicit LLVMBackend(Parser& parser);
 
 
@@ -183,4 +184,18 @@ struct LLVMBackend::SetupHandler {
 private:
     LLVMBackend& instance;
     Node* node;
+};
+
+
+struct LLVMBackend::BoundTypeStateHelper {
+    BoundTypeStateHelper(LLVMBackend& instance, Type* value): instance(instance) {
+        instance.setBoundTypeState(value);
+    }
+
+    ~BoundTypeStateHelper() {
+        instance.restoreBoundTypeState();
+    }
+
+private:
+    LLVMBackend& instance;
 };
