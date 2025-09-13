@@ -68,7 +68,6 @@ jobs:
       - name: Install dependencies and Configure CMake
         run: |
             if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-                sudo apt update && sudo apt upgrade
                 cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S . -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14
             fi
             if [ "${{ matrix.os }}" == "windows-latest" ]; then
