@@ -120,6 +120,19 @@ Op::OpTag_t Op::getTagFor(const std::string_view str, int arity) {
 }
 
 
+/// Constructs and returns an expression out of the `EvalResult` variant
+Expression Expression::makeExpression(const EvalResult& e) {
+    return std::visit(
+    VisitorHelper{
+        [](std::monostate) { return makeExpression(nullptr); },
+        [](const bool v) { return makeExpression(new BoolLit{v}); },
+        [](const double v) { return makeExpression(new FloatLit{v}); },
+        [](const std::size_t v) { return makeExpression(new IntLit{v}); },
+        [](const std::string& v) { return makeExpression(new StrLit{v}); },
+    }, e);
+}
+
+
 EvalResult Node::evaluate(Parser& ctx) {
     ctx.reportError(ErrCode::NOT_ALLOWED_CT_CTX);
     return {};

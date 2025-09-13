@@ -133,6 +133,7 @@ struct Expression final : Node {
         return expr;
     }
 
+    static Expression makeExpression(const EvalResult& e);
     static Expression makeExpression(Node* node) {
         return makeExpression(std::unique_ptr<Node>(node));
     }
@@ -299,6 +300,7 @@ struct IntLit final : Node {
     std::string value;
 
     explicit IntLit(std::string val): value(std::move(val)) {}
+    explicit IntLit(std::size_t val): value(std::to_string(val)) {}
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_INT;
@@ -317,6 +319,7 @@ struct FloatLit final : Node {
     std::string value;
 
     explicit FloatLit(std::string val): value(std::move(val)) {}
+    explicit FloatLit(const double val): value(std::to_string(val)) {}
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_FLOAT;
@@ -556,7 +559,9 @@ struct Struct final : Node {
 
 
 struct Condition final : Node {
-    Expression bool_expr{};
+    Expression bool_expr;
+    bool       is_comptime = false;
+
     std::vector<std::unique_ptr<Node>> if_children{};
     std::vector<std::tuple<Expression, std::vector<std::unique_ptr<Node>>>> elif_children;
     std::vector<std::unique_ptr<Node>> else_children{};

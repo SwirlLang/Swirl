@@ -75,6 +75,10 @@ struct EvalResult : SwEvalResultBase {
         return std::holds_alternative<std::string>(*this);
     }
 
+    [[nodiscard]] bool isMonoState() const {
+        return std::holds_alternative<std::monostate>(*this);
+    }
+
     DEFINE_OP(+);
     DEFINE_OP(*);
     DEFINE_OP(/);
