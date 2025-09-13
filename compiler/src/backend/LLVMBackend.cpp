@@ -806,7 +806,7 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
     }
 
     if (getBoundTypeState() != source_type && source_type->getTypeTag() != Type::STRUCT) {
-        if (getBoundTypeState()->isIntegral()) {
+        if (getBoundTypeState()->isIntegral() || getBoundTypeState()->getTypeTag() == Type::BOOL) {
             if (getBoundTypeState()->isUnsigned()) {
                 return Builder.CreateZExtOrTrunc(subject, getBoundLLVMType());
             } return Builder.CreateSExtOrTrunc(subject, getBoundLLVMType());
