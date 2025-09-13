@@ -42,8 +42,7 @@ jobs:
     steps:
       - name: Test
         run: |
-          ls "C:\Program Files\Microsoft Visual Studio"
-          ls "C:\Program Files\Microsoft Visual Studio\2022"
+          ls "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
           exit 1
       - name: Check out the repository
         uses: actions/checkout@v3
