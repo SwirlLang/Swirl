@@ -48,6 +48,7 @@ struct VisitorHelper: T... {
 
 /// Respects the radices during conversion.
 inline std::size_t toInteger(const std::string& str) {
+    if (str.size() <= 2) return std::stoi(str);
     switch (str[1]) {
         case 'x':
             return std::stoi(str.substr(2), nullptr, 16);
