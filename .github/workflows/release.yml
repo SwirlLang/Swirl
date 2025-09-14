@@ -36,6 +36,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.inputs.sha }}
       - name: Create Tag
         run: |
           git tag v${{ github.event.inputs.version_number }} ${{ github.event.inputs.sha }}
