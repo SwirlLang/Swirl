@@ -84,6 +84,8 @@ public:
                 return &GlobalTypeI32;
             case ND_FLOAT:
                 return &GlobalTypeF64;
+            case ND_BOOL:
+                return &GlobalTypeBool;
             case ND_IDENT:
                 return SymMan.lookupDecl(node->getIdentInfo()).swirl_type;
             case ND_CALL:

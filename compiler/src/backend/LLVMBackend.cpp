@@ -23,7 +23,7 @@
 
 
 #define PRE_SETUP() LLVMBackend::SetupHandler GET_UNIQUE_NAME(backend_helper_){instance, this};
-#define SET_BOUND_TYPE_STATE(x) LLVMBackend::BoundTypeStateHelper(instance, x);
+#define SET_BOUND_TYPE_STATE(x) LLVMBackend::BoundTypeStateHelper GET_UNIQUE_NAME(bound_ty)(instance, x);
 
 // ReSharper disable all CppUseStructuredBinding
 
@@ -175,10 +175,7 @@ llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* BoolLit::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
-    return llvm::ConstantInt::get(
-        llvm::Type::getInt1Ty(instance.Context),
-        value
-    );
+    return llvm::ConstantInt::getBool(instance.Context, value);
 }
 
 
@@ -381,6 +378,8 @@ llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
+    SET_BOUND_TYPE_STATE(common_type);
+
     switch (op_type) {
         case UNARY_ADD:
             return operands.back()->llvmCodegen(instance);
@@ -544,7 +543,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
-            // assert(lhs->getType() == rhs->getType());
+            assert(lhs->getType() == rhs->getType());
 
             if (lhs->getType()->isFloatingPointTy()) {
                 return instance.Builder.CreateFCmpOEQ(lhs, rhs);
@@ -598,6 +597,8 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             auto lhs_type = instance.fetchSwType(operands.at(0));
             auto rhs_type = instance.fetchSwType(operands.at(1));
 
+            assert(lhs->getType() == rhs->getType());
+
             if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
                 return instance.Builder.CreateFCmpOGT(lhs, rhs);
             }
@@ -615,6 +616,8 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
             auto lhs_type = instance.fetchSwType(operands.at(0));
             auto rhs_type = instance.fetchSwType(operands.at(1));
+
+            assert(lhs->getType() == rhs->getType());
 
             if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
                 return instance.Builder.CreateFCmpOGE(lhs, rhs);
@@ -634,6 +637,8 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             auto lhs_type = instance.fetchSwType(operands.at(0));
             auto rhs_type = instance.fetchSwType(operands.at(1));
 
+            assert(lhs->getType() == rhs->getType());
+
             if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
                 return instance.Builder.CreateFCmpOLT(lhs, rhs);
             }
@@ -652,6 +657,8 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             auto lhs_type = instance.fetchSwType(operands.at(0));
             auto rhs_type = instance.fetchSwType(operands.at(1));
 
+            assert(lhs->getType() == rhs->getType());
+
             if (lhs_type->isFloatingPoint() || rhs_type->isFloatingPoint()) {
                 return instance.Builder.CreateFCmpOLE(lhs, rhs);
             }
@@ -667,7 +674,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             instance.setAssignmentLhsState(true);
             auto lhs = operands.at(0)->llvmCodegen(instance);
             instance.restoreAssignmentLhsState();
-            instance.setBoundTypeState(inferred_type);
+            instance.setBoundTypeState(common_type);
             instance.Builder.CreateStore(operands.at(1)->llvmCodegen(instance), lhs);
             instance.restoreBoundTypeState();
             return nullptr;
@@ -821,7 +828,9 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
 
     if (getBoundTypeState() != source_type && source_type->getTypeTag() != Type::STRUCT) {
         if (getBoundTypeState()->isIntegral() || getBoundTypeState()->getTypeTag() == Type::BOOL) {
-            if (getBoundTypeState()->isUnsigned()) {
+            // if the destination type is unsigned or if the source type is boolean
+            // perform a zero-extension or truncation
+            if (getBoundTypeState()->isUnsigned() || source_type->getTypeTag() == Type::BOOL) {
                 return Builder.CreateZExtOrTrunc(subject, getBoundLLVMType());
             } return Builder.CreateSExtOrTrunc(subject, getBoundLLVMType());
         }
@@ -1024,7 +1033,7 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
     assert(var_type != nullptr);
-    if (is_comptime) { return nullptr; }
+    // if (is_comptime) { return nullptr; }
 
     llvm::Type* type = var_type->llvmCodegen(instance);
 

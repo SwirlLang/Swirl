@@ -556,7 +556,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     if (var_node->is_comptime && !var_node->initialized) {
         reportError(ErrCode::INITIALIZER_REQUIRED);
     } else if (var_node->is_comptime && var_node->initialized) {
-        var_node->value.evaluate(*this);
+        var_node->value = Expression::makeExpression(var_node->value.evaluate(*this));
     }
 
     TableEntry entry;

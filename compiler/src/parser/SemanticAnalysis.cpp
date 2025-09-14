@@ -62,6 +62,10 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, const SourceLocation
         }
     }
 
+    if (type1->getTypeTag() == Type::BOOL && type2->getTypeTag() == Type::BOOL) {
+        return type1;
+    }
+
     if (type1->getTypeTag() == Type::REFERENCE || type2->getTypeTag() == Type::REFERENCE) {
         const auto enclosed_type_1 = type1->getTypeTag() == Type::REFERENCE ?
             dynamic_cast<ReferenceType*>(type1)->of_type : type1;
@@ -141,6 +145,10 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, const SourceL
         }
 
         return checkTypeCompatibility(base_t1->of_type, base_t2->of_type, location);
+    }
+
+    if (from->getTypeTag() == Type::BOOL && to->getTypeTag() == Type::BOOL) {
+        return true;
     }
 
     if (from->getTypeTag() == Type::REFERENCE && to->getTypeTag() == Type::REFERENCE) {
@@ -656,13 +664,26 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                 break;
             }
 
+            case LOGICAL_AND:
+            case LOGICAL_OR:
+            case LOGICAL_EQUAL:
+            case LOGICAL_NOTEQUAL:
+            case LOGICAL_NOT:
+            case GREATER_THAN:
+            case GREATER_THAN_OR_EQUAL:
+            case LESS_THAN:
+            case LESS_THAN_OR_EQUAL:
+                ret.deduced_type = &GlobalTypeBool;
+                break;
             default: {
                 ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);
             }
         }
     }
 
-    inferred_type = ret.deduced_type;
+    if (arity == 2)
+        common_type = ctx.deduceType(analysis_1.deduced_type, analysis_1.deduced_type, location);
+    else common_type = analysis_1.deduced_type;
     return ret;
 }
 

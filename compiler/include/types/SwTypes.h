@@ -342,6 +342,8 @@ struct TypeF64 final : Type {
 };
 
 struct TypeBool final : Type {
+    [[nodiscard]] bool isUnsigned() override { return true; }
+    [[nodiscard]] bool isIntegral() override { return true; }
     [[nodiscard]] std::string toString() const override { return "bool"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getTypeTag() override { return BOOL; }

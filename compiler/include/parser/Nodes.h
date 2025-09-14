@@ -125,7 +125,6 @@ struct Node {
 
 
 struct GlobalNode : Node {
-    bool is_exported = false;
     bool is_extern   = false;
     std::string extern_attributes;
 
@@ -249,7 +248,7 @@ struct Op final : Node {
     };
 
     OpTag_t op_type = INVALID;
-    Type*  inferred_type = nullptr;
+    Type*  common_type = nullptr;  // the common type of its operands
 
     Op() = default;
 
@@ -272,7 +271,7 @@ struct Op final : Node {
 
     [[nodiscard]]
     NodeType getNodeType() const override { return ND_OP; }
-    Type* getSwType() override { return inferred_type; }
+    Type* getSwType() override { return common_type; }
 
     static int getLBPFor(OpTag_t op);
     static int getRBPFor(OpTag_t op);
