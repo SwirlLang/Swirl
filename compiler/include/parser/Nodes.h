@@ -4,7 +4,6 @@
 #include <utility>
 #include <vector>
 #include <string_view>
-#include <variant>
 
 #include "utils/utils.h"
 #include "lexer/Tokens.h"
@@ -64,7 +63,6 @@ struct SourceLocation {
 // The common base class of all the nodes
 struct Node {
     std::string value;
-    std::size_t scope_id{};
     SourceLocation location;
 
     bool is_exported = false;
@@ -75,6 +73,11 @@ struct Node {
     }
 
     virtual bool hasScopes() {
+        return false;
+    }
+
+    [[nodiscard]]
+    virtual bool isGlobal() const {
         return false;
     }
 
@@ -118,6 +121,18 @@ struct Node {
     }
 
     virtual ~Node() = default;
+};
+
+
+struct GlobalNode : Node {
+    bool is_exported = false;
+    bool is_extern   = false;
+    std::string extern_attributes;
+
+    [[nodiscard]]
+    bool isGlobal() const override {
+        return true;
+    }
 };
 
 
@@ -395,7 +410,7 @@ struct Ident final : Node {
 };
 
 
-struct Var final : Node {
+struct Var final : GlobalNode {
     IdentInfo* var_ident = nullptr;
     Type* var_type = nullptr;
 
@@ -405,11 +420,8 @@ struct Var final : Node {
     bool initialized = false;
     bool is_const    = false;
     bool is_volatile = false;
-    bool is_extern   = false;
     bool is_comptime = false;
     bool is_instance_param = false;   // for the special case of `&self` in methods
-
-    std::string extern_attributes;
 
     Var() = default;
 
@@ -437,11 +449,8 @@ struct Scope final : Node {
 };
 
 
-struct Function final : Node {
+struct Function final : GlobalNode {
     IdentInfo* ident = nullptr;
-
-    bool is_extern = false;
-    std::string extern_attributes;
 
     std::vector<Var> params;
     std::vector<std::unique_ptr<Node>> children;
@@ -461,6 +470,7 @@ struct Function final : Node {
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
+
 
 struct FuncCall final : Node {
     std::vector<Expression> args;
@@ -484,6 +494,7 @@ struct FuncCall final : Node {
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
+
 
 struct ImportNode final : Node {
     struct ImportedSymbol_t {
@@ -537,12 +548,10 @@ struct WhileLoop final : Node {
 };
 
 
-struct Struct final : Node {
+struct Struct final : GlobalNode {
     IdentInfo* ident = nullptr;
     std::vector<std::unique_ptr<Node>> members;
 
-    bool is_externed = false;
-    std::string extern_attributes;
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_STRUCT;
@@ -553,7 +562,6 @@ struct Struct final : Node {
     }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
-
     llvm::Value* llvmCodegen(LLVMBackend &instance) override;
 };
 
