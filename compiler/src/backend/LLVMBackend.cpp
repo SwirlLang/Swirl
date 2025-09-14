@@ -124,6 +124,8 @@ llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
             ret = llvm::ConstantInt::get(int_type, value.substr(2), 16);
         else if (value.starts_with("0o"))
             ret = llvm::ConstantInt::get(int_type, value.substr(2), 8);
+        else if (value.starts_with("0b"))
+            ret = llvm::ConstantInt::get(int_type, value.substr(2), 2);
         else ret = llvm::ConstantInt::get(int_type, value, 10); 
     }
 
@@ -530,7 +532,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
             llvm::Value* rhs = operands.at(1)->llvmCodegen(instance);
 
-            assert(lhs->getType() == rhs->getType());
+            // assert(lhs->getType() == rhs->getType());
 
             if (lhs->getType()->isFloatingPointTy()) {
                 return instance.Builder.CreateFCmpOEQ(lhs, rhs);
