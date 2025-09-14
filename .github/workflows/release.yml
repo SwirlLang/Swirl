@@ -33,6 +33,14 @@ defaults:
     shell: bash
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Tag
+        run: |
+          git tag v${{ github.event.inputs.version_number }} ${{ github.event.inputs.sha }}
+          git push origin v${{ github.event.inputs.version_number }}
+          exit 1
   build:
     strategy:
       matrix:
@@ -45,9 +53,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ github.event.inputs.sha }}
-
-      - name: Authenticate GitHub CLI
-        run: gh auth login --with-token <<< ${{ secrets.GITHUB_TOKEN }}
       
       - name: Download LLVM
         run: |
@@ -119,10 +124,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ github.event.inputs.sha }}
       
-      - name: Create Tag
-        run: |
-          git tag v${{ github.event.inputs.version_number }} ${{ github.event.inputs.sha }}
-          git push origin v${{ github.event.inputs.version_number }}
+
       
       - uses: actions/download-artifact@v5
         with:
