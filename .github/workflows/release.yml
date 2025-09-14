@@ -36,26 +36,43 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Check out the repository
         uses: actions/checkout@v3
         with:
-          persist-credentials: false
+          token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ github.event.inputs.sha }}
 
-      - name: Configure CMake
+      - name: Download LLVM
         run: |
-            if [ "${{ matrix.os }}" == "windows-latest" ]; then
-              cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S . -G "MinGW Makefiles"
-            else
-              cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S .
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            curl -L -o llvm-linux.tar.gz https://github.com/SwirlLang/llvm-builds/releases/download/20.1.8/LLVM-20.1.8-linux-x86_64-gcc.tar.gz
+            mkdir -p $HOME/llvm
+            tar -xzf llvm-linux.tar.gz -C $HOME/llvm
+            # set PATH for llvm tools
+            echo "LLVM_DIR=$HOME/llvm/lib/cmake/llvm" >> $GITHUB_ENV
+          fi
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            curl -L -o llvm-windows.rar https://github.com/SwirlLang/llvm-builds/releases/download/20.1.8/LLVM-20.1.8-windows-x86_64-msvc.rar
+            7z x llvm-windows.rar -o$HOME/llvm
+            # set PATH for llvm tools
+            echo "LLVM_DIR=$HOME/llvm/lib/cmake/llvm" >> $GITHUB_ENV
+          fi
+
+      - name: Install dependencies and Configure CMake
+        run: |
+            if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+                cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S . -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14
             fi
-      
+            if [ "${{ matrix.os }}" == "windows-latest" ]; then
+              cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -S . -G "Visual Studio 17 2022" -A x64
+            fi
+
       - name: Build
-        run: cmake --build build --config ${{env.BUILD_TYPE}}
+        run: cmake --build build --config ${{env.BUILD_TYPE}} -j 14
 
       - name: Package with CPack
         run: |
@@ -63,31 +80,25 @@ jobs:
             if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
               cpack -G DEB
               cpack -G RPM
-            elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-              cpack -G DragNDrop
             elif [ "${{ matrix.os }}" == "windows-latest" ]; then
               cpack -G NSIS
             fi
             cd ..
-        
 
       - name: rename and run the app
         run: |
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            mv build/swirl.exe build/swirl-windows.exe
+            mv build/${{env.BUILD_TYPE}}/swirl.exe build/swirl-windows.exe
             ./build/swirl-windows.exe
-          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            mv build/swirl build/swirl-macos
-            ./build/swirl-macos
-          else
+          elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
             mv build/swirl build/swirl-linux
             ./build/swirl-linux
           fi
 
       - name: Upload binaries and packages
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
-          name: binary
+          name: binary-${{ matrix.os }}
           path: build/swirl-*
 
   github-release:
@@ -101,18 +112,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.inputs.sha }}
+
+      - name: Create Tag
+        run: |
+          git tag v${{ github.event.inputs.version_number }} ${{ github.event.inputs.sha }}
+          git push origin v${{ github.event.inputs.version_number }}
       
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v5
         with:
-          name: binary
+          pattern: binary-*
+          merge-multiple: true
           path: .
-        
+
       - name: Generate release notes
         run: npx git-cliff@latest --unreleased --tag ${{github.event.inputs.version_number}} --output CHANGELOG.md
-      
+
       - name: Creating GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: v${{github.event.inputs.version_number}}
           tag_name: v${{github.event.inputs.version_number}}
