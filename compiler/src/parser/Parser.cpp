@@ -488,9 +488,10 @@ std::unique_ptr<Function> Parser::parseFunction() {
     }
 
     TableEntry entry;
-    entry.swirl_type = function_t.get();
+    entry.swirl_type  = function_t.get();
     entry.is_exported = func_nd->is_exported;
     entry.is_method   = m_CurrentStructTy != nullptr;
+    entry.node_loc    = func_nd.get();
 
     if (!m_CurrentStructTy) {  // when the function is not a method
         // register the function in the global scope

@@ -168,20 +168,10 @@ struct Parser::NodeAttrHelper {
             instance.m_ErrorQueue.insert({node, {}});
         instance.m_ParseStack.emplace_back(node);
 
-        // other node specific attributes
-        switch (node->getNodeType()) {
-            case ND_VAR: {
-                const auto nd = dynamic_cast<Var*>(node);
-                nd->is_extern = instance.m_LastSymIsExtern;
-                nd->extern_attributes = instance.m_ExternAttributes;
-                break;
-            } case ND_FUNC: {
-                const auto nd = dynamic_cast<Function*>(node);
-                nd->is_extern = instance.m_LastSymIsExtern;
-                nd->extern_attributes = instance.m_ExternAttributes;
-                break;
-            } default:
-                break;
+        if (node->isGlobal()) {
+            const auto glob = dynamic_cast<GlobalNode*>(node);
+            glob->is_extern = instance.m_LastSymIsExtern;
+            glob->extern_attributes = instance.m_ExternAttributes;
         }
     }
 

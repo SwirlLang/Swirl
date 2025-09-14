@@ -87,6 +87,18 @@ LLVMBackend::LLVMBackend(Parser& parser)
 // TODO: mangling still needs to concatenate module UID into the string
 std::string LLVMBackend::mangleString(IdentInfo* id) {
     auto decl_lookup = SymMan.lookupDecl(id);
+
+    if (decl_lookup.node_loc) {
+        // do not mangle `extern "C"` symbols
+        if (decl_lookup.node_loc->isGlobal()) {
+            if (dynamic_cast<GlobalNode*>(
+                decl_lookup.node_loc
+                )->extern_attributes.contains("C")) {
+                return id->toString();
+            }
+        }
+    }
+
     if (decl_lookup.is_method) {
         // this shall hold the encapsulating type
         auto type = getManglingContext().encapsulator;
