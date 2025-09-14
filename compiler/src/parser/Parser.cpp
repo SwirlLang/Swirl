@@ -637,7 +637,15 @@ std::unique_ptr<Condition> Parser::parseCondition() {
     SET_NODE_ATTRS(cnd.get());
 
     forwardStream();  // skip "if"
+    if (m_Stream.CurTok == Token{KEYWORD, "comptime"}) {
+        cnd->is_comptime = true;
+        forwardStream();  // skip "comptime"
+    }
+
     cnd->bool_expr = parseExpr();
+    if (cnd->is_comptime) {
+        cnd->bool_expr = Expression::makeExpression(cnd->bool_expr.evaluate(*this));
+    }
 
     forwardStream();  // skip the opening brace
 
@@ -658,6 +666,12 @@ std::unique_ptr<Condition> Parser::parseCondition() {
 
             std::tuple<Expression, std::vector<SwNode>> children;
             std::get<0>(children) = parseExpr();
+
+            if (cnd->is_comptime) {
+                std::get<0>(children) = Expression::makeExpression(
+                    std::get<0>(children).evaluate(*this)
+                    );
+            }
 
             forwardStream();
             while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {

@@ -39,8 +39,16 @@ struct std::hash<std::pair<T1, T2>> {  // WHY?!?!!1
 };
 
 
+/// A helper to define a visitor (for the very few uses of `std::visit`).
+template <typename... T>
+struct VisitorHelper: T... {
+    using T::operator()...;
+};
+
+
 /// Respects the radices during conversion.
 inline std::size_t toInteger(const std::string& str) {
+    if (str.size() <= 2) return std::stoi(str);
     switch (str[1]) {
         case 'x':
             return std::stoi(str.substr(2), nullptr, 16);
