@@ -33,19 +33,6 @@ defaults:
     shell: bash
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.event.inputs.sha }}
-      - name: Create Tag
-        run: |
-          git tag v${{ github.event.inputs.version_number }} ${{ github.event.inputs.sha }}
-          git push origin v${{ github.event.inputs.version_number }}
-          exit 1
   build:
     strategy:
       matrix:
@@ -58,7 +45,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ github.event.inputs.sha }}
-      
+
       - name: Download LLVM
         run: |
           if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
@@ -98,7 +85,6 @@ jobs:
             fi
             cd ..
 
-
       - name: rename and run the app
         run: |
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
@@ -128,8 +114,11 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ github.event.inputs.sha }}
-      
 
+      - name: Create Tag
+        run: |
+          git tag v${{ github.event.inputs.version_number }} ${{ github.event.inputs.sha }}
+          git push origin v${{ github.event.inputs.version_number }}
       
       - uses: actions/download-artifact@v5
         with:
