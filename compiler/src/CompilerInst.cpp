@@ -3,6 +3,21 @@
 #include "backend/LLVMBackend.h"
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/FileSystem.h>
+#include <lld/Common/Driver.h>
+
+#ifdef __linux__
+
+LLD_HAS_DRIVER(elf)
+#define SW_LLD_DRIVER_NAMESPACE elf
+#define SW_LLD_DRIVER_NAME  "ld.lld"
+
+#elif _WIN32
+
+LLD_HAS_DRIVER(coff)
+#define SW_LLD_DRIVER_NAMESPACE coff
+#define SW_LLD_DRIVER_NAME  "lld-link"
+
+#endif
 
 
 void CompilerInst::addPackageEntry(const std::string_view package, const bool is_project) {
@@ -86,11 +101,67 @@ void CompilerInst::generateObjectFiles(Backends_t& backends) {
     } produceExecutable();
 }
 
-
 void CompilerInst::produceExecutable() {
     const auto triple = llvm::Triple(TargetTriple);
     const auto build_dir = m_SrcPath.parent_path() / ".build";
 
+    std::string runtime_filename{"runtime_"};
+
+    switch (triple.getOS()) {
+        case llvm::Triple::Linux:
+            runtime_filename += "linux_";
+            break;
+        case llvm::Triple::Darwin:
+            runtime_filename += "darwin_";
+            break;
+        case llvm::Triple::Win32:
+            runtime_filename += "windows_";
+            break;
+        default: throw std::runtime_error(
+            "CompilerInst::produceExecutable: Unknown platform!");
+    }
+
+    switch (triple.getArch()) {
+        case llvm::Triple::x86:
+            runtime_filename += "x86";
+            break;
+        case llvm::Triple::x86_64:
+            runtime_filename += "x64";
+            break;
+        case llvm::Triple::aarch64:
+            runtime_filename += "aarch64";
+            break;
+        default: throw std::runtime_error("Unknown architecture!");
+    }
+
+    // add the extension, `.o` for linux and mac, `.obj` for windows
+    runtime_filename += triple.getOS() == llvm::Triple::Win32 ? ".obj" : ".o";
+
+    // the relative path to the swirl runtime
+    const auto runtime_path = fs::path("..") / "lib" / runtime_filename;
+
+    // a DriverDef is composed of a "flavor" and a `link` "callback"
+    lld::DriverDef platform_driver = {
+        triple.getOS() == llvm::Triple::Linux
+            ? lld::Gnu : (
+                triple.getOS() == llvm::Triple::Win32
+                ? lld::WinLink
+                : lld::Darwin)
+        , &lld::SW_LLD_DRIVER_NAMESPACE::link
+    };
+
+    // accumulates the linker arguments
+    std::vector args{
+        SW_LLD_DRIVER_NAME,  // the lld driver to invoke
+        (new std::string(runtime_path.string()))->c_str()  // the swirl runtime
+    };
+
+    // iterate over all object files of the build directory and push their paths to the vector
+    for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
+        args.push_back((new std::string(file.path().string()))->c_str());
+    } args.push_back("-o");
+
+    // compute the output path
     if (m_OutputPath.empty())
         m_OutputPath = m_SrcPath.parent_path() / ".build" / (m_SrcPath
             .filename()
@@ -98,23 +169,9 @@ void CompilerInst::produceExecutable() {
             .string() + ".out"
             );
 
-    std::string object_files_args;  // accumulates the absolute object-files' paths
-    for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
-        object_files_args.append(" " + file.path().string());
-    }
+    // push the output path to the vector
+    args.push_back(m_OutputPath.c_str());
 
-    std::string command = std::format("cc -o {} {}", m_OutputPath.string(), object_files_args);
-    if (triple.isOSWindows()) {
-        if (triple.getEnvironment() == llvm::Triple::MSVC) {
-            // handle the peculiar case of MSVC
-            command = std::format(
-                "cl.exe /Fe:{} {}",
-                m_OutputPath.string(),
-                object_files_args
-            );
-        }
-    }
-
-    llvm::outs() << "Issuing command: " << command << "\n";
-    std::system(command.c_str());
+    // do the final ritual
+    lld::lldMain(args, llvm::outs(), llvm::errs(), {platform_driver});
 }
