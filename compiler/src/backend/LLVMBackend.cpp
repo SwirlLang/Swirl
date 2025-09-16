@@ -374,6 +374,7 @@ llvm::Value* ReturnStatement::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
+    assert(common_type);
     SET_BOUND_TYPE_STATE(common_type);
 
     switch (op_type) {
@@ -793,6 +794,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
         auto op = std::make_unique<Op>(std::string_view{value.data(), 1}, 2);
         op->operands.push_back(std::move(operands.at(0)));
         op->operands.push_back(std::move(operands.at(1)));
+        op->common_type = common_type;
 
         instance.setBoundTypeState(instance.fetchSwType(op->operands.at(1)));
         auto rhs = op->llvmCodegen(instance);
