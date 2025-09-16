@@ -121,6 +121,7 @@ public:
     }
 
     llvm::Type* getBoundLLVMType() {
+        assert(m_LatestBoundType.top() != nullptr);
         return m_LatestBoundType.top()->llvmCodegen(*this);
     }
 
@@ -137,6 +138,7 @@ public:
     }
 
     void setBoundTypeState(Type* to) {
+        assert(to != nullptr);
         m_LatestBoundType.emplace(to);
     }
 

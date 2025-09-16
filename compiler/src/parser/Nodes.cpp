@@ -75,6 +75,7 @@ std::unordered_map<std::pair<std::string_view, int>, Op::OpTag_t> OpTagMap = {
     {{"<=", 2}, Op::LESS_THAN_OR_EQUAL},
 
     {{"[", 2},  Op::INDEXING_OP},
+    {{"[]", 2}, Op::INDEXING_OP},
     {{"*", 1},  Op::DEREFERENCE},
     {{"&", 1},  Op::ADDRESS_TAKING},
     {{"as", 2}, Op::CAST_OP},

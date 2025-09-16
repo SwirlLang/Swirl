@@ -161,15 +161,10 @@ llvm::Value* FloatLit::llvmCodegen(LLVMBackend& instance) {
 
 llvm::Value* StrLit::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
-    auto struct_instance = instance.Builder.CreateAlloca(instance.getBoundLLVMType());
-    auto literal_mem = instance.Builder.CreateStructGEP(instance.getBoundLLVMType(), struct_instance, 0);
-
-    instance.Builder.CreateStore(
-        llvm::ConstantDataArray::getString(instance.Context, value, false),
-        literal_mem
-        );
-
-    return instance.Builder.CreateLoad(instance.getBoundLLVMType(), struct_instance);
+    return llvm::ConstantStruct::get(
+        llvm::dyn_cast<llvm::StructType>(instance.getBoundLLVMType()), {
+        llvm::ConstantDataArray::getString(instance.Context, value, false)
+    });
 }
 
 
@@ -357,7 +352,8 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
     //     child->codegen();
 
     codegenChildrenUntilRet(instance, children);
-    if (!instance.Builder.GetInsertBlock()->back().isTerminator())
+    if (!instance.Builder.GetInsertBlock()->back().isTerminator()
+        || instance.Builder.GetInsertBlock()->empty())
         instance.Builder.CreateRetVoid();
     return func;
 }

@@ -42,8 +42,8 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, const SourceLocation
     }
 
     if (type1->getTypeTag() == Type::ARRAY && type2->getTypeTag() == Type::ARRAY) {
-        auto arr_1 = dynamic_cast<ArrayType*>(type1);
-        auto arr_2 = dynamic_cast<ArrayType*>(type2);
+        const auto arr_1 = dynamic_cast<ArrayType*>(type1);
+        const auto arr_2 = dynamic_cast<ArrayType*>(type2);
 
         if (arr_1->size != arr_2->size) {
             reportError(
@@ -74,6 +74,12 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, const SourceLocation
             dynamic_cast<ReferenceType*>(type2)->of_type : type2;
 
         return deduceType(enclosed_type_1, enclosed_type_2, location);
+    }
+
+    if (type1->getTypeTag() == Type::STR && type2->getTypeTag() == Type::STR) {
+        if (type1->getAggregateSize() > type2->getAggregateSize()) {
+            return type1;
+        } return type2;
     }
 
     reportError(ErrCode::INCOMPATIBLE_TYPES, {.type_1 = type1, .type_2 = type2, .location = location});
@@ -139,15 +145,10 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, const SourceL
         const auto* base_t1 = dynamic_cast<ArrayType*>(from);
         const auto* base_t2 = dynamic_cast<ArrayType*>(to);
 
-        if (base_t1->size != base_t2->size) {
-            reportError(ErrCode::DISTINCTLY_SIZED_ARR, {.type_1 = from, .type_2 = to, .location = location});
-            return false;
-        }
-
         return checkTypeCompatibility(base_t1->of_type, base_t2->of_type, location);
     }
 
-    if (from->getTypeTag() == Type::BOOL && to->getTypeTag() == Type::BOOL) {
+    if (from->getTypeTag() == Type::STR && to->getTypeTag() == Type::STR) {
         return true;
     }
 
