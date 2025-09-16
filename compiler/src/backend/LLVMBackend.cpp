@@ -532,9 +532,12 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
             return instance.Builder.CreateSRem(lhs, rhs);
         }
 
-        case CAST_OP:
-            return operands.at(0)->llvmCodegen(instance);
-
+        case CAST_OP: {
+            assert(operands.at(1)->getNodeType() == ND_TYPE);
+            SET_BOUND_TYPE_STATE(operands.at(1)->getSwType());
+            return instance.castIfNecessary(instance.fetchSwType(
+                operands.at(0)), operands.at(0)->llvmCodegen(instance));
+        }
 
         case LOGICAL_EQUAL: {
             llvm::Value* lhs = operands.at(0)->llvmCodegen(instance);
