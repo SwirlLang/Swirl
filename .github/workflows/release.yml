@@ -54,12 +54,14 @@ jobs:
             tar -xzf llvm-linux.tar.gz -C $HOME/llvm
             # set PATH for llvm tools
             echo "LLVM_DIR=$HOME/llvm/lib/cmake/llvm" >> $GITHUB_ENV
+            echo "LLD_DIR=$HOME/llvm/lib/cmake/lld" >> $GITHUB_ENV
           fi
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
             curl -L -o llvm-windows.rar https://github.com/SwirlLang/llvm-builds/releases/download/20.1.8/LLVM-20.1.8-windows-x86_64-msvc.rar
             7z x llvm-windows.rar -o$HOME/llvm
             # set PATH for llvm tools
             echo "LLVM_DIR=$HOME/llvm/lib/cmake/llvm" >> $GITHUB_ENV
+            echo "LLD_DIR=$HOME/llvm/lib/cmake/lld" >> $GITHUB_ENV
           fi
 
       - name: Install dependencies and Configure CMake
@@ -81,6 +83,7 @@ jobs:
               cpack -G DEB
               cpack -G RPM
             elif [ "${{ matrix.os }}" == "windows-latest" ]; then
+              choco install nsis
               cpack -G NSIS
             fi
             cd ..
