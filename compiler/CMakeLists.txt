@@ -1,6 +1,7 @@
 configure_file(include/SwirlConfig.h.in "${PROJECT_BINARY_DIR}/include/SwirlConfig.h")
 
 find_package(LLVM REQUIRED CONFIG)
+find_package(LLD REQUIRED CONFIG)
 
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${CLANG_INCLUDE_DIRS})
@@ -33,12 +34,28 @@ add_executable(swirl src/swirl.cpp
 install(TARGETS swirl 
         RUNTIME DESTINATION bin)
 
+if(WIN32)
+
+    set(LLD_LIBS
+        lldCOFF
+        lldCommon
+        )
+
+elseif(UNIX)
+
+    set(LLD_LIBS
+        lldELF
+        lldCommon 
+        )
+
+endif()
+
 # only statically link on release
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
 
-    llvm_map_components_to_libnames(LLVM_LIBS native)
+    llvm_map_components_to_libnames(LLVM_LIBS native lto option)
 
-    target_link_libraries(swirl PRIVATE ${LLVM_LIBS})
+    target_link_libraries(swirl PRIVATE ${LLD_LIBS} ${LLVM_LIBS})
     add_custom_command(TARGET swirl POST_BUILD
                         COMMAND ${CMAKE_STRIP} $<TARGET_FILE:swirl>
                         COMMENT "Stripping swirl executable")
@@ -46,4 +63,5 @@ endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     llvm_config(swirl USE_SHARED irreader support core)
+    target_link_libraries(swirl PRIVATE ${LLD_LIBS})
 endif()

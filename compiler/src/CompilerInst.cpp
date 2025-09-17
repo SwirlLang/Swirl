@@ -170,7 +170,7 @@ void CompilerInst::produceExecutable() {
             );
 
     // push the output path to the vector
-    args.push_back(m_OutputPath.c_str());
+    args.push_back(m_OutputPath.string().c_str());
 
     // do the final ritual
     lld::lldMain(args, llvm::outs(), llvm::errs(), {platform_driver});
