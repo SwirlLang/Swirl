@@ -100,6 +100,8 @@ std::string LLVMBackend::mangleString(IdentInfo* id) {
 void LLVMBackend::codegenChildrenUntilRet(NodesVec& children) {
     for (const auto& child : children) {
         switch (child->getNodeType()) {
+            case ND_BREAK:
+            case ND_CONTINUE:
             case ND_RET:
                 child->llvmCodegen(*this);
                 return;
@@ -936,16 +938,30 @@ llvm::Value* WhileLoop::llvmCodegen(LLVMBackend& instance) {
     const auto expr  = condition.llvmCodegen(instance);
     instance.Builder.CreateCondBr(expr, body_block, merge_block);
 
+    instance.setLoopMetadata({.break_to = merge_block, .continue_to = cond_block});
+
     {
         instance.Builder.SetInsertPoint(body_block);
         instance.codegenChildrenUntilRet(children);
+
+        if (!instance.Builder.GetInsertBlock()->back().isTerminator() ||
+            instance.Builder.GetInsertBlock()->empty())
         instance.Builder.CreateBr(cond_block);
     }
 
+    instance.restoreLoopMetadata();
     instance.Builder.SetInsertPoint(merge_block);
     return nullptr;
 }
 
+
+llvm::Value* BreakStmt::llvmCodegen(LLVMBackend& instance) {
+    return instance.Builder.CreateBr(instance.getLoopMetadata().break_to);
+}
+
+llvm::Value* ContinueStmt::llvmCodegen(LLVMBackend& instance) {
+    return instance.Builder.CreateBr(instance.getLoopMetadata().continue_to);
+}
 
 llvm::Value* Struct::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
@@ -1016,9 +1032,9 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
 llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
     assert(var_type != nullptr);
-    // if (is_comptime) { return nullptr; }
 
     llvm::Type* type = var_type->llvmCodegen(instance);
+    assert(type != nullptr);
 
     llvm::Value* init = nullptr;
 

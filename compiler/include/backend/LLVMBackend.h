@@ -55,11 +55,15 @@ public:
     struct   BoundTypeStateHelper;
     explicit LLVMBackend(Parser& parser);
 
+    struct LoopMetadata {
+        llvm::BasicBlock* break_to = nullptr;
+        llvm::BasicBlock* continue_to = nullptr;
+    };
 
     /// Calculates and returns a mangled string which corresponds to the `IdentInfo*`
     std::string mangleString(IdentInfo*);
 
-    /// Performs any necessary type casts, then returns the llvm::Value*
+    /// Performs any necessary type casts (controlled by `BoundTypeState`), then returns the llvm::Value*
     /// note: `subject` is supposed to be a "loaded" value
     llvm::Value* castIfNecessary(Type* source_type, llvm::Value* subject);
 
@@ -170,8 +174,24 @@ public:
         m_CurParent = parent;
     }
 
+    void setLoopMetadata(const LoopMetadata& metadata) {
+        assert(metadata.break_to != nullptr);
+        assert(metadata.continue_to != nullptr);
+        m_LoopMetadataStack.push(metadata);
+    }
+
+    void restoreLoopMetadata() {
+        assert(!m_LoopMetadataStack.empty());
+        m_LoopMetadataStack.pop();
+    }
+
+    LoopMetadata getLoopMetadata() {
+        assert(!m_LoopMetadataStack.empty());
+        return m_LoopMetadataStack.top();
+    }
+
     bool isLocalScope() const {
-        return m_CurParent == nullptr;
+        return m_CurParent != nullptr;
     }
 
 private:
@@ -181,6 +201,7 @@ private:
 
     std::stack<Type*>           m_LatestBoundType;
     std::stack<bool>            m_AssignmentLhsStack;
+    std::stack<LoopMetadata>    m_LoopMetadataStack;
     std::stack<ManglingContext> m_ManglingContexts;
 };
 

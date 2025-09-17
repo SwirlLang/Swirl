@@ -214,6 +214,16 @@ SwNode Parser::dispatch() {
                     return parseVar(true);
                 }
 
+                if (m_Stream.CurTok.value == "break") {
+                    forwardStream();
+                    return std::make_unique<BreakStmt>();
+                }
+
+                if (m_Stream.CurTok.value == "continue") {
+                    forwardStream();
+                    return std::make_unique<ContinueStmt>();
+                }
+
                 if (m_Stream.CurTok.value == "export") {
                     m_LastSymWasExported = true;
                     forwardStream();

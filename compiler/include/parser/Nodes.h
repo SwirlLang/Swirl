@@ -31,6 +31,8 @@ enum NodeType {
     ND_TYPE,        // 17
     ND_BOOL,        // 18
     ND_SCOPE,       // 19
+    ND_BREAK,       // 20
+    ND_CONTINUE,    // 21
 };
 
 
@@ -44,7 +46,8 @@ class LLVMBackend;
 class AnalysisContext;
 namespace llvm { class Value; }
 
-using SwNode = std::unique_ptr<Node>;
+using SwNode   = std::unique_ptr<Node>;
+using NodesVec = std::vector<SwNode>;
 
 
 struct AnalysisResult {
@@ -62,7 +65,6 @@ struct SourceLocation {
 
 // The common base class of all the nodes
 struct Node {
-    std::string value;
     SourceLocation location;
 
     bool is_exported = false;
@@ -544,6 +546,17 @@ struct WhileLoop final : Node {
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
+};
+
+
+struct BreakStmt final : Node {
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    [[nodiscard]] NodeType getNodeType() const override { return ND_BREAK;}
+};
+
+struct ContinueStmt final : Node {
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    [[nodiscard]] NodeType getNodeType() const override { return ND_CONTINUE; }
 };
 
 
