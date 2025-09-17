@@ -411,8 +411,8 @@ std::unique_ptr<Function> Parser::parseFunction() {
         reportError(ErrCode::MAIN_REDEFINED);
     }
 
-    if (m_CurrentStructTy) {
-        const auto struct_scope = dynamic_cast<StructType*>(m_CurrentStructTy)->scope;
+    if (m_CurrentStructTy.back()) {
+        const auto struct_scope = dynamic_cast<StructType*>(m_CurrentStructTy.back())->scope;
         assert(struct_scope);
         func_nd->ident = struct_scope->getNewIDInfo(func_ident);
     }
@@ -437,8 +437,8 @@ std::unique_ptr<Function> Parser::parseFunction() {
                 forwardStream();
             }
 
-            assert(m_CurrentStructTy != nullptr);
-            param.var_type  = SymbolTable.getReferenceType(m_CurrentStructTy, is_mutable);
+            assert(m_CurrentStructTy.back() != nullptr);
+            param.var_type  = SymbolTable.getReferenceType(m_CurrentStructTy.back(), is_mutable);
             param.var_ident = SymbolTable.registerDecl("self", {
                 .is_param = true,
                 .swirl_type = param.var_type,
@@ -490,10 +490,10 @@ std::unique_ptr<Function> Parser::parseFunction() {
     TableEntry entry;
     entry.swirl_type  = function_t.get();
     entry.is_exported = func_nd->is_exported;
-    entry.is_method   = m_CurrentStructTy != nullptr;
+    entry.is_method   = m_CurrentStructTy.back() != nullptr;
     entry.node_loc    = func_nd.get();
 
-    if (!m_CurrentStructTy) {  // when the function is not a method
+    if (!m_CurrentStructTy.back()) {  // when the function is not a method
         // register the function in the global scope
         func_nd->ident = SymbolTable.registerDecl(func_ident, entry, 0);
     } else {
@@ -721,7 +721,7 @@ std::unique_ptr<Struct> Parser::parseStruct() {
 
     const auto struct_ty = new StructType{};
     auto struct_name = forwardStream().value;
-    m_CurrentStructTy = struct_ty;
+    m_CurrentStructTy.push_back(struct_ty);
 
     // ask for a decl registry to the symbol manager
     ret->ident = SymbolTable.registerDecl(struct_name, {
@@ -746,7 +746,7 @@ std::unique_ptr<Struct> Parser::parseStruct() {
         ret->members.emplace_back(std::move(member));
     } ignoreButExpect({PUNC, "}"});  // skip '}'
 
-    m_CurrentStructTy = nullptr;
+    m_CurrentStructTy.pop_back();
 
     // exit the struct's scope
     SymbolTable.moveToPreviousScope();

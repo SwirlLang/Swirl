@@ -67,7 +67,8 @@ class Parser {
     bool         m_LastSymWasExported = false;
     bool         m_LastSymIsExtern  = false;
     bool         m_IsMainModule     = false;    // is the module the parser represents the main one?
-    Type*        m_CurrentStructTy  = nullptr;  // the type of the struct being parsed
+
+    std::vector<Type*> m_CurrentStructTy{nullptr};  // the type of the struct being parsed
 
     std::string m_ExternAttributes;
     Expression  m_AttributeList;
