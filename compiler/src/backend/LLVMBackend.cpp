@@ -28,23 +28,6 @@
 // ReSharper disable all CppUseStructuredBinding
 
 
-class NewScope {
-    bool prev_ls_cache{};
-    LLVMBackend& instance;
-
-public:
-     explicit NewScope(LLVMBackend& inst): instance(inst) {
-         prev_ls_cache = inst.IsLocalScope;
-         instance.IsLocalScope = true;
-     }
-
-    ~NewScope() {
-         instance.IsLocalScope = prev_ls_cache;
-         instance.ChildHasReturned = false;
-     }
-};
-
-
 LLVMBackend::LLVMBackend(Parser& parser)
     : LModule{
         std::make_unique<llvm::Module>(parser.m_FilePath.string(), Context)
@@ -114,15 +97,20 @@ std::string LLVMBackend::mangleString(IdentInfo* id) {
 }
 
 
-void codegenChildrenUntilRet(LLVMBackend& instance, std::vector<std::unique_ptr<Node>>& children) {
+void LLVMBackend::codegenChildrenUntilRet(NodesVec& children) {
     for (const auto& child : children) {
-        if (child->getNodeType() == ND_RET) {
-            child->llvmCodegen(instance);
-            instance.ChildHasReturned = true;
-            return;
-        } if (child->getNodeType() != ND_INVALID) child->llvmCodegen(instance);
+        switch (child->getNodeType()) {
+            case ND_RET:
+                child->llvmCodegen(*this);
+                return;
+            case ND_INVALID:
+                continue;
+            default:
+                child->llvmCodegen(*this);
+        }
     }
 }
+
 
 llvm::Value* IntLit::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
@@ -182,7 +170,7 @@ llvm::Value* ArrayLit::llvmCodegen(LLVMBackend& instance) {
     Type* element_type = elements.at(0).expr_type;
     Type* sw_arr_type  = instance.SymMan.getArrayType(element_type, elements.size());
 
-    if (!instance.IsLocalScope) {
+    if (!instance.isLocalScope()) {
         if (instance.BoundMemory) {
             auto arr_type = llvm::ArrayType::get(element_type->llvmCodegen(instance), elements.size());
 
@@ -263,7 +251,7 @@ llvm::Value* Ident::llvmCodegen(LLVMBackend& instance) {
         return e.llvm_value;
     }
 
-    if (!instance.IsLocalScope) {
+    if (!instance.isLocalScope()) {
         auto global_var = llvm::dyn_cast<llvm::GlobalVariable>(e.llvm_value);
         return global_var->getInitializer();
     }
@@ -337,7 +325,6 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
 
     llvm::BasicBlock*   entry_bb = llvm::BasicBlock::Create(instance.Context, "entry", func);
 
-    NewScope _(instance);
     instance.Builder.SetInsertPoint(entry_bb);
 
     for (unsigned int i = 0; i < params.size(); i++) {
@@ -348,13 +335,12 @@ llvm::Value* Function::llvmCodegen(LLVMBackend& instance) {
         instance.SymMan.lookupDecl(p_name).llvm_value = func->getArg(i);
     }
 
-    // for (const auto& child : this->children)
-    //     child->codegen();
-
-    codegenChildrenUntilRet(instance, children);
+    instance.codegenChildrenUntilRet(children);
     if (!instance.Builder.GetInsertBlock()->back().isTerminator()
         || instance.Builder.GetInsertBlock()->empty())
         instance.Builder.CreateRetVoid();
+
+    instance.setCurrentParent(nullptr);
     return func;
 }
 
@@ -887,9 +873,8 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
     instance.Builder.CreateCondBr(if_cond, if_block, else_block);
 
     {
-        NewScope if_scp{instance};
         instance.Builder.SetInsertPoint(if_block);
-        codegenChildrenUntilRet(instance, if_children);
+        instance.codegenChildrenUntilRet(if_children);
 
         // insert a jump to the merge block if the scope either doesn't end with a
         // terminator or is empty
@@ -899,11 +884,9 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
     }
 
     {
-        NewScope else_scp{instance};
         instance.Builder.SetInsertPoint(else_block);
 
         for (auto& [condition, children] : elif_children) {
-            NewScope elif_scp{instance};
             const auto cnd = condition.llvmCodegen(instance);
 
             auto elif_block = llvm::BasicBlock::Create(instance.Context, "elif", parent);
@@ -911,7 +894,7 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
 
             instance.Builder.CreateCondBr(cnd, elif_block, next_elif);
             instance.Builder.SetInsertPoint(elif_block);
-            codegenChildrenUntilRet(instance, children);
+            instance.codegenChildrenUntilRet(children);
 
             // insert a jump to the merge block if the scope either doesn't end with a
             // terminator or is empty
@@ -922,7 +905,7 @@ llvm::Value* Condition::llvmCodegen(LLVMBackend& instance) {
             instance.Builder.SetInsertPoint(next_elif);
         }
 
-        codegenChildrenUntilRet(instance, else_children);
+        instance.codegenChildrenUntilRet(else_children);
 
         // insert a jump to the merge block if the scope either doesn't end with a
         // terminator or is empty
@@ -954,9 +937,8 @@ llvm::Value* WhileLoop::llvmCodegen(LLVMBackend& instance) {
     instance.Builder.CreateCondBr(expr, body_block, merge_block);
 
     {
-        NewScope _(instance);
         instance.Builder.SetInsertPoint(body_block);
-        codegenChildrenUntilRet(instance, children);
+        instance.codegenChildrenUntilRet(children);
         instance.Builder.CreateBr(cond_block);
     }
 
@@ -1044,7 +1026,7 @@ llvm::Value* Var::llvmCodegen(LLVMBackend& instance) {
         llvm::GlobalVariable::ExternalLinkage : llvm::GlobalVariable::InternalLinkage;
 
 
-    if (!instance.IsLocalScope) {
+    if (!instance.isLocalScope()) {
         auto var_name = is_extern ? var_ident->toString() : instance.mangleString(var_ident);
         auto* var = new llvm::GlobalVariable(
                 *instance.LModule, type, is_const, linkage,

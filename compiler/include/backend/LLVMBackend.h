@@ -44,9 +44,6 @@ public:
     std::unordered_map<Type*, llvm::Type*> LLVMTypeCache;
 
     // ----------------[flags]-------------------
-    bool IsLocalScope = false;
-    bool ChildHasReturned = false;
-
     llvm::Value* RefMemory = nullptr;       // set by the addr-taking op after computation
     llvm::Value* ComputedPtr = nullptr;     // set GEP operations like `[]` or `.`
     llvm::Value* BoundMemory = nullptr;     // a temporary used by arrays to handle nesting
@@ -65,6 +62,9 @@ public:
     /// Performs any necessary type casts, then returns the llvm::Value*
     /// note: `subject` is supposed to be a "loaded" value
     llvm::Value* castIfNecessary(Type* source_type, llvm::Value* subject);
+
+    /// Codegens the vector of nodes while respecting statements like `return`.
+    void codegenChildrenUntilRet(NodesVec& children);
 
     /// Begins the IR generation
     void startGeneration() {
@@ -168,6 +168,10 @@ public:
 
     void setCurrentParent(llvm::Function* parent) {
         m_CurParent = parent;
+    }
+
+    bool isLocalScope() const {
+        return m_CurParent == nullptr;
     }
 
 private:
