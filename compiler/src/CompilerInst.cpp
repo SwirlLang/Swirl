@@ -155,8 +155,11 @@ void CompilerInst::produceExecutable() {
     sw_runtime.push_back(runtime_path.string());
     if (triple.getOS() == llvm::Triple::Win32) {
         sw_runtime.emplace_back("kernel32.lib");
-        sw_runtime.emplace_back("user32.lib");
+        sw_runtime.emplace_back("shell32.lib");
         sw_runtime.emplace_back("/subsystem:console");
+        sw_runtime.emplace_back("/entry:_start");
+        sw_runtime.emplace_back("/STACK:4194304");
+        
     }
 
     // accumulate the linker arguments
