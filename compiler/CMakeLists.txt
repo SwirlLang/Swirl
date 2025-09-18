@@ -52,7 +52,7 @@ endif()
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
     
     if(UNIX)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ffunction-sections -fdata-sections -flto=thin")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ffunction-sections -fdata-sections")
         set(CMAKE_EXE_LINKER_FLAGS
         "-fuse-ld=lld -Wl,--gc-sections -Wl,--icf=all -Wl,-z,keep-text-section-prefix")
     endif()
