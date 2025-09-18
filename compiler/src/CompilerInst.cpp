@@ -169,14 +169,14 @@ void CompilerInst::produceExecutable() {
     // iterate over all object files of the build directory and push their paths to the vector
     for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
         args.push_back((new std::string(file.path().string()))->c_str());
-    } args.push_back("-o");
+    } args.push_back(triple.getOS() == llvm::Triple::Win32 ? "/OUT:" : "-o");
 
     // compute the output path
     if (m_OutputPath.empty())
         m_OutputPath = m_SrcPath.parent_path() / ".build" / (m_SrcPath
             .filename()
             .replace_extension()
-            .string() + ".out"
+            .string() + (triple.getOS() == llvm::Triple::Win32 ? ".exe" : ".out")
             );
 
     // push the output path to the vector
