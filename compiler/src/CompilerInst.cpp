@@ -150,11 +150,20 @@ void CompilerInst::produceExecutable() {
         , &lld::SW_LLD_DRIVER_NAMESPACE::link
     };
 
-    // accumulates the linker arguments
-    std::vector args{
-        SW_LLD_DRIVER_NAME,  // the lld driver to invoke
-        (new std::string(runtime_path.string()))->c_str()  // the swirl runtime
-    };
+    // accumulate the runtime files
+    std::vector<std::string> sw_runtime{3};
+    if (triple.getOS() == llvm::Triple::Win32) {
+        sw_runtime.emplace_back("-lwin32");
+        sw_runtime.emplace_back("-lkernel32");
+    } sw_runtime.push_back(runtime_path.string());
+
+    // accumulate the linker arguments
+    std::vector args{SW_LLD_DRIVER_NAME};
+
+    // push all the runtime files
+    for (auto& arg : sw_runtime) {
+        args.push_back(arg.c_str());
+    }
 
     // iterate over all object files of the build directory and push their paths to the vector
     for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
