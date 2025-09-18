@@ -53,8 +53,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
     
     if(UNIX)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ffunction-sections -fdata-sections")
-        set(CMAKE_EXE_LINKER_FLAGS
-        "-fuse-ld=lld -Wl,--gc-sections -Wl,--icf=all -Wl,-z,keep-text-section-prefix")
+        set(CMAKE_EXE_LINKER_FLAGS "-Wl,--gc-sections")
     endif()
 
     llvm_map_components_to_libnames(LLVM_LIBS native lto option)
