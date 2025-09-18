@@ -156,6 +156,7 @@ void CompilerInst::produceExecutable() {
     if (triple.getOS() == llvm::Triple::Win32) {
         sw_runtime.emplace_back("kernel32.lib");
         sw_runtime.emplace_back("user32.lib");
+        sw_runtime.emplace_back("/subsystem:console");
     }
 
     // accumulate the linker arguments
