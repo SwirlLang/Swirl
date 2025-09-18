@@ -152,10 +152,11 @@ void CompilerInst::produceExecutable() {
 
     // accumulate the runtime files
     std::vector<std::string> sw_runtime{3};
+    sw_runtime.push_back(runtime_path.string());
     if (triple.getOS() == llvm::Triple::Win32) {
-        sw_runtime.emplace_back("-lwin32");
-        sw_runtime.emplace_back("-lkernel32");
-    } sw_runtime.push_back(runtime_path.string());
+        sw_runtime.emplace_back("kernel32.lib");
+        sw_runtime.emplace_back("user32.lib");
+    }
 
     // accumulate the linker arguments
     std::vector args{SW_LLD_DRIVER_NAME};
