@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_BUILD_TYPE Debug)
 option(BUILD_STDLIB "Build the standard library" OFF)
 
 if(BUILD_STDLIB)
@@ -66,11 +67,9 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
     llvm_config(swirl USE_SHARED irreader support core)
     target_link_libraries(swirl PRIVATE ${LLD_LIBS})
 
-else ()
-
-message(SEND_ERROR "Unknown build type. Not building swirl
-Supported build types are Release and Debug
-You can set the build type with -DCMAKE_BUILD_TYPE=<type>")
-message(FATAL_ERROR "Release is for a statically linking. Debug is for a dynamically linking")
-
 endif()
+
+message(STATUS "
+Supported build types are Release and Debug (default debug)
+You can set the build type with -DCMAKE_BUILD_TYPE=<type>
+Release is for statically linking. Debug is for dynamically linking")
