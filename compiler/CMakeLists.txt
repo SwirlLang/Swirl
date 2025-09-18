@@ -27,9 +27,7 @@ include_directories("${PROJECT_BINARY_DIR}")
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
-add_executable(swirl src/swirl.cpp
-        "${SOURCES}"
-)
+add_executable(swirl "${SOURCES}")
 
 install(TARGETS swirl 
         RUNTIME DESTINATION bin)
@@ -52,12 +50,18 @@ endif()
 
 # only statically link on release
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    
+    if(UNIX)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ffunction-sections -fdata-sections -flto=thin")
+        set(CMAKE_EXE_LINKER_FLAGS
+        "-fuse-ld=lld -Wl,--gc-sections -Wl,--icf=all -Wl,-z,keep-text-section-prefix")
+    endif()
 
     llvm_map_components_to_libnames(LLVM_LIBS native lto option)
 
     target_link_libraries(swirl PRIVATE ${LLD_LIBS} ${LLVM_LIBS})
     add_custom_command(TARGET swirl POST_BUILD
-                        COMMAND ${CMAKE_STRIP} $<TARGET_FILE:swirl>
+                        COMMAND ${CMAKE_STRIP} --strip-unneeded $<TARGET_FILE:swirl>
                         COMMENT "Stripping swirl executable")
 endif()
 
