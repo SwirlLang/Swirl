@@ -27,7 +27,7 @@ include_directories("${PROJECT_BINARY_DIR}")
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
-add_executable(swirl "${SOURCES}")
+add_executable(swirl src/swirl.cpp "${SOURCES}")
 
 install(TARGETS swirl 
         RUNTIME DESTINATION bin)
@@ -50,11 +50,6 @@ endif()
 
 # only statically link on release
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
-    
-    if(UNIX)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ffunction-sections -fdata-sections")
-        set(CMAKE_EXE_LINKER_FLAGS "-Wl,--gc-sections")
-    endif()
 
     llvm_map_components_to_libnames(LLVM_LIBS native lto option)
 
@@ -62,9 +57,16 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
     add_custom_command(TARGET swirl POST_BUILD
                         COMMAND ${CMAKE_STRIP} $<TARGET_FILE:swirl>
                         COMMENT "Stripping swirl executable")
-endif()
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
     llvm_config(swirl USE_SHARED irreader support core)
     target_link_libraries(swirl PRIVATE ${LLD_LIBS})
+
+else ()
+
+message(SEND_ERROR "Unknown build type. Not building swirl
+Supported build types are Release and Debug
+You can set the build type with -DCMAKE_BUILD_TYPE=<type>")
+message(FATAL_ERROR "Release is for a statically linking. Debug is for a dynamically linking")
+
 endif()
