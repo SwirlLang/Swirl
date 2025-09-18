@@ -4,6 +4,9 @@
 #include "parser/Nodes.h"
 #include "parser/Parser.h"
 #include "parser/SemanticAnalysis.h"
+
+#include <complex>
+
 #include "managers/ModuleManager.h"
 
 
@@ -386,6 +389,14 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     ctx.Cache.insert({this, ret});
     return ret;
 }
+
+
+AnalysisResult Intrinsic::analyzeSemantics(AnalysisContext& ctx) {
+    for (auto& arg : args) {
+        arg.analyzeSemantics(ctx);
+    } return {.deduced_type = SymbolManager::IntrinsicTable.at(intrinsic_type).return_type};
+}
+
 
 AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();

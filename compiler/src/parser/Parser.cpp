@@ -262,11 +262,11 @@ SwNode Parser::dispatch() {
                     continue;
                 }
 
+                // intrinsics
                 if (m_Stream.CurTok.value == "@") {
                     forwardStream();
-                    if (m_Stream.CurTok.type == IDENT && m_Stream.CurTok.value == "config")
-                        // config-variables detected
-                        parseVar();
+                    return std::make_unique<Intrinsic>(std::move(
+                        *parseCall(parseIdent())));
                 }
 
                 // ignore semicolons

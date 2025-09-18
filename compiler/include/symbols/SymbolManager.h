@@ -70,8 +70,11 @@ class SymbolManager {
 
     ErrorCallback_t m_ErrorCallback;
 
-
 public:
+    inline static const std::unordered_map<Intrinsic::Kind, IntrinsicDef> IntrinsicTable = {
+        {Intrinsic::SIZEOF, IntrinsicDef{.return_type = &GlobalTypeI64}}
+    };
+
      explicit SymbolManager(std::filesystem::path uid, ModuleManager& module_man, ErrorCallback_t err_c)
         : m_ModuleMap(module_man)
         , m_ModulePath(std::move(uid))

@@ -25,6 +25,9 @@ struct TableEntry {
     llvm::Type*  llvm_type  = nullptr;
 };
 
+struct IntrinsicDef {
+    Type* return_type = nullptr;
+};
 
 struct ExportedSymbolMeta_t {
     IdentInfo* id = nullptr;

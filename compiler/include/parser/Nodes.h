@@ -33,6 +33,7 @@ enum NodeType {
     ND_SCOPE,       // 19
     ND_BREAK,       // 20
     ND_CONTINUE,    // 21
+    ND_INTRINSIC,   // 22
 };
 
 
@@ -473,15 +474,10 @@ struct Function final : GlobalNode {
 };
 
 
-struct FuncCall final : Node {
+struct FuncCall : Node {
     std::vector<Expression> args;
     Ident ident;
     Type* signature = nullptr;  // supposed to hold the signature of the callee
-
-    // a flag, if set, indicates existence in another module to the backend
-    std::filesystem::path module_path;
-
-    Node* parent = nullptr;
 
     IdentInfo* getIdentInfo() override {
         return ident.getIdentInfo();
@@ -492,6 +488,24 @@ struct FuncCall final : Node {
     }
 
     [[nodiscard]] NodeType     getNodeType() const override { return ND_CALL; }
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+};
+
+
+struct Intrinsic final : FuncCall {
+    enum Kind { SIZEOF };
+    Kind intrinsic_type;
+
+    Intrinsic() = delete;
+    explicit Intrinsic(FuncCall&& fc): FuncCall(std::move(fc)) {
+        static std::unordered_map<std::string, Kind> tag_map = {
+            {"sizeof", SIZEOF}
+        }; intrinsic_type = tag_map.at(ident.full_qualification.at(0));
+    }
+
+    [[nodiscard]] NodeType getNodeType() const override { return ND_INTRINSIC; }
+
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };

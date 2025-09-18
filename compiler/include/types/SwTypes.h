@@ -98,7 +98,7 @@ struct StructType final : Type {
     SwTypes getTypeTag() override { return STRUCT; }
 
     [[nodiscard]] std::string toString() const override;
-    [[nodiscard]] IdentInfo* getIdent() const override { return ident; }
+    [[nodiscard]] IdentInfo*  getIdent() const override { return ident; }
 
     bool operator==(Type* other) override {
         return other->getTypeTag() == STRUCT && (field_types == dynamic_cast<StructType*>(other)->field_types);
