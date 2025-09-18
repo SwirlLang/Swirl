@@ -187,7 +187,6 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, const SourceL
     } return true;
 }
 
-#undef SW_EXPAND_WITHIN_SEMA_METHOD
 AnalysisResult IntLit::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     if (ctx.getBoundTypeState() != nullptr && ctx.getBoundTypeState()->isIntegral()) {
@@ -469,7 +468,11 @@ AnalysisResult Condition::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult ReturnStatement::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     AnalysisResult ret;
-    ret.deduced_type = this->value.analyzeSemantics(ctx).deduced_type;
+
+    if (value.expr)
+        ret.deduced_type = value.analyzeSemantics(ctx).deduced_type;
+    else ret.deduced_type = &GlobalTypeVoid;
+
     return ret;
 }
 
@@ -478,6 +481,7 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
     if (ctx.Cache.contains(this))
         return ctx.Cache[this];
 
+    int return_stmt_counter = 0;
     ctx.setCurParentFunc(this);
 
     AnalysisResult ret;
@@ -492,6 +496,7 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
 
     for (auto& child : children) {
         if (child->getNodeType() == ND_RET) {
+            return_stmt_counter++;
             auto ret_analysis = child->analyzeSemantics(ctx);
 
             if (fn_type->ret_type != nullptr) {
@@ -511,6 +516,9 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
         }
         child->analyzeSemantics(ctx);
     }
+
+    if (return_stmt_counter == 0)
+        deduced_type = &GlobalTypeVoid;
 
     ctx.restoreBoundTypeState();
     if (fn_type->ret_type == nullptr)
