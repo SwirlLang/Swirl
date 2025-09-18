@@ -61,7 +61,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
 
     target_link_libraries(swirl PRIVATE ${LLD_LIBS} ${LLVM_LIBS})
     add_custom_command(TARGET swirl POST_BUILD
-                        COMMAND ${CMAKE_STRIP} --strip-unneeded $<TARGET_FILE:swirl>
+                        COMMAND ${CMAKE_STRIP} $<TARGET_FILE:swirl>
                         COMMENT "Stripping swirl executable")
 endif()
 
