@@ -9,9 +9,10 @@ section .text
     extern LocalFree:
     extern ExitProcess:
     global _start:
+    global __main:
 
 _start:
-    sub rsp, 8  ; maintain stack alignment but let functions use _start's shadow space since it's not used
+    and rsp, -16 ; maintain stack alignment but let functions use _start's shadow space since it's not used
     mov rbp, rsp
     call GetCommandLineW
 
@@ -80,3 +81,9 @@ _start:
 .exit:
     mov ecx, eax
     call ExitProcess
+    int3
+
+align 16, int3
+__main:
+    ret
+    int3

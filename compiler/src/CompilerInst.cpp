@@ -11,12 +11,14 @@
 LLD_HAS_DRIVER(elf)
 #define SW_LLD_DRIVER_NAMESPACE elf
 #define SW_LLD_DRIVER_NAME  "ld.lld"
+#define SW_LLD_FLAVOR lld::Gnu
 
 #elif _WIN32
 
-LLD_HAS_DRIVER(coff)
-#define SW_LLD_DRIVER_NAMESPACE coff
-#define SW_LLD_DRIVER_NAME  "lld-link"
+LLD_HAS_DRIVER(mingw)
+#define SW_LLD_DRIVER_NAMESPACE mingw
+#define SW_LLD_DRIVER_NAME  "ld.lld"
+#define SW_LLD_FLAVOR lld::MinGW
 
 #endif
 
@@ -143,47 +145,29 @@ void CompilerInst::produceExecutable() {
 
     // decide driver flavor based on toolchain
     const bool is_win  = triple.getOS() == llvm::Triple::Win32;
-    const bool is_msvc = triple.getEnvironment() == llvm::Triple::MSVC;
 
     // a DriverDef is composed of a "flavor" and a `link` "callback"
     lld::DriverDef platform_driver = {
-        triple.getOS() == llvm::Triple::Linux
-            ? lld::Gnu
-            : (is_win
-                ? (is_msvc ? lld::WinLink : lld::Gnu)
-                : lld::Darwin),
+        SW_LLD_FLAVOR,
         &lld::SW_LLD_DRIVER_NAMESPACE::link
     };
 
     // accumulate the runtime files
-    std::vector<std::string> sw_runtime{3};
+    std::vector<std::string> sw_runtime{};
     sw_runtime.push_back(runtime_path.string());
 
     // toolchain-specific linker args (kept as strings for lifetime)
     std::vector<std::string> toolchain_args;
 
     if (is_win) {
-        if (is_msvc) {
-            // MSVC toolchain: lld-link with .lib import libs and MSVC flags
-            sw_runtime.emplace_back("kernel32.lib");
-            sw_runtime.emplace_back("shell32.lib");
-            sw_runtime.emplace_back("/subsystem:console");
-            sw_runtime.emplace_back("/entry:_start");
-            sw_runtime.emplace_back("/STACK:4194304");
-        } else {
-            // MinGW/MSYS toolchain: GNU flavor with -l form and GNU-style flags
-            sw_runtime.emplace_back("-lkernel32");
-            sw_runtime.emplace_back("-lshell32");
-            sw_runtime.emplace_back("--subsystem=console");
-            sw_runtime.emplace_back("-e");
-            sw_runtime.emplace_back("_start");
-
-            // help lld find MinGW import libraries if prefix is available
-            if (const char* p = std::getenv("MINGW_PREFIX")) {
-                toolchain_args.emplace_back("-L" + std::string(p) + "/lib");
-            }
-        }
+        // MSVC toolchain: ld.link with native dlls and MSVC flags
+        sw_runtime.emplace_back("C:\\Windows\\System32\\kernel32.dll");
+        sw_runtime.emplace_back("C:\\Windows\\System32\\shell32.dll");
+        sw_runtime.emplace_back("/subsystem:console");
+        sw_runtime.emplace_back("/entry:_start");
+        sw_runtime.emplace_back("/STACK:8388607");
     }
+    
 
     // accumulate the linker arguments
     std::vector args{SW_LLD_DRIVER_NAME};
@@ -201,7 +185,7 @@ void CompilerInst::produceExecutable() {
     // iterate over all object files of the build directory and push their paths to the vector
     for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
         args.push_back((new std::string(file.path().string()))->c_str());
-    } args.push_back(is_win && is_msvc ? "/OUT:" : "-o");
+    } args.push_back("-o");
 
     // compute the output path
     if (m_OutputPath.empty())
@@ -212,7 +196,7 @@ void CompilerInst::produceExecutable() {
             );
 
     // push the output path to the vector
-    args.push_back(m_OutputPath.string().c_str());
+    args.push_back((new std::string(m_OutputPath.string()))->c_str());
 
     // do the final ritual
     lld::lldMain(args, llvm::outs(), llvm::errs(), {platform_driver});
