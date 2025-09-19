@@ -188,6 +188,9 @@ struct Expression final : Node {
 struct TypeWrapper final : Node {
     Type* type = nullptr;
 
+    TypeWrapper() = default;
+    explicit TypeWrapper(Type* ty): type(ty) {}
+
     [[nodiscard]]
     Type* getSwType() override {
         return type;
@@ -198,9 +201,8 @@ struct TypeWrapper final : Node {
         return ND_TYPE;
     }
 
-    llvm::Value* llvmCodegen([[maybe_unused]] LLVMBackend& instance) override {
-        return nullptr;
-    }
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
 };
 
 
@@ -494,13 +496,14 @@ struct FuncCall : Node {
 
 
 struct Intrinsic final : FuncCall {
-    enum Kind { SIZEOF };
+    enum Kind { SIZEOF, TYPEOF };
     Kind intrinsic_type;
 
     Intrinsic() = delete;
     explicit Intrinsic(FuncCall&& fc): FuncCall(std::move(fc)) {
         static std::unordered_map<std::string, Kind> tag_map = {
-            {"sizeof", SIZEOF}
+            {"sizeof", SIZEOF},
+            {"typeof", TYPEOF}
         }; intrinsic_type = tag_map.at(ident.full_qualification.at(0));
     }
 

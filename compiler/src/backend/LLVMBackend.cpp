@@ -803,6 +803,11 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 }
 
 
+llvm::Value* TypeWrapper::llvmCodegen(LLVMBackend& instance) {
+    return llvm::UndefValue::get(type->llvmCodegen(instance));
+}
+
+
 llvm::Value* Intrinsic::llvmCodegen(LLVMBackend& instance) {
     switch (intrinsic_type) {
         case SIZEOF: {
@@ -810,7 +815,10 @@ llvm::Value* Intrinsic::llvmCodegen(LLVMBackend& instance) {
             if (val_type->isPointerTy()) {
                 return instance.toLLVMInt(instance.getDataLayout().getPointerSize(0));
             } return instance.toLLVMInt(instance.getDataLayout().getTypeSizeInBits(val_type) / 8);
-        } default:
+        }
+        case TYPEOF:
+            return args.at(0).llvmCodegen(instance);
+        default:
             throw std::runtime_error("Intrinsic::llvmCodegen: Unknown intrinsic");
     }
 }

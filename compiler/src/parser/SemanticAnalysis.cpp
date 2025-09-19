@@ -390,10 +390,24 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 
+AnalysisResult TypeWrapper::analyzeSemantics(AnalysisContext& ctx) {
+    return {.deduced_type = type};
+}
+
+
 AnalysisResult Intrinsic::analyzeSemantics(AnalysisContext& ctx) {
+    Type* deduced_type = nullptr;
     for (auto& arg : args) {
-        arg.analyzeSemantics(ctx);
-    } return {.deduced_type = SymbolManager::IntrinsicTable.at(intrinsic_type).return_type};
+        if (deduced_type == nullptr) {
+            deduced_type = arg.analyzeSemantics(ctx).deduced_type;
+        } else deduced_type = ctx.deduceType(
+            deduced_type, arg.analyzeSemantics(ctx).deduced_type, location);
+    }
+
+    AnalysisResult res{.deduced_type = SymbolManager::IntrinsicTable.at(intrinsic_type).return_type};
+    if (res.deduced_type == nullptr) {
+        res.deduced_type = deduced_type;
+    } return res;
 }
 
 

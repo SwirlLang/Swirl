@@ -116,6 +116,7 @@ public:
     std::unique_ptr<ImportNode>      parseImport();
     std::unique_ptr<Scope>           parseScope();
     std::unique_ptr<ReturnStatement> parseRet();
+    std::unique_ptr<Intrinsic>       parseIntrinsic();
 
     std::unique_ptr<Var>      parseVar(bool is_volatile = false);
     std::unique_ptr<FuncCall> parseCall(std::optional<Ident> _ = std::nullopt);

@@ -22,7 +22,6 @@
 /// Automatically sets certain node attributes
 #define SET_NODE_ATTRS(x) NodeAttrHelper GET_UNIQUE_NAME(attr_setter_){x, *this}
 
-
 using SwNode = std::unique_ptr<Node>;
 
 
@@ -256,17 +255,13 @@ SwNode Parser::dispatch() {
                 if (m_Stream.CurTok.value == "{")
                     return parseScope();
 
+                if (m_Stream.CurTok.value == "@")
+                    return parseIntrinsic();
+
                 if (m_Stream.CurTok.value == "#") {
                     forwardStream();
                     m_AttributeList = parseExpr();
                     continue;
-                }
-
-                // intrinsics
-                if (m_Stream.CurTok.value == "@") {
-                    forwardStream();
-                    return std::make_unique<Intrinsic>(std::move(
-                        *parseCall(parseIdent())));
                 }
 
                 // ignore semicolons
@@ -619,6 +614,32 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
 
     ret->value = parseExpr();
     return ret;
+}
+
+
+std::unique_ptr<Intrinsic> Parser::parseIntrinsic() {
+    auto call_node = std::make_unique<FuncCall>();
+    SET_NODE_ATTRS(call_node.get());
+
+    forwardStream();  // skip the `@`
+
+    if (m_Stream.CurTok.value == "sizeof") {
+        forwardStream();
+        ignoreButExpect({PUNC, "("});
+
+        Expression arg;
+        call_node->ident.full_qualification.emplace_back("sizeof");
+
+        if (m_Stream.CurTok.value == "@" && m_Stream.CurTok.type == PUNC)
+             arg = Expression::makeExpression(parseIntrinsic());
+        else arg = Expression::makeExpression(new TypeWrapper(parseType()));
+
+        call_node->args.push_back(std::move(arg));
+        ignoreButExpect({PUNC, ")"});
+
+    } else call_node = parseCall(parseIdent());
+
+    return std::make_unique<Intrinsic>(std::move(*call_node));
 }
 
 

@@ -72,7 +72,8 @@ class SymbolManager {
 
 public:
     inline static const std::unordered_map<Intrinsic::Kind, IntrinsicDef> IntrinsicTable = {
-        {Intrinsic::SIZEOF, IntrinsicDef{.return_type = &GlobalTypeI64}}
+        {Intrinsic::SIZEOF, IntrinsicDef{.return_type = &GlobalTypeI64}},
+        {Intrinsic::TYPEOF, IntrinsicDef{}}
     };
 
      explicit SymbolManager(std::filesystem::path uid, ModuleManager& module_man, ErrorCallback_t err_c)
