@@ -814,6 +814,8 @@ llvm::Value* Intrinsic::llvmCodegen(LLVMBackend& instance) {
             llvm::Type* val_type = args.at(0).llvmCodegen(instance)->getType();
             if (val_type->isPointerTy()) {
                 return instance.toLLVMInt(instance.getDataLayout().getPointerSize(0));
+            } if (val_type->isVoidTy()) {
+                return instance.toLLVMInt(0);
             } return instance.toLLVMInt(instance.getDataLayout().getTypeSizeInBits(val_type) / 8);
         }
         case TYPEOF:
