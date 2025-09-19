@@ -165,7 +165,7 @@ void CompilerInst::produceExecutable() {
         sw_runtime.emplace_back("C:\\Windows\\System32\\shell32.dll");
         sw_runtime.emplace_back("/subsystem:console");
         sw_runtime.emplace_back("/entry:_start");
-        sw_runtime.emplace_back("/STACK:8388607");
+        sw_runtime.emplace_back("/STACK:8388608");
     }
     
 
