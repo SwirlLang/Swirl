@@ -7,19 +7,22 @@
 #include <cstdlib> // getenv
 
 #ifdef __linux__
-
-LLD_HAS_DRIVER(elf)
-#define SW_LLD_DRIVER_NAMESPACE elf
-#define SW_LLD_DRIVER_NAME  "ld.lld"
-#define SW_LLD_FLAVOR lld::Gnu
-
+    LLD_HAS_DRIVER(elf)
+    #define SW_LLD_DRIVER_NAMESPACE elf
+    #define SW_LLD_DRIVER_NAME  "ld.lld"
+    #define SW_LLD_FLAVOR lld::Gnu
 #elif _WIN32
-
-LLD_HAS_DRIVER(mingw)
-#define SW_LLD_DRIVER_NAMESPACE mingw
-#define SW_LLD_DRIVER_NAME  "ld.lld"
-#define SW_LLD_FLAVOR lld::MinGW
-
+    #ifdef _MSC_VER
+        LLD_HAS_DRIVER(coff)
+        #define SW_LLD_DRIVER_NAMESPACE coff
+        #define SW_LLD_DRIVER_NAME  "lld-link"
+        #define SW_LLD_FLAVOR lld::WinLink
+    #else
+        LLD_HAS_DRIVER(mingw)
+        #define SW_LLD_DRIVER_NAMESPACE mingw
+        #define SW_LLD_DRIVER_NAME  "ld.lld"
+        #define SW_LLD_FLAVOR lld::MinGW
+    #endif
 #endif
 
 
@@ -160,12 +163,21 @@ void CompilerInst::produceExecutable() {
     std::vector<std::string> toolchain_args;
 
     if (is_win) {
-        // MSVC toolchain: ld.link with native dlls and MSVC flags
-        sw_runtime.emplace_back("C:\\Windows\\System32\\kernel32.dll");
-        sw_runtime.emplace_back("C:\\Windows\\System32\\shell32.dll");
-        sw_runtime.emplace_back("/subsystem:console");
-        sw_runtime.emplace_back("/entry:_start");
-        sw_runtime.emplace_back("/STACK:8388608");
+        #ifdef _MSC_VER
+            // MSVC toolchain
+            sw_runtime.emplace_back("kernel32.lib");
+            sw_runtime.emplace_back("shell32.lib");
+            sw_runtime.emplace_back("/subsystem:console");
+            sw_runtime.emplace_back("/entry:_start");
+            sw_runtime.emplace_back("/STACK:8388607");
+        #else
+            // MinGW toolchain
+            sw_runtime.emplace_back("C:\\Windows\\System32\\kernel32.dll");
+            sw_runtime.emplace_back("C:\\Windows\\System32\\shell32.dll");
+            sw_runtime.emplace_back("/subsystem:console");
+            sw_runtime.emplace_back("/entry:_start");
+            sw_runtime.emplace_back("/STACK:8388607");
+        #endif
     }
     
 
@@ -185,7 +197,7 @@ void CompilerInst::produceExecutable() {
     // iterate over all object files of the build directory and push their paths to the vector
     for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
         args.push_back((new std::string(file.path().string()))->c_str());
-    } args.push_back("-o");
+    }
 
     // compute the output path
     if (m_OutputPath.empty())
@@ -196,7 +208,15 @@ void CompilerInst::produceExecutable() {
             );
 
     // push the output path to the vector
-    args.push_back((new std::string(m_OutputPath.string()))->c_str());
+    #ifdef _MSC_VER
+        // For MSVC, combine /OUT: with the path
+        std::string outputArg = "/OUT:" + m_OutputPath.string();
+        args.push_back((new std::string(outputArg))->c_str());
+    #else
+        args.push_back("-o");
+        args.push_back((new std::string(m_OutputPath.string()))->c_str());
+    #endif
+
 
     // do the final ritual
     lld::lldMain(args, llvm::outs(), llvm::errs(), {platform_driver});

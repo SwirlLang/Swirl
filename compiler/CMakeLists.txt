@@ -30,12 +30,17 @@ install(TARGETS swirl
         RUNTIME DESTINATION bin)
 
 if(WIN32)
-
-    set(LLD_LIBS
-        lldCOFF
-        lldCommon
-        lldMingw
-        )
+    if(MSVC)
+        set(LLD_LIBS
+            lldCOFF
+            lldCommon
+            )
+    else() # MinGW
+        set(LLD_LIBS
+            lldMinGW
+            lldCommon
+            )
+    endif()
 
 elseif(UNIX)
 
