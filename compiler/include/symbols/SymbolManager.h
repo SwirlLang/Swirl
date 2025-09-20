@@ -156,8 +156,10 @@ public:
     }
 
 
-    Type* getReferenceType(Type* of_type, const bool is_mutable) {
-        return m_TypeManager.getReferenceType(of_type, is_mutable);
+    Type* getReferenceType(Type* of_type, const bool is_mutable, const bool is_str_ref = false) {
+        if (is_str_ref) {
+            return getSliceType(&GlobalTypeChar, is_mutable);
+        } return m_TypeManager.getReferenceType(of_type, is_mutable);
     }
 
     /// (of_type, is_mutable) -> &[of_type]

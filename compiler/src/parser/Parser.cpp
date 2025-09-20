@@ -118,8 +118,9 @@ Type* Parser::parseType() {
     TypeWrapper wrapper;
     SET_NODE_ATTRS(&wrapper);
 
-    bool  is_mutable  = false;
-    bool  is_reference = false;
+    bool  is_mutable    = false;
+    bool  is_reference  = false;
+    bool  is_string_ref = false;
 
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
@@ -156,7 +157,10 @@ Type* Parser::parseType() {
         ignoreButExpect({PUNC, "]"});  // skip ']'
 
     } else if (m_Stream.CurTok.type == IDENT) {
-        wrapper.type = SymbolTable.lookupType(SymbolTable.getIDInfoFor(parseIdent()));
+        if (m_Stream.CurTok.value == "str" && is_reference) {
+            is_string_ref = true;
+            forwardStream();
+        } else wrapper.type = SymbolTable.lookupType(SymbolTable.getIDInfoFor(parseIdent()));
     }
 
     uint16_t ptr_level = 0;
@@ -170,7 +174,7 @@ Type* Parser::parseType() {
     }
 
     if (is_reference) {
-        wrapper.type = SymbolTable.getReferenceType(wrapper.type, is_mutable);
+        wrapper.type = SymbolTable.getReferenceType(wrapper.type, is_mutable, is_string_ref);
     }
 
     return wrapper.type;
