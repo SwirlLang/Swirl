@@ -4,7 +4,6 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/FileSystem.h>
 #include <lld/Common/Driver.h>
-#include <cstdlib> // getenv
 
 #ifdef __linux__
     LLD_HAS_DRIVER(elf)
@@ -204,7 +203,7 @@ void CompilerInst::produceExecutable() {
         m_OutputPath = m_SrcPath.parent_path() / ".build" / (m_SrcPath
             .filename()
             .replace_extension()
-            .string() + (is_win ? ".exe" : ".out")
+            .string() + (is_win ? ".exe" : "")
             );
 
     // push the output path to the vector
