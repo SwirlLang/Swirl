@@ -62,7 +62,14 @@ struct Type {
 
     /// Returns the wrapped-type, only valid for types which wrap another, e.g. Array, Reference, Slice etc.
     [[nodiscard]] virtual Type* getWrappedType() {
-        throw std::runtime_error("`getWrappedType` called on a non-wrapper type!");
+        return nullptr;
+    }
+
+    /// Returns the wrapped-type if the type is a wrapper-type, otherwise returns the instance pointer.
+    [[nodiscard]] virtual Type* getWrappedTypeOrInstance() {
+        if (const auto ret = getWrappedType())
+            return ret;
+        return this;
     }
 
     virtual bool operator==(Type* other) { return getTypeTag() == other->getTypeTag(); }

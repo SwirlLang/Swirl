@@ -744,7 +744,7 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
 
                 // fetch the instance's struct-type
                 auto struct_sw_ty = instance.fetchSwType(operands.at(0));
-                auto struct_ty = dynamic_cast<StructType*>(struct_sw_ty);
+                auto struct_ty = dynamic_cast<StructType*>(struct_sw_ty->getWrappedTypeOrInstance());
 
                 // handle the special case of methods, lower them into regular function calls
                 if (operands.at(1)->getNodeType() == ND_CALL) {
