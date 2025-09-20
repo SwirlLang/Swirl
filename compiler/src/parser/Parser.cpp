@@ -160,7 +160,11 @@ Type* Parser::parseType() {
         if (m_Stream.CurTok.value == "str" && is_reference) {
             is_string_ref = true;
             forwardStream();
-        } else wrapper.type = SymbolTable.lookupType(SymbolTable.getIDInfoFor(parseIdent()));
+        } else {
+            if (auto id = SymbolTable.getIDInfoFor(parseIdent())) {
+                wrapper.type = SymbolTable.lookupType(id);
+            } // TODO: handle this case more gracefully
+        }
     }
 
     uint16_t ptr_level = 0;
@@ -258,9 +262,6 @@ SwNode Parser::dispatch() {
 
                 if (m_Stream.CurTok.value == "{")
                     return parseScope();
-
-                if (m_Stream.CurTok.value == "@")
-                    return parseIntrinsic();
 
                 if (m_Stream.CurTok.value == "#") {
                     forwardStream();
@@ -523,6 +524,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     if (func_nd->is_extern) {
         // TODO: report an error if a body is provided
+        SymbolTable.moveToPreviousScope();
         return func_nd;
     }
 
@@ -755,7 +757,7 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     SET_NODE_ATTRS(ret.get());
 
     const auto struct_ty = new StructType{};
-    auto struct_name = forwardStream().value;
+    const auto struct_name = forwardStream().value;
     m_CurrentStructTy.push_back(struct_ty);
 
     // ask for a decl registry to the symbol manager

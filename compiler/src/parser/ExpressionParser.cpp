@@ -25,6 +25,7 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
             m_Parser.forwardStream();
             return ret;
         }
+
         case STRING: {
             auto str = std::make_unique<StrLit>(m_Stream.CurTok.value);
             SET_NODE_ATTRS(str.get());
@@ -36,6 +37,7 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
             }
             return str;
         }
+
         case IDENT: {
             auto id = std::make_unique<Ident>(m_Parser.parseIdent());
             SET_NODE_ATTRS(id.get());
@@ -46,7 +48,20 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                 return call_node;
             } return id;
         }
+
+        case KEYWORD: {
+            if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false") {
+                auto ret = std::make_unique<BoolLit>(m_Stream.CurTok.value == "true");
+                SET_NODE_ATTRS(ret.get());
+                m_Parser.forwardStream();
+                return ret;
+            }
+        }
+
         case PUNC: {
+            if (m_Stream.CurTok.value == "@")
+                return m_Parser.parseIntrinsic();
+
             if (m_Stream.CurTok.value == "[") {
                 auto arr_node = std::make_unique<ArrayLit>();
                 SET_NODE_ATTRS(arr_node.get());
@@ -74,15 +89,10 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                 SET_NODE_ATTRS(ret.get());
                 m_Parser.forwardStream();
                 return ret;
-            } return m_Parser.dispatch();
-        }
-        case KEYWORD: {
-            if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false") {
-                auto ret = std::make_unique<BoolLit>(m_Stream.CurTok.value == "true");
-                SET_NODE_ATTRS(ret.get());
-                m_Parser.forwardStream();
-                return ret;
             }
+
+            m_Parser.reportError(ErrCode::EXPECTED_EXPRESSION);
+            return nullptr;
         }
 
         default: {
