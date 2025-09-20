@@ -18,3 +18,5 @@ SpacesInSquareBrackets: false
 SpaceAfterCStyleCast: true
 SortIncludes: false
 PointerAlignment: Left
+IndentPPDirectives: BeforeHash
+PPIndentWidth: 4
