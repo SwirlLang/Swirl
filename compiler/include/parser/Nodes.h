@@ -40,6 +40,7 @@ enum NodeType {
 struct Node;
 struct Var;
 struct Type;
+struct Ident;
 
 class Parser;
 class IdentInfo;
@@ -53,8 +54,9 @@ using NodesVec = std::vector<SwNode>;
 
 
 struct AnalysisResult {
-    bool       is_erroneous = false;
-    Type*      deduced_type = nullptr;
+    bool       is_erroneous       = false;
+    Type*      deduced_type       = nullptr;
+    Namespace* computed_namespace = nullptr;
 };
 
 
@@ -100,10 +102,18 @@ struct Node {
         throw std::runtime_error("getExprValue called on Node instance");
     }
 
+    /// Returns the wrapped-node if the node is a wrapper, returns the instance itself otherwise
+    virtual Node* getWrappedNodeOrInstance() {
+        return this;
+    }
+
+    [[nodiscard]] virtual Ident* getIdent() {
+        return nullptr;
+    }
+
     virtual Type* getSwType() {
         throw std::runtime_error("getSwType: unimplemented!");
     }
-
 
     virtual EvalResult evaluate(Parser&);
     virtual AnalysisResult analyzeSemantics(AnalysisContext&) {
@@ -157,6 +167,10 @@ struct Expression final : Node {
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_EXPR;
+    }
+
+    Node* getWrappedNodeOrInstance() override {
+        return expr.get();
     }
 
     bool operator==(const Expression& other) const {
@@ -255,6 +269,16 @@ struct Op final : Node {
     [[nodiscard]]
     NodeType getNodeType() const override { return ND_OP; }
     Type* getSwType() override { return common_type; }
+
+    [[nodiscard]] SwNode& getLHS() {
+        assert(!operands.empty());
+        return operands.at(0);
+    }
+
+    [[nodiscard]] SwNode& getRHS() {
+        assert(operands.size() >= 2);
+        return operands.at(1);
+    }
 
     static int getLBPFor(OpTag_t op);
     static int getRBPFor(OpTag_t op);
@@ -386,6 +410,10 @@ struct Ident final : Node {
         return ND_IDENT;
     }
 
+    [[nodiscard]] Ident* getIdent() override {
+        return this;
+    }
+
     EvalResult   evaluate(Parser&) override;
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
@@ -461,6 +489,10 @@ struct FuncCall : Node {
 
     Type* getSwType() override {
         return signature;
+    }
+
+    [[nodiscard]] Ident* getIdent() override {
+        return &ident;
     }
 
     [[nodiscard]] NodeType     getNodeType() const override { return ND_CALL; }

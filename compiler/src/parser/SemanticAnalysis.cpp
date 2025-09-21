@@ -650,52 +650,78 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             case DOT: {
                 AnalysisContext::DisableErrorCode _(ErrCode::UNDEFINED_IDENTIFIER, ctx);
 
-                std::string id_str;
-                Ident*      rhs_id = nullptr;
-                bool        is_method = false;
-
-                if (operands.at(1)->getNodeType() == ND_CALL) {
-                    is_method = true;
-                    rhs_id = &dynamic_cast<FuncCall*>(operands.at(1).get())->ident;
-                    id_str = rhs_id->full_qualification.at(0);
-                } else {
-                    assert(operands.at(1)->getNodeType() == ND_IDENT);
-                    rhs_id = dynamic_cast<Ident*>(operands.at(1).get());
-                    id_str = rhs_id->full_qualification.at(0);
+                const Ident* accessed_id = getRHS()->getWrappedNodeOrInstance()->getIdent();
+                if (!accessed_id) {
+                    ctx.reportError(ErrCode::SYNTAX_ERROR, {
+                        .msg = "Expected a named expression."});
+                    return {};
                 }
 
-                // automatic dereference
-                auto struct_ty = analysis_1.deduced_type;
-                if (struct_ty->getTypeTag() == Type::REFERENCE)
-                    struct_ty = dynamic_cast<ReferenceType*>(struct_ty)->of_type;
+                const std::string accessed_member = accessed_id->full_qualification.front();
 
-                auto accessed_op_id = struct_ty->scope->getIDInfoFor(id_str);
+                // check whether the LHS is an operator (DOT is left-associative)
+                if (getLHS()->getWrappedNodeOrInstance()->getNodeType() == ND_OP) {
+                    // the analysis result's `computed_namespace` field would contain
+                    // the referenced namespace, if it doesn't, it indicates an error
+                    auto analysis_result = getLHS()->analyzeSemantics(ctx);
 
-                if (!accessed_op_id) {
-                    ctx.reportError(ErrCode::NO_SUCH_MEMBER,{
-                        .str_1 = id_str,
-                        .str_2 = struct_ty->toString(),
-                    }); ret.is_erroneous = true;
+                    if (analysis_result.computed_namespace) {
+                        // look for the RHS in the namespace
+                        const auto id = analysis_result
+                            .computed_namespace->getIDInfoFor(accessed_member);
+
+                        // indicates that no ID with the name exists
+                        if (!id.has_value()) {
+                            // TODO: put the namespace name in the error message
+                            ctx.reportError(ErrCode::NO_SUCH_MEMBER, {.str_1 = accessed_member});
+                            return {};
+                        }
+
+                        // now when the ID with the name does exist
+                        const auto& member_tab_entry = ctx.SymMan.lookupDecl(*id);
+                        ret.computed_namespace = member_tab_entry.scope;
+                        ret.deduced_type = member_tab_entry.swirl_type;
+                        return ret;
+                    }
+                    // the error is expected to be reported in the inner branches, simply return
+                    return {};
+
                 }
 
-                rhs_id->value = *accessed_op_id;
+                // now when the LHS isn't an OP:
+                Ident* lhs_ident = getLHS()->getWrappedNodeOrInstance()->getIdent();
 
-                Type* field_access_ty = nullptr;
-                if (!is_method) {
-                    field_access_ty = ctx.SymMan.lookupDecl(*accessed_op_id).swirl_type;
-                    assert(field_access_ty);
-                } else {  // is a method
-                    ctx.setIsMethodCallState(true);
-                    operands.at(1)->analyzeSemantics(ctx);
-                    ctx.restoreIsMethodCallState();
-                    auto call_node_id = operands.at(1)->getIdentInfo();
-                    assert(call_node_id);
-                    field_access_ty = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(call_node_id))->ret_type;
-                }
+                if (lhs_ident == nullptr) {
+                    ctx.reportError(ErrCode::SYNTAX_ERROR, {
+                        .str_1 = "Expected a named expression."});
+                    return {};
+                } lhs_ident->analyzeSemantics(ctx);
 
-                ret.deduced_type = field_access_ty;
-                assert(field_access_ty);
-                break;
+
+                if (auto lhs_id_info = lhs_ident->getIdentInfo(); lhs_id_info != nullptr) {
+                    const auto& lhs_tab_entry = ctx.SymMan.lookupDecl(lhs_id_info);
+                    const Namespace* lhs_scope = lhs_tab_entry.scope;
+
+                    if (!lhs_scope) {
+                        ctx.reportError(ErrCode::NOT_A_NAMESPACE, {
+                            .str_1 = lhs_id_info->toString()});
+                        return {};
+                    }
+
+                    // look for the member in the scope
+                    auto id = lhs_scope->getIDInfoFor(accessed_member);
+
+                    if (!id.has_value()) {
+                        ctx.reportError(ErrCode::NO_SUCH_MEMBER, {
+                            .str_1 = accessed_member, .str_2 = lhs_id_info->toString()});
+                        return {};
+                    }
+
+                    const auto& member_tab_entry = ctx.SymMan.lookupDecl(*id);
+                    ret.deduced_type       = member_tab_entry.swirl_type;
+                    ret.computed_namespace = member_tab_entry.scope;
+                    return ret;
+                } return {};
             }
 
             case LOGICAL_AND:

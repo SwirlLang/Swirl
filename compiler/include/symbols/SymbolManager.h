@@ -49,7 +49,6 @@ public:
 
 class SymbolManager {
     bool m_LockEmplace = false;
-    // std::size_t m_ScopeInt = 0;
 
     TypeManager m_TypeManager;
     ModuleManager& m_ModuleMap;
