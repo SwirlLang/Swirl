@@ -45,6 +45,7 @@ class Parser;
 class IdentInfo;
 class LLVMBackend;
 class AnalysisContext;
+class Namespace;
 namespace llvm { class Value; }
 
 using SwNode   = std::unique_ptr<Node>;
@@ -52,8 +53,8 @@ using NodesVec = std::vector<SwNode>;
 
 
 struct AnalysisResult {
-    bool is_erroneous = false;
-    Type* deduced_type = nullptr;
+    bool       is_erroneous = false;
+    Type*      deduced_type = nullptr;
 };
 
 
@@ -70,60 +71,48 @@ struct Node {
 
     bool is_exported = false;
 
-    [[nodiscard]]
-    virtual NodeType getNodeType() const {
+    Node() = default;
+    virtual ~Node() = default;
+
+
+    /// Returns a tag which identifies the node's kind
+    [[nodiscard]] virtual NodeType getNodeType() const {
         return ND_INVALID;
     }
 
-    virtual bool hasScopes() {
+    /// Can the node allowed to appear in global context (E.g. Functions, Vars)?
+    [[nodiscard]] virtual bool isGlobal() const {
         return false;
     }
 
-    [[nodiscard]]
-    virtual bool isGlobal() const {
+    /// Is the node representing a literal?
+    [[nodiscard]] virtual bool isLiteral() const {
         return false;
     }
 
-    [[nodiscard]]
-    virtual bool isLiteral() const {
-        return false;
-    }
-
+    /// Fetches the `IdentInfo*` that a node is holding, if any
     virtual IdentInfo* getIdentInfo() {
         throw std::runtime_error("getIdentInfo called on Node instance");
     }
 
-    virtual const SwNode& getExprValue() {
+    /// Convenient method to fetch the wrapped-node from an expression
+    virtual SwNode& getExprValue() {
         throw std::runtime_error("getExprValue called on Node instance");
-    }
-
-    virtual llvm::Value* llvmCodegen([[maybe_unused]] LLVMBackend& instance) {
-        throw std::runtime_error("llvmCodegen called on Node instance");
-    }
-
-    virtual EvalResult evaluate(Parser&);
-
-    virtual int8_t getArity() {
-        throw std::runtime_error("getArity called on base Node instance ");
-    }
-
-    virtual void setArity([[maybe_unused]] int8_t val) {
-        throw std::runtime_error("setArity called on base Node instance");
-    }
-
-    virtual std::vector<std::unique_ptr<Node>>& getMutOperands() {
-        throw std::runtime_error("getMutOperands called on base node");
-    }
-
-    virtual AnalysisResult analyzeSemantics(AnalysisContext&) {
-        return {};
     }
 
     virtual Type* getSwType() {
         throw std::runtime_error("getSwType: unimplemented!");
     }
 
-    virtual ~Node() = default;
+
+    virtual EvalResult evaluate(Parser&);
+    virtual AnalysisResult analyzeSemantics(AnalysisContext&) {
+        return {};
+    }
+
+    virtual llvm::Value* llvmCodegen([[maybe_unused]] LLVMBackend& instance) {
+        throw std::runtime_error("llvmCodegen called on Node instance");
+    }
 };
 
 
@@ -162,7 +151,7 @@ struct Expression final : Node {
         return expr->getIdentInfo();
     }
 
-    const SwNode& getExprValue() override {
+    [[nodiscard]] SwNode& getExprValue() override {
         return expr;
     }
 
@@ -259,17 +248,6 @@ struct Op final : Node {
 
     explicit Op(std::string_view str, int8_t arity);
     static OpTag_t getTagFor(std::string_view str, int arity);
-
-    void setArity(const int8_t val) override {
-        arity = val;
-    }
-
-    int8_t getArity() override {
-        return arity;
-    }
-
-
-    std::vector<std::unique_ptr<Node>>& getMutOperands() override { return operands; }
 
     // set the type of sub-expression instances to `to`
     void setType(Type* to);
@@ -435,7 +413,7 @@ struct Var final : GlobalNode {
         return var_ident;
     }
 
-    const SwNode& getExprValue() override { return value.expr; }
+    [[nodiscard]] SwNode& getExprValue() override { return value.expr; }
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
@@ -465,10 +443,6 @@ struct Function final : GlobalNode {
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_FUNC;
-    }
-
-    bool hasScopes() override {
-        return true;
     }
 
     llvm::Value* llvmCodegen(LLVMBackend& instance) override;
@@ -603,13 +577,10 @@ struct Condition final : Node {
     std::vector<std::tuple<Expression, std::vector<std::unique_ptr<Node>>>> elif_children;
     std::vector<std::unique_ptr<Node>> else_children{};
 
-    const SwNode& getExprValue() override {
+    [[nodiscard]] SwNode& getExprValue() override {
         return bool_expr.expr;
     }
 
-    bool hasScopes() override {
-        return true;
-    }
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_COND;
