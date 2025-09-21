@@ -600,6 +600,11 @@ std::unique_ptr<FuncCall> Parser::parseCall(std::optional<Ident> ident) {
                     break;
             }
 
+            if (m_Stream.eof()) {
+                reportError(ErrCode::UNEXPECTED_EOF);
+                break;
+            }
+
             call_node->args.emplace_back(parseExpr());
         }
     }

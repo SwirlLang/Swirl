@@ -135,6 +135,10 @@ public:
     /// Returns the common-type of `type1` and `type2`, nullptr if failure
     Type* deduceType(Type* type1, Type* type2, const SourceLocation& location) const;
 
+    /// Returns the `Type*` of the value that the node will yield upon evaluation
+    Type* getEvalType(const SwNode& node) const;
+    Type* getEvalType(Node* node) const;
+
     /// Checks whether `from` can be converted to `to`, returns `false` if incompatible
     bool checkTypeCompatibility(Type* from, Type* to, const SourceLocation& location) const;
 

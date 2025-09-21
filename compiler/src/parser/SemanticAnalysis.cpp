@@ -681,6 +681,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                         const auto& member_tab_entry = ctx.SymMan.lookupDecl(*id);
                         ret.computed_namespace = member_tab_entry.scope;
                         ret.deduced_type = member_tab_entry.swirl_type;
+                        common_type = ret.deduced_type;
                         return ret;
                     }
                     // the error is expected to be reported in the inner branches, simply return
@@ -689,16 +690,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                 }
 
                 // now when the LHS isn't an OP:
-                Ident* lhs_ident = getLHS()->getWrappedNodeOrInstance()->getIdent();
-
-                if (lhs_ident == nullptr) {
-                    ctx.reportError(ErrCode::SYNTAX_ERROR, {
-                        .str_1 = "Expected a named expression."});
-                    return {};
-                } lhs_ident->analyzeSemantics(ctx);
-
-
-                if (auto lhs_id_info = lhs_ident->getIdentInfo(); lhs_id_info != nullptr) {
+                if (auto lhs_id_info = ctx.getEvalType(getLHS())->getIdent(); lhs_id_info != nullptr) {
                     const auto& lhs_tab_entry = ctx.SymMan.lookupDecl(lhs_id_info);
                     const Namespace* lhs_scope = lhs_tab_entry.scope;
 
@@ -720,6 +712,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                     const auto& member_tab_entry = ctx.SymMan.lookupDecl(*id);
                     ret.deduced_type       = member_tab_entry.swirl_type;
                     ret.computed_namespace = member_tab_entry.scope;
+                    common_type = ret.deduced_type;
                     return ret;
                 } return {};
             }
@@ -779,6 +772,9 @@ AnalysisResult Assignment::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 void Op::setType(Type* to) {
+    if (op_type == DOT)
+        return;
+
     if (operands.front()->getNodeType() == ND_EXPR) {
         dynamic_cast<Expression*>(operands.front().get())->setType(to);
     }
@@ -798,6 +794,36 @@ void Expression::setType(Type* to) {
     }
     else if (expr->getNodeType() == ND_OP) {
         dynamic_cast<Op*>(expr.get())->setType(to);
+    }
+}
+
+
+Type* AnalysisContext::getEvalType(const SwNode& node) const {
+    return getEvalType(node.get());
+}
+
+Type* AnalysisContext::getEvalType(Node* node) const {
+    switch (node->getNodeType()) {
+        case ND_INT:
+            return &GlobalTypeI32;
+        case ND_FLOAT:
+            return &GlobalTypeF64;
+        case ND_BOOL:
+            return &GlobalTypeBool;
+        case ND_IDENT:
+            return SymMan.lookupDecl(node->getIdentInfo()).swirl_type;
+        case ND_CALL:
+            return dynamic_cast<FunctionType*>(
+                SymMan.lookupType(node->getIdentInfo()))->ret_type;
+        case ND_STR:
+            return SymMan.getStrType(
+                dynamic_cast<StrLit*>(node)->value.size());
+        case ND_EXPR:
+        case ND_ARRAY:
+        case ND_OP:
+            return node->getSwType();
+        default:
+            throw std::runtime_error("LLVMBackend::fetchSwType: failed to fetch type");
     }
 }
 

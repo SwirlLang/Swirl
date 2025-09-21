@@ -764,7 +764,9 @@ llvm::Value* Op::llvmCodegen(LLVMBackend& instance) {
                     (struct_ty->field_offsets.at(field_node->full_qualification.front()))
                 );
 
-                auto field_type = instance.SymMan.lookupDecl(field_node->getIdentInfo()).swirl_type;
+                // in the case of this operator, the common_type is supposed to be the type of the field
+                // beind accessed, not an actual common type between operands
+                auto field_type = common_type;
 
                 instance.StructFieldPtr = field_ptr;
                 instance.StructFieldType = field_type;
