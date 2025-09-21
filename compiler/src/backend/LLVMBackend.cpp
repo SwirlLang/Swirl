@@ -36,7 +36,6 @@ LLVMBackend::LLVMBackend(Parser& parser)
     , SymMan(parser.SymbolTable)
 {
     m_LatestBoundType.emplace(nullptr);
-    m_AssignmentLhsStack.emplace(false);
     m_ManglingContexts.emplace();
 
     static std::once_flag once_flag;

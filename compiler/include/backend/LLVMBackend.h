@@ -60,6 +60,11 @@ public:
         llvm::BasicBlock* continue_to = nullptr;
     };
 
+    // holds states which are specific to each call
+    struct StackState {
+        std::vector<bool> is_lvalue = {false};
+    };
+
     /// Calculates and returns a mangled string which corresponds to the `IdentInfo*`
     std::string mangleString(IdentInfo*);
 
@@ -120,8 +125,8 @@ public:
     }
 
     bool getAssignmentLhsState() const {
-        assert(!m_AssignmentLhsStack.empty());
-        return m_AssignmentLhsStack.top();
+        assert(!m_CodegenStack.empty() && !m_CodegenStack.top().is_lvalue.empty());
+        return m_CodegenStack.top().is_lvalue.back();
     }
 
     llvm::Type* getBoundLLVMType() {
@@ -147,11 +152,11 @@ public:
     }
 
     void setAssignmentLhsState(bool value) {
-        m_AssignmentLhsStack.emplace(value);
+        m_CodegenStack.top().is_lvalue.emplace_back(value);
     }
 
     void restoreAssignmentLhsState() {
-        m_AssignmentLhsStack.pop();
+        m_CodegenStack.top().is_lvalue.pop_back();
     }
 
     void restoreBoundTypeState() {
@@ -200,15 +205,20 @@ private:
     llvm::Function* m_CurParent = nullptr;
 
     std::stack<Type*>           m_LatestBoundType;
-    std::stack<bool>            m_AssignmentLhsStack;
     std::stack<LoopMetadata>    m_LoopMetadataStack;
     std::stack<ManglingContext> m_ManglingContexts;
+    std::stack<StackState>      m_CodegenStack;
 };
 
 
 struct LLVMBackend::SetupHandler {
-    SetupHandler(LLVMBackend& instance, Node* ptr): instance(instance), node(ptr) {}
-    ~SetupHandler() = default;
+    SetupHandler(LLVMBackend& instance, Node* ptr): instance(instance), node(ptr) {
+        instance.m_CodegenStack.emplace();
+    }
+
+    ~SetupHandler() {
+        instance.m_CodegenStack.pop();
+    }
 
 private:
     LLVMBackend& instance;
