@@ -427,11 +427,12 @@ std::unique_ptr<Function> Parser::parseFunction() {
         func_nd->ident = struct_scope->getNewIDInfo(func_ident);
     }
 
+    bool method_is_static = true;
     m_Stream.expectTokens({Token{PUNC, "("}});
     forwardStream(2);
     auto function_t = std::make_unique<FunctionType>();
 
-    auto parse_params = [function_t = function_t.get(), this] {
+    auto parse_params = [function_t = function_t.get(), this, &method_is_static] {
         Var param;
         SET_NODE_ATTRS(&param);
 
@@ -454,6 +455,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
                 .swirl_type = param.var_type,
             });
 
+            method_is_static = false;
             function_t->param_types.push_back(param.var_type);
             ignoreButExpect({IDENT, "self"});
             return param;
@@ -500,7 +502,8 @@ std::unique_ptr<Function> Parser::parseFunction() {
     TableEntry entry;
     entry.swirl_type  = function_t.get();
     entry.is_exported = func_nd->is_exported;
-    entry.is_method   = m_CurrentStructTy.back() != nullptr;
+    entry.method_of   = m_CurrentStructTy.back();
+    entry.is_static   = method_is_static;
     entry.node_loc    = func_nd.get();
 
     if (!m_CurrentStructTy.back()) {  // when the function is not a method
@@ -770,6 +773,9 @@ std::unique_ptr<Struct> Parser::parseStruct() {
         .is_exported = ret->is_exported,
     });
 
+    // register the type and the scope of the struct as a qualifier
+    SymbolTable.registerType(ret->ident, struct_ty);
+
     // create the struct's scope
     ignoreButExpect({PUNC, "{"});  // skip '{'
     const auto scope_pointer = SymbolTable.newScope();
@@ -794,9 +800,6 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     SymbolTable.moveToPreviousScope();
 
     struct_ty->ident = ret->ident;
-
-    // register the type and the scope of the struct as a qualifier
-    SymbolTable.registerType(ret->ident, struct_ty);
     SymbolTable.lookupDecl(ret->ident).scope = scope_pointer;
 
     return ret;

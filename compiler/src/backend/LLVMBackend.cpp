@@ -81,9 +81,8 @@ std::string LLVMBackend::mangleString(IdentInfo* id) {
         }
     }
 
-    if (decl_lookup.is_method) {
-        // this shall hold the encapsulating type
-        auto type = getManglingContext().encapsulator;
+    if (decl_lookup.method_of) {
+        auto type = decl_lookup.method_of;
         assert(type != nullptr);
 
         // unwrap the type if needed
@@ -1024,7 +1023,8 @@ llvm::Value* FuncCall::llvmCodegen(LLVMBackend& instance) {
     arguments.reserve(args.size() + 1);
 
     assert(ident.value);
-    if (instance.SymMan.lookupDecl(ident.value).is_method) {  // is the func call a method call?
+    if (auto& entry = instance.SymMan.lookupDecl(ident.value); entry.method_of && !entry.is_static) {
+        // push the implicit instance pointer if the callee is a method and not static
         assert(instance.ComputedPtr);
         arguments.push_back(instance.ComputedPtr);  // push the ComputedPtr as an implicit argument
     }
