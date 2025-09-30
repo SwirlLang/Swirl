@@ -7,7 +7,7 @@
 #include <unordered_set>
 
 #include "definitions.h"
-#include "parser/Nodes.h"
+#include "ast/Nodes.h"
 #include "lexer/Tokens.h"
 #include "lexer/TokenStream.h"
 #include "errors/ErrorManager.h"

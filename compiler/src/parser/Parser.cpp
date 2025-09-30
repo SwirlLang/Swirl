@@ -8,7 +8,7 @@
 #include <functional>
 
 #include "utils/utils.h"
-#include "parser/Nodes.h"
+#include "../../include/ast/Nodes.h"
 #include "parser/Parser.h"
 #include "lexer/Tokens.h"
 #include "backend/LLVMBackend.h"
@@ -538,6 +538,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     } forwardStream();
     SymbolTable.moveToPreviousScope();  // decrement the scope index, back to the global scope!
 
+    m_LatestFuncNode = nullptr;
     return func_nd;
 }
 
@@ -621,6 +622,11 @@ std::unique_ptr<FuncCall> Parser::parseCall(std::optional<Ident> ident) {
 std::unique_ptr<ReturnStatement> Parser::parseRet() {
     auto ret = std::make_unique<ReturnStatement>();
     SET_NODE_ATTRS(ret.get());
+
+    if (m_LatestFuncNode == nullptr) {
+        reportError(ErrCode::SYNTAX_ERROR, {
+            .msg = "`return` cannot appear outside functions."});
+    }
 
     forwardStream();
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ";")

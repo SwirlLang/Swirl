@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 
-#include "parser/Nodes.h"
+#include "../ast/Nodes.h"
 #include "errors/ErrorManager.h"
 
 

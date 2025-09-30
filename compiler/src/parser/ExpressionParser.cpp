@@ -91,11 +91,13 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                 return ret;
             }
 
+            m_Parser.forwardStream();
             m_Parser.reportError(ErrCode::EXPECTED_EXPRESSION);
             return nullptr;
         }
 
         default: {
+            m_Parser.forwardStream();
             m_Parser.reportError(ErrCode::EXPECTED_EXPRESSION);
             return nullptr;
         }

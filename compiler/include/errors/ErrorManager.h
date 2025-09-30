@@ -3,7 +3,7 @@
 #include <optional>
 #include <filesystem>
 
-#include "parser/Nodes.h"
+#include "../ast/Nodes.h"
 #include "types/SwTypes.h"
 
 

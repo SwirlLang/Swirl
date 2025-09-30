@@ -41,12 +41,13 @@ struct Node;
 struct Var;
 struct Type;
 struct Ident;
+struct FunctionType;
 
 class Parser;
+class Namespace;
 class IdentInfo;
 class LLVMBackend;
 class AnalysisContext;
-class Namespace;
 namespace llvm { class Value; }
 
 using SwNode   = std::unique_ptr<Node>;
@@ -64,6 +65,23 @@ struct SourceLocation {
     StreamState from;
     StreamState to;
     fs::path    source;
+};
+
+
+class CGValue {
+public:
+    CGValue(): m_LValue(nullptr), m_RValue(nullptr) {}
+    CGValue(llvm::Value* lvalue, llvm::Value* rvalue): m_LValue(lvalue), m_RValue(rvalue) {}
+
+    llvm::Value*   getLValue();
+    llvm::Value*   getRValue(LLVMBackend&);
+
+    static CGValue lValue(llvm::Value* lvalue);
+    static CGValue rValue(llvm::Value* rvalue);
+
+private:
+    llvm::Value* m_LValue;
+    llvm::Value* m_RValue;
 };
 
 
@@ -120,7 +138,7 @@ struct Node {
         return {};
     }
 
-    virtual llvm::Value* llvmCodegen([[maybe_unused]] LLVMBackend& instance) {
+    virtual CGValue llvmCodegen([[maybe_unused]] LLVMBackend &instance) {
         throw std::runtime_error("llvmCodegen called on Node instance");
     }
 };
@@ -170,7 +188,7 @@ struct Expression final : Node {
     }
 
     Node* getWrappedNodeOrInstance() override {
-        return expr.get();
+        return expr->getWrappedNodeOrInstance();
     }
 
     bool operator==(const Expression& other) const {
@@ -182,7 +200,8 @@ struct Expression final : Node {
     }
 
     EvalResult   evaluate(Parser&) override;
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -205,7 +224,8 @@ struct TypeWrapper final : Node {
     }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+
+    CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
 
@@ -284,31 +304,17 @@ struct Op final : Node {
     static int getRBPFor(OpTag_t op);
     static int getPBPFor(OpTag_t op);
 
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     EvalResult   evaluate(Parser& instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 
-struct Assignment final : Node {
-    Expression  l_value;
-    std::string op;
-    Expression r_value;
-
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
-
-    [[nodiscard]] NodeType getNodeType() const override {
-        return ND_ASSIGN;
-    }
-
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
-};
-
 struct ReturnStatement final : Node {
     Expression value;
-    Type* parent_ret_type;
+    FunctionType* parent_fn_type = nullptr;  // holds the function-signature of the parent
 
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    CGValue llvmCodegen(LLVMBackend &instance) override;
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_RET;
@@ -332,7 +338,8 @@ struct IntLit final : Node {
     }
 
     EvalResult   evaluate(Parser &) override;
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -351,7 +358,8 @@ struct FloatLit final : Node {
     }
 
     EvalResult   evaluate(Parser &) override;
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -370,7 +378,8 @@ struct BoolLit final : Node {
 
     EvalResult   evaluate(Parser &) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+
+    CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
 
@@ -389,8 +398,9 @@ struct StrLit final : Node {
         return true;
     }
 
-    EvalResult   evaluate(Parser &) override;
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    EvalResult   evaluate(Parser&) override;
+
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -415,7 +425,8 @@ struct Ident final : Node {
     }
 
     EvalResult   evaluate(Parser&) override;
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -442,7 +453,8 @@ struct Var final : GlobalNode {
     }
 
     [[nodiscard]] SwNode& getExprValue() override { return value.expr; }
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -454,7 +466,7 @@ struct Scope final : Node {
         return ND_SCOPE;
     }
 
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -473,7 +485,7 @@ struct Function final : GlobalNode {
         return ND_FUNC;
     }
 
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -496,7 +508,8 @@ struct FuncCall : Node {
     }
 
     [[nodiscard]] NodeType     getNodeType() const override { return ND_CALL; }
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -515,7 +528,7 @@ struct Intrinsic final : FuncCall {
 
     [[nodiscard]] NodeType getNodeType() const override { return ND_INTRINSIC; }
 
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -536,7 +549,7 @@ struct ImportNode final : Node {
         return ND_IMPORT;
     }
 
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -555,7 +568,8 @@ struct ArrayLit final : Node {
     }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
-    llvm::Value*   llvmCodegen(LLVMBackend& instance) override;
+
+    CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
 
@@ -567,18 +581,18 @@ struct WhileLoop final : Node {
         return ND_WHILE;
     }
 
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 
 struct BreakStmt final : Node {
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     [[nodiscard]] NodeType getNodeType() const override { return ND_BREAK;}
 };
 
 struct ContinueStmt final : Node {
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     [[nodiscard]] NodeType getNodeType() const override { return ND_CONTINUE; }
 };
 
@@ -597,7 +611,8 @@ struct Struct final : GlobalNode {
     }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
-    llvm::Value* llvmCodegen(LLVMBackend &instance) override;
+
+    CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
 
@@ -619,6 +634,6 @@ struct Condition final : Node {
     }
 
 
-    llvm::Value* llvmCodegen(LLVMBackend& instance) override;
+    CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };

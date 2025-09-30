@@ -2,7 +2,7 @@
 #include <format>
 #include <vector>
 
-#include "parser/Nodes.h"
+#include "../ast/Nodes.h"
 
 
 class Namespace;
@@ -72,6 +72,7 @@ struct Type {
         return this;
     }
 
+    virtual bool isReferenceLikeType() { return getTypeTag() == REFERENCE || getTypeTag() == POINTER; }
     virtual bool operator==(Type* other) { return getTypeTag() == other->getTypeTag(); }
 
     virtual ~Type() = default;

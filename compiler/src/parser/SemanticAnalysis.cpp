@@ -1,7 +1,7 @@
 #include <cassert>
 #include <utility>
 
-#include "parser/Nodes.h"
+#include "../../include/ast/Nodes.h"
 #include "parser/Parser.h"
 #include "parser/SemanticAnalysis.h"
 
@@ -483,6 +483,10 @@ AnalysisResult ReturnStatement::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     AnalysisResult ret;
 
+    parent_fn_type = dynamic_cast<FunctionType*>(
+        ctx.SymMan.lookupDecl(
+            ctx.getCurParentFunc()->getIdentInfo()).swirl_type);
+
     if (value.expr)
         ret.deduced_type = value.analyzeSemantics(ctx).deduced_type;
     else ret.deduced_type = &GlobalTypeVoid;
@@ -754,20 +758,7 @@ AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
     setType(val.deduced_type);
 
     ctx.Cache.insert({this, ret});
-    return ret;
-}
-
-
-AnalysisResult Assignment::analyzeSemantics(AnalysisContext& ctx) {
-    PRE_SETUP();
-    AnalysisResult ret;
-
-    if (l_value.getNodeType() == ND_IDENT) {
-        if (ctx.SymMan.lookupDecl(l_value.getIdentInfo()).is_const) {
-            // ctx.ErrMan.newError("Cannot assign, " + l_value.getIdentInfo()->toString() + " is const.");
-        }
-    }
-
+    assert(expr_type != nullptr);
     return ret;
 }
 

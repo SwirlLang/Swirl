@@ -1,4 +1,4 @@
-#include "parser/Nodes.h"
+#include "../../include/ast/Nodes.h"
 #include "parser/Parser.h"
 
 
@@ -45,6 +45,7 @@ std::unordered_map<Op::OpTag_t, OpInfo> OpInfoTable = {
     {Op::ADDRESS_TAKING, {150, OpInfo::LEFT}},
     {Op::UNARY_ADD, {150, OpInfo::LEFT}},
     {Op::UNARY_SUB, {150, OpInfo::LEFT}},
+    {Op::DEREFERENCE, {150, OpInfo::LEFT}},
 
     {Op::INDEXING_OP, {200, OpInfo::LEFT}},
     {Op::DOT, {800, OpInfo::LEFT}},

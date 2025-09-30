@@ -6,7 +6,7 @@
 #include <unordered_set>
 
 #include "parser/Parser.h"
-#include "parser/Nodes.h"
+#include "../ast/Nodes.h"
 #include "symbols/SymbolManager.h"
 
 #include <llvm/IR/IRBuilder.h>
@@ -86,9 +86,13 @@ public:
 
     /// Tries to fetch the swirl-type of the node, throws an exception on failure
     Type* fetchSwType(const std::unique_ptr<Node>& node) const {
+        return fetchSwType(node.get());
+    }
+
+    Type* fetchSwType(Node* node) const {
         switch (node->getNodeType()) {
             case ND_STR:
-                return SymMan.getStrType(dynamic_cast<StrLit*>(node.get())->value.size());
+                return SymMan.getStrType(dynamic_cast<StrLit*>(node)->value.size());
             case ND_INT:
                 return &GlobalTypeI32;
             case ND_FLOAT:
@@ -124,10 +128,10 @@ public:
         return m_LatestBoundType.top();
     }
 
-    bool getAssignmentLhsState() const {
-        assert(!m_CodegenStack.empty() && !m_CodegenStack.top().is_lvalue.empty());
-        return m_CodegenStack.top().is_lvalue.back();
-    }
+    // bool getAssignmentLhsState() const {
+    //     assert(!m_CodegenStack.empty() && !m_CodegenStack.top().is_lvalue.empty());
+    //     return m_CodegenStack.top().is_lvalue.back();
+    // }
 
     llvm::Type* getBoundLLVMType() {
         assert(m_LatestBoundType.top() != nullptr);
@@ -151,13 +155,13 @@ public:
         m_LatestBoundType.emplace(to);
     }
 
-    void setAssignmentLhsState(bool value) {
-        m_CodegenStack.top().is_lvalue.emplace_back(value);
-    }
-
-    void restoreAssignmentLhsState() {
-        m_CodegenStack.top().is_lvalue.pop_back();
-    }
+    // void setAssignmentLhsState(bool value) {
+    //     m_CodegenStack.top().is_lvalue.emplace_back(value);
+    // }
+    //
+    // void restoreAssignmentLhsState() {
+    //     m_CodegenStack.top().is_lvalue.pop_back();
+    // }
 
     void restoreBoundTypeState() {
         m_LatestBoundType.pop();
