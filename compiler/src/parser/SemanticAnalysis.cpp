@@ -694,7 +694,10 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                 }
 
                 // now when the LHS isn't an OP:
-                if (auto lhs_id_info = ctx.getEvalType(getLHS())->getIdent(); lhs_id_info != nullptr) {
+                if (
+                    auto lhs_id_info = ctx.getEvalType(getLHS())->getWrappedTypeOrInstance()->getIdent();
+                    lhs_id_info != nullptr)
+                {
                     const auto& lhs_tab_entry = ctx.SymMan.lookupDecl(lhs_id_info);
                     const Namespace* lhs_scope = lhs_tab_entry.scope;
 
@@ -758,7 +761,6 @@ AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
     setType(val.deduced_type);
 
     ctx.Cache.insert({this, ret});
-    assert(expr_type != nullptr);
     return ret;
 }
 
