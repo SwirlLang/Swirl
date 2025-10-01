@@ -79,8 +79,11 @@ CGValue CGValue::rValue(llvm::Value* rvalue) {
 
 /// Returns the held lvalue
 llvm::Value* CGValue::getLValue() {
-    assert(m_LValue);
-    return m_LValue;
+    if (!m_LValue) {
+        assert(m_RValue);
+        assert(m_RValue->getType()->isPointerTy());
+        return m_RValue;
+    } return m_LValue;
 }
 
 /// If there's no held rvalue, creates and returns a load of the held lvalue, returns the held

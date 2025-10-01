@@ -29,7 +29,7 @@ public:
     , ErrCallback(parser.m_ErrorCallback)
     , m_AST(parser.AST)
     {
-        m_IsMethodCall.emplace(false);
+        m_IsMethodCall.push(nullptr);
         m_BoundTypeState.emplace(nullptr);
         SymMan.setErrorCallback([this](auto code, const auto& ctx) {
             reportError(code, ctx);
@@ -91,18 +91,19 @@ public:
     // it's a regular function call or a method-call.
 
     /// Returns the current value of the state
-    bool getIsMethodCallState() const {
+    IdentInfo* getIsMethodCallState() const {
         assert(!m_IsMethodCall.empty());
         return m_IsMethodCall.top();
     }
 
     /// Changes the value of the state to `val`
-    void setIsMethodCallState(const bool val) {
-        m_IsMethodCall.push(val);
+    void setIsMethodCallState(IdentInfo* method_id) {
+        m_IsMethodCall.push(method_id);
     }
 
     /// Restores the state to its previous value
     void restoreIsMethodCallState() {
+        assert(!m_IsMethodCall.empty());
         m_IsMethodCall.pop();
     }
 
@@ -151,8 +152,8 @@ public:
 private:
     AST_t& m_AST;
 
-    std::stack<Type*> m_BoundTypeState;
-    std::stack<bool>  m_IsMethodCall;
+    std::stack<Type*>      m_BoundTypeState;
+    std::stack<IdentInfo*> m_IsMethodCall;
     std::stack<Node*> m_NodeStack;
 
     Node* m_CurrentParentFunc = nullptr;

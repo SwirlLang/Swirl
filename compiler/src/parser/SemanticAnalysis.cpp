@@ -338,8 +338,13 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
         return ctx.Cache[this];
     }
 
-    // method calls' id are not simple identifiers, do not analyze them normally
-    if (!ctx.getIsMethodCallState()) {
+    bool is_method_call = false;
+
+    if (ctx.getIsMethodCallState()) {
+        ident.value = ctx.getIsMethodCallState();
+        ctx.restoreIsMethodCallState();
+        is_method_call = true;
+    } else {
         ident.analyzeSemantics(ctx);
     }
 
@@ -355,7 +360,7 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
 
     auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(id));
 
-    if (args.size() < fn_type->param_types.size() && !ctx.getIsMethodCallState()) {  // TODO: default params-values
+    if (args.size() < fn_type->param_types.size() && !is_method_call) {  // TODO: default params-values
         ctx.reportError(ErrCode::TOO_FEW_ARGS, {.ident = ident.getIdentInfo()});
         ctx.Cache.insert({this, ret});
         return {};
@@ -366,13 +371,13 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     }
 
 
-    if (!ctx.getIsMethodCallState()) {
+    if (!is_method_call) {
         assert(fn_type->param_types.size() == args.size());
     } else assert(fn_type->param_types.size() - 1 == args.size());
 
     // the bias is added while indexing into the `param_types` vector (of `Type*`) to account for
     // the instance-reference Type in methods
-    const auto bias = ctx.getIsMethodCallState() ? 1 : 0;
+    const auto bias = is_method_call ? 1 : 0;
 
     for (std::size_t i = 0; i < args.size(); ++i) {
         ctx.setBoundTypeState(fn_type->param_types.at(i + bias));
@@ -716,12 +721,29 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                         return {};
                     }
 
+
                     const auto& member_tab_entry = ctx.SymMan.lookupDecl(*id);
-                    ret.deduced_type       = member_tab_entry.swirl_type;
-                    ret.computed_namespace = member_tab_entry.scope;
+
+                    auto deduced_type = member_tab_entry.swirl_type;
+                    auto computed_namespace = member_tab_entry.scope;
+
+                    if (getRHS()->getWrappedNodeOrInstance()->getNodeType() == ND_CALL) {
+                        ctx.setIsMethodCallState(*id);
+                        const auto analysis_res = getRHS()->analyzeSemantics(ctx);
+                        // it's on the callee to restore the method call state
+
+                        deduced_type = analysis_res.deduced_type;
+
+                        if (deduced_type && deduced_type->getIdent()) {
+                            computed_namespace = ctx.SymMan.lookupDecl(deduced_type->getIdent()).scope;
+                        }
+                    }
+
+                    ret.deduced_type       = deduced_type;
+                    ret.computed_namespace = computed_namespace;
                     common_type = ret.deduced_type;
                     return ret;
-                } return {};
+                } assert(0); return {};
             }
 
             case LOGICAL_AND:
