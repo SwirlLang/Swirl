@@ -112,6 +112,15 @@ std::unique_ptr<Node> ExpressionParser::parsePrefix() {
         SET_NODE_ATTRS(op.get());
         m_Parser.forwardStream();
 
+        if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "mut") {
+            if (op->op_type != Op::ADDRESS_TAKING) {
+                m_Parser.reportError(ErrCode::SYNTAX_ERROR, {
+                    .msg = "`mut` can only appear after the `&` operator."
+                });
+            } else op->is_mutable = true;
+            m_Parser.forwardStream();
+        }
+
         auto rhs = parseExpr(Op::getPBPFor(Op::getTagFor(op->value, 1)));
         op->operands.push_back(std::make_unique<Expression>(std::move(rhs)));
         return op;
