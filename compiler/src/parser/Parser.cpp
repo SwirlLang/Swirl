@@ -555,6 +555,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();
         var_node->var_type = parseType();
+        var_node->var_type->is_mutable = !var_node->is_const;
     }
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "=") {
