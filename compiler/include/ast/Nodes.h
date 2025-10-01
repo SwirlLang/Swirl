@@ -284,7 +284,7 @@ struct Op final : Node {
     static OpTag_t getTagFor(std::string_view str, int arity);
 
     // set the type of sub-expression instances to `to`
-    void setType(Type* to);
+    void setType(Type* to) const;
 
     [[nodiscard]]
     NodeType getNodeType() const override { return ND_OP; }

@@ -85,6 +85,12 @@ Type* AnalysisContext::deduceType(Type* type1, Type* type2, const SourceLocation
         } return type2;
     }
 
+    if (type1->isPointerType() && type2->isPointerType()) {
+        if (type1->getWrappedType() == type2->getWrappedType()) {
+            return type1;
+        }
+    }
+
     reportError(ErrCode::INCOMPATIBLE_TYPES, {.type_1 = type1, .type_2 = type2, .location = location});
     return nullptr;
 }
@@ -134,6 +140,12 @@ bool AnalysisContext::checkTypeCompatibility(Type* from, Type* to, const SourceL
         if (to->getBitWidth() < from->getBitWidth()) {
             reportError(ErrCode::NO_NARROWING_CONVERSION, {.type_1 = from, .type_2 = to, .location = location});
             return false;
+        }
+    }
+
+    if (from->isPointerType() && to->isPointerType()) {
+        if (from->getWrappedType() == to->getWrappedType()) {
+            return true;
         }
     }
 
@@ -563,7 +575,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
         return {};
 
     if (arity == 1) {
-        if (value == "&") {
+        if (op_type == ADDRESS_TAKING) {
             // take a reference
             if (ctx.getBoundTypeState() && ctx.getBoundTypeState()->getTypeTag() == Type::REFERENCE) {
                 is_mutable = ctx.getBoundTypeState()->is_mutable;
@@ -576,7 +588,14 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             } ret.deduced_type = ctx.SymMan.getReferenceType(analysis_1.deduced_type, is_mutable);
         }
 
-        else {
+        else if (op_type == DEREFERENCE) {
+            if (!analysis_1.deduced_type->isPointerType()) {
+                ctx.reportError(ErrCode::NOT_DEREFERENCE_ABLE, {
+                    .type_1 = analysis_1.deduced_type});
+            } else {
+                ret.deduced_type = dynamic_cast<PointerType*>(analysis_1.deduced_type)->of_type;
+            }
+        } else {
             ret.deduced_type = analysis_1.deduced_type;
         }
 
@@ -621,16 +640,16 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             case ASSIGNMENT: {
                 ret.deduced_type = &GlobalTypeVoid;
 
-                if (((!analysis_1.deduced_type->is_mutable &&
-                    (analysis_1.deduced_type->getTypeTag() == Type::REFERENCE)) ||
-                    (analysis_1.deduced_type->getTypeTag() == Type::POINTER)
-                ) ||
-                    (operands.at(0)->getNodeType() == ND_IDENT &&
-                        ctx.SymMan.lookupDecl(operands.at(0)->getIdentInfo()).is_const
-                        )) {
-                    ctx.reportError(ErrCode::CANNOT_ASSIGN_TO_CONST, {});
-                    break;
-                }
+                // if (((!analysis_1.deduced_type->is_mutable &&
+                //     (analysis_1.deduced_type->getTypeTag() == Type::REFERENCE)) ||
+                //     (analysis_1.deduced_type->getTypeTag() == Type::POINTER)
+                // ) ||
+                //     (operands.at(0)->getNodeType() == ND_IDENT &&
+                //         ctx.SymMan.lookupDecl(operands.at(0)->getIdentInfo()).is_const
+                //         )) {
+                //     ctx.reportError(ErrCode::CANNOT_ASSIGN_TO_CONST, {});
+                //     break;
+                // }
 
                 ctx.setBoundTypeState(analysis_1.deduced_type);
                 analysis_2 = operands.at(1)->analyzeSemantics(ctx);
@@ -786,7 +805,7 @@ AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
     return ret;
 }
 
-void Op::setType(Type* to) {
+void Op::setType(Type* to) const {
     if (op_type == DOT)
         return;
 

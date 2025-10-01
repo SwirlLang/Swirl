@@ -47,7 +47,7 @@ struct Type {
     virtual bool         isIntegral()      { return false; }
     virtual bool         isFloatingPoint() { return false; }
     virtual bool         isUnsigned()      { return false; }
-
+    virtual bool         isPointerType()   { return false; }
 
     virtual unsigned int getBitWidth() {
         throw std::runtime_error("Error: getBitWidth unimplemented!");
@@ -205,6 +205,8 @@ struct PointerType final : Type {
 
     PointerType() = default;
     explicit PointerType(Type* t, const uint16_t level): of_type(t), pointer_level(level) {}
+
+    bool isPointerType() override { return true; }
 
     [[nodiscard]] std::string toString() const override;
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }

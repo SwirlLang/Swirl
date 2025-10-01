@@ -41,7 +41,7 @@ enum class ErrCode {
     UNEXPECTED_KEYWORD,
 
 
-    // The following error codes are related to types, `type_1` and `type_2` shall be set to give context
+    // The following error codes are related to types, `type_1` and/or `type_2` shall be set to give context
     // about the types involves
     NO_SUCH_TYPE,             // when the type can't be resolved
     INCOMPATIBLE_TYPES,       // non-specific
@@ -53,6 +53,7 @@ enum class ErrCode {
     CANNOT_ASSIGN_TO_CONST,   // attempt to re-assign a const
     IMMUTABILITY_VIOLATION,   // when immutability rules are violated
     SLICE_NOT_COMPATIBLE,     // when slice types are not compatible with each other
+    NOT_DEREFERENCE_ABLE,     // type cannot be dereferenced
     // ----------*----------- //
 
 
@@ -158,7 +159,7 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return "Implicit conversion between integral and floating-point types are not allowed.";
         case ErrCode::NO_NARROWING_CONVERSION:
             return std::format(
-                "Swirl doesn't support implicit narrowing conversions."
+                "Swirl doesn't allow implicit narrowing conversions."
                 " Conversion from `{}` to `{}` is narrowing.",
                 ctx.type_1->toString(),
                 ctx.type_2->toString()
@@ -182,6 +183,11 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
                 ctx.type_1->toString(),
                 ctx.type_2->toString()
                 );
+        case ErrCode::NOT_DEREFERENCE_ABLE:
+            return std::format(
+                "The type {} cannot be dereferenced.",
+                ctx.type_1->toString()
+            );
 
 
         case ErrCode::NO_DIR_IMPORT:
