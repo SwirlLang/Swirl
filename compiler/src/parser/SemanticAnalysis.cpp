@@ -311,7 +311,7 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     AnalysisResult ret;
 
-    if (!initialized && !var_type) {
+    if (!initialized && (!var_type || is_const)) {
         ctx.reportError(
             ErrCode::INITIALIZER_REQUIRED,
             {.ident = var_ident}
@@ -640,20 +640,14 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             case ASSIGNMENT: {
                 ret.deduced_type = &GlobalTypeVoid;
 
-                // if (((!analysis_1.deduced_type->is_mutable &&
-                //     (analysis_1.deduced_type->getTypeTag() == Type::REFERENCE)) ||
-                //     (analysis_1.deduced_type->getTypeTag() == Type::POINTER)
-                // ) ||
-                //     (operands.at(0)->getNodeType() == ND_IDENT &&
-                //         ctx.SymMan.lookupDecl(operands.at(0)->getIdentInfo()).is_const
-                //         )) {
-                //     ctx.reportError(ErrCode::CANNOT_ASSIGN_TO_CONST, {});
-                //     break;
-                // }
+                if (!analysis_1.deduced_type->is_mutable) {
+                    ctx.reportError(ErrCode::CANNOT_ASSIGN_TO_CONST, {});
+                }
 
                 ctx.setBoundTypeState(analysis_1.deduced_type);
                 analysis_2 = operands.at(1)->analyzeSemantics(ctx);
                 ctx.restoreBoundTypeState();
+
                 ctx.checkTypeCompatibility(analysis_2.deduced_type, analysis_1.deduced_type, location);
                 ret.deduced_type = ctx.deduceType(analysis_1.deduced_type, analysis_2.deduced_type, location);
                 break;
