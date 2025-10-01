@@ -443,7 +443,7 @@ CGValue Op::llvmCodegen(LLVMBackend &instance) {
         case DEREFERENCE: {
             // preserve the l-value of the operand
             auto operand = getLHS()->llvmCodegen(instance);
-            return CGValue::rValue(operand.getLValue());
+            return CGValue::lValue(operand.getRValue(instance));
         }
 
         case ADDRESS_TAKING: {
@@ -1079,9 +1079,7 @@ CGValue Var::llvmCodegen(LLVMBackend &instance) {
             init = value.llvmCodegen(instance).getRValue(instance);
             assert(init != nullptr);
 
-            if (init->getType()->isPointerTy()) {
-                init = init;
-            } else instance.Builder.CreateStore(init, var_alloca, is_volatile);
+            instance.Builder.CreateStore(init, var_alloca, is_volatile);
 
             instance.BoundMemory = nullptr;
         }
