@@ -128,11 +128,6 @@ public:
         return m_LatestBoundType.top();
     }
 
-    // bool getAssignmentLhsState() const {
-    //     assert(!m_CodegenStack.empty() && !m_CodegenStack.top().is_lvalue.empty());
-    //     return m_CodegenStack.top().is_lvalue.back();
-    // }
-
     llvm::Type* getBoundLLVMType() {
         assert(m_LatestBoundType.top() != nullptr);
         return m_LatestBoundType.top()->llvmCodegen(*this);
@@ -154,14 +149,6 @@ public:
         assert(to != nullptr);
         m_LatestBoundType.emplace(to);
     }
-
-    // void setAssignmentLhsState(bool value) {
-    //     m_CodegenStack.top().is_lvalue.emplace_back(value);
-    // }
-    //
-    // void restoreAssignmentLhsState() {
-    //     m_CodegenStack.top().is_lvalue.pop_back();
-    // }
 
     void restoreBoundTypeState() {
         m_LatestBoundType.pop();

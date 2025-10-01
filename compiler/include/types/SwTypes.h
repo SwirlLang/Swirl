@@ -201,10 +201,10 @@ struct ReferenceType final : Type {
 
 struct PointerType final : Type {
     Type*    of_type = nullptr;
-    uint16_t pointer_level{};
+    bool     is_mutable = false;
 
     PointerType() = default;
-    explicit PointerType(Type* t, const uint16_t level): of_type(t), pointer_level(level) {}
+    explicit PointerType(Type* t, const bool mutability): of_type(t), is_mutable(mutability) {}
 
     bool isPointerType() override { return true; }
 

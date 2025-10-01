@@ -15,11 +15,10 @@ class  IdentInfo;
 namespace detail {
 struct Pointer {
     Type* of_type = nullptr;
-    uint16_t level = 1;
     bool is_mutable = false;  // does it point to a mutable object?
 
     bool operator==(const Pointer& other) const {
-        return level == other.level && of_type == other.of_type;
+        return is_mutable == other.is_mutable && of_type == other.of_type;
     }
 };
 
@@ -47,7 +46,7 @@ template <>
 struct std::hash<detail::Pointer> {
     std::size_t operator()(const detail::Pointer ptr) const noexcept {
         return combineHashes(
-            std::hash<uint16_t>{}(ptr.level),
+            std::hash<uint16_t>{}(ptr.is_mutable),
             std::hash<Type*>{}(ptr.of_type)
         );
     }
@@ -92,13 +91,13 @@ public:
         m_TypeTable[name] = std::unique_ptr<Type, detail::Deleter>(type);
     }
 
-    /// returns a pointer for the type `to` of the level `level`
-    Type* getPointerType(Type* to, uint16_t level) {
+    /// returns a pointer for the type `to`
+    Type* getPointerType(Type* to, const bool is_mutable) {
         using namespace detail;
-        const Pointer ptr{to, level};
+        const Pointer ptr{to, is_mutable};
         if (m_PointerTable.contains(ptr)) {
             return m_PointerTable[ptr].get();
-        } m_PointerTable[ptr] = std::make_unique<PointerType>(to, level);
+        } m_PointerTable[ptr] = std::make_unique<PointerType>(to, is_mutable);
         return m_PointerTable[ptr].get();
     }
 

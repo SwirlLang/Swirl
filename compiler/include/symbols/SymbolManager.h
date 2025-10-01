@@ -174,8 +174,8 @@ public:
         return m_TypeManager.getStringType(size);
     }
 
-    Type* getPointerType(Type* of_type, const uint16_t ptr_level) {
-        return m_TypeManager.getPointerType(of_type, ptr_level);
+    Type* getPointerType(Type* of_type, const bool is_mutable) {
+        return m_TypeManager.getPointerType(of_type, is_mutable);
     }
 
 

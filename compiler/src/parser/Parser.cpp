@@ -167,14 +167,9 @@ Type* Parser::parseType() {
         }
     }
 
-    uint16_t ptr_level = 0;
     while (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {
-        ptr_level++;
+        wrapper.type = SymbolTable.getPointerType(wrapper.type, is_mutable);
         forwardStream();
-    }
-
-    if (ptr_level) {
-        wrapper.type = SymbolTable.getPointerType(wrapper.type, ptr_level);
     }
 
     if (is_reference) {
