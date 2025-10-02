@@ -311,7 +311,7 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     AnalysisResult ret;
 
-    if (!initialized && (!var_type || is_const)) {
+    if (!initialized && !is_param && (!var_type || is_const)) {
         ctx.reportError(
             ErrCode::INITIALIZER_REQUIRED,
             {.ident = var_ident}

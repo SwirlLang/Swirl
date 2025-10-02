@@ -442,6 +442,7 @@ struct Var final : GlobalNode {
     bool is_const    = false;
     bool is_volatile = false;
     bool is_comptime = false;
+    bool is_param    = false;
     bool is_instance_param = false;   // for the special case of `&self` in methods
 
     Var() = default;

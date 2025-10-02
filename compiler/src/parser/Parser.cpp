@@ -429,6 +429,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     auto parse_params = [function_t = function_t.get(), this, &method_is_static] {
         Var param;
+        param.is_param = true;
         SET_NODE_ATTRS(&param);
 
         param.is_const = true;  // all parameters are immutable
