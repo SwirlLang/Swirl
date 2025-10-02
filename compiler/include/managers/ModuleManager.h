@@ -1,6 +1,5 @@
 #pragma once
 #include <vector>
-#include <ranges>
 
 #include <unordered_map>
 #include <parser/Parser.h>
@@ -11,6 +10,9 @@ class ModuleManager {
     std::vector<Parser*> m_ZeroDepVec;  // holds modules with zero dependencies
     std::vector<Parser*> m_BackBuffer;  // this will be swapped with the above vector after flushing
     std::vector<Parser*> m_OrderedMods; // keeps parsers in dependencies-dependent order, left-to-right
+
+    std::size_t m_ModCount = 0;
+    std::unordered_map<fs::path, std::size_t> m_ModuleUIDTable;
 
     Parser* m_MainModule = nullptr;
     friend class Parser;
@@ -42,6 +44,8 @@ public:
 
     void insert(const std::filesystem::path& path, const ErrorCallback_t& error_callback) {
         m_ModuleMap.emplace(path, new Parser{path, error_callback, *this});
+        m_ModuleUIDTable.emplace(path, m_ModCount);
+        m_ModCount += 1;
     }
 
     bool zeroVecIsEmpty() const {
@@ -59,10 +63,17 @@ public:
     void setMainModParser(Parser* parser) {
         assert(parser != nullptr);
         m_MainModule = parser;
+        m_ModuleUIDTable.emplace(parser->m_FilePath, m_ModCount);
+        m_ModCount += 1;
     }
 
     Parser* getMainModParser() const {
         return m_MainModule;
+    }
+
+    std::string getModuleUID(const fs::path& path) const {
+        return path.filename().replace_extension().string() +
+               '_' + std::to_string(m_ModuleUIDTable.at(path));
     }
 
     auto begin()  {

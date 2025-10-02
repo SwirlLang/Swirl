@@ -34,6 +34,7 @@ public:
     llvm::LLVMContext Context;
     llvm::IRBuilder<> Builder{Context};
 
+    ModuleManager& ModuleManager;
     std::unique_ptr<llvm::Module> LModule;
 
     std::vector<std::unique_ptr<Node>> AST;

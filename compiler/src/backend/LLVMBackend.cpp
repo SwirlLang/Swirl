@@ -29,8 +29,11 @@
 
 
 LLVMBackend::LLVMBackend(Parser& parser)
-    : LModule{
-        std::make_unique<llvm::Module>(parser.m_FilePath.string(), Context)
+    : ModuleManager(parser.m_ModuleMap),
+      LModule{
+        std::make_unique<llvm::Module>(
+            ModuleManager.getModuleUID(parser.m_FilePath),
+            Context)
     }
     , AST(std::move(parser.AST))
     , SymMan(parser.SymbolTable)
@@ -96,7 +99,6 @@ llvm::Value* CGValue::getRValue(LLVMBackend& instance) {
 }
 
 
-// TODO: mangling still needs to concatenate module UID into the string
 std::string LLVMBackend::mangleString(IdentInfo* id) {
     auto decl_lookup = SymMan.lookupDecl(id);
 
@@ -120,8 +122,9 @@ std::string LLVMBackend::mangleString(IdentInfo* id) {
             type = dynamic_cast<ReferenceType*>(type)->of_type;
         assert(type->getTypeTag() != Type::POINTER);
 
-        return "__Sw_" + type->toString() + "_" + id->toString();
-    } return "__Sw_" + id->toString();
+        return "__Sw_" + type->toString() +
+            '_' + ModuleManager.getModuleUID(id->getModulePath()) + "_" + id->toString();
+    } return "__Sw_" + ModuleManager.getModuleUID(id->getModulePath()) + '_' + id->toString();
 }
 
 
