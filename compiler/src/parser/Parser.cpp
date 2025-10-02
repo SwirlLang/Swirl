@@ -427,61 +427,12 @@ std::unique_ptr<Function> Parser::parseFunction() {
     forwardStream(2);
     auto function_t = std::make_unique<FunctionType>();
 
-    auto parse_params = [function_t = function_t.get(), this, &method_is_static] {
-        Var param;
-        param.is_param = true;
-        SET_NODE_ATTRS(&param);
-
-        param.is_const = true;  // all parameters are immutable
-
-        // special case of `&self`
-        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
-            forwardStream();
-            bool is_mutable = false;
-
-            if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "mut") {
-                is_mutable = true;
-                forwardStream();
-            }
-
-            assert(m_CurrentStructTy.back() != nullptr);
-            param.var_type  = SymbolTable.getReferenceType(m_CurrentStructTy.back(), is_mutable);
-            param.var_ident = SymbolTable.registerDecl("self", {
-                .is_param = true,
-                .swirl_type = param.var_type,
-            });
-
-            method_is_static = false;
-            function_t->param_types.push_back(param.var_type);
-            ignoreButExpect({IDENT, "self"});
-            return param;
-        }
-
-        const std::string var_name = m_Stream.CurTok.value;
-
-        forwardStream(2);
-        param.var_type = parseType();
-
-        param.initialized = m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "=";
-        if (param.initialized)
-            param.value = parseExpr();
-
-        assert(function_t != nullptr);
-        function_t->param_types.push_back(param.var_type);
-
-        TableEntry param_entry;
-        param_entry.swirl_type = param.var_type;
-        param_entry.is_param = true;
-        param.var_ident = SymbolTable.registerDecl(var_name, param_entry);
-
-        return param;
-    };
 
     // parsing the parameters...
     SymbolTable.newScope();  // emplace the function body scope
     if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != ")") {
         while (m_Stream.CurTok.value != ")" && m_Stream.CurTok.type != PUNC) {
-            func_nd->params.emplace_back(parse_params());
+            func_nd->params.emplace_back(parseParam(function_t.get(), method_is_static));
             if (m_Stream.CurTok.value == ",")
                 forwardStream();
         }
@@ -537,6 +488,60 @@ std::unique_ptr<Function> Parser::parseFunction() {
     m_LatestFuncNode = nullptr;
     return func_nd;
 }
+
+
+Var Parser::parseParam(FunctionType* function_t, bool& method_is_static) {
+    Var param;
+    param.is_param = true;
+
+    SET_NODE_ATTRS(&param);
+    assert(function_t != nullptr);
+
+    param.is_const = true;  // all parameters are immutable
+
+    // special case of `&self`
+    if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
+        forwardStream();
+        bool is_mutable = false;
+
+        if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "mut") {
+            is_mutable = true;
+            forwardStream();
+        }
+
+        assert(m_CurrentStructTy.back() != nullptr);
+        param.var_type  = SymbolTable.getReferenceType(m_CurrentStructTy.back(), is_mutable);
+        param.var_ident = SymbolTable.registerDecl("self", {
+            .is_param = true,
+            .swirl_type = param.var_type,
+        });
+
+        method_is_static = false;
+        function_t->param_types.push_back(param.var_type);
+        ignoreButExpect({IDENT, "self"});
+        return param;
+    }
+
+    const std::string var_name = m_Stream.CurTok.value;
+
+    forwardStream(2);
+    param.var_type = parseType();
+
+    param.initialized = m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "=";
+    if (param.initialized)
+        param.value = parseExpr();
+
+    assert(function_t != nullptr);
+    function_t->param_types.push_back(param.var_type);
+
+    TableEntry param_entry;
+    param_entry.swirl_type = param.var_type;
+    param_entry.is_param = true;
+    param.var_ident = SymbolTable.registerDecl(var_name, param_entry);
+
+    return param;
+}
+
 
 std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     auto var_node = std::make_unique<Var>();

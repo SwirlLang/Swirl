@@ -118,6 +118,7 @@ public:
     std::unique_ptr<ReturnStatement> parseRet();
     std::unique_ptr<Intrinsic>       parseIntrinsic();
 
+    Var parseParam(FunctionType*, bool&);
     std::unique_ptr<Var>      parseVar(bool is_volatile = false);
     std::unique_ptr<FuncCall> parseCall(std::optional<Ident> _ = std::nullopt);
 
