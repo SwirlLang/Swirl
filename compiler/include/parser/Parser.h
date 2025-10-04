@@ -121,12 +121,14 @@ public:
     Var parseParam(FunctionType*, bool&);
     std::unique_ptr<Var>      parseVar(bool is_volatile = false);
     std::unique_ptr<FuncCall> parseCall(std::optional<Ident> _ = std::nullopt);
+    std::vector<GenericParam> parseGenericParamList();
+    std::vector<TypeWrapper>  parseGenericArgList();
 
     Token forwardStream(uint8_t n = 1);
 
-    Type*      parseType();
-    Ident      parseIdent();
-    Expression parseExpr();
+    Ident       parseIdent();
+    Expression  parseExpr();
+    TypeWrapper parseType();
 
     void parse();
     void performSema();

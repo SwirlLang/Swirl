@@ -12,7 +12,7 @@ class SourceManager;
 /// association with a `Parser` instance, `startAnalysis` is then called to begin sema.
 class AnalysisContext {
 public:
-    std::unordered_map<Node*, AnalysisResult> Cache;
+    [[deprecated]] std::unordered_map<Node*, AnalysisResult> Cache;
     std::unordered_map<IdentInfo*, Node*>& GlobalNodeJmpTable;
 
     SymbolManager& SymMan;

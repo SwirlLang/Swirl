@@ -145,8 +145,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
                 m_Parser.ignoreButExpect({PUNC, "]"});
                 break;
             case Op::CAST_OP: {
-                const auto dummy_node = new TypeWrapper();
-                dummy_node->type = m_Parser.parseType();
+                const auto dummy_node = new TypeWrapper(m_Parser.parseType());
                 right = Expression::makeExpression(dummy_node);
                 break;
             }

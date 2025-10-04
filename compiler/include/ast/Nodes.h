@@ -88,6 +88,7 @@ private:
 // The common base class of all the nodes
 struct Node {
     SourceLocation location;
+    std::optional<AnalysisResult> analysis_cache;
 
     bool is_exported = false;
 
@@ -203,29 +204,6 @@ struct Expression final : Node {
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
-};
-
-
-/// A wrapper class for `Type*`', enables its treatment as a node.
-struct TypeWrapper final : Node {
-    Type* type = nullptr;
-
-    TypeWrapper() = default;
-    explicit TypeWrapper(Type* ty): type(ty) {}
-
-    [[nodiscard]]
-    Type* getSwType() override {
-        return type;
-    }
-
-    [[nodiscard]]
-    NodeType getNodeType() const override {
-        return ND_TYPE;
-    }
-
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
 
@@ -431,9 +409,41 @@ struct Ident final : Node {
 };
 
 
+/// A wrapper class for `Type*`', enables its treatment as a node.
+struct TypeWrapper final : Node {
+    enum Modifiers { Reference, Pointer };
+    Type* type = nullptr;
+
+    bool   is_mutable    = false;
+    bool   is_slice      = false;
+    Ident  type_id;
+
+    std::vector<Modifiers> modifiers;
+    std::size_t array_size = 0;            // 0 indicates that the type isn't an array
+    std::unique_ptr<TypeWrapper> of_type;  // set in the case of wrapper types (refs, ptr, arrays, slices)
+
+
+    TypeWrapper() = default;
+    explicit TypeWrapper(Type* ty): type(ty) {}
+
+    [[nodiscard]]
+    Type* getSwType() override {
+        return type;
+    }
+
+    [[nodiscard]]
+    NodeType getNodeType() const override {
+        return ND_TYPE;
+    }
+
+    CGValue llvmCodegen(LLVMBackend &instance) override;
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+};
+
+
 struct Var final : GlobalNode {
     IdentInfo* var_ident = nullptr;
-    Type* var_type = nullptr;
+    TypeWrapper var_type;
 
     Expression value;
     Node* parent = nullptr;
@@ -460,6 +470,11 @@ struct Var final : GlobalNode {
 };
 
 
+struct GenericParam final : Node {
+    std::string name;
+};
+
+
 struct Scope final : Node {
     std::vector<SwNode> children;
 
@@ -476,7 +491,10 @@ struct Function final : GlobalNode {
     IdentInfo* ident = nullptr;
 
     std::vector<Var> params;
+    std::vector<GenericParam> generic_params;
     std::vector<std::unique_ptr<Node>> children;
+
+    TypeWrapper return_type;
 
     IdentInfo* getIdentInfo() override {
         return ident;
