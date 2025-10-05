@@ -407,6 +407,7 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
 
 
 AnalysisResult TypeWrapper::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     if (type != nullptr)
         return {.deduced_type = type};
 
@@ -445,6 +446,11 @@ AnalysisResult TypeWrapper::analyzeSemantics(AnalysisContext& ctx) {
     }
 
     else return {.deduced_type = &GlobalTypeVoid};
+
+    if (!ret) {
+        ctx.reportError(ErrCode::NO_SUCH_TYPE, {});
+        return {true, nullptr};
+    }
 
     // handle references and pointers
     for (const auto mod : modifiers) {
