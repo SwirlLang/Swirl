@@ -345,10 +345,6 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     AnalysisResult ret;
 
-    if (ctx.Cache.contains(this)) {
-        return ctx.Cache[this];
-    }
-
     bool is_method_call = false;
 
     if (ctx.getIsMethodCallState()) {
@@ -362,7 +358,7 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     IdentInfo* id = ident.getIdentInfo();
 
     if (!id) {
-        ctx.Cache.insert({this, ret});
+        analysis_cache = ret;
         return {};
     }
 
@@ -373,7 +369,7 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
 
     if (args.size() < fn_type->param_types.size() && !is_method_call) {  // TODO: default params-values
         ctx.reportError(ErrCode::TOO_FEW_ARGS, {.ident = ident.getIdentInfo()});
-        ctx.Cache.insert({this, ret});
+        analysis_cache = ret;
         return {};
     }
 
@@ -401,7 +397,7 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
 
     ret.deduced_type = fn_type->ret_type;
 
-    ctx.Cache.insert({this, ret});
+    analysis_cache = ret;
     return ret;
 }
 
@@ -488,10 +484,6 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     AnalysisResult ret;
 
-    if (ctx.Cache.contains(this)) {
-        return ctx.Cache[this];
-    }
-
     if (!value) {
         value = ctx.SymMan.getIDInfoFor(
             *this,
@@ -505,14 +497,14 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
             ErrCode::UNDEFINED_IDENTIFIER,
             {.str_1 = full_qualification.back()}
             );
-        ctx.Cache.insert({this, ret});
+        analysis_cache = ret;
         return ret;
     }
 
     auto decl = ctx.SymMan.lookupDecl(this->value);
     ret.deduced_type = decl.swirl_type;
 
-    ctx.Cache.insert({this, ret});
+    analysis_cache = ret;
     return ret;
 }
 
@@ -844,16 +836,12 @@ AnalysisResult Expression::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     AnalysisResult ret;
 
-    if (ctx.Cache.contains(this)) {
-        return ret;
-    }
-
     auto val = this->expr->analyzeSemantics(ctx);
 
     ret.deduced_type = val.deduced_type;
     setType(val.deduced_type);
 
-    ctx.Cache.insert({this, ret});
+    analysis_cache = ret;
     return ret;
 }
 
