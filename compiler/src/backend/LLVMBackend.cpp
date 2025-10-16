@@ -772,7 +772,7 @@ CGValue Op::llvmCodegen(LLVMBackend &instance) {
                 instance.StructFieldType = field_type;
                 instance.ComputedPtr = field_ptr;
 
-                return CGValue::rValue(field_ptr);
+                return CGValue::lValue(field_ptr);
                 // instance.Builder.CreateLoad(
                 //     field_type->llvmCodegen(instance),
                 //     field_ptr
