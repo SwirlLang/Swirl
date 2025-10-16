@@ -338,6 +338,7 @@ AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     ctx.SymMan.lookupDecl(var_ident).swirl_type = var_type.type;
     ret.deduced_type = var_type.type;
     analysis_cache = ret;
+
     return ret;
 }
 
@@ -692,9 +693,9 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             case ASSIGNMENT: {
                 ret.deduced_type = &GlobalTypeVoid;
 
-                if (!analysis_1.deduced_type->is_mutable) {
-                    ctx.reportError(ErrCode::CANNOT_ASSIGN_TO_CONST, {});
-                }
+                // if (!analysis_1.deduced_type->is_mutable) {
+                //     ctx.reportError(ErrCode::CANNOT_ASSIGN_TO_CONST, {});
+                // }
 
                 ctx.setBoundTypeState(analysis_1.deduced_type);
                 analysis_2 = operands.at(1)->analyzeSemantics(ctx);
