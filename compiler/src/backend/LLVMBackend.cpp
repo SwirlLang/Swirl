@@ -21,8 +21,6 @@
 #include <llvm/Support/Casting.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
-#include "CompilerInst.h"
-
 
 #define PRE_SETUP() LLVMBackend::SetupHandler GET_UNIQUE_NAME(backend_helper_){instance, this};
 #define SET_BOUND_TYPE_STATE(x) LLVMBackend::BoundTypeStateHelper GET_UNIQUE_NAME(bound_ty)(instance, x);
@@ -839,17 +837,19 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
         } source_type = referenced_type;
     }
 
-    if (source_type->isPointerType() && getBoundTypeState()->isIntegral()) {
-        return Builder.CreatePtrToInt(subject, getBoundTypeState()->llvmCodegen(*this));
-    }
+    // if (source_type->isPointerType() && getBoundTypeState()->isIntegral()) {
+    //     return Builder.CreatePtrToInt(subject, getBoundTypeState()->llvmCodegen(*this));
+    // }
 
     if (getBoundTypeState() != source_type && source_type->getTypeTag() != Type::STRUCT) {
         if (getBoundTypeState()->isIntegral() || getBoundTypeState()->getTypeTag() == Type::BOOL) {
             // if the destination type is unsigned or if the source type is boolean
             // perform a zero-extension or truncation
-            if (getBoundTypeState()->isUnsigned() || source_type->getTypeTag() == Type::BOOL) {
-                return Builder.CreateZExtOrTrunc(subject, getBoundLLVMType());
-            } return Builder.CreateSExtOrTrunc(subject, getBoundLLVMType());
+            if (source_type->isIntegral()) {
+                if (getBoundTypeState()->isUnsigned() || source_type->getTypeTag() == Type::BOOL) {
+                    return Builder.CreateZExtOrTrunc(subject, getBoundLLVMType());
+                } return Builder.CreateSExtOrTrunc(subject, getBoundLLVMType());
+            }
         }
 
         if (getBoundTypeState()->isFloatingPoint()) {
