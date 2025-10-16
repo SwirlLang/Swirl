@@ -431,7 +431,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     SymbolTable.newScope();  // emplace the function body scope
     if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != ")") {
         while (m_Stream.CurTok.value != ")" && m_Stream.CurTok.type != PUNC) {
-            func_nd->params.emplace_back(parseParam(function_t.get(), method_is_static));
+            func_nd->params.emplace_back(parseParam(method_is_static));
             if (m_Stream.CurTok.value == ",")
                 forwardStream();
         }
@@ -489,12 +489,11 @@ std::unique_ptr<Function> Parser::parseFunction() {
 }
 
 
-Var Parser::parseParam(FunctionType* function_t, bool& method_is_static) {
+Var Parser::parseParam(bool& method_is_static) {
     Var param;
     param.is_param = true;
 
     SET_NODE_ATTRS(&param);
-    assert(function_t != nullptr);
 
     param.is_const = true;  // all parameters are immutable
 
@@ -529,8 +528,6 @@ Var Parser::parseParam(FunctionType* function_t, bool& method_is_static) {
     if (param.initialized)
         param.value = parseExpr();
 
-    assert(function_t != nullptr);
-    // function_t->param_types.push_back(param.var_type);
 
     TableEntry param_entry;
     // param_entry.swirl_type = param.var_type;
@@ -565,6 +562,33 @@ std::vector<GenericParam> Parser::parseGenericParamList() {
         param.name = forwardStream().value;
         params.push_back(std::move(param));
     } return params;
+}
+
+
+Parser::GenericArgList_t Parser::parseGenericArgList() {
+    GenericArgList_t args;
+    forwardStream();  // skip '<'
+
+    while (true) {
+        if (m_Stream.eof()) {
+            reportError(ErrCode::UNEXPECTED_EOF);
+            break;
+        }
+
+        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ">") {
+            forwardStream();
+            break;
+        }
+
+        if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ",") {
+            forwardStream();
+            continue;
+        }
+
+        args.push_back(parseType());
+    }
+
+    return args;
 }
 
 
@@ -616,6 +640,10 @@ std::unique_ptr<FuncCall> Parser::parseCall(std::optional<Ident> ident) {
     auto call_node = std::make_unique<FuncCall>();
     SET_NODE_ATTRS(call_node.get());
     call_node->ident = std::move(ident.value());
+
+    if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
+        call_node->generic_args = parseGenericArgList();
+    }
 
     forwardStream();  // skip '('
 
@@ -781,6 +809,13 @@ Ident Parser::parseIdent() {
     ret.full_qualification.emplace_back(forwardStream().value);
     while (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "::") {
         forwardStream();
+
+        // generic arg list
+        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
+            parseGenericArgList();
+            continue;
+        }
+
         ret.full_qualification.emplace_back(forwardStream().value);
     }
 

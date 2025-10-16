@@ -5,6 +5,7 @@
 #include <vector>
 #include <string_view>
 
+#include "Nodes.h"
 #include "utils/utils.h"
 #include "lexer/Tokens.h"
 #include "parser/evaluation.h"
@@ -383,9 +384,17 @@ struct StrLit final : Node {
 };
 
 
+struct TypeWrapper;
 struct Ident final : Node {
+private:
+    struct ImplDeleter {
+        void operator()(const TypeWrapper* ptr) const;
+    };
+
+public:
     IdentInfo* value = nullptr;
     std::vector<std::string> full_qualification;
+    std::vector<std::unique_ptr<TypeWrapper, ImplDeleter>> generic_args;
 
     Ident() = default;
     explicit Ident(IdentInfo* val): value(val) {}
@@ -409,13 +418,14 @@ struct Ident final : Node {
 };
 
 
-/// A wrapper class for `Type*`', enables its treatment as a node.
+/// Encodes all the necessary information needed to get a `Type*`.
 struct TypeWrapper final : Node {
     enum Modifiers { Reference, Pointer };
     Type* type = nullptr;
 
     bool   is_mutable    = false;
     bool   is_slice      = false;
+
     Ident  type_id;
 
     std::vector<Modifiers> modifiers;
@@ -439,7 +449,6 @@ struct TypeWrapper final : Node {
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
-
 
 struct Var final : GlobalNode {
     IdentInfo* var_ident = nullptr;
@@ -510,9 +519,11 @@ struct Function final : GlobalNode {
 
 
 struct FuncCall : Node {
-    std::vector<Expression> args;
     Ident ident;
     Type* signature = nullptr;  // supposed to hold the signature of the callee
+
+    std::vector<Expression> args;
+    std::vector<TypeWrapper> generic_args;
 
     IdentInfo* getIdentInfo() override {
         return ident.getIdentInfo();

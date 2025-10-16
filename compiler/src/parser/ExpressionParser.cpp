@@ -180,3 +180,17 @@ Expression ExpressionParser::parseExpr(const int rbp) {
 
     return ret;
 }
+
+
+struct SaveStreamState {
+    explicit SaveStreamState(TokenStream& stream): stream(stream) {
+        stream.setReturnPoint();
+    }
+
+    ~SaveStreamState() {
+        stream.restoreCache();
+    }
+
+private:
+    TokenStream& stream;
+};

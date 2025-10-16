@@ -122,6 +122,11 @@ Op::OpTag_t Op::getTagFor(const std::string_view str, int arity) {
 }
 
 
+void Ident::ImplDeleter::operator()(const TypeWrapper* ptr) const {
+    delete ptr;
+}
+
+
 /// Constructs and returns an expression out of the `EvalResult` variant
 Expression Expression::makeExpression(const EvalResult& e) {
     return std::visit(

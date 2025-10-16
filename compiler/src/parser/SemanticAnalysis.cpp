@@ -574,7 +574,9 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
 
     assert(fn_type->param_types.empty());
     for (auto& param : params) {
-        fn_type->param_types.push_back(param.analyzeSemantics(ctx).deduced_type);
+        auto param_type = param.analyzeSemantics(ctx).deduced_type;
+        fn_type->param_types.push_back(param_type);
+        ctx.SymMan.lookupDecl(param.var_ident).swirl_type = param_type;
     } assert(fn_type->param_types.size() == params.size());
 
     ctx.setBoundTypeState(fn_type->ret_type);
@@ -715,6 +717,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
             }
 
             case CAST_OP: {
+                operands.at(1)->analyzeSemantics(ctx);
                 ret.deduced_type = operands.at(1)->getSwType();
                 break;
             }
@@ -734,13 +737,18 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                 // check whether the LHS is an operator (DOT is left-associative)
                 if (getLHS()->getWrappedNodeOrInstance()->getNodeType() == ND_OP) {
                     // the analysis result's `computed_namespace` field would contain
-                    // the referenced namespace, if it doesn't, it indicates an error
+                    // the referenced namespace, if it doesn't, an attempt is made to retrieve
+                    // it via the deduced type's identifier
                     auto analysis_result = getLHS()->analyzeSemantics(ctx);
+                    Namespace* computed_namespace = analysis_result.computed_namespace;
 
-                    if (analysis_result.computed_namespace) {
+                    if (!computed_namespace) {
+                        computed_namespace = ctx.SymMan.lookupDecl(analysis_result.deduced_type->getIdent()).scope;
+                    }
+
+                    if (computed_namespace) {
                         // look for the RHS in the namespace
-                        const auto id = analysis_result
-                            .computed_namespace->getIDInfoFor(accessed_member);
+                        std::optional<IdentInfo*> id = computed_namespace->getIDInfoFor(accessed_member);
 
                         // indicates that no ID with the name exists
                         if (!id.has_value()) {
@@ -756,7 +764,9 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                         common_type = ret.deduced_type;
                         return ret;
                     }
-                    // the error is expected to be reported in the inner branches, simply return
+
+                    // TODO
+                    assert(0);
                     return {};
 
                 }

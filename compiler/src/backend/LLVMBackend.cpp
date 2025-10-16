@@ -21,6 +21,8 @@
 #include <llvm/Support/Casting.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
+#include "CompilerInst.h"
+
 
 #define PRE_SETUP() LLVMBackend::SetupHandler GET_UNIQUE_NAME(backend_helper_){instance, this};
 #define SET_BOUND_TYPE_STATE(x) LLVMBackend::BoundTypeStateHelper GET_UNIQUE_NAME(bound_ty)(instance, x);
@@ -835,6 +837,10 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
                 subject, "implicit_deref"
                 );
         } source_type = referenced_type;
+    }
+
+    if (source_type->isPointerType() && getBoundTypeState()->isIntegral()) {
+        return Builder.CreatePtrToInt(subject, getBoundTypeState()->llvmCodegen(*this));
     }
 
     if (getBoundTypeState() != source_type && source_type->getTypeTag() != Type::STRUCT) {

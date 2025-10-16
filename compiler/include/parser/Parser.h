@@ -107,6 +107,7 @@ public:
 
     explicit Parser(const std::filesystem::path& path, ErrorCallback_t, ModuleManager&);
 
+    using GenericArgList_t = std::vector<TypeWrapper>;
 
     std::unique_ptr<Node>            dispatch();
     std::unique_ptr<Function>        parseFunction();
@@ -118,11 +119,11 @@ public:
     std::unique_ptr<ReturnStatement> parseRet();
     std::unique_ptr<Intrinsic>       parseIntrinsic();
 
-    Var parseParam(FunctionType*, bool&);
+    Var parseParam(bool&);
     std::unique_ptr<Var>      parseVar(bool is_volatile = false);
     std::unique_ptr<FuncCall> parseCall(std::optional<Ident> _ = std::nullopt);
     std::vector<GenericParam> parseGenericParamList();
-    std::vector<TypeWrapper>  parseGenericArgList();
+    GenericArgList_t          parseGenericArgList();
 
     Token forwardStream(uint8_t n = 1);
 

@@ -1,8 +1,7 @@
 #pragma once
 #include <memory>
 
-#include "../ast/Nodes.h"
-#include "errors/ErrorManager.h"
+#include "ast/Nodes.h"
 
 
 struct Node;
