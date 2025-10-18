@@ -15,6 +15,15 @@ using NodesVec = std::vector<SwNode>;
     AnalysisContext::SemaSetupHandler GET_UNIQUE_NAME(presetup){ctx, this};
 
 
+struct TypeInfo {
+    bool is_integral;
+    bool is_floating_point;
+    bool is_struct;
+    bool is_reference;
+    bool is_pointer;
+};
+
+
 Type* AnalysisContext::deduceType(Type* type1, Type* type2, const SourceLocation& location) const {
     // either of them being nullptr implies a violation of the typing-rules
     if (type1 == nullptr || type2 == nullptr) {
@@ -409,7 +418,6 @@ AnalysisResult TypeWrapper::analyzeSemantics(AnalysisContext& ctx) {
         return {.deduced_type = type};
 
     Type* ret = nullptr;
-    bool  str_id_present = false;
 
     // has id
     if (!type_id.full_qualification.empty()) {
@@ -420,9 +428,7 @@ AnalysisResult TypeWrapper::analyzeSemantics(AnalysisContext& ctx) {
 
         type_id.value = type_id_info;
         if (type_id.value != nullptr) {
-            if (type_id.full_qualification.front() == "str") {
-                str_id_present = true;
-            } else ret = ctx.SymMan.lookupType(type_id.value);
+            ret = ctx.SymMan.lookupType(type_id.value);
         }
     }
 
@@ -450,11 +456,9 @@ AnalysisResult TypeWrapper::analyzeSemantics(AnalysisContext& ctx) {
     }
 
     // handle references and pointers
-    for (const auto mod : modifiers) {
+    for (const auto mod : modifiers | std::views::reverse) {
         if (mod == Reference) {
-            if (str_id_present) {
-                ret = ctx.SymMan.getReferenceType(nullptr, is_mutable, true);
-            } else ret = ctx.SymMan.getReferenceType(ret, is_mutable);
+            ret = ctx.SymMan.getReferenceType(ret, is_mutable);
         } else if (mod == Pointer) {
             ret = ctx.SymMan.getPointerType(ret, is_mutable);
         }

@@ -545,14 +545,16 @@ struct FuncCall : Node {
 
 
 struct Intrinsic final : FuncCall {
-    enum Kind { SIZEOF, TYPEOF };
+    enum Kind { SIZEOF, TYPEOF, MEMCPY, MEMSET };
     Kind intrinsic_type;
 
     Intrinsic() = delete;
     explicit Intrinsic(FuncCall&& fc): FuncCall(std::move(fc)) {
         static std::unordered_map<std::string, Kind> tag_map = {
             {"sizeof", SIZEOF},
-            {"typeof", TYPEOF}
+            {"typeof", TYPEOF},
+            {"memset", MEMSET},
+            {"memcpy", MEMCPY}
         }; intrinsic_type = tag_map.at(ident.full_qualification.at(0));
     }
 

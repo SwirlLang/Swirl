@@ -136,10 +136,11 @@ public:
         return m_ReferenceTable[obj].get();
     }
 
+    [[deprecated]]
     Type* getStringType(const std::size_t size) {
         if (m_StringTable.contains(size)) {
             return m_StringTable[size].get();
-        } m_StringTable[size] = std::make_unique<TypeStr>(size);
+        } m_StringTable[size] = std::make_unique<TypeStr>();
         return m_StringTable[size].get();
     }
 

@@ -53,13 +53,13 @@ class SymbolManager {
     TypeManager m_TypeManager;
     ModuleManager& m_ModuleMap;
 
-    std::list<Namespace>    m_Scopes;       // for stable-addressing of the scopes
+    std::list<Namespace>    m_Scopes;       // for the stable-addressing of the namespaces
     std::vector<Namespace*> m_ScopeTrack;  // for tracking the insert-points
 
     std::unordered_map<IdentInfo*, TableEntry> m_IdToTableEntry;
 
     std::filesystem::path m_ModulePath;
-    std::unordered_map<std::string, IdentInfo*> m_ImportedSymsIDTable;
+    std::unordered_map<std::string, IdentInfo*> m_ImportedSymIDTable;
 
     // tracks the exported symbols of the mod
     std::unordered_map<std::string, ExportedSymbolMeta_t> m_ExportedSymbolTable;
@@ -71,8 +71,10 @@ class SymbolManager {
 
 public:
     inline static const std::unordered_map<Intrinsic::Kind, IntrinsicDef> IntrinsicTable = {
+        {Intrinsic::TYPEOF, IntrinsicDef{}},
         {Intrinsic::SIZEOF, IntrinsicDef{.return_type = &GlobalTypeI64}},
-        {Intrinsic::TYPEOF, IntrinsicDef{}}
+        {Intrinsic::MEMCPY, IntrinsicDef{.return_type = &GlobalTypeVoid}},
+        {Intrinsic::MEMSET, IntrinsicDef{.return_type = &GlobalTypeVoid}}
     };
 
      explicit SymbolManager(std::filesystem::path uid, ModuleManager& module_man, ErrorCallback_t err_c)
@@ -101,8 +103,8 @@ public:
 
         // when this flag is true, look only in the exported id's rather than every foreign id
         if (!enforce_export) {
-            if (m_ImportedSymsIDTable.contains(name))
-                return m_ImportedSymsIDTable[name];
+            if (m_ImportedSymIDTable.contains(name))
+                return m_ImportedSymIDTable[name];
         } else if (m_ExportedSymbolTable.contains(name))
             return m_ExportedSymbolTable[name].id;
 
@@ -143,7 +145,7 @@ public:
 
     /// makes the symbol manager aware of the IDs of foreign (imported) symbols
     void registerForeignID(const std::string& name, IdentInfo* id, const bool is_exported = false) {
-        m_ImportedSymsIDTable.emplace(name, id);
+        m_ImportedSymIDTable.emplace(name, id);
         if (is_exported)
             registerExportedSymbol(name, {.id = id});
     }

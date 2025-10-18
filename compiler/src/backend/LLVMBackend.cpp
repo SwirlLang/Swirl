@@ -182,10 +182,14 @@ CGValue FloatLit::llvmCodegen(LLVMBackend &instance) {
 
 CGValue StrLit::llvmCodegen(LLVMBackend &instance) {
     PRE_SETUP();
+    auto ptr = instance.Builder.CreateGlobalString(
+        value, "", 0, nullptr, false);
+
     return CGValue::rValue(llvm::ConstantStruct::get(
-        llvm::dyn_cast<llvm::StructType>(instance.getBoundLLVMType()), {
-        llvm::ConstantDataArray::getString(instance.Context, value, false)
-    }));
+        llvm::dyn_cast<llvm::StructType>(GlobalTypeStr.llvmCodegen(instance)), {
+            ptr,
+            llvm::dyn_cast<llvm::Constant>(instance.toLLVMInt(value.size()))
+        }));
 }
 
 

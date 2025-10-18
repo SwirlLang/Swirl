@@ -118,6 +118,21 @@ TypeWrapper Parser::parseType() {
     TypeWrapper wrapper;
     SET_NODE_ATTRS(&wrapper);
 
+
+    // handle references and pointers (*&T...)
+    bool is_reference_present = false;
+
+    while (m_Stream.CurTok.type == OP && (m_Stream.CurTok.value == "&" || m_Stream.CurTok.value == "*")) {
+        if (m_Stream.CurTok.value == "&") {
+            wrapper.modifiers.push_back(TypeWrapper::Reference);  // do not push the slice-associated `&`
+            is_reference_present = true;
+            forwardStream();
+        } else if (m_Stream.CurTok.value == "*") {
+            wrapper.modifiers.push_back(TypeWrapper::Pointer);
+            forwardStream();
+        }
+    }
+
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[") {
         forwardStream();
         wrapper.of_type = std::make_unique<TypeWrapper>(parseType());
@@ -143,23 +158,6 @@ TypeWrapper Parser::parseType() {
     } else {
         reportError(ErrCode::SYNTAX_ERROR, {.msg = "Expected a type"});
         forwardStream();
-    }
-
-    // handle references and pointers (T&*...)
-    bool is_reference_present = false;
-    bool is_slice = wrapper.is_slice;
-
-    while (m_Stream.CurTok.type == OP && (m_Stream.CurTok.value == "&" || m_Stream.CurTok.value == "*")) {
-        if (m_Stream.CurTok.value == "&") {
-            if (!is_slice)
-                wrapper.modifiers.push_back(TypeWrapper::Reference);  // do not push the slice-associated `&`
-            else is_slice = false;
-            is_reference_present = true;
-            forwardStream();
-        } else if (m_Stream.CurTok.value == "*") {
-            wrapper.modifiers.push_back(TypeWrapper::Pointer);
-            forwardStream();
-        }
     }
 
     if (!is_reference_present && wrapper.is_slice) {

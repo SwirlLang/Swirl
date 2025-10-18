@@ -1,8 +1,8 @@
 #pragma once
 #include <format>
 #include <vector>
-
-#include "../ast/Nodes.h"
+#include <optional>
+#include "errors/ErrorManager.h"
 
 
 class Namespace;
@@ -49,6 +49,10 @@ struct Type {
     virtual bool         isUnsigned()      { return false; }
     virtual bool         isPointerType()   { return false; }
 
+    virtual std::optional<ErrCode> canImplicitlyConvertTo(Type* to) {
+        return ErrCode::INCOMPATIBLE_TYPES;
+    }
+
     virtual unsigned int getBitWidth() {
         throw std::runtime_error("Error: getBitWidth unimplemented!");
     }
@@ -76,6 +80,36 @@ struct Type {
     virtual bool operator==(Type* other) { return getTypeTag() == other->getTypeTag(); }
 
     virtual ~Type() = default;
+};
+
+
+struct IntegralType : Type {
+    bool isIntegral() override {
+        return true;
+    }
+
+    std::optional<ErrCode> canImplicitlyConvertTo(Type* to) override {
+        if (!to->isIntegral())
+            return ErrCode::INCOMPATIBLE_TYPES;
+        if (to->isUnsigned() != isUnsigned())
+            return ErrCode::NO_SIGNED_UNSIGNED_CONV;
+        if (to->getBitWidth() < getBitWidth()) {
+            return ErrCode::NO_NARROWING_CONVERSION;
+        } return std::nullopt;
+    }
+};
+
+
+struct FloatingPointType : Type {
+    bool isFloatingPoint() override {
+        return true;
+    }
+
+    std::optional<ErrCode> canImplicitlyConvertTo(Type* to) override {
+        if (to->getBitWidth() < getBitWidth()) {
+            return ErrCode::NO_NARROWING_CONVERSION;
+        } return std::nullopt;
+    }
 };
 
 
@@ -159,17 +193,13 @@ struct TypeChar final : Type {
 
 
 struct TypeStr final : Type {
-    std::size_t size;
-
-    explicit TypeStr(const std::size_t len): size(len) {}
-
     SwTypes getTypeTag() override { return STR; }
     Type* getWrappedType() override;
 
     [[nodiscard]] std::string toString() const override { return "str"; }
 
     std::size_t getAggregateSize() override {
-        return size;
+        return 8 * 2;  // in bytes
     }
 
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
@@ -243,7 +273,7 @@ struct VoidType final : Type {
 };
 
 
-struct TypeI8 : Type {
+struct TypeI8 : IntegralType {
     [[nodiscard]] std::string toString() const override { return "i8"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getTypeTag() override { return I8; }
@@ -254,7 +284,7 @@ struct TypeI8 : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct TypeI16 : Type {
+struct TypeI16 : IntegralType {
     [[nodiscard]] std::string toString() const override { return "i16"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getTypeTag() override { return I16; }
@@ -265,7 +295,7 @@ struct TypeI16 : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct TypeI32 : Type {
+struct TypeI32 : IntegralType {
     [[nodiscard]] std::string toString() const override { return "i32"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getTypeTag() override { return I32; }
@@ -276,7 +306,7 @@ struct TypeI32 : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct TypeI64 : Type {
+struct TypeI64 : IntegralType {
     [[nodiscard]] std::string toString() const override { return "i64"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getTypeTag() override { return I64; }
@@ -287,7 +317,7 @@ struct TypeI64 : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct TypeI128 : Type {
+struct TypeI128 : IntegralType {
     [[nodiscard]] std::string toString() const override { return "i128"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getTypeTag() override { return I128; }
@@ -329,7 +359,7 @@ struct TypeU128 final : TypeI128 {
     bool isUnsigned() override { return true; }
 };
 
-struct TypeF32 final : Type {
+struct TypeF32 final : FloatingPointType {
     [[nodiscard]] std::string toString() const override { return "f32"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getTypeTag() override { return F32; }
@@ -340,7 +370,7 @@ struct TypeF32 final : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
-struct TypeF64 final : Type {
+struct TypeF64 final : FloatingPointType {
     [[nodiscard]] std::string toString() const override { return "f64"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getTypeTag() override { return F64; }
