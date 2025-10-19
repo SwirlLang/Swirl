@@ -93,7 +93,7 @@ public:
     Type* fetchSwType(Node* node) const {
         switch (node->getNodeType()) {
             case ND_STR:
-                return SymMan.getStrType(dynamic_cast<StrLit*>(node)->value.size());
+                return &GlobalTypeStr;
             case ND_INT:
                 return &GlobalTypeI32;
             case ND_FLOAT:

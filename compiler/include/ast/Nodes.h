@@ -394,7 +394,7 @@ private:
 public:
     IdentInfo* value = nullptr;
     std::vector<std::string> full_qualification;
-    std::vector<std::unique_ptr<TypeWrapper, ImplDeleter>> generic_args;
+    std::vector<std::unique_ptr<TypeWrapper, ImplDeleter>> generic_args{};
 
     Ident() = default;
     explicit Ident(IdentInfo* val): value(val) {}
@@ -544,17 +544,24 @@ struct FuncCall : Node {
 };
 
 
-struct Intrinsic final : FuncCall {
-    enum Kind { SIZEOF, TYPEOF, MEMCPY, MEMSET };
-    Kind intrinsic_type;
+struct Intrinsic final : Node {
+    enum Kind { INVALID, SIZEOF, TYPEOF, MEMCPY, MEMSET, ADV_PTR };
+    Kind intrinsic_type = INVALID;
 
-    Intrinsic() = delete;
-    explicit Intrinsic(FuncCall&& fc): FuncCall(std::move(fc)) {
-        static std::unordered_map<std::string, Kind> tag_map = {
+    std::vector<Expression> args;
+    Ident ident;
+
+    Intrinsic() = default;
+    void operator=(const std::unique_ptr<FuncCall>& call) {
+        args  = std::move(call->args);
+        ident = std::move(call->ident);
+
+        static const std::unordered_map<std::string, Kind> tag_map = {
             {"sizeof", SIZEOF},
             {"typeof", TYPEOF},
             {"memset", MEMSET},
-            {"memcpy", MEMCPY}
+            {"memcpy", MEMCPY},
+            {"advance_pointer", ADV_PTR}
         }; intrinsic_type = tag_map.at(ident.full_qualification.at(0));
     }
 

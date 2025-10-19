@@ -229,7 +229,7 @@ AnalysisResult BoolLit::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult StrLit::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
-    return {.deduced_type = ctx.SymMan.getStrType(value.size())};
+    return {.deduced_type = &GlobalTypeStr};
 }
 
 AnalysisResult ArrayLit::analyzeSemantics(AnalysisContext& ctx) {
@@ -471,16 +471,34 @@ AnalysisResult TypeWrapper::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult Intrinsic::analyzeSemantics(AnalysisContext& ctx) {
     Type* deduced_type = nullptr;
-    for (auto& arg : args) {
-        if (deduced_type == nullptr) {
-            deduced_type = arg.analyzeSemantics(ctx).deduced_type;
-        } else deduced_type = ctx.deduceType(
-            deduced_type, arg.analyzeSemantics(ctx).deduced_type, location);
+
+    // TODO: add checks for validating the usage of the intrinsic
+
+    if (intrinsic_type != ADV_PTR) {
+        for (auto& arg : args) {
+            if (deduced_type == nullptr) {
+                deduced_type = arg.analyzeSemantics(ctx).deduced_type;
+            } else deduced_type = ctx.deduceType(
+                deduced_type, arg.analyzeSemantics(ctx).deduced_type, location);
+        }
     }
 
     AnalysisResult res{.deduced_type = SymbolManager::IntrinsicTable.at(intrinsic_type).return_type};
     if (res.deduced_type == nullptr) {
-        res.deduced_type = deduced_type;
+        switch (intrinsic_type) {
+            case ADV_PTR: {
+                assert(args.size() == 2);
+                args.at(0).analyzeSemantics(ctx);
+                args.at(1).analyzeSemantics(ctx);
+                if (args.size() < 2) {
+                    ctx.reportError(ErrCode::TOO_FEW_ARGS, {});
+                    return {};
+                } res.deduced_type = args.at(0).expr_type;
+                break;
+            }
+            default:
+                res.deduced_type = deduced_type;
+        }
     } return res;
 }
 
@@ -899,14 +917,13 @@ Type* AnalysisContext::getEvalType(Node* node) const {
             return &GlobalTypeF64;
         case ND_BOOL:
             return &GlobalTypeBool;
+        case ND_STR:
+            return &GlobalTypeStr;
         case ND_IDENT:
             return SymMan.lookupDecl(node->getIdentInfo()).swirl_type;
         case ND_CALL:
             return dynamic_cast<FunctionType*>(
                 SymMan.lookupType(node->getIdentInfo()))->ret_type;
-        case ND_STR:
-            return SymMan.getStrType(
-                dynamic_cast<StrLit*>(node)->value.size());
         case ND_EXPR:
         case ND_ARRAY:
         case ND_OP:

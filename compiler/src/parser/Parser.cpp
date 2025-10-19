@@ -691,7 +691,7 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
 
 
 std::unique_ptr<Intrinsic> Parser::parseIntrinsic() {
-    auto call_node = std::make_unique<FuncCall>();
+    auto call_node = std::make_unique<Intrinsic>();
     SET_NODE_ATTRS(call_node.get());
 
     forwardStream();  // skip the `@`
@@ -702,6 +702,7 @@ std::unique_ptr<Intrinsic> Parser::parseIntrinsic() {
 
         Expression arg;
         call_node->ident.full_qualification.emplace_back("sizeof");
+        call_node->intrinsic_type = Intrinsic::SIZEOF;
 
         if (m_Stream.CurTok.value == "@" && m_Stream.CurTok.type == PUNC)
              arg = Expression::makeExpression(parseIntrinsic());
@@ -710,9 +711,9 @@ std::unique_ptr<Intrinsic> Parser::parseIntrinsic() {
         call_node->args.push_back(std::move(arg));
         ignoreButExpect({PUNC, ")"});
 
-    } else call_node = parseCall(parseIdent());
+    } else *call_node = parseCall(parseIdent());
 
-    return std::make_unique<Intrinsic>(std::move(*call_node));
+    return call_node;
 }
 
 

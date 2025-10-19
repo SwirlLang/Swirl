@@ -71,10 +71,11 @@ class SymbolManager {
 
 public:
     inline static const std::unordered_map<Intrinsic::Kind, IntrinsicDef> IntrinsicTable = {
-        {Intrinsic::TYPEOF, IntrinsicDef{}},
-        {Intrinsic::SIZEOF, IntrinsicDef{.return_type = &GlobalTypeI64}},
-        {Intrinsic::MEMCPY, IntrinsicDef{.return_type = &GlobalTypeVoid}},
-        {Intrinsic::MEMSET, IntrinsicDef{.return_type = &GlobalTypeVoid}}
+        {Intrinsic::TYPEOF,  IntrinsicDef{}},
+        {Intrinsic::SIZEOF,  IntrinsicDef{.return_type = &GlobalTypeI64}},
+        {Intrinsic::MEMCPY,  IntrinsicDef{.return_type = &GlobalTypeVoid}},
+        {Intrinsic::MEMSET,  IntrinsicDef{.return_type = &GlobalTypeVoid}},
+        {Intrinsic::ADV_PTR, IntrinsicDef{}}
     };
 
      explicit SymbolManager(std::filesystem::path uid, ModuleManager& module_man, ErrorCallback_t err_c)
@@ -170,10 +171,6 @@ public:
 
     Type* getArrayType(Type* of_type, const std::size_t size) {
         return m_TypeManager.getArrayType(of_type, size);
-    }
-
-    Type* getStrType(const std::size_t size) {
-        return m_TypeManager.getStringType(size);
     }
 
     Type* getPointerType(Type* of_type, const bool is_mutable) {

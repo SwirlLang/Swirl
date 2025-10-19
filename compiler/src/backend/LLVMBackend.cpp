@@ -458,7 +458,7 @@ CGValue Op::llvmCodegen(LLVMBackend &instance) {
             Type* type = instance.fetchSwType(operand);
 
             // handle slice-creation for array types
-            if (type->getTypeTag() == Type::ARRAY || type->getTypeTag() == Type::STR) {
+            if (type->getTypeTag() == Type::ARRAY && !common_type->isPointerType()) {
                 auto slice_type = instance.SymMan.getSliceType(type->getWrappedType(), is_mutable);
 
                 auto slice_llvm_ty = slice_type->llvmCodegen(instance);
@@ -823,6 +823,20 @@ CGValue Intrinsic::llvmCodegen(LLVMBackend &instance) {
         }
         case TYPEOF:
             return args.at(0).llvmCodegen(instance);
+        case ADV_PTR: {
+            assert(args.size() == 2);
+            assert(args.at(0).expr_type->isPointerType());
+            assert(args.at(1).expr_type->isIntegral());
+
+            llvm::Value* ptr = args.at(0).llvmCodegen(instance).getRValue(instance);
+            std::array operands{args.at(1).llvmCodegen(instance).getRValue(instance)};
+
+            return CGValue::rValue(instance.Builder.CreateGEP(
+                args.at(0).expr_type->getWrappedType()->llvmCodegen(instance),
+                ptr, operands
+                ));
+        }
+
         default:
             throw std::runtime_error("Intrinsic::llvmCodegen: Unknown intrinsic");
     }

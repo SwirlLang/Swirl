@@ -119,11 +119,6 @@ public:
             return getSliceType(arr_type->of_type, is_mutable);
         }
 
-        if (to->getTypeTag() == Type::STR) {
-            // return a slice of `char`
-            return getSliceType(&GlobalTypeChar, is_mutable);
-        }
-
         if (to->getTypeTag() == Type::REFERENCE && to->is_mutable == is_mutable)
             return to;  // reference collapsing, & + & = &
 
