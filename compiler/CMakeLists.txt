@@ -10,9 +10,12 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
-endif()
+
+option(LLVM_LINK_SHARED ON)
+
+set(LLVM_LINK_MODE "SHARED" CACHE STRING "How to link LLVM: STATIC or SHARED")
+set_property(CACHE LLVM_LINK_MODE PROPERTY STRINGS STATIC SHARED)
+
 option(BUILD_STDLIB "Build the standard library" OFF)
 
 if(BUILD_STDLIB)
@@ -51,28 +54,31 @@ elseif(UNIX)
 
 endif()
 
-# only statically link on release
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
+# only statically link
+if (LLVM_LINK_STATIC)
 
-    if(UNIX)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ffunction-sections -fdata-sections")
-        set(CMAKE_EXE_LINKER_FLAGS "-Wl,--gc-sections")
-    endif()
-    
     llvm_map_components_to_libnames(LLVM_LIBS native lto option)
-
     target_link_libraries(swirl PRIVATE ${LLD_LIBS} ${LLVM_LIBS})
-    add_custom_command(TARGET swirl POST_BUILD
-                        COMMAND ${CMAKE_STRIP} $<TARGET_FILE:swirl>
-                        COMMENT "Stripping swirl executable")
+    
+elseif (LLVM_LINK_SHARED)
 
-elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
     llvm_config(swirl USE_SHARED irreader support core)
     target_link_libraries(swirl PRIVATE ${LLD_LIBS})
 
 endif()
 
+if( CMAKE_BUILD_TYPE STREQUAL "Release" )
+    if(UNIX)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ffunction-sections -fdata-sections")
+        set(CMAKE_EXE_LINKER_FLAGS "-Wl,--gc-sections")
+    endif()
+    add_custom_command(TARGET swirl POST_BUILD
+                        COMMAND ${CMAKE_STRIP} $<TARGET_FILE:swirl>
+                        COMMENT "Stripping swirl executable")
+endif()
+
 message(STATUS "
-Supported build types are Release and Debug (default debug)
-You can set the build type with -DCMAKE_BUILD_TYPE=<type>
-Release is for statically linking. Debug is for dynamically linking")
+Supported llvm linking options are:
+ - LLVM_LINK_STATIC (default off)
+ - LLVM_LINK_SHARED (default on)
+You can set the linking option with -DLLVM_LINK_<type>=ON/OFF")
