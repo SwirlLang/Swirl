@@ -3,23 +3,23 @@
 #include <utility>
 #include <filesystem>
 #include <unordered_set>
-#include <llvm/Support/ThreadPool.h>
 
 #include "parser/Parser.h"
+#include "utils/Threadpool.h"
 #include "backend/LLVMBackend.h"
 #include "errors/ErrorPipeline.h"
 #include "managers/ModuleManager.h"
 
 
 namespace fs = std::filesystem;
-using ThreadPool = llvm::StdThreadPool;
+using ThreadPool = sw::ThreadPool;
 
 
 class CompilerInst {
-    ThreadPool    m_ThreadPool;
-    SourceManager m_SourceManager;
-    ErrorManager  m_ErrorManager;
-    ModuleManager m_ModuleManager;
+    ThreadPool     m_ThreadPool;
+    SourceManager  m_SourceManager;
+    ErrorManager   m_ErrorManager;
+    ModuleManager  m_ModuleManager;
 
     fs::path      m_SrcPath;
     fs::path      m_OutputPath;     // path/to/executable (absolute)
@@ -92,7 +92,6 @@ public:
         // check for parser errors and abort if present
         if (m_ErrorManager.errorOccurred()) {
             m_ErrorManager.flush();
-            std::exit(1);
         }
 
         // || --- *---*   Sema   *---* --- || //
@@ -102,9 +101,9 @@ public:
 
             while (const auto mod = m_ModuleManager.popZeroDepVec()) {
                 std::print("{}, ", mod->m_FilePath.string());
-                m_ThreadPool.async([mod] {
+                m_ThreadPool.enqueue(sw::Task([mod] {
                     mod->performSema();
-                });
+                }));
             }
 
             std::println("\n-------------");
@@ -116,7 +115,6 @@ public:
         // check for Sema errors and abort if present
         if (m_ErrorManager.errorOccurred()) {
             m_ErrorManager.flush();
-            std::exit(1);
         }
 
         startLLVMCodegen();

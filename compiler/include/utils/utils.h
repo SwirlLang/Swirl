@@ -87,8 +87,7 @@ public:
 template <typename Mtx, typename Fn>
 LockGuard_t(Mtx&, Fn) -> LockGuard_t<Mtx, Fn>;
 
-
-class ThreadPool_t {
+class [[deprecated]] ThreadPool_t {
     class Thread {
         std::thread m_Handle;
         ThreadPool_t& m_PoolInstance;

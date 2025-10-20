@@ -58,6 +58,7 @@ public:
             m_ErrorCounter
             );
         m_ErrorBuffer.clear();
+        std::exit(1);
     }
 
 
