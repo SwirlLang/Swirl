@@ -11,10 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-option(LLVM_LINK_SHARED ON)
-
-set(LLVM_LINK_MODE "SHARED" CACHE STRING "How to link LLVM: STATIC or SHARED")
-set_property(CACHE LLVM_LINK_MODE PROPERTY STRINGS STATIC SHARED)
+option(LLVM_LINK_SHARED "Link against shared LLVM libraries" ON)
 
 option(BUILD_STDLIB "Build the standard library" OFF)
 
@@ -56,12 +53,13 @@ endif()
 
 # only statically link
 if (LLVM_LINK_STATIC)
-
+    message("Linking statically")
     llvm_map_components_to_libnames(LLVM_LIBS native lto option)
     target_link_libraries(swirl PRIVATE ${LLD_LIBS} ${LLVM_LIBS})
     
 elseif (LLVM_LINK_SHARED)
 
+    message("Linking shared")
     llvm_config(swirl USE_SHARED irreader support core)
     target_link_libraries(swirl PRIVATE ${LLD_LIBS})
 
