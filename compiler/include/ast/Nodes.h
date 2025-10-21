@@ -135,6 +135,10 @@ struct Node {
         throw std::runtime_error("getSwType: unimplemented!");
     }
 
+    virtual std::string toString() const {
+        throw std::runtime_error("Node::toString: not implemented!");
+    }
+
     virtual EvalResult evaluate(Parser&);
     virtual AnalysisResult analyzeSemantics(AnalysisContext&) {
         return {};
@@ -199,6 +203,10 @@ struct Expression final : Node {
 
     Type* getSwType() override {
         return expr_type;
+    }
+
+    std::string toString() const override {
+        return '(' + expr->toString() + ')';
     }
 
     EvalResult   evaluate(Parser&) override;
@@ -279,6 +287,16 @@ struct Op final : Node {
         return operands.at(1);
     }
 
+    std::string toString() const override {
+        switch (arity) {
+            case 1:
+                return value + operands.at(0)->toString();
+            case 2:
+                return operands.at(0)->toString() + value + operands.at(1)->toString();
+            default: throw std::runtime_error("Op::toString: invalid arity");;
+        }
+    }
+
     static int getLBPFor(OpTag_t op);
     static int getRBPFor(OpTag_t op);
     static int getPBPFor(OpTag_t op);
@@ -299,6 +317,10 @@ struct ReturnStatement final : Node {
         return ND_RET;
     }
 
+    std::string toString() const override {
+        return "return " + value.toString();
+    }
+
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -315,6 +337,8 @@ struct IntLit final : Node {
     [[nodiscard]] bool isLiteral() const override {
         return true;
     }
+
+    std::string toString() const override { return value; }
 
     EvalResult   evaluate(Parser &) override;
 
@@ -336,6 +360,8 @@ struct FloatLit final : Node {
         return true;
     }
 
+    std::string toString() const override { return value; }
+
     EvalResult   evaluate(Parser &) override;
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
@@ -354,6 +380,8 @@ struct BoolLit final : Node {
     [[nodiscard]] bool isLiteral() const override {
         return true;
     }
+
+    std::string toString() const override { return value ? "true" : "false"; }
 
     EvalResult   evaluate(Parser &) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
@@ -377,6 +405,8 @@ struct StrLit final : Node {
         return true;
     }
 
+    std::string toString() const override { return value; }
+
     EvalResult   evaluate(Parser&) override;
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
@@ -397,6 +427,17 @@ public:
     std::vector<std::unique_ptr<TypeWrapper, ImplDeleter>> generic_args{};
 
     Ident() = default;
+    Ident(Ident&& other) noexcept :
+        value(other.value),
+        full_qualification(std::move(other.full_qualification)),
+        generic_args(std::move(other.generic_args)) {}
+
+    void operator=(Ident&& other) noexcept {
+        value = other.value;
+        full_qualification = std::move(other.full_qualification);
+        generic_args = std::move(other.generic_args);
+    }
+
     explicit Ident(IdentInfo* val): value(val) {}
 
     IdentInfo* getIdentInfo() override {
@@ -409,6 +450,15 @@ public:
 
     [[nodiscard]] Ident* getIdent() override {
         return this;
+    }
+
+    std::string toString() const override {
+        std::string ret;
+        for (auto id : full_qualification) {
+            ret += id + "::";
+        } ret.pop_back();
+          ret.pop_back();
+        return ret;
     }
 
     EvalResult   evaluate(Parser&) override;
@@ -426,11 +476,11 @@ struct TypeWrapper final : Node {
     bool   is_mutable    = false;
     bool   is_slice      = false;
 
-    Ident  type_id;
+    Ident  type_id{};
 
-    std::vector<Modifiers> modifiers;
+    std::vector<Modifiers> modifiers{};
     std::size_t array_size = 0;            // 0 indicates that the type isn't an array
-    std::unique_ptr<TypeWrapper> of_type;  // set in the case of wrapper types (refs, ptr, arrays, slices)
+    std::unique_ptr<TypeWrapper> of_type{};  // set in the case of wrapper types (refs, ptr, arrays, slices)
 
 
     TypeWrapper() = default;
@@ -446,6 +496,7 @@ struct TypeWrapper final : Node {
         return ND_TYPE;
     }
 
+    std::string toString() const override;
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
@@ -636,10 +687,90 @@ struct ContinueStmt final : Node {
 };
 
 
+struct Protocol final : GlobalNode {
+    struct MethodSignature {
+        std::string name;
+        TypeWrapper return_type;
+        std::vector<TypeWrapper> params;
+
+        std::string toString() const {
+            std::string ret =  "fn " + name + "(";
+            for (auto& param : params) {
+                ret += param.toString();
+            } ret += "): " + return_type.toString();
+            return ret;
+        }
+
+        bool operator==(const MethodSignature& other) const {
+            return name == other.name && other.return_type.type == return_type.type &&
+                std::equal(params.begin(), params.end(),
+                    other.params.begin(), other.params.end(),
+                    [](const TypeWrapper& a, const TypeWrapper& b) {
+                        return a.type == b.type;
+                    });
+        }
+    };
+
+    struct MemberSignature {
+        std::string  name;
+        TypeWrapper  type{};
+
+        std::string toString() const {
+            return name + ": " + type.toString();
+        }
+
+        bool operator==(const MemberSignature& other) const {
+            return name == other.name && other.type.type == type.type;
+        }
+    };
+
+    std::string protocol_name;
+    IdentInfo*  protocol_id = nullptr;
+
+    std::vector<Ident> depended_protocols;
+    std::vector<MemberSignature> members;
+    std::vector<MethodSignature> methods;
+
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+    CGValue llvmCodegen(LLVMBackend &instance) override { return {}; }
+};
+
+
+template <>
+struct std::hash<TypeWrapper> {
+    std::size_t operator()(const TypeWrapper& t) const noexcept {
+        return std::hash<Type*>{}(t.type);
+    }
+};
+
+template <>
+struct std::hash<Protocol::MemberSignature> {
+    std::size_t operator()(const Protocol::MemberSignature& m) const noexcept {
+        return combineHashes(std::hash<std::string>{}(m.name), std::hash<TypeWrapper>{}(m.type));
+    }
+};
+
+template <>
+struct std::hash<Protocol::MethodSignature> {
+    std::size_t operator()(const Protocol::MethodSignature& m) const noexcept {
+        std::size_t arg_hash = 0;
+        for (auto& arg : m.params) {
+            arg_hash = combineHashes(arg_hash, std::hash<TypeWrapper>{}(arg));
+        }
+
+        return combineHashes(
+            std::hash<std::string>{}(m.name),
+            std::hash<TypeWrapper>{}(m.return_type),
+            arg_hash
+            );
+    }
+};
+
+
 struct Struct final : GlobalNode {
     IdentInfo* ident = nullptr;
     std::vector<std::unique_ptr<Node>> members;
-
+    std::vector<Ident> protocols;
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_STRUCT;
@@ -650,7 +781,6 @@ struct Struct final : GlobalNode {
     }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
-
     CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 

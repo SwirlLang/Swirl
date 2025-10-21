@@ -1,4 +1,4 @@
-#include "../../include/ast/Nodes.h"
+#include "ast/Nodes.h"
 #include "parser/Parser.h"
 
 
@@ -126,6 +126,11 @@ void Ident::ImplDeleter::operator()(const TypeWrapper* ptr) const {
     delete ptr;
 }
 
+std::string TypeWrapper::toString() const {
+    assert(type);
+    return type->toString();
+}
+
 
 /// Constructs and returns an expression out of the `EvalResult` variant
 Expression Expression::makeExpression(const EvalResult& e) {
@@ -163,7 +168,7 @@ EvalResult StrLit::evaluate(Parser&) {
 
 
 EvalResult Ident::evaluate(Parser& ctx) {
-    if (const auto node = ctx.SymbolTable.lookupDecl(getIdentInfo()).node_loc) {
+    if (const auto node = ctx.SymbolTable.lookupDecl(getIdentInfo()).node_ptr) {
         if (node->getNodeType() == ND_VAR) {
             const auto var = dynamic_cast<Var*>(node);
 

@@ -102,11 +102,11 @@ llvm::Value* CGValue::getRValue(LLVMBackend& instance) {
 std::string LLVMBackend::mangleString(IdentInfo* id) {
     auto decl_lookup = SymMan.lookupDecl(id);
 
-    if (decl_lookup.node_loc) {
+    if (decl_lookup.node_ptr) {
         // do not mangle `extern "C"` symbols
-        if (decl_lookup.node_loc->isGlobal()) {
+        if (decl_lookup.node_ptr->isGlobal()) {
             if (dynamic_cast<GlobalNode*>(
-                decl_lookup.node_loc
+                decl_lookup.node_ptr
                 )->extern_attributes.contains("C")) {
                 return id->toString();
             }

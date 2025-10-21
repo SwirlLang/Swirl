@@ -14,12 +14,13 @@ struct TableEntry {
     bool is_exported = false;
     bool is_volatile = false;
     bool is_static   = false;
+    bool is_protocol = false;
     bool is_mod_namespace = false;
 
     Namespace*  scope      = nullptr;  // set when the entry also encodes a namespace
     Type*       swirl_type = nullptr;
     Type*       method_of  = nullptr;  // set when the function is a method, holds the encapsulating type
-    Node*       node_loc   = nullptr;
+    Node*       node_ptr   = nullptr;
 
     llvm::Value* llvm_value = nullptr;
 };

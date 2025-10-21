@@ -52,7 +52,9 @@ enum class ErrCode {
     CANNOT_ASSIGN_TO_CONST,   // attempt to re-assign a const
     IMMUTABILITY_VIOLATION,   // when immutability rules are violated
     SLICE_NOT_COMPATIBLE,     // when slice types are not compatible with each other
-    NOT_DEREFERENCE_ABLE,     // type cannot be dereferenced
+    NOT_DEREFERENCE_ABLE,     // type cannot be dereferenced,
+    NO_SUCH_PROTOCOL,         // the protocol does not exist
+    PROTOCOL_NOT_SATISFIED,   // the protocol hasn't been satisfied
     // ----------*----------- //
 
 

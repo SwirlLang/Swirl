@@ -35,10 +35,10 @@ consteval std::string_view getSwInternalComponentDir() {
 
 inline const std::unordered_set<std::string_view> KeywordSet = {
     "return", "if", "else", "for", "while", "mut",
-    "true", "false", "class", "public", "private",
+    "true", "false", "class", "public", "protocol",
     "const", "static", "break", "continue", "elif",
     "extern", "comptime", "let", "import", "export",
-    "from", "var", "fn", "volatile", "struct"
+    "var", "fn", "volatile", "struct",
 };
 
 

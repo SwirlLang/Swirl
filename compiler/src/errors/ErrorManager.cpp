@@ -93,6 +93,14 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
                 "The type {} cannot be dereferenced.",
                 ctx.type_1->toString()
             );
+        case ErrCode::NO_SUCH_PROTOCOL:
+            return std::format("No such protocol exists.");
+        case ErrCode::PROTOCOL_NOT_SATISFIED:
+            return std::format(
+                "The protocol {} requires `{}`'s implementation.",
+                ctx.str_1,
+                ctx.str_2
+                );
 
 
         case ErrCode::NO_DIR_IMPORT:

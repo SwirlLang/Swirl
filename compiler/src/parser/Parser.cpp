@@ -10,6 +10,9 @@
 #include "utils/utils.h"
 #include "../../include/ast/Nodes.h"
 #include "parser/Parser.h"
+
+#include <expected>
+
 #include "lexer/Tokens.h"
 #include "backend/LLVMBackend.h"
 #include "errors/ErrorManager.h"
@@ -198,6 +201,9 @@ SwNode Parser::dispatch() {
 
                 if (m_Stream.CurTok.value == "return")
                     return parseRet();
+
+                if (m_Stream.CurTok.value == "protocol")
+                    return parseProtocol();
 
                 if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false")
                     return std::make_unique<Expression>(parseExpr());
@@ -448,7 +454,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     entry.is_exported = func_nd->is_exported;
     entry.method_of   = m_CurrentStructTy.back();
     entry.is_static   = method_is_static;
-    entry.node_loc    = func_nd.get();
+    entry.node_ptr    = func_nd.get();
 
     if (!m_CurrentStructTy.back()) {  // when the function is not a method
         // register the function in the global scope
@@ -627,7 +633,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     entry.is_const    = var_node->is_const;
     entry.is_volatile = var_node->is_volatile;
     entry.is_exported = var_node->is_exported;
-    entry.node_loc    = var_node.get();
+    entry.node_ptr    = var_node.get();
     // entry.swirl_type  = var_node->var_type;
 
     var_node->var_ident = SymbolTable.registerDecl(var_ident, entry);
@@ -826,6 +832,107 @@ Ident Parser::parseIdent() {
 }
 
 
+std::unique_ptr<Protocol> Parser::parseProtocol() {
+    auto ret = std::make_unique<Protocol>();
+    SET_NODE_ATTRS(ret.get());
+
+    forwardStream(); // skip 'protocol'
+    ret->protocol_name = forwardStream().value;
+
+    if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
+        ret->depended_protocols = parseProtocolList();
+    }
+
+    ignoreButExpect({PUNC, "{"});
+
+    while (true) {
+        if (m_Stream.eof()) {
+            reportError(ErrCode::UNEXPECTED_EOF);
+            break;
+        }
+
+        if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}") {
+            forwardStream();
+            break;
+        }
+
+        auto child = dispatch();
+        switch (child->getNodeType()) {
+            case ND_VAR: {
+                const auto var = dynamic_cast<Var*>(child.get());
+                ret->members.push_back(Protocol::MemberSignature{
+                    .name = var->var_ident->toString(),
+                    .type = std::move(var->var_type),
+                });
+                break;
+            }
+
+            case ND_FUNC: {
+                const auto func  = dynamic_cast<Function*>(child.get());
+                std::vector<TypeWrapper> func_params;
+
+                // TODO: allow protocols to be used as "types" in the methods' params within the protocol
+
+                func_params.reserve(func->params.size());
+                for (auto& var : func->params) {
+                    func_params.push_back(std::move(var.var_type));
+                }
+
+                ret->methods.push_back(Protocol::MethodSignature{
+                    .name = func->ident->toString(),
+                    .return_type = std::move(func->return_type),
+                    .params = std::move(func_params),
+                });
+                break;
+            }
+
+            case ND_INVALID:
+                continue;
+
+            default:
+                reportError(ErrCode::SYNTAX_ERROR, {
+                    .msg = "unexpected statement inside a protocol",
+                    .location = child->location
+                }); break;
+        }
+    }
+
+    const TableEntry entry{.is_protocol = true, .node_ptr = ret.get()};
+    ret->protocol_id = SymbolTable.registerDecl(ret->protocol_name, entry);
+
+    return ret;
+}
+
+std::vector<Ident> Parser::parseProtocolList() {
+    std::vector<Ident> ret;
+    forwardStream();  // skip ':'
+
+    while (true) {
+        if (m_Stream.eof()) {
+            reportError(ErrCode::UNEXPECTED_EOF);
+            return ret;
+        }
+
+        if (m_Stream.CurTok.type == PUNC) {
+            if (m_Stream.CurTok.value == ",") {
+                forwardStream();
+                continue;
+            }
+
+            if (m_Stream.CurTok.value == "{") {
+                break;
+            }
+        }
+
+        if (m_Stream.CurTok.type == IDENT) {
+            ret.push_back(parseIdent());
+        }
+    }
+
+    return ret;
+}
+
+
 std::unique_ptr<Struct> Parser::parseStruct() {
     forwardStream();  // skip 'struct'
     auto ret = std::make_unique<Struct>();
@@ -842,6 +949,10 @@ std::unique_ptr<Struct> Parser::parseStruct() {
 
     // register the type and the scope of the struct as a qualifier
     SymbolTable.registerType(ret->ident, struct_ty);
+
+    if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
+        ret->protocols = parseProtocolList();
+    }
 
     // create the struct's scope
     ignoreButExpect({PUNC, "{"});  // skip '{'

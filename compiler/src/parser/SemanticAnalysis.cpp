@@ -293,17 +293,86 @@ AnalysisResult Scope::analyzeSemantics(AnalysisContext& ctx) {
     } return {};
 }
 
+AnalysisResult Protocol::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
+    for (auto& member : members) {
+        member.type.analyzeSemantics(ctx);
+    }
+
+    for (auto& fn : methods) {
+        for (auto& param : fn.params) {
+            param.analyzeSemantics(ctx);
+        } fn.return_type.analyzeSemantics(ctx);
+    }
+
+    analysis_cache = {};
+    return {};
+}
+
 
 AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
 
     const auto ty = dynamic_cast<StructType*>(ctx.SymMan.lookupType(ident));
 
+    std::unordered_set<Protocol::MemberSignature> member_lookup;
+    std::unordered_set<Protocol::MethodSignature> method_lookup;
+
     for (auto& member : members) {
         member->analyzeSemantics(ctx);
-
         if (member->getNodeType() == ND_VAR) {
-            ty->field_types.push_back(dynamic_cast<Var*>(member.get())->var_type.type);
+            const auto var_node = dynamic_cast<Var*>(member.get());
+
+            ty->field_types.push_back(var_node->var_type.type);
+            member_lookup.insert({
+                .name = var_node->var_ident->toString(),
+                .type = std::move(var_node->var_type)});
+        }
+
+        else if (member->getNodeType() == ND_FUNC) {
+            const auto fn_node = dynamic_cast<Function*>(member.get());
+
+            std::vector<TypeWrapper> param_types;
+            param_types.reserve(fn_node->params.size());
+            for (auto& param : fn_node->params) {
+                param_types.push_back(std::move(param.var_type));
+            }
+
+            method_lookup.insert({
+                .name = fn_node->ident->toString(),
+                .return_type = std::move(fn_node->return_type),
+                .params = std::move(param_types)
+            });
+        }
+    }
+
+    // enforce protocols
+    for (auto& proto_id : protocols) {
+        proto_id.analyzeSemantics(ctx);
+        if (proto_id.value) {
+            const auto protocol = dynamic_cast<Protocol*>(ctx.SymMan.lookupDecl(proto_id.value).node_ptr);
+            if (!protocol) {
+                ctx.reportError(ErrCode::NO_SUCH_PROTOCOL, {.location = proto_id.location});
+                continue;
+            }
+
+            for (auto& mem : protocol->members) {
+                if (!member_lookup.contains(mem)) {
+                    ctx.reportError(ErrCode::PROTOCOL_NOT_SATISFIED, {
+                        .str_1 = ident->toString(),
+                        .str_2 =   mem.toString()
+                    });
+                }
+            }
+
+            for (auto& method : protocol->methods) {
+                if (!method_lookup.contains(method)) {
+                    ctx.reportError(ErrCode::PROTOCOL_NOT_SATISFIED, {
+                        .str_1 = proto_id.toString(),
+                        .str_2 = method.toString()
+                    });
+                }
+            }
         }
     }
 
@@ -375,7 +444,7 @@ AnalysisResult FuncCall::analyzeSemantics(AnalysisContext& ctx) {
     if (ctx.getCurParentFunc()->getIdentInfo() != id)
         ctx.analyzeSemanticsOf(id);
 
-    auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(id));
+    const auto* fn_type = dynamic_cast<FunctionType*>(ctx.SymMan.lookupType(id));
 
     if (args.size() < fn_type->param_types.size() && !is_method_call) {  // TODO: default params-values
         ctx.reportError(ErrCode::TOO_FEW_ARGS, {.ident = ident.getIdentInfo()});
