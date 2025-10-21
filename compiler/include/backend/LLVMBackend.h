@@ -6,7 +6,7 @@
 #include <unordered_set>
 
 #include "parser/Parser.h"
-#include "../ast/Nodes.h"
+#include "ast/Nodes.h"
 #include "symbols/SymbolManager.h"
 
 #include <llvm/IR/IRBuilder.h>
@@ -34,7 +34,7 @@ public:
     llvm::LLVMContext Context;
     llvm::IRBuilder<> Builder{Context};
 
-    ModuleManager& ModuleManager;
+    ::ModuleManager& ModuleManager;
     std::unique_ptr<llvm::Module> LModule;
 
     std::vector<std::unique_ptr<Node>> AST;
