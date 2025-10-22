@@ -149,6 +149,8 @@ TypeWrapper Parser::parseType() {
             } else reportError(ErrCode::NON_INT_ARRAY_SIZE);
             ignoreButExpect({PUNC, "]"});
         } else {
+            if (wrapper.modifiers.back() == TypeWrapper::Reference)
+                wrapper.modifiers.pop_back();
             wrapper.is_slice = true;  // only slices are allowed to not have a size
             ignoreButExpect({PUNC, "]"});
         }
