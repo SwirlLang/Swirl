@@ -57,6 +57,7 @@ public:
 
     void setBaseThreadCount(const std::string& count) {
         m_BaseThreadCount = static_cast<unsigned>(std::stoi(count));
+        m_ThreadPool.setBaseThreadCount(m_BaseThreadCount);
     }
 
     void setErrorPipeline(ErrorPipeline* pipeline) {
