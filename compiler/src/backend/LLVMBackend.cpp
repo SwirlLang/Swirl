@@ -389,9 +389,9 @@ CGValue Function::llvmCodegen(LLVMBackend &instance) {
 CGValue ReturnStatement::llvmCodegen(LLVMBackend &instance) {
     PRE_SETUP();
     if (value.expr) {
-        llvm::Value* ret = value.llvmCodegen(instance).getRValue(instance);
         assert(parent_fn_type->ret_type != nullptr);
         SET_BOUND_TYPE_STATE(parent_fn_type->ret_type);
+        llvm::Value* ret = value.llvmCodegen(instance).getRValue(instance);
         instance.Builder.CreateRet(ret);
         return {nullptr, nullptr};
     }
