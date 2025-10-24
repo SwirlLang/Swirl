@@ -50,7 +50,9 @@ public:
 
     void enqueue(Task task) {
         if (!m_BaseThreadCount.has_value()) {
+            auto fut = task.get_future();
             task();
+            fut.get();
             return;
         }
         m_Futures.push_back(task.get_future());
