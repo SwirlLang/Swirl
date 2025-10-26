@@ -17,7 +17,6 @@ using ThreadPool = sw::ThreadPool;
 
 class CompilerInst {
     ThreadPool     m_ThreadPool;
-    SourceManager  m_SourceManager;
     ErrorManager   m_ErrorManager;
     ModuleManager  m_ModuleManager;
 
@@ -48,7 +47,7 @@ public:
     inline static std::unordered_map<std::string, PackageInfo> PackageTable;
 
 
-    explicit CompilerInst(fs::path path) : m_SourceManager(path), m_SrcPath(std::move(path)) {
+    explicit CompilerInst(fs::path path) : m_SrcPath(std::move(path)) {
         m_ErrorCallback = [this](const ErrCode code, const ErrorContext& ctx) {
             m_ErrorManager.newErrorLocked(code, ctx);
         };
