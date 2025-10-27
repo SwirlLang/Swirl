@@ -491,6 +491,10 @@ AnalysisResult TypeWrapper::analyzeSemantics(AnalysisContext& ctx) {
 
     // has id
     if (!type_id.full_qualification.empty()) {
+        if (ctx.CurGenericArgNames.contains(type_id.full_qualification.front().name)) {
+            return {};
+        }
+
         auto type_id_info = ctx.SymMan.getIDInfoFor(
             type_id, [ctx](auto a, auto b) {
                 ctx.reportError(a, std::move(b));
@@ -577,6 +581,10 @@ AnalysisResult Intrinsic::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     AnalysisResult ret;
+
+    if (!full_qualification.empty() && ctx.CurGenericArgNames.contains(full_qualification.front().name)) {
+        return {};
+    }
 
     for (auto& id : full_qualification) {
         for (const auto& gen_arg : id.generic_args) {

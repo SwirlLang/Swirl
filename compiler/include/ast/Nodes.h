@@ -164,9 +164,15 @@ struct Node {
 enum class ErrCode;
 struct ErrorContext;
 
+struct GenericParam final : Node {
+    std::string name;
+};
+
 struct GlobalNode : Node {
     bool is_extern   = false;
     std::string extern_attributes;
+
+    std::vector<GenericParam> generic_params;
 
     [[nodiscard]]
     bool isGlobal() const override {
@@ -622,12 +628,6 @@ struct Var final : GlobalNode {
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
-
-struct GenericParam final : Node {
-    std::string name;
-};
-
-
 struct Scope final : Node {
     std::vector<SwNode> children;
 
@@ -650,7 +650,6 @@ struct Function final : GlobalNode {
     IdentInfo* ident = nullptr;
 
     std::vector<Var> params;
-    std::vector<GenericParam> generic_params;
     std::vector<std::unique_ptr<Node>> children;
 
     TypeWrapper return_type;

@@ -167,6 +167,7 @@ std::unique_ptr<Node> Function::instantiate(Parser& instance, const std::span<Ty
         i++;
     }
 
+    fn_node->generic_params.clear();
     return cloned;
 }
 

@@ -20,6 +20,8 @@ public:
 
     ErrorCallback_t ErrCallback;
 
+    std::unordered_set<std::string> CurGenericArgNames;
+
     explicit AnalysisContext(Parser& parser)
     : GlobalNodeJmpTable(parser.NodeJmpTable)
     , SymMan(parser.SymbolTable)
@@ -182,10 +184,26 @@ private:
 struct AnalysisContext::SemaSetupHandler {
     SemaSetupHandler(AnalysisContext& ctx, Node* node): node(node), ctx(ctx) {
         ctx.m_NodeStack.push(node);
+
+        if (const auto glob = node->to<GlobalNode>()) {
+            for (auto& arg : glob->generic_params) {
+                if (ctx.CurGenericArgNames.contains(arg.name)) {
+                    throw std::runtime_error("generic duplication!");
+                }
+
+               ctx.CurGenericArgNames.insert(arg.name);
+            }
+        }
     }
 
     ~SemaSetupHandler() {
         ctx.m_NodeStack.pop();
+
+        if (const auto glob = node->to<GlobalNode>()) {
+            for (auto& arg : glob->generic_params) {
+                ctx.CurGenericArgNames.erase(arg.name);
+            }
+        }
     }
 
 private:
