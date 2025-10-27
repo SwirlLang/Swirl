@@ -76,6 +76,11 @@ struct Type {
         return this;
     }
 
+    [[nodiscard]]
+    virtual FunctionType* getBuiltinMethodSignature(std::string_view name) {
+        return nullptr;
+    }
+
     virtual bool isReferenceLikeType() { return getTypeTag() == REFERENCE || getTypeTag() == POINTER; }
     virtual bool operator==(Type* other) { return getTypeTag() == other->getTypeTag(); }
 
@@ -132,7 +137,7 @@ struct FunctionType final : Type {
 
 
 struct StructType final : Type {
-    IdentInfo* ident;
+    IdentInfo* ident = nullptr;
 
     std::vector<Type*> field_types;
     std::unordered_map<std::string, std::size_t> field_offsets;
@@ -194,7 +199,10 @@ struct TypeChar final : Type {
 
 struct TypeStr final : Type {
     SwTypes getTypeTag() override { return STR; }
-    Type* getWrappedType() override;
+
+    explicit TypeStr(const bool is_mutable = false) {
+        this->is_mutable = is_mutable;
+    }
 
     [[nodiscard]] std::string toString() const override { return "str"; }
 

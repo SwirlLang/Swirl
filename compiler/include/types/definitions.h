@@ -26,8 +26,10 @@ inline TypeF64   GlobalTypeF64{};
 inline TypeBool  GlobalTypeBool{};
 inline TypeChar  GlobalTypeChar{};
 
-inline TypeStr   GlobalTypeStr;
 inline VoidType  GlobalTypeVoid{};
+
+inline TypeStr   GlobalTypeStr;
+inline TypeStr   GlobalTypeMutStr{true};
 
 
 // C Types

@@ -5,6 +5,7 @@
 #include <concepts>
 #include <filesystem>
 #include <unordered_set>
+#include <print>
 
 #include "definitions.h"
 #include "ast/Nodes.h"
@@ -19,7 +20,6 @@
 class Parser;
 class ModuleManager;
 class AnalysisContext;
-using ErrorCallback_t = std::function<void (ErrCode, ErrorContext)>;
 
 
 /// A type which can represent either a `Type*` or a `Node*`.
@@ -87,6 +87,10 @@ class Parser {
     // used for buffering error reports until the nodes/types have been completed
     std::unordered_map<SwObject, std::vector<std::tuple<ErrCode, ErrorContext>>> m_ErrorQueue;
 
+    // maps the IdentInfo* of global nodes (nodes inheriting from `GlobalNode`) to where they begin and
+    // where they end
+    std::unordered_map<IdentInfo*, std::array<StreamState, 2>> m_GlobalOffsets;
+
     struct Bracket_t { char val{}; StreamState location; };
     std::vector<Bracket_t> m_BracketTracker;
 
@@ -124,15 +128,18 @@ public:
     std::unique_ptr<Var>      parseVar(bool is_volatile = false);
     std::unique_ptr<FuncCall> parseCall(std::optional<Ident> _ = std::nullopt);
 
-    std::vector<Ident>        parseProtocolList();
-    std::vector<GenericParam> parseGenericParamList();
-    GenericArgList_t          parseGenericArgList();
+    std::vector<Ident>                parseProtocolList();
+    std::vector<GenericParam>         parseGenericParamList();
+
+    // Returns the clone of the node with the `IdentInfo*` `id`
+    std::unique_ptr<Node> cloneNode(IdentInfo* id);
 
     Token forwardStream(uint8_t n = 1);
 
-    Ident       parseIdent();
-    Expression  parseExpr();
-    TypeWrapper parseType();
+    Ident            parseIdent();
+    Expression       parseExpr();
+    TypeWrapper      parseType();
+    GenericArgList_t parseGenericArgList();
 
     void parse();
     void performSema();
@@ -181,6 +188,8 @@ struct Parser::NodeAttrHelper {
             const auto glob = dynamic_cast<GlobalNode*>(node);
             glob->is_extern = instance.m_LastSymIsExtern;
             glob->extern_attributes = instance.m_ExternAttributes;
+
+            begins_from = instance.m_Stream.getStreamState();
         }
     }
 
@@ -194,6 +203,16 @@ struct Parser::NodeAttrHelper {
 
         if (node) {
             node->location.to = instance.m_Stream.getStreamState();
+
+            if (node->isGlobal()) {
+                auto node_id = node->getIdentInfo();
+
+                assert(node_id != nullptr);
+                assert(begins_from.has_value());
+
+                instance.m_GlobalOffsets.insert({node_id, {
+                    begins_from.value(), instance.m_Stream.getStreamState()}});
+            }
         }
 
         // flush all the errors
@@ -213,4 +232,5 @@ private:
     Type*   type = nullptr;
 
     Parser& instance;
+    std::optional<StreamState> begins_from = std::nullopt;
 };

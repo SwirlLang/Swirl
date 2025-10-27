@@ -77,5 +77,13 @@ std::string SourceManager::getCurrentLine() const {
     return m_CurrentLine;
 }
 
+void SourceManager::switchSource(const std::size_t from, const std::size_t to) {
+    std::string new_source;
+    for (auto i = from; i <= to; i++) {
+        new_source += getLineAt(i) + '\n';
+    }
 
+    m_Source = std::move(new_source);
+    reset();
+}
 

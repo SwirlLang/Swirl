@@ -230,6 +230,7 @@ AnalysisResult BoolLit::analyzeSemantics(AnalysisContext& ctx) {
 AnalysisResult StrLit::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     return {.deduced_type = &GlobalTypeStr};
+    // return {.deduced_type = ctx.SymMan.lookupType(ctx.SymMan.getIdInfoOfAGlobal("str"))};
 }
 
 AnalysisResult ArrayLit::analyzeSemantics(AnalysisContext& ctx) {
@@ -539,6 +540,7 @@ AnalysisResult TypeWrapper::analyzeSemantics(AnalysisContext& ctx) {
 
 
 AnalysisResult Intrinsic::analyzeSemantics(AnalysisContext& ctx) {
+    PRE_SETUP();
     Type* deduced_type = nullptr;
 
     // TODO: add checks for validating the usage of the intrinsic
@@ -576,6 +578,12 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     AnalysisResult ret;
 
+    for (auto& id : full_qualification) {
+        for (const auto& gen_arg : id.generic_args) {
+            gen_arg->analyzeSemantics(ctx);
+        }
+    }
+
     if (!value) {
         value = ctx.SymMan.getIDInfoFor(
             *this,
@@ -587,7 +595,7 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     if (!value) {
         ctx.reportError(
             ErrCode::UNDEFINED_IDENTIFIER,
-            {.str_1 = full_qualification.back()}
+            {.str_1 = full_qualification.back().name}
             );
         analysis_cache = ret;
         return ret;
@@ -641,8 +649,9 @@ AnalysisResult ReturnStatement::analyzeSemantics(AnalysisContext& ctx) {
     AnalysisResult ret;
 
     parent_fn_type = dynamic_cast<FunctionType*>(
-        ctx.SymMan.lookupDecl(
-            ctx.getCurParentFunc()->getIdentInfo()).swirl_type);
+        ctx.SymMan.lookupType(
+            ctx.getCurParentFunc()->getIdentInfo()));
+    assert(parent_fn_type != nullptr);
 
     if (value.expr)
         ret.deduced_type = value.analyzeSemantics(ctx).deduced_type;
@@ -824,7 +833,7 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                     return {};
                 }
 
-                const std::string accessed_member = accessed_id->full_qualification.front();
+                const std::string accessed_member = accessed_id->full_qualification.front().name;
 
                 // check whether the LHS is an operator (DOT is left-associative)
                 if (getLHS()->getWrappedNodeOrInstance()->getNodeType() == ND_OP) {
@@ -858,15 +867,20 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                     }
 
                     // TODO
-                    assert(0);
+                    ctx.reportError(ErrCode::NOT_A_NAMESPACE, {});
                     return {};
-
                 }
 
                 // now when the LHS isn't an OP:
-                if (
-                    auto lhs_id_info = ctx.getEvalType(getLHS())->getWrappedTypeOrInstance()->getIdent();
-                    lhs_id_info != nullptr)
+                const auto accessed_type = ctx.getEvalType(getLHS())->getWrappedTypeOrInstance();
+                auto lhs_id_info = accessed_type->getIdent();
+
+                // try to look up in the primitive table instead
+                if (lhs_id_info == nullptr) {
+                    lhs_id_info = ctx.SymMan.getBuiltinTypeIdentInfo(accessed_type);
+                }
+
+                if (lhs_id_info != nullptr)
                 {
                     const auto& lhs_tab_entry = ctx.SymMan.lookupDecl(lhs_id_info);
                     const Namespace* lhs_scope = lhs_tab_entry.scope;

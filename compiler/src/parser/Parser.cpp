@@ -464,7 +464,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     } else {
         // not a method, func_nd.ident has been set before
         assert(func_nd->ident);
-        SymbolTable.registerDecl(func_nd->ident, entry);
+        assert(SymbolTable.registerDecl(func_nd->ident, entry));
     }
 
     function_t->ident = func_nd->ident;
@@ -819,7 +819,11 @@ Ident Parser::parseIdent() {
 
         // generic arg list
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
-            parseGenericArgList();
+            auto gen_args = parseGenericArgList();
+            for (auto& type : gen_args) {
+                ret.full_qualification.back().generic_args.push_back(
+                    new TypeWrapper(std::move(type)));
+            }
             continue;
         }
 
@@ -827,7 +831,7 @@ Ident Parser::parseIdent() {
     }
 
     if (ret.full_qualification.size() == 1) {
-        ret.value = SymbolTable.getIDInfoFor(ret.full_qualification.front());
+        ret.value = SymbolTable.getIDInfoFor(ret.full_qualification.front().name);
     }
 
     return ret;
@@ -1007,4 +1011,20 @@ Expression Parser::parseExpr() {
     auto ret = m_ExpressionParser.parseExpr();
     SET_NODE_ATTRS(&ret);
     return ret;
+}
+
+
+std::unique_ptr<Node> Parser::cloneNode(IdentInfo* id) {
+    assert(m_GlobalOffsets.contains(id));
+    const auto glob_location = m_GlobalOffsets.at(id);
+    m_SrcMan.switchSource(glob_location[0].Line, glob_location[1].Line);
+
+    while (true) {
+        if (m_Stream.eof()) throw std::runtime_error("Unexpected EOF");
+        if (m_Stream.CurTok.type == KEYWORD) {
+            if (m_Stream.CurTok.value == "protocol" ||
+                m_Stream.CurTok.value == "fn" ||
+                m_Stream.CurTok.value == "struct") break;
+        } forwardStream();
+    } return dispatch();
 }

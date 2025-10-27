@@ -3,6 +3,7 @@
 class IdentInfo;
 class Namespace;
 struct Type;
+struct Node;
 
 namespace llvm {
     class Value;

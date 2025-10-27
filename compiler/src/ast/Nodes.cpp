@@ -131,6 +131,45 @@ std::string TypeWrapper::toString() const {
     return type->toString();
 }
 
+Ident::Qualifier::~Qualifier() {
+    for (const auto* type : generic_args) {
+        delete type;
+    }
+}
+
+void Op::replaceType(const std::string_view from, Type* to) {
+    if (op_type == CAST_OP) {
+        assert(operands.at(1)->getNodeType() == ND_TYPE);
+        auto* operand = dynamic_cast<TypeWrapper*>(operands.at(1).get());
+        operand->replaceType(from, to);
+    }
+}
+
+void Ident::replaceType(const std::string_view from, Type* to) {
+    for (const auto& arg : full_qualification) {
+        for (auto* type : arg.generic_args) {
+            type->replaceType(from, to);
+        }
+    }
+}
+
+
+std::unique_ptr<Node> Function::instantiate(Parser& instance, const std::span<Type*> args, ErrorCallback_t err_callback) {
+    auto cloned = instance.cloneNode(ident);
+    const auto fn_node = dynamic_cast<Function*>(cloned.get());
+
+    assert(fn_node != nullptr);
+    assert(generic_params.size() >= args.size());
+
+    std::size_t i = 0;
+    for (Type* arg : args) {
+        fn_node->replaceType(generic_params.at(i).name, arg);
+        i++;
+    }
+
+    return cloned;
+}
+
 
 /// Constructs and returns an expression out of the `EvalResult` variant
 Expression Expression::makeExpression(const EvalResult& e) {

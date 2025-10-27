@@ -68,6 +68,7 @@ class SymbolManager {
     std::unordered_map<std::string, Namespace*> m_QualifierTable;
 
     ErrorCallback_t m_ErrorCallback;
+    std::unordered_map<Type*, IdentInfo*> m_TypeToIDInfo;  // maps method-containing types to their IdentInfo*
 
 public:
     inline static const std::unordered_map<Intrinsic::Kind, IntrinsicDef> IntrinsicTable = {
@@ -78,6 +79,8 @@ public:
         {Intrinsic::ADV_PTR, IntrinsicDef{}}
     };
 
+    static std::unordered_map<Type*, std::function<void(Namespace*, SymbolManager&)>> DefaultTypeMethods;
+
      explicit SymbolManager(std::filesystem::path uid, ModuleManager& module_man, ErrorCallback_t err_c)
         : m_ModuleMap(module_man)
         , m_ModulePath(std::move(uid))
@@ -85,9 +88,16 @@ public:
     {
         // Create the global scope
         m_ScopeTrack.push_back(&m_Scopes.emplace_back(m_ModulePath));
-
         // Register all built-in types in the global scope
         for (const auto &[str, type] : BuiltinTypes) {
+            if (DefaultTypeMethods.contains(type)) {
+                // Namespace* type_namespace = newScope();
+                // // DefaultTypeMethods[type](type_namespace, *this);
+                // TableEntry table_entry{.scope = type_namespace};
+                // m_TypeToIDInfo.insert({type, registerDecl(std::string(str), table_entry)});
+                // moveToPreviousScope();
+            }
+
             const auto id = m_ScopeTrack.back()->getNewIDInfo(std::string(str));
             registerType(id, type);
         }
@@ -125,7 +135,7 @@ public:
     }
 
     IdentInfo* getIDInfoFor(const Ident& id, const std::optional<ErrorCallback_t>& err_callback = std::nullopt);
-
+    IdentInfo* instantiateGenerics(IdentInfo* id, const std::vector<TypeWrapper*>& args, const ErrorCallback_t&);
 
     /// returns the global scope's pointer
     Namespace* getGlobalScope() const {
@@ -194,6 +204,12 @@ public:
         if (entry.is_exported) {
             registerExportedSymbol(name, {.id = id});
         } return id;
+    }
+
+    IdentInfo* getBuiltinTypeIdentInfo(Type* type) {
+        if (m_TypeToIDInfo.contains(type)) {
+            return m_TypeToIDInfo[type];
+        } return nullptr;
     }
 
     IdentInfo* registerDecl(IdentInfo* id, TableEntry& entry) {

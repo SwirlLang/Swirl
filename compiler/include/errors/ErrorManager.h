@@ -95,6 +95,9 @@ enum class ErrCode {
 };
 
 
+using ErrorCallback_t = std::function<void (ErrCode, ErrorContext)>;
+
+
 class ErrorManager {
 public:
     /// Used to report an error, lock-free

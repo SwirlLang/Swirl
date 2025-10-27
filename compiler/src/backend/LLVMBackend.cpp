@@ -718,7 +718,7 @@ CGValue Op::llvmCodegen(LLVMBackend &instance) {
                     instance.StructFieldType->llvmCodegen(instance),
                     inst_ptr,
                     static_cast<unsigned int>
-                    (struct_ty->field_offsets.at(field_node->full_qualification.front()))
+                    (struct_ty->field_offsets.at(field_node->full_qualification.front().name))
                 );
 
                 auto field_ty = instance.SymMan.lookupDecl(field_node->value).swirl_type;
@@ -763,7 +763,7 @@ CGValue Op::llvmCodegen(LLVMBackend &instance) {
                     struct_ty->llvmCodegen(instance),
                     inst_ptr,
                     static_cast<unsigned int>
-                    (struct_ty->field_offsets.at(field_node->full_qualification.front()))
+                    (struct_ty->field_offsets.at(field_node->full_qualification.front().name))
                 );
 
                 // in the case of this operator, the common_type is supposed to be the type of the field
@@ -1035,7 +1035,8 @@ CGValue FuncCall::llvmCodegen(LLVMBackend &instance) {
     arguments.reserve(args.size() + 1);
 
     assert(ident.value);
-    if (auto& entry = instance.SymMan.lookupDecl(ident.value); entry.method_of && !entry.is_static) {
+    auto& entry = instance.SymMan.lookupDecl(ident.value);
+    if ( entry.method_of && !entry.is_static) {
         // push the implicit instance pointer if the callee is a method and not static
         assert(instance.ComputedPtr);
         arguments.push_back(instance.ComputedPtr);  // push the ComputedPtr as an implicit argument

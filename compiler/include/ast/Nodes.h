@@ -1,9 +1,10 @@
 #pragma once
+#include <string_view>
 #include <filesystem>
 #include <stdexcept>
 #include <utility>
 #include <vector>
-#include <string_view>
+#include <span>
 
 #include "Nodes.h"
 #include "utils/utils.h"
@@ -139,6 +140,8 @@ struct Node {
         throw std::runtime_error("Node::toString: not implemented!");
     }
 
+    virtual void replaceType(std::string_view from, Type* to) {}
+
     virtual EvalResult evaluate(Parser&);
     virtual AnalysisResult analyzeSemantics(AnalysisContext&) {
         return {};
@@ -147,8 +150,19 @@ struct Node {
     virtual CGValue llvmCodegen([[maybe_unused]] LLVMBackend &instance) {
         throw std::runtime_error("llvmCodegen called on Node instance");
     }
+
+    virtual SwNode clone() {
+        throw std::runtime_error("clone unimplemented!");
+    }
+
+    template <typename From>
+    std::add_pointer_t<From> to() {
+        return dynamic_cast<std::add_pointer_t<From>>(this);
+    }
 };
 
+enum class ErrCode;
+struct ErrorContext;
 
 struct GlobalNode : Node {
     bool is_extern   = false;
@@ -157,6 +171,13 @@ struct GlobalNode : Node {
     [[nodiscard]]
     bool isGlobal() const override {
         return true;
+    }
+
+    virtual std::unique_ptr<Node> instantiate(Parser& instance,
+        std::span<Type*>,
+        std::function<void (ErrCode, ErrorContext)>)
+    {
+        throw std::runtime_error("Generic instantiation unimplemented!");
     }
 };
 
@@ -209,9 +230,19 @@ struct Expression final : Node {
         return '(' + expr->toString() + ')';
     }
 
-    EvalResult   evaluate(Parser&) override;
+    void replaceType(const std::string_view from, Type* to) override {
+        expr->replaceType(from, to);
+    }
 
-    CGValue llvmCodegen(LLVMBackend &instance) override;
+    SwNode clone() override {
+        auto ret = std::make_unique<Expression>();
+        ret->expr = expr->clone();
+        ret->expr_type = expr_type;
+        return ret;
+    }
+
+    EvalResult     evaluate(Parser&) override;
+    CGValue        llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -297,12 +328,29 @@ struct Op final : Node {
         }
     }
 
+    SwNode clone() override {
+        auto ret = std::make_unique<Op>();
+        ret->value = value;
+        ret->arity = arity;
+
+        for (auto& operand : operands) {
+            ret->operands.push_back(operand->clone());
+        }
+
+        ret->is_mutable = is_mutable;
+        ret->op_type = op_type;
+        ret->common_type = common_type;
+        return ret;
+    }
+
     static int getLBPFor(OpTag_t op);
     static int getRBPFor(OpTag_t op);
     static int getPBPFor(OpTag_t op);
 
-    CGValue llvmCodegen(LLVMBackend &instance) override;
-    EvalResult   evaluate(Parser& instance) override;
+    void replaceType(std::string_view from, Type* to) override;
+
+    EvalResult     evaluate(Parser& instance) override;
+    CGValue        llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -319,6 +367,13 @@ struct ReturnStatement final : Node {
 
     std::string toString() const override {
         return "return " + value.toString();
+    }
+
+    SwNode clone() override {
+        auto ret = std::make_unique<ReturnStatement>();
+        ret->value = std::move(*dynamic_cast<Expression*>(value.clone().get()));
+        ret->parent_fn_type = parent_fn_type;
+        return ret;
     }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
@@ -339,6 +394,10 @@ struct IntLit final : Node {
     }
 
     std::string toString() const override { return value; }
+
+    SwNode clone() override {
+        return std::make_unique<IntLit>(value);
+    }
 
     EvalResult   evaluate(Parser &) override;
 
@@ -361,6 +420,9 @@ struct FloatLit final : Node {
     }
 
     std::string toString() const override { return value; }
+    SwNode clone() override {
+        return std::make_unique<FloatLit>(value);
+    }
 
     EvalResult   evaluate(Parser &) override;
 
@@ -382,6 +444,9 @@ struct BoolLit final : Node {
     }
 
     std::string toString() const override { return value ? "true" : "false"; }
+    SwNode clone() override {
+        return std::make_unique<BoolLit>(value);
+    }
 
     EvalResult   evaluate(Parser &) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
@@ -406,13 +471,15 @@ struct StrLit final : Node {
     }
 
     std::string toString() const override { return value; }
+    SwNode clone() override {
+        return std::make_unique<StrLit>(value);
+    }
 
     EvalResult   evaluate(Parser&) override;
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
-
 
 struct TypeWrapper;
 struct Ident final : Node {
@@ -421,22 +488,18 @@ private:
         void operator()(const TypeWrapper* ptr) const;
     };
 
+    struct Qualifier {
+        std::string name;
+        std::vector<TypeWrapper*> generic_args;
+
+        ~Qualifier();
+    };
+
 public:
     IdentInfo* value = nullptr;
-    std::vector<std::string> full_qualification;
-    std::vector<std::unique_ptr<TypeWrapper, ImplDeleter>> generic_args{};
+    std::vector<Qualifier> full_qualification;
 
     Ident() = default;
-    Ident(Ident&& other) noexcept :
-        value(other.value),
-        full_qualification(std::move(other.full_qualification)),
-        generic_args(std::move(other.generic_args)) {}
-
-    void operator=(Ident&& other) noexcept {
-        value = other.value;
-        full_qualification = std::move(other.full_qualification);
-        generic_args = std::move(other.generic_args);
-    }
 
     explicit Ident(IdentInfo* val): value(val) {}
 
@@ -454,16 +517,17 @@ public:
 
     std::string toString() const override {
         std::string ret;
-        for (auto id : full_qualification) {
-            ret += id + "::";
+        for (auto& id : full_qualification) {
+            ret += id.name + "::";
         } ret.pop_back();
           ret.pop_back();
         return ret;
     }
 
-    EvalResult   evaluate(Parser&) override;
+    void replaceType(std::string_view from, Type* to) override;
 
-    CGValue llvmCodegen(LLVMBackend &instance) override;
+    EvalResult     evaluate(Parser&) override;
+    CGValue        llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
@@ -496,6 +560,30 @@ struct TypeWrapper final : Node {
         return ND_TYPE;
     }
 
+    void replaceType(const std::string_view from, Type* to) override {
+        if (!type_id.full_qualification.empty()) {
+            if (type_id.full_qualification.front().name == from) {
+                type = to;
+            }
+        } if (of_type) {
+            of_type->replaceType(from, to);
+        }
+    }
+
+    // std::unique_ptr<TypeWrapper, Ident::ImplDeleter> clone() {
+    //     auto copy = new TypeWrapper();
+    //     copy->type = type;
+    //     copy->is_mutable = is_mutable;
+    //     copy->type_id = type_id;
+    //     copy->is_slice = is_slice;
+    //     copy->modifiers = modifiers;
+    //     copy->array_size = array_size;
+//
+    //     if (of_type) {
+    //         copy->of_type = of_type->clone();
+    //     } return std::unique_ptr<TypeWrapper, Ident::ImplDeleter>(copy);
+    // }
+
     std::string toString() const override;
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
@@ -523,6 +611,11 @@ struct Var final : GlobalNode {
         return var_ident;
     }
 
+    void replaceType(const std::string_view from, Type* to) override {
+        var_type.replaceType(from, to);
+        value.replaceType(from, to);
+    }
+
     [[nodiscard]] SwNode& getExprValue() override { return value.expr; }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
@@ -540,6 +633,12 @@ struct Scope final : Node {
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_SCOPE;
+    }
+
+    void replaceType(const std::string_view from, Type* to) override {
+        for (const auto& child : children) {
+            child->replaceType(from, to);
+        }
     }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
@@ -564,8 +663,20 @@ struct Function final : GlobalNode {
         return ND_FUNC;
     }
 
+    void replaceType(const std::string_view from, Type* to) override {
+        for (auto& param : params) {
+            param.replaceType(from, to);
+        }
+
+        return_type.replaceType(from, to);
+        for (const auto& child : children) {
+            child->replaceType(from, to);
+        }
+    }
+
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
+    std::unique_ptr<Node> instantiate(Parser&, std::span<Type*>, std::function<void (ErrCode, ErrorContext)>) override;
 };
 
 
@@ -590,6 +701,16 @@ struct FuncCall : Node {
 
     [[nodiscard]] NodeType     getNodeType() const override { return ND_CALL; }
 
+    void replaceType(const std::string_view from, Type* to) override {
+        for (auto& ty : generic_args) {
+            ty.replaceType(from, to);
+        }
+
+        for (auto& val : args) {
+            val.replaceType(from, to);
+        }
+    }
+
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
@@ -613,10 +734,16 @@ struct Intrinsic final : Node {
             {"memset", MEMSET},
             {"memcpy", MEMCPY},
             {"advance_pointer", ADV_PTR}
-        }; intrinsic_type = tag_map.at(ident.full_qualification.at(0));
+        }; intrinsic_type = tag_map.at(ident.full_qualification.at(0).name);
     }
 
     [[nodiscard]] NodeType getNodeType() const override { return ND_INTRINSIC; }
+
+    void replaceType(const std::string_view from, Type* to) override {
+        for (auto& arg : args) {
+            arg.replaceType(from, to);
+        }
+    }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
@@ -657,18 +784,30 @@ struct ArrayLit final : Node {
         return true;
     }
 
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+    void replaceType(const std::string_view from, Type* to) override {
+        for (auto& element : elements) {
+            element.replaceType(from, to);
+        }
+    }
 
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
     CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
 
 struct WhileLoop final : Node {
-    Expression condition{};
+    Expression condition;
     std::vector<std::unique_ptr<Node>> children{};
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_WHILE;
+    }
+
+    void replaceType(const std::string_view from, Type* to) override {
+        condition.replaceType(from, to);
+        for (const auto& child : children) {
+            child->replaceType(from, to);
+        }
     }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
@@ -709,6 +848,13 @@ struct Protocol final : GlobalNode {
                         return a.type == b.type;
                     });
         }
+
+        void replaceType(const std::string_view from, Type* to) {
+            return_type.replaceType(from, to);
+            for (auto& ty : params) {
+                ty.replaceType(from, to);
+            }
+        }
     };
 
     struct MemberSignature {
@@ -722,6 +868,10 @@ struct Protocol final : GlobalNode {
         bool operator==(const MemberSignature& other) const {
             return name == other.name && other.type.type == type.type;
         }
+
+        void replaceType(const std::string_view from, Type* to) {
+            type.replaceType(from, to);
+        }
     };
 
     std::string protocol_name;
@@ -730,6 +880,16 @@ struct Protocol final : GlobalNode {
     std::vector<Ident> depended_protocols;
     std::vector<MemberSignature> members;
     std::vector<MethodSignature> methods;
+
+    void replaceType(const std::string_view from, Type* to) override {
+        for (auto& member : members) {
+            member.replaceType(from, to);
+        }
+
+        for (auto& method : methods) {
+            method.replaceType(from, to);
+        }
+    }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
     CGValue llvmCodegen(LLVMBackend &instance) override { return {}; }
@@ -780,6 +940,12 @@ struct Struct final : GlobalNode {
         return ident;
     }
 
+    void replaceType(const std::string_view from, Type* to) override {
+        for (auto& member : members) {
+            member->replaceType(from, to);
+        }
+    }
+
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
     CGValue llvmCodegen(LLVMBackend &instance) override;
 };
@@ -802,6 +968,23 @@ struct Condition final : Node {
         return ND_COND;
     }
 
+    void replaceType(const std::string_view from, Type* to) override {
+        bool_expr.replaceType(from, to);
+        for (const auto& child : else_children) {
+            child->replaceType(from, to);
+        }
+
+        for (const auto& child : if_children) {
+            child->replaceType(from, to);
+        }
+
+        for (auto& child : elif_children) {
+            std::get<0>(child).replaceType(from, to);
+            for (auto& c : std::get<1>(child)) {
+                c->replaceType(from, to);
+            }
+        }
+    }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;

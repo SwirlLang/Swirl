@@ -21,12 +21,6 @@ std::string PointerType::toString() const {
         : "" + of_type->toString() + '*';
 }
 
-
-Type* TypeStr::getWrappedType() {
-    return &GlobalTypeChar;
-}
-
-
 llvm::Type* FunctionType::llvmCodegen(LLVMBackend& instance) {
     std::vector<llvm::Type*> llvm_param_types;
     llvm_param_types.reserve(this->param_types.size());

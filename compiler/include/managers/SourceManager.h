@@ -37,6 +37,7 @@ public:
 
     /** @brief resets the state of the m_Stream */
     void reset();
+    void switchSource(std::size_t from, std::size_t to);
 
     /** @brief returns a const-ref to the source's path */
     [[nodiscard]] const std::filesystem::path& getSourcePath() const {
