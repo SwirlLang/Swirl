@@ -157,6 +157,7 @@ void Ident::replaceType(const std::string_view from, Type* to) {
 std::unique_ptr<Node> Function::instantiate(Parser& instance, const std::span<Type*> args, ErrorCallback_t err_callback) {
     auto cloned = instance.cloneNode(ident);
     const auto fn_node = dynamic_cast<Function*>(cloned.get());
+    fn_node->generic_params.clear();
 
     assert(fn_node != nullptr);
     assert(generic_params.size() >= args.size());
@@ -167,7 +168,7 @@ std::unique_ptr<Node> Function::instantiate(Parser& instance, const std::span<Ty
         i++;
     }
 
-    fn_node->generic_params.clear();
+    // fn_node->
     return cloned;
 }
 

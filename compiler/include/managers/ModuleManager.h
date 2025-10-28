@@ -63,6 +63,7 @@ public:
     void setMainModParser(Parser* parser) {
         assert(parser != nullptr);
         m_MainModule = parser;
+        m_ModuleMap[parser->m_FilePath] = std::unique_ptr<Parser>(m_MainModule);
         m_ModuleUIDTable.emplace(parser->m_FilePath, m_ModCount);
         m_ModCount += 1;
     }

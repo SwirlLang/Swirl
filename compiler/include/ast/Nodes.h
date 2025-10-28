@@ -382,6 +382,10 @@ struct ReturnStatement final : Node {
         return ret;
     }
 
+    void replaceType(const std::string_view from, Type* to) override {
+        value.replaceType(from, to);
+    }
+
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 

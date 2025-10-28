@@ -80,7 +80,7 @@ std::string SourceManager::getCurrentLine() const {
 void SourceManager::switchSource(const std::size_t from, const std::size_t to) {
     std::string new_source;
     for (auto i = from; i <= to; i++) {
-        new_source += getLineAt(i) + '\n';
+        new_source += getLineAt(i);
     }
 
     m_Source = std::move(new_source);

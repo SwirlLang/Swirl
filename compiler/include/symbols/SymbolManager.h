@@ -134,7 +134,11 @@ public:
         } return nullptr;
     }
 
-    IdentInfo* getIDInfoFor(const Ident& id, const std::optional<ErrorCallback_t>& err_callback = std::nullopt);
+    IdentInfo* getIDInfoFor(
+        const Ident& id,
+        const std::optional<ErrorCallback_t>& err_callback = std::nullopt,
+        const std::optional<ErrorCallback_t>& generic_err_callback = std::nullopt);
+
     IdentInfo* instantiateGenerics(IdentInfo* id, const std::vector<TypeWrapper*>& args, const ErrorCallback_t&);
 
     /// returns the global scope's pointer

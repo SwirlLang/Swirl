@@ -65,9 +65,11 @@ class Parser {
     // ---*--- Flags  ---*---
     Function*    m_LatestFuncNode = nullptr;
     bool         m_LastSymWasExported = false;
-    bool         m_LastSymIsExtern  = false;
-    bool         m_IsMainModule     = false;    // is the module the parser represents the main one?
+    bool         m_LastSymIsExtern    = false;
+    bool         m_IsMainModule       = false;    // is the module the parser represents the main one?
+    bool         m_IsBeingCloned      = false;
 
+    std::size_t  m_CloneCount = 0;
     std::vector<Type*> m_CurrentStructTy{nullptr};  // the type of the struct being parsed
 
     std::string m_ExternAttributes;
@@ -101,6 +103,7 @@ class Parser {
     friend class LLVMBackend;
     friend class AnalysisContext;
     friend class ExpressionParser;
+    friend class ClonedState;
 
 
 public:
@@ -147,6 +150,10 @@ public:
     void stackSafeguard() const;
 
     void toggleIsMainModule() { m_IsMainModule = !m_IsMainModule; }
+
+    std::size_t getCloneCount() {
+        return ++m_CloneCount;
+    }
 
     /// Calls `inserter` with the symbol name for each exported-symbol in the AST
     template <typename Inserter_t> requires std::invocable<Inserter_t, std::string>

@@ -45,7 +45,11 @@ IdentInfo* SymbolManager::instantiateGenerics(IdentInfo* id, const std::vector<T
 }
 
 
-IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<ErrorCallback_t>& err_callback) {
+IdentInfo* SymbolManager::getIDInfoFor(
+    const Ident& id,
+    const std::optional<ErrorCallback_t>& err_callback,
+    const std::optional<ErrorCallback_t>& generic_err_callback) {
+
     auto report_error = [&err_callback](ErrCode code, const ErrorContext& ctx) {
         if (err_callback.has_value())
             (*err_callback)(code, ctx);
@@ -56,7 +60,8 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
 
         // handle generic arguments
         if (!id.full_qualification.front().generic_args.empty()) {
-            return instantiateGenerics(glob_id, id.full_qualification.front().generic_args, *err_callback);
+            assert(generic_err_callback.has_value());
+            return instantiateGenerics(glob_id, id.full_qualification.front().generic_args, *generic_err_callback);
         } return glob_id;
     }
 

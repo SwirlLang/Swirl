@@ -24,8 +24,8 @@ class CompilerInst {
     fs::path      m_OutputPath;     // path/to/executable (absolute)
     unsigned      m_BaseThreadCount = std::thread::hardware_concurrency() / 2;
 
-    std::optional<Parser> m_MainModParser = std::nullopt;
-    ErrorCallback_t       m_ErrorCallback = nullptr;
+    Parser* m_MainModParser = nullptr;
+    ErrorCallback_t         m_ErrorCallback = nullptr;
 
     using Backends_t = std::vector<std::unique_ptr<LLVMBackend>>;
 
@@ -85,9 +85,9 @@ public:
             m_ErrorManager.m_OutputPipeline = &err_pipeline;
         }
 
-        m_MainModParser.emplace(m_SrcPath, m_ErrorCallback, m_ModuleManager);
+        m_MainModParser = new Parser(m_SrcPath, m_ErrorCallback, m_ModuleManager);
         m_MainModParser->toggleIsMainModule();
-        m_ModuleManager.setMainModParser(&(*m_MainModParser));
+        m_ModuleManager.setMainModParser(m_MainModParser);
 
         m_MainModParser->parse();
 

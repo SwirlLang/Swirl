@@ -597,6 +597,11 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
             *this,
             [ctx](auto a, auto b) {
                 ctx.reportError(a, std::move(b));
+            },
+
+            [ctx, this](ErrCode code, ErrorContext err_ctx) {
+                err_ctx.location = location;
+                ctx.reportError(code, std::move(err_ctx));
             });
     }
 
@@ -670,6 +675,10 @@ AnalysisResult ReturnStatement::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
+    if (!generic_params.empty()) {
+        return {};
+    }
+
     return_type.analyzeSemantics(ctx);
 
     int return_stmt_counter = 0;

@@ -343,6 +343,9 @@ CGValue Scope::llvmCodegen(LLVMBackend &instance) {
 
 CGValue Function::llvmCodegen(LLVMBackend &instance) {
     PRE_SETUP();
+    if (!generic_params.empty())
+        return {};
+
     const auto fn_sw_type = dynamic_cast<FunctionType*>(instance.SymMan.lookupType(ident));
 
     auto name = is_extern || ident->toString() == "main" ?

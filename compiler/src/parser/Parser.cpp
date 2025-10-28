@@ -409,8 +409,11 @@ std::unique_ptr<Function> Parser::parseFunction() {
     auto func_nd = std::make_unique<Function>();
     SET_NODE_ATTRS(func_nd.get());
 
+    const std::string func_ident = m_IsBeingCloned ?
+        m_Stream.next().value + "__Sw_cloned_" + std::to_string(getCloneCount())
+        : m_Stream.next().value;
+
     // handle the special case of `main`
-    const std::string func_ident = m_Stream.next().value;
     if (func_ident == "main" && !m_IsMainModule) {
         reportError(ErrCode::MAIN_REDEFINED);
     }
@@ -830,10 +833,6 @@ Ident Parser::parseIdent() {
         ret.full_qualification.emplace_back(forwardStream().value);
     }
 
-    if (ret.full_qualification.size() == 1) {
-        ret.value = SymbolTable.getIDInfoFor(ret.full_qualification.front().name);
-    }
-
     return ret;
 }
 
@@ -1014,17 +1013,36 @@ Expression Parser::parseExpr() {
 }
 
 
+class ClonedState {
+public:
+    explicit ClonedState(Parser& parser): m_Parser(parser) {
+        parser.m_IsBeingCloned = true;
+    }
+
+    ~ClonedState() {
+        m_Parser.m_IsBeingCloned = false;
+    }
+
+private:
+    Parser& m_Parser;
+};
+
+
 std::unique_ptr<Node> Parser::cloneNode(IdentInfo* id) {
     assert(m_GlobalOffsets.contains(id));
     const auto glob_location = m_GlobalOffsets.at(id);
     m_SrcMan.switchSource(glob_location[0].Line, glob_location[1].Line);
 
+    ClonedState _(*this);
+
+    forwardStream();
+
     while (true) {
         if (m_Stream.eof()) throw std::runtime_error("Unexpected EOF");
         if (m_Stream.CurTok.type == KEYWORD) {
-            if (m_Stream.CurTok.value == "protocol" ||
-                m_Stream.CurTok.value == "fn" ||
-                m_Stream.CurTok.value == "struct") break;
-        } forwardStream();
+            if (m_Stream.CurTok.value == "fn"      ||
+                m_Stream.CurTok.value == "struct"  ||
+                m_Stream.CurTok.value == "protocol" ) break;
+        }
     } return dispatch();
 }
