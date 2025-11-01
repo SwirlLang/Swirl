@@ -1,10 +1,9 @@
 #pragma once
 #include <string>
 #include <vector>
-#include <functional>
-#include <lexer/Tokens.h>
-#include <managers/SourceManager.h>
-#include <utils/utils.h>
+
+#include "lexer/Tokens.h"
+#include "managers/SourceManager.h"
 
 
 class TokenStream {
@@ -68,10 +67,10 @@ public:
     void restoreCache() const;
 
     /// what token *types* are expected next
-    void expectTypes(std::initializer_list<TokenType>&& types);
+    [[deprecated]] void expectTypes(std::initializer_list<TokenType>&& types);
 
     /// when particular tokens are expected next
-    void expectTokens(std::initializer_list<Token>&& tokens);
+    [[deprecated]] void expectTokens(std::initializer_list<Token>&& tokens);
 
     Token next(bool modify_cur_tk = true);
     Token peek();

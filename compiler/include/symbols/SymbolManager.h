@@ -1,17 +1,17 @@
 #pragma once
-#include <filesystem>
 #include <string>
 #include <ranges>
-#include <unordered_map>
 #include <utility>
+#include <filesystem>
+#include <unordered_map>
 
 #include "metadata.h"
 
-#include <types/definitions.h>
-#include <types/TypeManager.h>
-#include <symbols/IdentManager.h>
-#include <errors/ErrorManager.h>
-#include <llvm/IR/Value.h>
+#include "types/definitions.h"
+#include "types/TypeManager.h"
+#include "symbols/IdentManager.h"
+#include "errors/ErrorManager.h"
+#include "llvm/ADT/STLExtras.h"
 
 
 struct ErrorContext;
@@ -68,7 +68,6 @@ class SymbolManager {
     std::unordered_map<std::string, Namespace*> m_QualifierTable;
 
     ErrorCallback_t m_ErrorCallback;
-    std::unordered_map<Type*, IdentInfo*> m_TypeToIDInfo;  // maps method-containing types to their IdentInfo*
 
 public:
     inline static const std::unordered_map<Intrinsic::Kind, IntrinsicDef> IntrinsicTable = {
@@ -90,14 +89,6 @@ public:
         m_ScopeTrack.push_back(&m_Scopes.emplace_back(m_ModulePath));
         // Register all built-in types in the global scope
         for (const auto &[str, type] : BuiltinTypes) {
-            if (DefaultTypeMethods.contains(type)) {
-                // Namespace* type_namespace = newScope();
-                // // DefaultTypeMethods[type](type_namespace, *this);
-                // TableEntry table_entry{.scope = type_namespace};
-                // m_TypeToIDInfo.insert({type, registerDecl(std::string(str), table_entry)});
-                // moveToPreviousScope();
-            }
-
             const auto id = m_ScopeTrack.back()->getNewIDInfo(std::string(str));
             registerType(id, type);
         }
@@ -208,12 +199,6 @@ public:
         if (entry.is_exported) {
             registerExportedSymbol(name, {.id = id});
         } return id;
-    }
-
-    IdentInfo* getBuiltinTypeIdentInfo(Type* type) {
-        if (m_TypeToIDInfo.contains(type)) {
-            return m_TypeToIDInfo[type];
-        } return nullptr;
     }
 
     IdentInfo* registerDecl(IdentInfo* id, TableEntry& entry) {

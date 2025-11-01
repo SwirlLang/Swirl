@@ -892,10 +892,6 @@ AnalysisResult Op::analyzeSemantics(AnalysisContext& ctx) {
                 const auto accessed_type = ctx.getEvalType(getLHS())->getWrappedTypeOrInstance();
                 auto lhs_id_info = accessed_type->getIdent();
 
-                // try to look up in the primitive table instead
-                if (lhs_id_info == nullptr) {
-                    lhs_id_info = ctx.SymMan.getBuiltinTypeIdentInfo(accessed_type);
-                }
 
                 if (lhs_id_info != nullptr)
                 {

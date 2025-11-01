@@ -1,9 +1,5 @@
-#include <parser/Parser.h>
-#include <managers/ModuleManager.h>
-
-
-std::unordered_map<Type*, std::function<void(Namespace*, SymbolManager&)>> SymbolManager::DefaultTypeMethods = {
-};
+#include "parser/Parser.h"
+#include "managers/ModuleManager.h"
 
 
 TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {
@@ -62,7 +58,9 @@ IdentInfo* SymbolManager::getIDInfoFor(
         if (!id.full_qualification.front().generic_args.empty()) {
             assert(generic_err_callback.has_value());
             return instantiateGenerics(glob_id, id.full_qualification.front().generic_args, *generic_err_callback);
-        } return glob_id;
+        }
+        assert(glob_id != nullptr);
+        return glob_id;
     }
 
     const Namespace* look_at = nullptr;
