@@ -467,7 +467,8 @@ std::unique_ptr<Function> Parser::parseFunction() {
     } else {
         // not a method, func_nd.ident has been set before
         assert(func_nd->ident);
-        assert(SymbolTable.registerDecl(func_nd->ident, entry));
+        auto _ = SymbolTable.registerDecl(func_nd->ident, entry);
+        assert(_);
     }
 
     function_t->ident = func_nd->ident;
