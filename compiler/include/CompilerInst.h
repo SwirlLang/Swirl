@@ -103,9 +103,9 @@ public:
 
             while (const auto mod = m_ModuleManager.popZeroDepVec()) {
                 std::print("{}, ", mod->m_FilePath.string());
-                m_ThreadPool.enqueue(sw::Task([mod] {
+                m_ThreadPool.enqueue([mod] {
                     mod->performSema();
-                }));
+                });
             }
 
             std::println("\n-------------");

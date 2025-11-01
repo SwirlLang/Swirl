@@ -48,13 +48,13 @@ public:
         }
     }
 
-    void enqueue(Task task) {
+    void enqueue(std::function<void()> callable) {
         if (!m_BaseThreadCount.has_value()) {
-            auto fut = task.get_future();
-            task();
-            fut.get();
+            callable();
             return;
         }
+
+        auto task = Task(std::move(callable));
         m_Futures.push_back(task.get_future());
         m_WorkPool.push(std::move(task));
     }

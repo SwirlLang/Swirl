@@ -49,9 +49,9 @@ void CompilerInst::startLLVMCodegen() {
 
     for (Parser* parser : m_ModuleManager) {
         auto* backend = llvm_backends.emplace_back(new LLVMBackend{*parser}).get();
-        m_ThreadPool.enqueue(sw::Task([backend] {
+        m_ThreadPool.enqueue([backend] {
             backend->startGeneration();
-        }));
+        });
     } m_ThreadPool.wait();
 
     for (const auto& backend : llvm_backends) {
