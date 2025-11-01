@@ -66,6 +66,9 @@ void CompilerInst::generateObjectFiles(Backends_t& backends) {
     const auto build_dir = m_SrcPath.parent_path() / ".build";
     if (!exists(build_dir)) {
         create_directory(build_dir);
+    }
+
+    if (!exists(build_dir / "obj")) {
         create_directory(build_dir / "obj");
     }
 
