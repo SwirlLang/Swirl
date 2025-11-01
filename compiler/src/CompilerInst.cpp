@@ -80,8 +80,9 @@ void CompilerInst::generateObjectFiles(Backends_t& backends) {
     for (const auto& [counter, backend] : llvm::enumerate(backends)) {
         llvm::legacy::PassManager pass_man;
         std::error_code ec;
-        llvm::raw_fd_ostream dest((build_dir / "obj" / ("output_" + std::to_string(counter))).string(), ec,
-                                  llvm::sys::fs::OpenFlags::OF_None);
+        llvm::raw_fd_ostream dest((build_dir / "obj" / ("output_" + std::to_string(counter))).string(),
+            ec,
+            llvm::sys::fs::OpenFlags::OF_None);
 
         if (ec) {
             throw std::runtime_error("llvm::raw_fd_ostream failed! " + ec.message());
