@@ -833,6 +833,10 @@ Ident Parser::parseIdent() {
         ret.full_qualification.emplace_back(forwardStream().value);
     }
 
+    if (ret.full_qualification.size() == 1) {
+        ret.value = SymbolTable.getIDInfoFor(ret.full_qualification.front().name);
+    }
+
     return ret;
 }
 
