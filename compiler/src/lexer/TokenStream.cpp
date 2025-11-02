@@ -161,15 +161,11 @@ Token TokenStream::readNextTok() {
 TokenStream::TokenStream(SourceManager& src_man) : m_Stream{src_man} {}
 
 void TokenStream::setReturnPoint() {
-    m_Cache.Line = m_Stream.Line;
-    m_Cache.Pos  = m_Stream.Pos;
-    m_Cache.Col  = m_Stream.Col;
+    m_Cache = m_Stream.getStreamState();
 }
 
 void TokenStream::restoreCache() const {
-    m_Stream.Pos  = m_Cache.Pos;
-    m_Stream.Line = m_Cache.Line;
-    m_Stream.Col  = m_Cache.Col;
+    m_Stream.setStreamState(m_Cache);
 }
 
 void TokenStream::expectTypes(std::initializer_list<TokenType>&& types) {
@@ -212,7 +208,7 @@ Token TokenStream::peek() {
 }
 
 StreamState TokenStream::getStreamState() const {
-    return {m_Stream.Line, m_Stream.Pos, m_Stream.Col};
+    return m_Stream.getStreamState();
 }
 
 bool TokenStream::eof() const {
