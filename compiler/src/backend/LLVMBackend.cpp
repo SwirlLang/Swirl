@@ -145,7 +145,7 @@ void LLVMBackend::codegenChildrenUntilRet(NodesVec& children) {
 }
 
 
-CGValue IntLit::llvmCodegen(LLVMBackend &instance) {
+CGValue IntLit::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
     llvm::Value* ret = nullptr;
 
@@ -175,15 +175,15 @@ CGValue IntLit::llvmCodegen(LLVMBackend &instance) {
     return CGValue::rValue(ret);
 }
 
-CGValue FloatLit::llvmCodegen(LLVMBackend &instance) {
+CGValue FloatLit::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
     return CGValue::rValue(llvm::ConstantFP::get(instance.getBoundLLVMType(), value));
 }
 
-CGValue StrLit::llvmCodegen(LLVMBackend &instance) {
+CGValue StrLit::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
     auto ptr = instance.Builder.CreateGlobalString(
-        value, "", 0, nullptr, false);
+        value, "", 0, instance.getLLVMModule(), false);
 
     return CGValue::rValue(llvm::ConstantStruct::get(
         llvm::dyn_cast<llvm::StructType>(GlobalTypeStr.llvmCodegen(instance)), {
