@@ -75,13 +75,16 @@ Token TokenStream::readString(const char del) const {
 Token TokenStream::readOperator() const {
     Token tok = {OP, std::string(1, m_Stream.getCurrentChar()), getStreamState()};
     if (m_Stream.eof()) return tok;
-    if (const auto pot_op = std::string(1, m_Stream.getCurrentChar()) + m_Stream.peek(); OperatorSet.contains(pot_op)) {
+
+    const auto pot_op = std::string(1, m_Stream.getCurrentChar()) + m_Stream.peek();
+    if (OperatorSet.contains(pot_op)) {
         m_Stream.next();
 
         // discard the next operator if it's a comment not at EOF
         if (pot_op == "//") {
-            if (m_Stream.eof()) [[unlikely]] return {NONE, "TOKEN:EOF", getStreamState()};
-            m_Stream.next();
+            if (m_Stream.eof()) [[unlikely]] {
+                return {NONE, "TOKEN:EOF", getStreamState()};
+            } m_Stream.next();
         }
 
         return {OP, pot_op, getStreamState()};
@@ -104,7 +107,10 @@ Token TokenStream::readNextTok() {
                 if (op.value == ".") {
                     const char next_char = m_Stream.peek();
                     if (!m_isPreviousTokIdent && isDigit(next_char) && next_char != '_')
-                        return {NUMBER, "0" + readWhile(isDigit, [](char c) {return c == '_';}), getStreamState(), CT_FLOAT};
+                        return {NUMBER,
+                            "0" + readWhile(isDigit, [](const char c) {
+                                return c == '_';
+                            }), getStreamState(), CT_FLOAT};
 
                     if (next_char == '.' && !m_Stream.almostEOF() && m_Stream.peekDeeper() == '.') {
                         m_Stream.next(); m_Stream.next();
@@ -133,13 +139,19 @@ Token TokenStream::readNextTok() {
                     switch (m_Stream.peek()) {
                         case 'b':
                             m_Stream.next();
-                            return {NUMBER, "0" + readWhile(isBinaryDigit, [](char c) {return c == '_';}), getStreamState(), CT_INT};
+                            return {NUMBER, "0" + readWhile(isBinaryDigit, [](const char c) {
+                                return c == '_';
+                            }), getStreamState(), CT_INT};
                         case 'o':
                             m_Stream.next();
-                            return {NUMBER, "0" + readWhile(isOctalDigit,  [](char c) {return c == '_';}), getStreamState(), CT_INT};
+                            return {NUMBER, "0" + readWhile(isOctalDigit, [](const char c) {
+                                return c == '_';
+                            }), getStreamState(), CT_INT};
                         case 'x':
                             m_Stream.next();
-                            return {NUMBER, "0" + readWhile(isHexDigit,    [](char c) {return c == '_';}), getStreamState(), CT_INT};
+                            return {NUMBER, "0" + readWhile(isHexDigit, [](const char c) {
+                                return c == '_';
+                            }), getStreamState(), CT_INT};
                     }
                 }
                 auto val = readWhile(isDigit, [](char c) {return c == '_';});
@@ -148,7 +160,9 @@ Token TokenStream::readNextTok() {
                     if (m_Stream.almostEOF()) return {NUMBER, std::move(val), getStreamState(), CT_INT};
                     if (isDigit(m_Stream.peekDeeper()) && m_Stream.peekDeeper() != '_') {
                         m_Stream.next();
-                        return {NUMBER, val + readWhile(isDigit, [](char c) {return c == '_';}), getStreamState(), CT_FLOAT};
+                        return {NUMBER, val + readWhile(isDigit, [](const char c) {
+                            return c == '_';
+                        }), getStreamState(), CT_FLOAT};
                     }
                 }
                 return {NUMBER, std::move(val), getStreamState(), CT_INT};
