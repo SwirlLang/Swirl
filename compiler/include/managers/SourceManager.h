@@ -15,6 +15,8 @@ class SourceManager {
     std::vector<std::array<std::size_t, 2>> m_LineOffsets;  // (line no. - 1) : {its starting pos, size}
     std::size_t Pos = 0, Line = 1, Col = 0;
 
+    std::string m_BuiltInStr;
+
 public:
 
     explicit SourceManager(const std::filesystem::path& file_path);

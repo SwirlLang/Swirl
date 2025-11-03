@@ -10,16 +10,16 @@
 using Triple = llvm::Triple;
 #define TargetTriple Triple(CompilerInst::TargetTriple)
 
-static const std::string BuiltInStr = std::format(R"(
-// comptime platform = "{}";
-// comptime arch     = "{}";
-)",
-TargetTriple.getOS() == Triple::Win32 ? "windows"
-    : TargetTriple.getOS() == Triple::Linux ? "linux"
-    : TargetTriple.getOS() == Triple::MacOSX ? "darwin" : "unknown",
-
-TargetTriple.getArch() == Triple::x86 ? "x86"
-    : TargetTriple.getArch() == Triple::x86_64 ? "x64"
+#define BuiltInStr std::format(R"(
+comptime platform = "{}";
+comptime arch     = "{}";
+)",                                                                      \
+TargetTriple.getOS() == Triple::Win32 ? "windows"                        \
+    : TargetTriple.getOS() == Triple::Linux ? "linux"                    \
+    : TargetTriple.getOS() == Triple::MacOSX ? "darwin" : "unknown",     \
+                                                                         \
+TargetTriple.getArch() == Triple::x86 ? "x86"                            \
+    : TargetTriple.getArch() == Triple::x86_64 ? "x64"                   \
     : TargetTriple.getArch() == Triple::aarch64 ? "arm64" : "unknown");
 
 
@@ -27,7 +27,8 @@ SourceManager::SourceManager(const std::filesystem::path& file_path): m_SourcePa
     std::ifstream file_stream{file_path};
 
     std::size_t pos = 0;
-    m_Source = BuiltInStr;
+    m_BuiltInStr = BuiltInStr;
+    m_Source = m_BuiltInStr;
 
     for (std::string line; std::getline(file_stream, line); ) {
         line += '\n';
@@ -59,7 +60,7 @@ char SourceManager::next() {
     if (chr == '\n') {
         // line_size = 0;
         m_CurrentLine.clear();
-        if (Pos != m_Source.size() && Pos > BuiltInStr.size()) {
+        if (Pos != m_Source.size() && Pos > m_BuiltInStr.size()) {
             Line++;
         } Col = 0;
 
@@ -75,7 +76,7 @@ char SourceManager::next() {
 
 std::string SourceManager::getLineAt(const std::size_t line) const {
     auto [from, line_size] = m_LineOffsets.at(line - 1);
-    return m_Source.substr(from + BuiltInStr.size(), line_size);
+    return m_Source.substr(from + m_BuiltInStr.size(), line_size);
 }
 
 std::optional<std::string> SourceManager::getEnumeratedLine(std::size_t at, std::size_t max_line_no) {
