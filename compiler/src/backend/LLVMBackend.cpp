@@ -128,7 +128,16 @@ std::string LLVMBackend::mangleString(IdentInfo* id) {
 }
 
 
-void LLVMBackend::codegenChildrenUntilRet(NodesVec& children) {
+void LLVMBackend::codegenChildrenUntilRet(NodesVec& children, llvm::Value* condition) {
+    if (condition) {
+        if (llvm::isa<llvm::ConstantInt>(condition)) {
+            auto v = llvm::cast<llvm::ConstantInt>(condition);
+            if (v->isZero()) {
+                return;
+            }
+        }
+    }
+
     for (const auto& child : children) {
         switch (child->getNodeType()) {
             case ND_BREAK:
@@ -912,7 +921,7 @@ CGValue Condition::llvmCodegen(LLVMBackend &instance) {
 
     {
         instance.Builder.SetInsertPoint(if_block);
-        instance.codegenChildrenUntilRet(if_children);
+        instance.codegenChildrenUntilRet(if_children, if_cond);
 
         // insert a jump to the merge block if the scope either doesn't end with a
         // terminator or is empty
@@ -932,7 +941,7 @@ CGValue Condition::llvmCodegen(LLVMBackend &instance) {
 
             instance.Builder.CreateCondBr(cnd, elif_block, next_elif);
             instance.Builder.SetInsertPoint(elif_block);
-            instance.codegenChildrenUntilRet(children);
+            instance.codegenChildrenUntilRet(children, cnd);
 
             // insert a jump to the merge block if the scope either doesn't end with a
             // terminator or is empty

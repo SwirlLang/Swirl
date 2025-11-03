@@ -59,7 +59,6 @@ IdentInfo* SymbolManager::getIDInfoFor(
             assert(generic_err_callback.has_value());
             return instantiateGenerics(glob_id, id.full_qualification.front().generic_args, *generic_err_callback);
         }
-        assert(glob_id != nullptr);
         return glob_id;
     }
 

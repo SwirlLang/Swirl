@@ -73,8 +73,10 @@ public:
     /// note: `subject` is supposed to be a "loaded" value
     llvm::Value* castIfNecessary(Type* source_type, llvm::Value* subject);
 
-    /// Codegens the vector of nodes while respecting statements like `return`.
-    void codegenChildrenUntilRet(NodesVec& children);
+    /// Codegens the vector of nodes while respecting statements like `return`. If `condition` is not
+    /// nullptr, checks whether it is a `ConstantInt`, and if so, whether it is 0 (in which case no
+    /// code generation takes place).
+    void codegenChildrenUntilRet(NodesVec& children, llvm::Value* condition = nullptr);
 
     /// Begins the IR generation
     void startGeneration() {
