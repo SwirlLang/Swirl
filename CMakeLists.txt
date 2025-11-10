@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(swirl VERSION 0.0.5)
+project(swirl VERSION 0.0.6)
 
 add_subdirectory(compiler)
 
