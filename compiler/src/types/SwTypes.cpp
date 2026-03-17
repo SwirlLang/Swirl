@@ -74,7 +74,7 @@ llvm::Type* StructType::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Type* PointerType::llvmCodegen(LLVMBackend& instance) {
-    return llvm::PointerType::get(of_type->llvmCodegen(instance), 0);
+    return llvm::PointerType::get(instance.Context, 0);
 }
 
 
@@ -110,7 +110,7 @@ llvm::Type* ReferenceType::llvmCodegen(LLVMBackend& instance) {
         return ty.llvmCodegen(instance);
     }
 
-    return llvm::PointerType::get(of_type->llvmCodegen(instance), 0);
+    return llvm::PointerType::get(instance.Context, 0);
 }
 
 llvm::Type* ArrayType::llvmCodegen(LLVMBackend& instance) {
@@ -130,42 +130,42 @@ llvm::Type* TypeChar::llvmCodegen(LLVMBackend& instance) {
 
 
 llvm::Type* TypeI8::llvmCodegen(LLVMBackend& instance) {
-    auto ret = llvm::Type::getInt8Ty(instance.Context);
+    const auto ret = llvm::Type::getInt8Ty(instance.Context);
     return ret;
 }
 
 llvm::Type* TypeI32::llvmCodegen(LLVMBackend& instance) {
-    auto ret = llvm::Type::getInt32Ty(instance.Context);
+    const auto ret = llvm::Type::getInt32Ty(instance.Context);
     return ret;
 }
 
 llvm::Type* TypeI16::llvmCodegen(LLVMBackend& instance) {
-    auto ret = llvm::Type::getInt16Ty(instance.Context);
+    const auto ret = llvm::Type::getInt16Ty(instance.Context);
     return ret;
 }
 
 llvm::Type* TypeI64::llvmCodegen(LLVMBackend& instance) {
-    auto ret = llvm::Type::getInt64Ty(instance.Context);
+    const auto ret = llvm::Type::getInt64Ty(instance.Context);
     return ret;
 }
 
 llvm::Type* TypeI128::llvmCodegen(LLVMBackend& instance) {
-    auto ret = llvm::Type::getInt128Ty(instance.Context);
+    const auto ret = llvm::Type::getInt128Ty(instance.Context);
     return ret;
 }
 
 llvm::Type* TypeF32::llvmCodegen(LLVMBackend& instance) {
-    auto ret = llvm::Type::getFloatTy(instance.Context);
+    const auto ret = llvm::Type::getFloatTy(instance.Context);
     return ret;
 }
 
 llvm::Type* TypeF64::llvmCodegen(LLVMBackend& instance) {
-    auto ret = llvm::Type::getDoubleTy(instance.Context);
+    const auto ret = llvm::Type::getDoubleTy(instance.Context);
     return ret;
 }
 
 llvm::Type* TypeBool::llvmCodegen(LLVMBackend& instance) {
-    auto ret = llvm::Type::getInt1Ty(instance.Context);
+    const auto ret = llvm::Type::getInt1Ty(instance.Context);
     return ret;
 }
 
@@ -213,7 +213,7 @@ DEFINE_ATTRIBUTES(TypeCUIntPtr, true)
 
 
 unsigned int TypeCL::getBitWidth() {
-    const auto arch = llvm::Triple(CompilerInst::getTargetTriple()).getArch();
+    const auto arch = llvm::Triple(CompilerInst::TargetTriple).getArch();
     if (arch == llvm::Triple::x86_64 || arch == llvm::Triple::aarch64)
         return 64;
     if (arch == llvm::Triple::x86 || arch == llvm::Triple::arm)
@@ -261,7 +261,7 @@ llvm::Type* TypeCPtrDiffT::llvmCodegen(LLVMBackend& instance) {
 
 
 unsigned int TypeCWChar::getBitWidth() {
-    const auto triple = llvm::Triple(CompilerInst::getTargetTriple());
+    const auto triple = llvm::Triple(CompilerInst::TargetTriple);
     if (triple.getOS() == llvm::Triple::Win32) {
         return 16;
     } return 32;
@@ -274,7 +274,7 @@ llvm::Type* TypeCWChar::llvmCodegen(LLVMBackend& instance) {
 
 
 unsigned int TypeCLDouble::getBitWidth() {
-    const auto triple = llvm::Triple(CompilerInst::getTargetTriple());
+    const auto triple = llvm::Triple(CompilerInst::TargetTriple);
 
     if (triple.getArch() == llvm::Triple::x86_64) {
         if (triple.getOS() == llvm::Triple::Win32) {
@@ -308,7 +308,7 @@ unsigned int TypeCLDouble::getBitWidth() {
 
 
 llvm::Type* TypeCLDouble::llvmCodegen(LLVMBackend& instance) {
-    const auto triple = llvm::Triple(CompilerInst::getTargetTriple());
+    const auto triple = llvm::Triple(CompilerInst::TargetTriple);
 
     if (triple.getOS() == llvm::Triple::Linux && triple.getArch() == llvm::Triple::x86) {
         return llvm::Type::getX86_FP80Ty(instance.Context);

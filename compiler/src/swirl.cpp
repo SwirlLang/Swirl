@@ -68,7 +68,7 @@ int main(const int argc, const char** argv) {
         }
         if (app.contains_flag("-d")) {
             // format: `path:alias`
-            for (auto dep : app.get_flag_values("-d"))
+            for (const auto& dep : app.get_flag_values("-d"))
                 CompilerInst::addPackageEntry(dep);
         }
         if (app.contains_flag("-p"))
