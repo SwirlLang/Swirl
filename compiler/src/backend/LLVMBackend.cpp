@@ -61,12 +61,12 @@ LLVMBackend::LLVMBackend(Parser& parser)
     static std::once_flag _;
     std::call_once(_, [&] {
         TargetMachine = target->createTargetMachine(
-            llvm::Triple(CompilerInst::TargetTriple), "generic", "", options, reloc_model
+            llvm::Triple(CompilerInst::TargetTriple).getTriple(), "generic", "", options, reloc_model
         );
     });
 
     LModule->setDataLayout(TargetMachine->createDataLayout());
-    LModule->setTargetTriple(llvm::Triple(CompilerInst::TargetTriple));
+    LModule->setTargetTriple(llvm::Triple(CompilerInst::TargetTriple).getTriple());
 }
 
 
