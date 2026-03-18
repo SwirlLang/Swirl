@@ -3,19 +3,19 @@
 
 
 TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {
-    if (const auto mod_path = id->getModulePath(); mod_path != m_ModulePath) {
+    if (sw::FileHandle* mod_path = id->getModuleFileHandle(); mod_path != m_ModuleHandle) {
         return m_ModuleMap.get(mod_path).SymbolTable.m_IdToTableEntry.at(id);
     } return m_IdToTableEntry.at(id);
 }
 
 Type* SymbolManager::lookupType(IdentInfo* id) {
     if (!id) return nullptr;
-    if (const auto mod_path = id->getModulePath(); mod_path != m_ModulePath) {
+    if (const auto mod_path = id->getModuleFileHandle(); mod_path != m_ModuleHandle) {
         return m_ModuleMap.get(mod_path).SymbolTable.m_TypeManager.getFor(id);
     } return m_TypeManager.getFor(id);
 }
 
-IdentInfo* SymbolManager::getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) const {
+IdentInfo* SymbolManager::getIdInfoFromModule(sw::FileHandle* mod_path, const std::string& name) const {
     return m_ModuleMap.get(mod_path).SymbolTable.getIdInfoOfAGlobal(name, true);
 }
 
@@ -24,7 +24,7 @@ IdentInfo* SymbolManager::instantiateGenerics(IdentInfo* id, const std::vector<T
     assert(node != nullptr);
 
     // TODO: potential race condition
-    Parser& parser_instance = m_ModuleMap.get(id->getModulePath());
+    Parser& parser_instance = m_ModuleMap.get(id->getModuleFileHandle());
     const auto cloned_node  = parser_instance.cloneNode(id);
     const auto glob_node    = cloned_node->to<GlobalNode>();
 
@@ -127,6 +127,6 @@ IdentInfo* SymbolManager::getIDInfoFor(
 }
 
 
-Namespace* SymbolManager::getGlobalScopeFromModule(const fs::path& path) const {
-    return m_ModuleMap.get(path).SymbolTable.getGlobalScope();
+Namespace* SymbolManager::getGlobalScopeFromModule(sw::FileHandle* mod) const {
+    return m_ModuleMap.get(mod).SymbolTable.getGlobalScope();
 }

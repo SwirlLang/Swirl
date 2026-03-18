@@ -5,7 +5,6 @@
 #include <concepts>
 #include <filesystem>
 #include <unordered_set>
-#include <print>
 
 #include "definitions.h"
 #include "ast/Nodes.h"
@@ -15,12 +14,13 @@
 #include "symbols/SymbolManager.h"
 
 #include "ExpressionParser.h"
+#include "utils/FileSystem.h"
 
 
 class Parser;
 class ModuleManager;
 class AnalysisContext;
-
+namespace sw { class FileSystem; }
 
 /// A type which can represent either a `Type*` or a `Node*`.
 struct SwObject : std::variant<Type*, Node*> {
@@ -55,25 +55,25 @@ struct std::hash<SwObject> {
 
 
 class Parser {
-    TokenStream    m_Stream;
-    SourceManager  m_SrcMan;
-    ModuleManager& m_ModuleMap;
+    TokenStream      m_Stream;
+    SourceManager    m_SrcMan;
+    ModuleManager&   m_ModuleMap;
 
-    ErrorCallback_t m_ErrorCallback;  // the callback for reporting an error
+    ErrorCallback_t  m_ErrorCallback;  // the callback for reporting an error
     ExpressionParser m_ExpressionParser{*this};
 
     // ---*--- Flags  ---*---
-    Function*    m_LatestFuncNode = nullptr;
+    Function*    m_LatestFuncNode     = nullptr;
     bool         m_LastSymWasExported = false;
     bool         m_LastSymIsExtern    = false;
     bool         m_IsMainModule       = false;    // is the module the parser represents the main one?
     bool         m_IsBeingCloned      = false;
 
-    std::size_t  m_CloneCount = 0;
-    std::vector<Type*> m_CurrentStructTy{nullptr};  // the type of the struct being parsed
+    std::size_t          m_CloneCount = 0;
+    std::vector<Type*>   m_CurrentStructTy{nullptr};  // the type of the struct being parsed
 
-    std::string m_ExternAttributes;
-    Expression  m_AttributeList;
+    std::string          m_ExternAttributes;
+    Expression           m_AttributeList;
     std::optional<Token> m_ReturnFakeToken = std::nullopt;
     // ---*--- ---*--- ---*---
 
@@ -81,7 +81,7 @@ class Parser {
     std::size_t           m_UnresolvedDeps{};  // counter for the no. of unresolved dependencies
     std::vector<SwObject> m_ParseStack;        // currently-being-parsed object pointer stays at the top
 
-    std::filesystem::path m_FilePath;
+    sw::FileHandle*       m_FileHandle;
 
     std::unordered_set<Parser*> m_Dependents;     // the modules which depend on this module
     std::unordered_set<Parser*> m_Dependencies;  // the modules which this module depends on
@@ -92,6 +92,8 @@ class Parser {
     // maps the IdentInfo* of global nodes (nodes inheriting from `GlobalNode`) to where they begin and
     // where they end
     std::unordered_map<IdentInfo*, std::array<StreamState, 2>> m_GlobalOffsets;
+
+    sw::FileSystem& m_FileSystem;
 
     struct Bracket_t { char val{}; StreamState location; };
     std::vector<Bracket_t> m_BracketTracker;
@@ -112,7 +114,7 @@ public:
     AST_t AST;
     std::unordered_map<IdentInfo*, Node*> NodeJmpTable;  // maps global symbols to their nodes
 
-    explicit Parser(const std::filesystem::path& path, ErrorCallback_t, ModuleManager&);
+    explicit Parser(sw::FileSystem& fs, const std::filesystem::path& path, ErrorCallback_t, ModuleManager&);
 
     using GenericArgList_t = std::vector<TypeWrapper>;
 
@@ -181,7 +183,7 @@ struct Parser::NodeAttrHelper {
     NodeAttrHelper(Node* node, Parser& instance): node(node), instance(instance) {
         node->is_exported = instance.m_LastSymWasExported;
         node->location.from = instance.m_Stream.getStreamState();
-        node->location.source = instance.m_FilePath;
+        node->location.source = instance.m_FileHandle;
         instance.m_Depth++;
 
         instance.stackSafeguard();

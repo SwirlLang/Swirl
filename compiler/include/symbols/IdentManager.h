@@ -7,15 +7,16 @@
 
 class IdentInfo {
     std::string id;
-    std::filesystem::path mod_path;
+    sw::FileHandle* handle = nullptr;
+
     friend class IdentManager;
 
 public:
     IdentInfo() = delete;
 
-    explicit IdentInfo(std::string ident, std::filesystem::path path)
+    explicit IdentInfo(std::string ident, sw::FileHandle* mod_handle)
         : id(std::move(ident))
-        , mod_path(std::move(path)) {}
+        , handle(mod_handle) {}
 
     [[nodiscard]]
     const std::string& toString() const {
@@ -23,24 +24,24 @@ public:
     }
 
     [[nodiscard]]
-    const std::filesystem::path& getModulePath() const {
-        return mod_path;
+    sw::FileHandle* getModuleFileHandle() const {
+        return handle;
     }
 };
 
 
 class IdentManager {
     std::unordered_map<std::string, std::unique_ptr<IdentInfo>> m_IdentTable;
-    std::filesystem::path m_ModPath;
+    sw::FileHandle* m_ModuleHandle{};
 
     friend class SymbolManager;
 
 public:
-    explicit IdentManager(std::filesystem::path mod_path): m_ModPath(std::move(mod_path)) {}
+    explicit IdentManager(sw::FileHandle* mod_handle): m_ModuleHandle(mod_handle) {}
 
     /// registers a new IdentInfo and returns its pointer
     IdentInfo* createNew(const std::string& id) {
-        m_IdentTable.emplace(id, new IdentInfo(id, m_ModPath));
+        m_IdentTable.emplace(id, new IdentInfo(id, m_ModuleHandle));
         return m_IdentTable.at(id).get();
     }
 
@@ -53,8 +54,8 @@ public:
         return m_IdentTable.contains(id);
     }
 
-    const fs::path& getModulePath() const {
-        return m_ModPath;
+    const sw::FileHandle* getModuleFileHandle() const {
+        return m_ModuleHandle;
     }
 
     auto begin() const {

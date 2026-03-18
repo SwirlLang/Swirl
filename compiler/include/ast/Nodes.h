@@ -10,6 +10,7 @@
 #include "utils/utils.h"
 #include "lexer/Tokens.h"
 #include "parser/evaluation.h"
+#include "utils/FileSystem.h"
 
 
 enum NodeType {
@@ -64,9 +65,9 @@ struct AnalysisResult {
 
 
 struct SourceLocation {
-    StreamState from;
-    StreamState to;
-    fs::path    source;
+    StreamState     from;
+    StreamState     to;
+    sw::FileHandle* source = nullptr;
 };
 
 
@@ -761,7 +762,7 @@ struct ImportNode final : Node {
 
     bool is_wildcard = false;
 
-    std::filesystem::path         mod_path;
+    sw::FileHandle*               mod_handle = nullptr;
     std::string                   alias;
     std::vector<ImportedSymbol_t> imported_symbols;
 

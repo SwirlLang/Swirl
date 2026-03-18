@@ -32,7 +32,7 @@ LLVMBackend::LLVMBackend(Parser& parser)
     : ModuleManager(parser.m_ModuleMap),
       LModule{
         std::make_unique<llvm::Module>(
-            ModuleManager.getModuleUID(parser.m_FilePath),
+            ModuleManager.getModuleUID(parser.m_FileHandle->getPath()),
             Context)
     }
     , AST(std::move(parser.AST))
@@ -123,8 +123,8 @@ std::string LLVMBackend::mangleString(IdentInfo* id) {
         assert(type->getTypeTag() != Type::POINTER);
 
         return "__Sw_" + type->toString() +
-            '_' + ModuleManager.getModuleUID(id->getModulePath()) + "_" + id->toString();
-    } return "__Sw_" + ModuleManager.getModuleUID(id->getModulePath()) + '_' + id->toString();
+            '_' + ModuleManager.getModuleUID(id->getModuleFileHandle()->getPath()) + "_" + id->toString();
+    } return "__Sw_" + ModuleManager.getModuleUID(id->getModuleFileHandle()->getPath()) + '_' + id->toString();
 }
 
 

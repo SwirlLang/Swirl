@@ -3,6 +3,7 @@
 #include <unordered_map>
 
 #include "parser/Parser.h"
+#include "utils/FileSystem.h"
 
 
 // Thread-safe wrapper over a Parser pointer
@@ -14,8 +15,12 @@ public:
     explicit Module(Parser* parser) : m_ParserPtr(parser) {}
 };
 
+
+/// This is a helper class which works with the `Parser`, it manages the entire collection of modules
+/// and keeps them in a topologically sorted order (based on who depends on whom).
 class ModuleManager {
-    std::unordered_map<std::filesystem::path, std::unique_ptr<Parser>> m_ModuleMap;
+
+    std::unordered_map<sw::FileHandle*, std::unique_ptr<Parser>> m_ModuleMap;
     std::vector<Parser*> m_ZeroDepVec;  // holds modules with zero dependencies
     std::vector<Parser*> m_BackBuffer;  // this will be swapped with the above vector after flushing
     std::vector<Parser*> m_OrderedMods; // keeps parsers in dependencies-dependent order, left-to-right
@@ -27,7 +32,7 @@ class ModuleManager {
     friend class Parser;
 
 public:
-    Parser& get(const std::filesystem::path& m) const {
+    Parser& get(sw::FileHandle* m) const {
         return *m_ModuleMap.at(m);
     }
 
@@ -51,9 +56,9 @@ public:
         m_ZeroDepVec = std::move(m_BackBuffer);
     }
 
-    void insert(const std::filesystem::path& path, const ErrorCallback_t& error_callback) {
-        m_ModuleMap.emplace(path, new Parser{path, error_callback, *this});
-        m_ModuleUIDTable.emplace(path, m_ModCount);
+    void insert(sw::FileHandle* path, Parser* parser) {
+        m_ModuleMap.emplace(path, parser);
+        m_ModuleUIDTable.emplace(path->getPath(), m_ModCount);
         m_ModCount += 1;
     }
 
@@ -61,7 +66,7 @@ public:
         return m_ZeroDepVec.empty();
     }
 
-    bool contains(const std::filesystem::path& mod) const {
+    bool contains(sw::FileHandle* mod) const {
         return m_ModuleMap.contains(mod);
     }
 
@@ -72,8 +77,8 @@ public:
     void setMainModParser(Parser* parser) {
         assert(parser != nullptr);
         m_MainModule = parser;
-        m_ModuleMap[parser->m_FilePath] = std::unique_ptr<Parser>(m_MainModule);
-        m_ModuleUIDTable.emplace(parser->m_FilePath, m_ModCount);
+        m_ModuleMap[parser->m_FileHandle] = std::unique_ptr<Parser>(m_MainModule);
+        m_ModuleUIDTable.emplace(parser->m_FileHandle->getPath(), m_ModCount);
         m_ModCount += 1;
     }
 

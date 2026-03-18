@@ -9,20 +9,25 @@
 #include "backend/LLVMBackend.h"
 #include "errors/ErrorPipeline.h"
 #include "managers/ModuleManager.h"
+#include "utils/FileSystem.h"
 
 
 namespace fs = std::filesystem;
 using ThreadPool = sw::ThreadPool;
 
 
+/// Represents a Compiler Instance used to compile a single Swirl Project. Ensure pointer stability for
+/// the instance of this class.
 class CompilerInst {
     ThreadPool     m_ThreadPool;
     ErrorManager   m_ErrorManager;
     ModuleManager  m_ModuleManager;
 
-    fs::path      m_SrcPath;
-    fs::path      m_OutputPath;     // path/to/executable (absolute)
-    unsigned      m_BaseThreadCount = std::thread::hardware_concurrency() / 2;
+    fs::path       m_SrcPath;
+    fs::path       m_OutputPath;     // path/to/executable (absolute)
+    unsigned       m_BaseThreadCount = std::thread::hardware_concurrency() / 2;
+
+    sw::FileSystem m_Filesystem;
 
     Parser* m_MainModParser = nullptr;
     ErrorCallback_t         m_ErrorCallback = nullptr;
@@ -85,7 +90,7 @@ public:
             m_ErrorManager.m_OutputPipeline = &err_pipeline;
         }
 
-        m_MainModParser = new Parser(m_SrcPath, m_ErrorCallback, m_ModuleManager);
+        m_MainModParser = new Parser(m_Filesystem, m_SrcPath, m_ErrorCallback, m_ModuleManager);
         m_MainModParser->toggleIsMainModule();
         m_ModuleManager.setMainModParser(m_MainModParser);
 
@@ -102,7 +107,7 @@ public:
             std::println("Batch-{}: ", batch_no++);
 
             while (const auto mod = m_ModuleManager.popZeroDepVec()) {
-                std::print("{}, ", mod->m_FilePath.string());
+                std::print("{}, ", mod->m_FileHandle->getPath().string());
                 m_ThreadPool.enqueue([mod] {
                     mod->performSema();
                 });

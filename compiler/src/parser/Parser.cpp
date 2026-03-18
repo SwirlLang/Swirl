@@ -28,14 +28,15 @@
 using SwNode = std::unique_ptr<Node>;
 
 
-Parser::Parser(const std::filesystem::path& path, ErrorCallback_t error_callback, ModuleManager& mod_man)
+Parser::Parser(sw::FileSystem& fs, const fs::path& path, ErrorCallback_t error_callback, ModuleManager& mod_man)
     : m_Stream(m_SrcMan)
     , m_SrcMan(path)
     , m_ModuleMap(mod_man)
     , m_ErrorCallback(std::move(error_callback))
-    , m_FilePath(path)
+    , m_FileHandle(fs.open(path))
+    , m_FileSystem(fs)
     , SymbolTable(
-    m_SrcMan.getSourcePath(),
+        fs.open(path),
         m_ModuleMap,
         [this](auto code, const auto& ctx) {
         reportError(code, ctx);
@@ -292,42 +293,47 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
 
     forwardStream();  // skip 'import'
 
+    fs::path mod_path;
+
     if (CompilerInst::PackageTable.contains(m_Stream.CurTok.value)) {
-        ret.mod_path = CompilerInst::PackageTable[m_Stream.CurTok.value].package_root;
+        mod_path = CompilerInst::PackageTable[m_Stream.CurTok.value].package_root;
     } else reportError(ErrCode::PACKAGE_NOT_FOUND, {.str_1 = m_Stream.CurTok.value});
 
     forwardStream();  // skip the current IDENT
     ignoreButExpect({OP, "::"});
 
     while (m_Stream.CurTok.type == IDENT) {
-        ret.mod_path /= forwardStream().value;
+        mod_path /= forwardStream().value;
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "::") {
             forwardStream();
         }
     }
 
-    if (is_directory(ret.mod_path)) {
+    if (is_directory(mod_path)) {
         reportError(ErrCode::NO_DIR_IMPORT);
         return {};
     }
 
-    ret.mod_path += ".sw";
-    if (!exists(ret.mod_path)) {
-        reportError(ErrCode::MODULE_NOT_FOUND, {.path_1 = ret.mod_path});
+    mod_path += ".sw";
+    if (!exists(mod_path)) {
+        reportError(ErrCode::MODULE_NOT_FOUND, {.path_1 = mod_path});
         return {};
     }
 
-    if (!m_ModuleMap.contains(ret.mod_path)) {
-        m_ModuleMap.insert(ret.mod_path, m_ErrorCallback);
-        m_ModuleMap.get(ret.mod_path).parse();
+    auto handle = m_FileSystem.open(mod_path);
+    ret.mod_handle = handle;
+
+    if (!m_ModuleMap.contains(handle)) {
+        m_ModuleMap.insert(handle, new Parser{m_FileSystem, ret.mod_handle->getPath(), m_ErrorCallback, m_ModuleMap});
+        m_ModuleMap.get(handle).parse();
     }
 
-    if (m_Dependencies.contains(&m_ModuleMap.get(ret.mod_path))) {
+    if (m_Dependencies.contains(&m_ModuleMap.get(handle))) {
         reportError(ErrCode::DUPLICATE_IMPORT);
     }
 
-    m_Dependencies.insert(&m_ModuleMap.get(ret.mod_path));
-    m_ModuleMap.get(ret.mod_path).m_Dependents.insert(this);
+    m_Dependencies.insert(&m_ModuleMap.get(handle));
+    m_ModuleMap.get(handle).m_Dependents.insert(this);
 
     // specific-symbol import
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "{") {
@@ -353,7 +359,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {  // wildcard
             forwardStream();
             ret.is_wildcard = true;
-            m_ModuleMap.get(ret.mod_path).insertExportedSymbolsInto([&ret](std::string name) {
+            m_ModuleMap.get(handle).insertExportedSymbolsInto([&ret](std::string name) {
                 ret.imported_symbols.push_back({.actual_name = std::move(name)});
             });
         }
@@ -361,7 +367,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
     }
 
     if (ret.imported_symbols.empty() && !ret.is_wildcard) {
-        const auto name = ret.mod_path.filename().replace_extension().string();
+        const auto name = ret.mod_handle->getPath().filename().replace_extension().string();
 
         // register the module-prefix in the symbol manager
         SymbolTable.registerDecl(
@@ -369,7 +375,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
             {
                 .is_exported = ret.is_exported,
                 .is_mod_namespace = true,
-                .scope = SymbolTable.getGlobalScopeFromModule(ret.mod_path)
+                .scope = SymbolTable.getGlobalScopeFromModule(ret.mod_handle)
             }) ? void() : reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {
                 .str_1 = ret.alias.empty() ? name : ret.alias
             });

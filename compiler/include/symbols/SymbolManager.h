@@ -23,7 +23,7 @@ class Namespace {
     IdentManager m_IDMan;
 
 public:
-    explicit Namespace(std::filesystem::path mod_path): m_IDMan(std::move(mod_path)) {}
+    explicit Namespace(sw::FileHandle* mod_handle): m_IDMan(mod_handle) {}
 
     IdentInfo* getNewIDInfo(const std::string& name) {
         return m_IDMan.createNew(name);
@@ -37,8 +37,8 @@ public:
         return m_IDMan.end();
     }
 
-    const fs::path& getModPath() const {
-        return m_IDMan.getModulePath();
+    const sw::FileHandle* getModuleFileHandle() const {
+        return m_IDMan.getModuleFileHandle();
     }
 
     constexpr std::optional<IdentInfo*> getIDInfoFor(const std::string& name) const {
@@ -68,6 +68,7 @@ class SymbolManager {
     std::unordered_map<std::string, Namespace*> m_QualifierTable;
 
     ErrorCallback_t m_ErrorCallback;
+    sw::FileHandle* m_ModuleHandle{};
 
 public:
     inline static const std::unordered_map<Intrinsic::Kind, IntrinsicDef> IntrinsicTable = {
@@ -80,13 +81,14 @@ public:
 
     static std::unordered_map<Type*, std::function<void(Namespace*, SymbolManager&)>> DefaultTypeMethods;
 
-     explicit SymbolManager(std::filesystem::path uid, ModuleManager& module_man, ErrorCallback_t err_c)
+     explicit SymbolManager(sw::FileHandle* mod_handle, ModuleManager& module_man, ErrorCallback_t err_c)
         : m_ModuleMap(module_man)
-        , m_ModulePath(std::move(uid))
+        , m_ModulePath(mod_handle->getPath())
         , m_ErrorCallback(std::move(err_c))
+        , m_ModuleHandle(mod_handle)
     {
         // Create the global scope
-        m_ScopeTrack.push_back(&m_Scopes.emplace_back(m_ModulePath));
+        m_ScopeTrack.push_back(&m_Scopes.emplace_back(mod_handle));
         // Register all built-in types in the global scope
         for (const auto &[str, type] : BuiltinTypes) {
             const auto id = m_ScopeTrack.back()->getNewIDInfo(std::string(str));
@@ -114,11 +116,11 @@ public:
         return nullptr;
     }
 
-    /// returns the IdentInfo* of a global name from the module `mod_path`
-    IdentInfo* getIdInfoFromModule(const std::filesystem::path& mod_path, const std::string& name) const;
+    /// returns the IdentInfo* of a global name from the module `mod_handle`
+    IdentInfo* getIdInfoFromModule(sw::FileHandle* mod_path, const std::string& name) const;
 
     IdentInfo* getIDInfoFor(const std::string& id) {
-        for (Namespace* scope : m_ScopeTrack | std::views::reverse) {
+        for (const Namespace* scope : m_ScopeTrack | std::views::reverse) {
             if (const auto ret = scope->getIDInfoFor(id)) {
                 return *ret;
             }
@@ -137,8 +139,8 @@ public:
         return m_ScopeTrack.front();
     }
 
-    /// fetches the global scope of the module mapped to `path`
-    Namespace* getGlobalScopeFromModule(const fs::path& path) const;
+    /// fetches the global scope of the module
+    Namespace* getGlobalScopeFromModule(sw::FileHandle* path) const;
 
 
     Type* lookupType(const std::string& id) {
@@ -225,7 +227,7 @@ public:
     }
 
     Namespace* newScope() {
-        Namespace* ret = &m_Scopes.emplace_back(m_ModulePath);
+        Namespace* ret = &m_Scopes.emplace_back(m_ModuleHandle);
         m_ScopeTrack.push_back(ret);
         return ret;
     }

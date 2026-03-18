@@ -257,12 +257,12 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
     // specific-symbol imports
     if (!imported_symbols.empty()) {
         for (auto& symbol : imported_symbols) {
-            IdentInfo* id = ctx.SymMan.getIdInfoFromModule(mod_path, symbol.actual_name);
+            IdentInfo* id = ctx.SymMan.getIdInfoFromModule(mod_handle, symbol.actual_name);
 
             if (!id) {
                 ctx.reportError(
                     ErrCode::SYMBOL_NOT_FOUND_IN_MOD,
-                    {.path_1 = mod_path, .str_1 = symbol.actual_name}
+                    {.path_1 = mod_handle->getPath(), .str_1 = symbol.actual_name}
                     );
                 continue;
             }
@@ -279,7 +279,7 @@ AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
                 symbol.assigned_alias.empty() ? symbol.actual_name : symbol.assigned_alias, id, is_exported
                 );
 
-            ctx.GlobalNodeJmpTable.insert({id, ctx.ModuleMap.get(mod_path).NodeJmpTable.at(id)});
+            ctx.GlobalNodeJmpTable.insert({id, ctx.ModuleMap.get(mod_handle).NodeJmpTable.at(id)});
         } return {};
     }
 
