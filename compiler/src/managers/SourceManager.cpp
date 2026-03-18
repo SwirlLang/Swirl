@@ -75,8 +75,10 @@ char SourceManager::next() {
 
 
 std::string SourceManager::getLineAt(const std::size_t line) const {
-    auto [from, line_size] = m_LineOffsets.at(line - 1);
-    return m_Source.substr(from + m_BuiltInStr.size(), line_size);
+    if ((line - 1) < m_LineOffsets.size()) {
+        auto [from, line_size] = m_LineOffsets[line - 1];
+        return m_Source.substr(from + m_BuiltInStr.size(), line_size);
+    } return "";
 }
 
 std::optional<std::string> SourceManager::getEnumeratedLine(std::size_t at, std::size_t max_line_no) {
@@ -114,10 +116,18 @@ void SourceManager::setStreamState(const StreamState& to) {
 void SourceManager::switchSource(const std::size_t from, const std::size_t to) {
     std::string new_source;
     for (auto i = from; i <= to; i++) {
-        new_source += getLineAt(i);
+         new_source += getLineAt(i);
     }
 
-    m_Source = std::move(new_source);
-    reset();
+    std::size_t pos = Pos;
+    std::istringstream iss(new_source);
+
+    for (std::string line; std::getline(iss, line); ) {
+       line += '\n';
+        m_LineOffsets.push_back({pos, line.size()});
+        m_Source += line;
+        pos += line.size();
+    }
+    // reset();
 }
 

@@ -1,9 +1,18 @@
 #pragma once
 #include <vector>
-
 #include <unordered_map>
-#include <parser/Parser.h>
 
+#include "parser/Parser.h"
+
+
+// Thread-safe wrapper over a Parser pointer
+class Module {
+    Parser*    m_ParserPtr;
+    std::mutex m_Mutex;
+
+public:
+    explicit Module(Parser* parser) : m_ParserPtr(parser) {}
+};
 
 class ModuleManager {
     std::unordered_map<std::filesystem::path, std::unique_ptr<Parser>> m_ModuleMap;

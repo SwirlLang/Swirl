@@ -154,7 +154,11 @@ void Ident::replaceType(const std::string_view from, Type* to) {
 }
 
 
-std::unique_ptr<Node> Function::instantiate(Parser& instance, const std::span<Type*> args, ErrorCallback_t err_callback) {
+std::unique_ptr<Node> Function::instantiate(
+    Parser& instance,
+    const std::span<Type*> args,
+    ErrorCallback_t err_callback)
+{
     auto cloned = instance.cloneNode(ident);
     const auto fn_node = dynamic_cast<Function*>(cloned.get());
     fn_node->generic_params.clear();
@@ -168,7 +172,28 @@ std::unique_ptr<Node> Function::instantiate(Parser& instance, const std::span<Ty
         i++;
     }
 
-    // fn_node->
+    return cloned;
+}
+
+std::unique_ptr<Node> Protocol::instantiate(
+    Parser& instance,
+    const std::span<Type*> args,
+    std::function<void(ErrCode, ErrorContext)>)
+{
+    assert(protocol_id);
+    auto cloned = instance.cloneNode(protocol_id);
+
+    auto proto_node = dynamic_cast<Protocol*>(cloned.get());
+    assert(proto_node != nullptr);
+    assert(generic_params.size() >= args.size());
+
+    proto_node->generic_params.clear();
+    std::size_t i = 0;
+    for (Type* arg : args) {
+        proto_node->replaceType(generic_params.at(i).name, arg);
+        i++;
+    }
+
     return cloned;
 }
 

@@ -884,6 +884,10 @@ struct Protocol final : GlobalNode {
     std::vector<MemberSignature> members;
     std::vector<MethodSignature> methods;
 
+    IdentInfo* getIdentInfo() override {
+        return protocol_id;
+    }
+
     void replaceType(const std::string_view from, Type* to) override {
         for (auto& member : members) {
             member.replaceType(from, to);
@@ -896,6 +900,8 @@ struct Protocol final : GlobalNode {
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
     CGValue llvmCodegen(LLVMBackend &instance) override { return {}; }
+    std::unique_ptr<Node> instantiate(
+        Parser& instance, std::span<Type*>, std::function<void(ErrCode, ErrorContext)>) override;
 };
 
 

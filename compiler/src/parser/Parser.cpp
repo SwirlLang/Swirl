@@ -834,7 +834,7 @@ Ident Parser::parseIdent() {
         ret.full_qualification.emplace_back(forwardStream().value);
     }
 
-    if (ret.full_qualification.size() == 1) {
+    if (ret.full_qualification.size() == 1 && ret.full_qualification.at(0).generic_args.empty()) {
         ret.value = SymbolTable.getIDInfoFor(ret.full_qualification.front().name);
     }
 
@@ -848,6 +848,10 @@ std::unique_ptr<Protocol> Parser::parseProtocol() {
 
     forwardStream(); // skip 'protocol'
     ret->protocol_name = forwardStream().value;
+
+    if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
+        ret->generic_params = parseGenericParamList();
+    }
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         ret->depended_protocols = parseProtocolList();

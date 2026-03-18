@@ -25,8 +25,8 @@ IdentInfo* SymbolManager::instantiateGenerics(IdentInfo* id, const std::vector<T
 
     // TODO: potential race condition
     Parser& parser_instance = m_ModuleMap.get(id->getModulePath());
-    const auto cloned_node = parser_instance.cloneNode(id);
-    auto glob_node = cloned_node->to<GlobalNode>();
+    const auto cloned_node  = parser_instance.cloneNode(id);
+    const auto glob_node    = cloned_node->to<GlobalNode>();
 
     std::vector<Type*> type_values;
     type_values.reserve(args.size());
@@ -67,8 +67,14 @@ IdentInfo* SymbolManager::getIDInfoFor(
         if (counter == id.full_qualification.size() - 1) break;
         if (counter == 0) {
             const auto qual_id = getIdInfoOfAGlobal(str.name);
+
             if (!qual_id)
                 return nullptr;
+
+            // handle generics
+            if (!id.full_qualification.at(0).generic_args.empty()) {
+
+            }
 
             auto tmp = lookupDecl(qual_id);
             look_at = tmp.scope;
