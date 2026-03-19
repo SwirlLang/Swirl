@@ -183,6 +183,8 @@ struct Parser::NodeAttrHelper {
     NodeAttrHelper(Node* node, Parser& instance): node(node), instance(instance) {
         node->is_exported = instance.m_LastSymWasExported;
         node->location.from = instance.m_Stream.getStreamState();
+        node->location.from.Pos -= instance.m_Stream.CurTok.value.size();
+
         node->location.source = instance.m_FileHandle;
         instance.m_Depth++;
 
@@ -212,6 +214,7 @@ struct Parser::NodeAttrHelper {
 
         if (node) {
             node->location.to = instance.m_Stream.getStreamState();
+            node->location.to.Pos -= instance.m_Stream.CurTok.value.size();
 
             if (node->isGlobal()) {
                 auto node_id = node->getIdentInfo();
