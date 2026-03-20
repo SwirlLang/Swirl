@@ -6,12 +6,11 @@
 #include <vector>
 #include <optional>
 #include <functional>
+#include <expected>
 
 #include "utils/utils.h"
-#include "../../include/ast/Nodes.h"
+#include "ast/Nodes.h"
 #include "parser/Parser.h"
-
-#include <expected>
 
 #include "lexer/Tokens.h"
 #include "backend/LLVMBackend.h"
@@ -495,7 +494,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     // parse the children
     forwardStream();  // skip '{'
-    while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
+    while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}") && !m_Stream.eof()) {
         func_nd->children.push_back(dispatch());
     } forwardStream();
     SymbolTable.moveToPreviousScope();  // decrement the scope index, back to the global scope!
@@ -1044,11 +1043,16 @@ private:
 
 
 std::unique_ptr<Node> Parser::cloneNode(IdentInfo* id) {
-    assert(m_GlobalOffsets.contains(id));
-    const auto glob_location = m_GlobalOffsets.at(id);
-    m_SrcMan.switchSource(glob_location[0].Line, glob_location[1].Line);
+    // assert(m_GlobalOffsets.contains(id));
+    // const auto glob_location = m_GlobalOffsets.at(id);
+    // m_SrcMan.switchSource(glob_location[0].Line, glob_location[1].Line);
 
     ClonedState _(*this);
+
+    const Node* node = SymbolTable.lookupDecl(id).node_ptr;
+    assert(node != nullptr);
+
+    m_SrcMan.switchSource(node->location);
 
     forwardStream();
 

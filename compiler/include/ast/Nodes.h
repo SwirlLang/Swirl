@@ -7,9 +7,11 @@
 #include <span>
 
 #include "Nodes.h"
+#include "Visitor.h"
 #include "utils/utils.h"
 #include "lexer/Tokens.h"
 #include "parser/evaluation.h"
+#include "symbols/IdentManager.h"
 #include "utils/FileSystem.h"
 
 
@@ -98,13 +100,16 @@ struct Node {
     Node() = default;
     virtual ~Node() = default;
 
+    virtual void accept(Visitor& visitor) {
+        visitor.visit(this);
+    }
 
     /// Returns a tag which identifies the node's kind
     [[nodiscard]] virtual NodeType getNodeType() const {
         return ND_INVALID;
     }
 
-    /// Can the node allowed to appear in global context (E.g. Functions, Vars)?
+    /// Is the node allowed to appear in global context (E.g. Functions, Vars)?
     [[nodiscard]] virtual bool isGlobal() const {
         return false;
     }
@@ -167,6 +172,10 @@ struct ErrorContext;
 
 struct GenericParam final : Node {
     std::string name;
+
+    std::string toString() const override {
+        return name;
+    }
 };
 
 struct GlobalNode : Node {
@@ -194,6 +203,10 @@ struct Expression final : Node {
     Type* expr_type = nullptr;
 
     Expression() = default;
+
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
 
     static Expression makeExpression(std::unique_ptr<Node>&& node) {
         Expression expr;
@@ -238,6 +251,7 @@ struct Expression final : Node {
     }
 
     void replaceType(const std::string_view from, Type* to) override {
+        assert(expr != nullptr);
         expr->replaceType(from, to);
     }
 
@@ -311,6 +325,10 @@ struct Op final : Node {
     // set the type of sub-expression instances to `to`
     void setType(Type* to) const;
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     [[nodiscard]]
     NodeType getNodeType() const override { return ND_OP; }
     Type* getSwType() override { return common_type; }
@@ -372,6 +390,10 @@ struct ReturnStatement final : Node {
         return ND_RET;
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     std::string toString() const override {
         return "return " + value.toString();
     }
@@ -400,6 +422,10 @@ struct IntLit final : Node {
         return ND_INT;
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     [[nodiscard]] bool isLiteral() const override {
         return true;
     }
@@ -426,6 +452,10 @@ struct FloatLit final : Node {
         return ND_FLOAT;
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     [[nodiscard]] bool isLiteral() const override {
         return true;
     }
@@ -450,6 +480,10 @@ struct BoolLit final : Node {
         return ND_BOOL;
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     [[nodiscard]] bool isLiteral() const override {
         return true;
     }
@@ -470,6 +504,10 @@ struct StrLit final : Node {
     std::string value;
 
     explicit StrLit(std::string  val): value(std::move(val)) {}
+
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
 
     [[nodiscard]]
     NodeType getNodeType() const override {
@@ -499,6 +537,7 @@ private:
         void operator()(const TypeWrapper* ptr) const;
     };
 
+
     struct Qualifier {
         std::string name;
         std::vector<TypeWrapper*> generic_args;
@@ -511,6 +550,10 @@ public:
     std::vector<Qualifier> full_qualification;
 
     Ident() = default;
+
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
 
     explicit Ident(IdentInfo* val): value(val) {}
 
@@ -566,6 +609,10 @@ struct TypeWrapper final : Node {
         return type;
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     [[nodiscard]]
     NodeType getNodeType() const override {
         return ND_TYPE;
@@ -581,19 +628,6 @@ struct TypeWrapper final : Node {
         }
     }
 
-    // std::unique_ptr<TypeWrapper, Ident::ImplDeleter> clone() {
-    //     auto copy = new TypeWrapper();
-    //     copy->type = type;
-    //     copy->is_mutable = is_mutable;
-    //     copy->type_id = type_id;
-    //     copy->is_slice = is_slice;
-    //     copy->modifiers = modifiers;
-    //     copy->array_size = array_size;
-//
-    //     if (of_type) {
-    //         copy->of_type = of_type->clone();
-    //     } return std::unique_ptr<TypeWrapper, Ident::ImplDeleter>(copy);
-    // }
 
     std::string toString() const override;
     CGValue llvmCodegen(LLVMBackend &instance) override;
@@ -627,6 +661,28 @@ struct Var final : GlobalNode {
         value.replaceType(from, to);
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
+    std::string toString() const override {
+        std::string ret;
+
+        if (!is_param) {
+            if (is_comptime)
+                ret += "comptime ";
+            else if (is_const)
+                ret += "let ";
+            else ret += "var ";
+        }
+
+        ret += std::format("{}: {} ", var_ident->toString(), var_type.toString());
+        if (initialized) {
+            ret += std::format("= {};\n", value.toString());
+        } else ret += ";\n";
+        return ret;
+    }
+
     [[nodiscard]] SwNode& getExprValue() override { return value.expr; }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
@@ -644,6 +700,18 @@ struct Scope final : Node {
         for (const auto& child : children) {
             child->replaceType(from, to);
         }
+    }
+
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
+    std::string toString() const override {
+        std::string ret = "{\n";
+        for (const auto& child : children) {
+            ret += child->toString();
+        } ret += "}\n";
+        return ret;
     }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
@@ -667,6 +735,10 @@ struct Function final : GlobalNode {
         return ND_FUNC;
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     void replaceType(const std::string_view from, Type* to) override {
         for (auto& param : params) {
             param.replaceType(from, to);
@@ -676,6 +748,35 @@ struct Function final : GlobalNode {
         for (const auto& child : children) {
             child->replaceType(from, to);
         }
+    }
+
+    std::string toString() const override {
+        std::string ret = std::format("fn {}", ident->toString());
+
+        if (!generic_params.empty()) {
+            ret += "<";
+            for (auto& param : generic_params) {
+                ret += param.toString();
+            } ret += ">(";
+        }
+
+        for (auto& param : params) {
+            ret += param.toString();
+            ret += ", ";
+        }
+
+        if (ret.ends_with(", ")) {
+            ret.pop_back();
+            ret.pop_back();
+        }
+
+        ret += std::format("): {} {{", return_type.toString());
+
+        for (auto& child : children) {
+            ret += child->toString();
+        } ret += "}\n";
+
+        return ret;
     }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
@@ -703,6 +804,10 @@ struct FuncCall : Node {
         return &ident;
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     [[nodiscard]] NodeType     getNodeType() const override { return ND_CALL; }
 
     void replaceType(const std::string_view from, Type* to) override {
@@ -714,6 +819,35 @@ struct FuncCall : Node {
             val.replaceType(from, to);
         }
     }
+
+    std::string toString() const override {
+        std::string ret = ident.toString();
+
+        if (!generic_args.empty()) {
+            ret.append("::<");
+            for (auto& ty : generic_args) {
+                ret += ty.toString() + ", ";
+            }
+
+            if (ret.ends_with(", ")) {
+                ret.pop_back();
+                ret.pop_back();
+            }
+        }
+
+        ret += ">(";
+        for (auto& val : args) {
+            ret += val.toString();
+            ret += ", ";
+        }
+
+        if (ret.ends_with(", ")) {
+            ret.pop_back();
+            ret.pop_back();
+        } ret += ");";
+        return ret;
+    }
+
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
@@ -727,6 +861,7 @@ struct Intrinsic final : Node {
     std::vector<Expression> args;
     Ident ident;
 
+
     Intrinsic() = default;
     void operator=(const std::unique_ptr<FuncCall>& call) {
         args  = std::move(call->args);
@@ -739,6 +874,10 @@ struct Intrinsic final : Node {
             {"memcpy", MEMCPY},
             {"advance_pointer", ADV_PTR}
         }; intrinsic_type = tag_map.at(ident.full_qualification.at(0).name);
+    }
+
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
     }
 
     [[nodiscard]] NodeType getNodeType() const override { return ND_INTRINSIC; }
@@ -770,6 +909,10 @@ struct ImportNode final : Node {
         return ND_IMPORT;
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
@@ -794,6 +937,10 @@ struct ArrayLit final : Node {
         }
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
     CGValue llvmCodegen(LLVMBackend &instance) override;
 };
@@ -814,17 +961,29 @@ struct WhileLoop final : Node {
         }
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 
 struct BreakStmt final : Node {
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     CGValue llvmCodegen(LLVMBackend &instance) override;
     [[nodiscard]] NodeType getNodeType() const override { return ND_BREAK;}
 };
 
 struct ContinueStmt final : Node {
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     CGValue llvmCodegen(LLVMBackend &instance) override;
     [[nodiscard]] NodeType getNodeType() const override { return ND_CONTINUE; }
 };
@@ -899,6 +1058,10 @@ struct Protocol final : GlobalNode {
         }
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
     CGValue llvmCodegen(LLVMBackend &instance) override { return {}; }
     std::unique_ptr<Node> instantiate(
@@ -956,6 +1119,10 @@ struct Struct final : GlobalNode {
         }
     }
 
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
+    }
+
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
     CGValue llvmCodegen(LLVMBackend &instance) override;
 };
@@ -976,6 +1143,10 @@ struct Condition final : Node {
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_COND;
+    }
+
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
     }
 
     void replaceType(const std::string_view from, Type* to) override {
