@@ -29,7 +29,7 @@ using SwNode = std::unique_ptr<Node>;
 
 Parser::Parser(sw::FileSystem& fs, const fs::path& path, ErrorCallback_t error_callback, ModuleManager& mod_man)
     : m_Stream(m_SrcMan)
-    , m_SrcMan(path)
+    , m_SrcMan(fs.open(path))
     , m_ModuleMap(mod_man)
     , m_ErrorCallback(std::move(error_callback))
     , m_FileHandle(fs.open(path))
@@ -43,7 +43,7 @@ Parser::Parser(sw::FileSystem& fs, const fs::path& path, ErrorCallback_t error_c
 
 
 void Parser::stackSafeguard() const {
-    if (m_Depth > CompilerInst::RecursionDepth) {
+    if (m_RecursionDepth > CompilerInst::RecursionDepth) {
         std::println(stderr,
             "Max recursion depth ({}) exceeded! "
             "Use the `-depth <i>` flag to increase it.",
@@ -383,9 +383,37 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
     return std::make_unique<ImportNode>(std::move(ret));
 }
 
+
 /// begin parsing ///
 void Parser::parse() {
     forwardStream();
+
+    const auto builtin_handle = m_FileSystem.fetchHandleFor(SW_BUILTIN_FILE_PATH);
+
+    if (m_FileHandle != builtin_handle) {
+        auto builtin_import = std::make_unique<ImportNode>();
+        builtin_import->is_wildcard = true;
+        builtin_import->is_exported = false;
+        builtin_import->mod_handle  = builtin_handle;
+
+        // TODO: remove duplicate import-registration logic
+        if (!m_ModuleMap.contains(builtin_handle)) {
+            m_ModuleMap.insert(builtin_handle, new Parser{
+                m_FileSystem, builtin_handle->getPath(), m_ErrorCallback, m_ModuleMap});
+            m_ModuleMap.get(builtin_handle).parse();
+        }
+
+        m_ModuleMap.get(builtin_handle).insertExportedSymbolsInto([&builtin_import](std::string name) {
+            builtin_import->imported_symbols.push_back({.actual_name = std::move(name)});
+        });
+
+        m_Dependencies.insert(&m_ModuleMap.get(builtin_handle));
+        m_ModuleMap.get(builtin_handle).m_Dependents.insert(this);
+        m_ModuleMap.get(builtin_handle).performSema();
+
+        AST.emplace_back(std::move(builtin_import));
+    }
+
     while (!m_Stream.eof()) {
         AST.emplace_back(dispatch());
     }
@@ -648,6 +676,12 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     // entry.swirl_type  = var_node->var_type;
 
     var_node->var_ident = SymbolTable.registerDecl(var_ident, entry);
+
+    // is a global variable
+    if (m_RecursionDepth == 1) {
+        NodeJmpTable.insert({var_node->getIdentInfo(), var_node.get()});
+    }
+
     return var_node;
 }
 

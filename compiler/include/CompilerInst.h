@@ -84,6 +84,12 @@ public:
             TargetTriple = llvm::sys::getDefaultTargetTriple();
         }
 
+        using Triple = llvm::Triple;
+        const auto LLVMTargetTriple = llvm::Triple(TargetTriple);
+
+        // create a virtual file for builtins
+        m_Filesystem.createVirtualFile(SW_BUILTIN_FILE_PATH, SW_BUILTIN_SOURCE);
+
         ErrorPipeline err_pipeline;
         if (m_ErrorManager.m_OutputPipeline == nullptr) {
             // ReSharper disable once CppDFALocalValueEscapesFunction

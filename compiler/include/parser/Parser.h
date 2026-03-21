@@ -77,7 +77,7 @@ class Parser {
     std::optional<Token> m_ReturnFakeToken = std::nullopt;
     // ---*--- ---*--- ---*---
 
-    int                   m_Depth = 0;
+    int                   m_RecursionDepth = 0;
     std::size_t           m_UnresolvedDeps{};  // counter for the no. of unresolved dependencies
     std::vector<SwObject> m_ParseStack;        // currently-being-parsed object pointer stays at the top
 
@@ -186,7 +186,7 @@ struct Parser::NodeAttrHelper {
         node->location.from.Pos -= instance.m_Stream.CurTok.value.size();
 
         node->location.source = instance.m_FileHandle;
-        instance.m_Depth++;
+        instance.m_RecursionDepth++;
 
         instance.stackSafeguard();
 
@@ -207,7 +207,7 @@ struct Parser::NodeAttrHelper {
 
     /// Resets the states of the Parser
     ~NodeAttrHelper() {
-        instance.m_Depth--;
+        instance.m_RecursionDepth--;
         instance.m_LastSymIsExtern = false;
         instance.m_LastSymWasExported = false;
         instance.m_ExternAttributes.clear();

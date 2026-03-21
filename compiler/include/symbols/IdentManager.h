@@ -4,6 +4,7 @@
 #include <utility>
 #include <unordered_map>
 
+#include "utils/FileSystem.h"
 
 class IdentInfo {
     std::string id;

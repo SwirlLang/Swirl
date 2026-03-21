@@ -4,6 +4,8 @@
 
 
 class IdentInfo;
+struct SourceLocation;
+namespace sw { class FileHandle; }
 
 class SourceManager {
     std::tuple<size_t, size_t, size_t> cache;
@@ -15,11 +17,9 @@ class SourceManager {
     std::vector<std::array<std::size_t, 2>> m_LineOffsets;  // (line no. - 1) : {its starting pos, size}
     std::size_t Pos = 0, Line = 1, Col = 0;
 
-    std::string m_BuiltInStr;
-
 public:
 
-    explicit SourceManager(const std::filesystem::path& file_path);
+    explicit SourceManager(sw::FileHandle* file_handle);
 
     /** @brief Returns the next value without discarding it */
     [[nodiscard]] char peek() const;
@@ -39,6 +39,8 @@ public:
     /** @brief resets the state of the m_Stream */
     void reset();
     void switchSource(std::size_t from, std::size_t to);
+    void switchSource(const std::string& source);
+    void switchSource(const SourceLocation& loc);
 
     /** @brief returns a const-ref to the source's path */
     [[nodiscard]] const std::filesystem::path& getSourcePath() const {

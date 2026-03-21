@@ -3,7 +3,6 @@
 #include <vector>
 #include <filesystem>
 #include <unordered_set>
-#include <unordered_map>
 #include <string_view>
 
 
@@ -51,3 +50,19 @@ inline std::unordered_set<std::string> OperatorSet = {
     "as", "!",
     "[]", "."
 };
+
+#define SW_BUILTIN_FILE_PATH "/__Sw__9117778/builtins.sw"
+
+#define SW_BUILTIN_SOURCE std::format(R"(
+export comptime platform = "{}";
+export comptime arch     = "{}";
+
+export fn test_function() {{ return 0; }}
+)",                                                                      \
+LLVMTargetTriple.getOS() == Triple::Win32 ? "windows"                        \
+: LLVMTargetTriple.getOS() == Triple::Linux ? "linux"                    \
+: LLVMTargetTriple.getOS() == Triple::MacOSX ? "darwin" : "unknown",     \
+\
+LLVMTargetTriple.getArch() == Triple::x86 ? "x86"                            \
+: LLVMTargetTriple.getArch() == Triple::x86_64 ? "x64"                   \
+: LLVMTargetTriple.getArch() == Triple::aarch64 ? "arm64" : "unknown")

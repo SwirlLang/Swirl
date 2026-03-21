@@ -11,6 +11,8 @@ public:
     explicit FileHandle(std::string_view file_path);
 
     std::string_view readAll();
+    std::unique_ptr<std::istream> getStream();
+
     const std::filesystem::path& getPath();
 
 private:

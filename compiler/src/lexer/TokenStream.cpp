@@ -1,8 +1,10 @@
-#include <algorithm>
 #include <string>
+#include <algorithm>
 #include <definitions.h>
 #include <string_view>
-#include <lexer/TokenStream.h>
+
+#include "lexer/TokenStream.h"
+
 
 using namespace std::string_view_literals;
 
