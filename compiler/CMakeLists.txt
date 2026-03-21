@@ -13,12 +13,6 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 option(LLVM_LINK_SHARED "Link against shared LLVM libraries" ON)
 
-option(BUILD_STDLIB "Build the standard library" OFF)
-
-if(BUILD_STDLIB)
-    add_subdirectory("../std_lib" build)
-endif()
-
 include_directories("include")
 include_directories("${PROJECT_BINARY_DIR}")
 
