@@ -10,4 +10,4 @@ build
 cmake-build-debug
 .backup
 .cache
-build
+.build
