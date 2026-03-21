@@ -953,6 +953,10 @@ std::unique_ptr<Protocol> Parser::parseProtocol() {
     const TableEntry entry{.is_protocol = true, .node_ptr = ret.get()};
     ret->protocol_id = SymbolTable.registerDecl(ret->protocol_name, entry);
 
+    if (m_RecursionDepth == 1) {
+        NodeJmpTable.insert({ret->protocol_id, ret.get()});
+    }
+
     return ret;
 }
 
@@ -1032,6 +1036,10 @@ std::unique_ptr<Struct> Parser::parseStruct() {
 
     struct_ty->ident = ret->ident;
     SymbolTable.lookupDecl(ret->ident).scope = scope_pointer;
+
+    if (m_RecursionDepth == 1) {
+        NodeJmpTable.insert({ret->getIdentInfo(), ret.get()});
+    }
 
     return ret;
 }
