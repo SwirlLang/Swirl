@@ -80,7 +80,7 @@ std::unordered_map<std::string_view, Type*> BuiltinTypes = {
     {"bool", &GlobalTypeBool},
     {"char", &GlobalTypeChar},
 
-    {"str", &GlobalTypeStr},
+    // {"str", &GlobalTypeStr},
     {"void", &GlobalTypeVoid},
 
 

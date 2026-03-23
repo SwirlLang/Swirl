@@ -229,8 +229,8 @@ AnalysisResult BoolLit::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult StrLit::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
-    return {.deduced_type = &GlobalTypeStr};
-    // return {.deduced_type = ctx.SymMan.lookupType(ctx.SymMan.getIdInfoOfAGlobal("str"))};
+    // return {.deduced_type = &GlobalTypeStr};
+    return {.deduced_type = ctx.SymMan.lookupType(ctx.SymMan.getIdInfoOfAGlobal("str"))};
 }
 
 AnalysisResult ArrayLit::analyzeSemantics(AnalysisContext& ctx) {

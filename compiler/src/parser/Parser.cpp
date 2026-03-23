@@ -525,7 +525,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}") && !m_Stream.eof()) {
         func_nd->children.push_back(dispatch());
     } forwardStream();
-    SymbolTable.moveToPreviousScope();  // decrement the scope index, back to the global scope!
+    SymbolTable.moveToPreviousScope();  // decrement the scope index back to the global scope
 
     m_LatestFuncNode = nullptr;
     return func_nd;

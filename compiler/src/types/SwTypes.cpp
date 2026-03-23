@@ -42,11 +42,8 @@ llvm::Type* TypeStr::llvmCodegen(LLVMBackend& instance) {
         return instance.LLVMTypeCache[this];
     }
 
-    llvm::StructType* ret = llvm::StructType::create(instance.Context, "__Sw_StrRef");
-    ret->setBody({
-        PointerType{&GlobalTypeChar, false}.llvmCodegen(instance),
-        GlobalTypeI64.llvmCodegen(instance)
-    });
+    const auto ret = instance.SymMan.lookupType(
+        instance.SymMan.getIdInfoOfAGlobal("str"))->llvmCodegen(instance);
 
     instance.LLVMTypeCache[this] = ret;
     return ret;

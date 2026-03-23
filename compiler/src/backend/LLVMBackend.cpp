@@ -736,8 +736,8 @@ CGValue Op::llvmCodegen(LLVMBackend &instance) {
                 auto field_ty = instance.SymMan.lookupDecl(field_node->value).swirl_type;
 
                 instance.StructFieldType = field_ty;
-                instance.StructFieldPtr = field_ptr;
-                instance.ComputedPtr = field_ptr;
+                instance.StructFieldPtr  = field_ptr;
+                instance.ComputedPtr     = field_ptr;
 
                 return CGValue::lValue(field_ptr);
                 // instance.Builder.CreateLoad(

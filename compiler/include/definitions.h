@@ -54,10 +54,16 @@ inline std::unordered_set<std::string> OperatorSet = {
 #define SW_BUILTIN_FILE_PATH "/__Sw__9117778/builtins.sw"
 
 #define SW_BUILTIN_SOURCE std::format(R"(
-export comptime platform = "{}";
-export comptime arch     = "{}";
+export struct str {{
+    var __Sw_buffer: *char;
+    var __Sw_length: i64;
 
-export fn test_function() {{ return 0; }}
+    fn size(&self):  i64  {{ return self.__Sw_length; }}
+    fn ptr (&self): *char {{ return self.__Sw_buffer; }}
+}}
+
+// export comptime platform = "{}";
+// export comptime arch     = "{}";
 )",                                                                      \
 LLVMTargetTriple.getOS() == Triple::Win32 ? "windows"                        \
 : LLVMTargetTriple.getOS() == Triple::Linux ? "linux"                    \
