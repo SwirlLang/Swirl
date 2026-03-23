@@ -1,6 +1,7 @@
 #include <llvm/IR/DerivedTypes.h>
 #include <types/SwTypes.h>
 #include <backend/LLVMBackend.h>
+#include <llvm/TargetParser/Triple.h>
 #include <symbols/IdentManager.h>
 
 #include "CompilerInst.h"
@@ -209,6 +210,19 @@ DEFINE_ATTRIBUTES(TypeCUIntPtr, true)
 #undef DEFINE_ATTRIBUTES
 
 
+unsigned int fetchPointerSize(const llvm::Triple::ArchType arch) {
+    switch (arch) {
+        case llvm::Triple::x86:
+        case llvm::Triple::arm:
+            return 4;
+        case llvm::Triple::x86_64:
+        case llvm::Triple::aarch64:
+            return 8;
+        default:
+            throw std::runtime_error("fetchPointerSize: Unsupported architecture");
+    }
+}
+
 unsigned int TypeCL::getBitWidth() {
     const auto arch = llvm::Triple(CompilerInst::TargetTriple).getArch();
     if (arch == llvm::Triple::x86_64 || arch == llvm::Triple::aarch64)
@@ -223,7 +237,7 @@ llvm::Type* TypeCL::llvmCodegen(LLVMBackend& instance) {
 }
 
 unsigned int TypeCSSizeT::getBitWidth() {
-    return LLVMBackend::TargetMachine->getPointerSizeInBits(0);
+    return fetchPointerSize(llvm::Triple(CompilerInst::TargetTriple).getArch());
 }
 
 llvm::Type* TypeCSSizeT::llvmCodegen(LLVMBackend& instance) {
@@ -249,7 +263,7 @@ llvm::Type* TypeCUL::llvmCodegen(LLVMBackend& instance) {
 
 
 unsigned int TypeCPtrDiffT::getBitWidth() {
-    return LLVMBackend::TargetMachine->getPointerSizeInBits(0);
+    return fetchPointerSize(llvm::Triple(CompilerInst::TargetTriple).getArch());
 }
 
 llvm::Type* TypeCPtrDiffT::llvmCodegen(LLVMBackend& instance) {
