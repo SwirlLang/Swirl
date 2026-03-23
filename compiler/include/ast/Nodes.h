@@ -7,7 +7,6 @@
 #include <span>
 
 #include "Nodes.h"
-#include "Visitor.h"
 #include "utils/utils.h"
 #include "lexer/Tokens.h"
 #include "parser/evaluation.h"
@@ -39,6 +38,7 @@ enum NodeType {
     ND_BREAK,       // 20
     ND_CONTINUE,    // 21
     ND_INTRINSIC,   // 22
+    ND_PROTOCOL,    // 23
 };
 
 
@@ -95,14 +95,15 @@ struct Node {
     SourceLocation location;
     std::optional<AnalysisResult> analysis_cache;
 
+    NodeType kind;
+
     bool is_exported = false;
 
-    Node() = default;
+    Node(): kind(ND_INVALID) {}
+    Node(const NodeType ty): kind(ty) {}
+
     virtual ~Node() = default;
 
-    virtual void accept(Visitor& visitor) {
-        visitor.visit(this);
-    }
 
     /// Returns a tag which identifies the node's kind
     [[nodiscard]] virtual NodeType getNodeType() const {
@@ -184,6 +185,8 @@ struct GlobalNode : Node {
 
     std::vector<GenericParam> generic_params;
 
+    explicit GlobalNode(const NodeType ty): Node(ty) {}
+
     [[nodiscard]]
     bool isGlobal() const override {
         return true;
@@ -202,11 +205,7 @@ struct Expression final : Node {
     SwNode expr;
     Type* expr_type = nullptr;
 
-    Expression() = default;
-
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
+    Expression(): Node(ND_EXPR) {}
 
     static Expression makeExpression(std::unique_ptr<Node>&& node) {
         Expression expr;
@@ -317,7 +316,7 @@ struct Op final : Node {
     OpTag_t op_type = INVALID;
     Type*  common_type = nullptr;  // the common type of its operands
 
-    Op() = default;
+    Op(): Node(ND_OP) {}
 
     explicit Op(std::string_view str, int8_t arity);
     static OpTag_t getTagFor(std::string_view str, int arity);
@@ -325,9 +324,7 @@ struct Op final : Node {
     // set the type of sub-expression instances to `to`
     void setType(Type* to) const;
 
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
+
 
     [[nodiscard]]
     NodeType getNodeType() const override { return ND_OP; }
@@ -384,15 +381,15 @@ struct ReturnStatement final : Node {
     Expression value;
     FunctionType* parent_fn_type = nullptr;  // holds the function-signature of the parent
 
+    ReturnStatement(): Node(ND_RET) {}
+
     CGValue llvmCodegen(LLVMBackend &instance) override;
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_RET;
     }
 
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
+
 
     std::string toString() const override {
         return "return " + value.toString();
@@ -415,16 +412,14 @@ struct ReturnStatement final : Node {
 struct IntLit final : Node {
     std::string value;
 
-    explicit IntLit(std::string val): value(std::move(val)) {}
-    explicit IntLit(std::size_t val): value(std::to_string(val)) {}
+    explicit IntLit(std::string val): Node(ND_INT), value(std::move(val)) {}
+    explicit IntLit(std::size_t val): Node(ND_INT), value(std::to_string(val)) {}
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_INT;
     }
 
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
+
 
     [[nodiscard]] bool isLiteral() const override {
         return true;
@@ -445,15 +440,11 @@ struct IntLit final : Node {
 struct FloatLit final : Node {
     std::string value;
 
-    explicit FloatLit(std::string val): value(std::move(val)) {}
-    explicit FloatLit(const double val): value(std::to_string(val)) {}
+    explicit FloatLit(std::string val):  Node(ND_FLOAT), value(std::move(val)) {}
+    explicit FloatLit(const double val): Node(ND_FLOAT), value(std::to_string(val)) {}
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_FLOAT;
-    }
-
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
     }
 
     [[nodiscard]] bool isLiteral() const override {
@@ -474,14 +465,10 @@ struct FloatLit final : Node {
 
 struct BoolLit final : Node {
     bool value;
-    explicit BoolLit(const bool is_true) : value(is_true) {}
+    explicit BoolLit(const bool is_true) : Node(ND_BOOL), value(is_true) {}
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_BOOL;
-    }
-
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
     }
 
     [[nodiscard]] bool isLiteral() const override {
@@ -503,11 +490,7 @@ struct BoolLit final : Node {
 struct StrLit final : Node {
     std::string value;
 
-    explicit StrLit(std::string  val): value(std::move(val)) {}
-
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
+    explicit StrLit(std::string  val): Node(ND_STR), value(std::move(val)) {}
 
     [[nodiscard]]
     NodeType getNodeType() const override {
@@ -549,11 +532,7 @@ public:
     IdentInfo* value = nullptr;
     std::vector<Qualifier> full_qualification;
 
-    Ident() = default;
-
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
+    Ident(): Node(ND_IDENT) {}
 
     explicit Ident(IdentInfo* val): value(val) {}
 
@@ -601,16 +580,12 @@ struct TypeWrapper final : Node {
     std::unique_ptr<TypeWrapper> of_type{};  // set in the case of wrapper types (refs, ptr, arrays, slices)
 
 
-    TypeWrapper() = default;
-    explicit TypeWrapper(Type* ty): type(ty) {}
+    TypeWrapper(): Node(ND_TYPE) {}
+    explicit TypeWrapper(Type* ty): Node(ND_TYPE), type(ty) {}
 
     [[nodiscard]]
     Type* getSwType() override {
         return type;
-    }
-
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
     }
 
     [[nodiscard]]
@@ -648,7 +623,7 @@ struct Var final : GlobalNode {
     bool is_param    = false;
     bool is_instance_param = false;   // for the special case of `&self` in methods
 
-    Var() = default;
+    Var(): GlobalNode(ND_VAR) {}
 
     [[nodiscard]] NodeType getNodeType()  const override { return ND_VAR; }
 
@@ -661,9 +636,7 @@ struct Var final : GlobalNode {
         value.replaceType(from, to);
     }
 
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
+
 
     std::string toString() const override {
         std::string ret;
@@ -692,6 +665,8 @@ struct Var final : GlobalNode {
 struct Scope final : Node {
     std::vector<SwNode> children;
 
+    Scope(): Node(ND_SCOPE) {}
+
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_SCOPE;
     }
@@ -702,9 +677,7 @@ struct Scope final : Node {
         }
     }
 
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
+
 
     std::string toString() const override {
         std::string ret = "{\n";
@@ -722,6 +695,8 @@ struct Scope final : Node {
 struct Function final : GlobalNode {
     IdentInfo* ident = nullptr;
 
+    Function(): GlobalNode(ND_FUNC) {}
+
     std::vector<Var> params;
     std::vector<std::unique_ptr<Node>> children;
 
@@ -733,10 +708,6 @@ struct Function final : GlobalNode {
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_FUNC;
-    }
-
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
     }
 
     void replaceType(const std::string_view from, Type* to) override {
@@ -785,12 +756,14 @@ struct Function final : GlobalNode {
 };
 
 
-struct FuncCall : Node {
+struct FuncCall final : Node {
     Ident ident;
     Type* signature = nullptr;  // supposed to hold the signature of the callee
 
     std::vector<Expression> args;
     std::vector<TypeWrapper> generic_args;
+
+    FuncCall(): Node(ND_FUNC) {}
 
     IdentInfo* getIdentInfo() override {
         return ident.getIdentInfo();
@@ -802,10 +775,6 @@ struct FuncCall : Node {
 
     [[nodiscard]] Ident* getIdent() override {
         return &ident;
-    }
-
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
     }
 
     [[nodiscard]] NodeType     getNodeType() const override { return ND_CALL; }
@@ -861,8 +830,8 @@ struct Intrinsic final : Node {
     std::vector<Expression> args;
     Ident ident;
 
+    Intrinsic(): Node(ND_INTRINSIC) {}
 
-    Intrinsic() = default;
     void operator=(const std::unique_ptr<FuncCall>& call) {
         args  = std::move(call->args);
         ident = std::move(call->ident);
@@ -876,9 +845,7 @@ struct Intrinsic final : Node {
         }; intrinsic_type = tag_map.at(ident.full_qualification.at(0).name);
     }
 
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
+
 
     [[nodiscard]] NodeType getNodeType() const override { return ND_INTRINSIC; }
 
@@ -899,6 +866,8 @@ struct ImportNode final : Node {
         std::string assigned_alias{};
     };
 
+    ImportNode(): Node(ND_IMPORT) {}
+
     bool is_wildcard = false;
 
     sw::FileHandle*               mod_handle = nullptr;
@@ -909,10 +878,6 @@ struct ImportNode final : Node {
         return ND_IMPORT;
     }
 
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
-
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
@@ -921,6 +886,8 @@ struct ImportNode final : Node {
 struct ArrayLit final : Node {
     Type* type = nullptr;
     std::vector<Expression> elements;
+
+    ArrayLit(): Node(ND_ARRAY) {}
 
     Type* getSwType() override {
         return type;
@@ -937,10 +904,6 @@ struct ArrayLit final : Node {
         }
     }
 
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
-
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
     CGValue llvmCodegen(LLVMBackend &instance) override;
 };
@@ -949,6 +912,8 @@ struct ArrayLit final : Node {
 struct WhileLoop final : Node {
     Expression condition;
     std::vector<std::unique_ptr<Node>> children{};
+
+    WhileLoop(): Node(ND_WHILE) {}
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_WHILE;
@@ -961,28 +926,20 @@ struct WhileLoop final : Node {
         }
     }
 
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
-
     CGValue llvmCodegen(LLVMBackend &instance) override;
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 
 struct BreakStmt final : Node {
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
+    BreakStmt(): Node(ND_BREAK) {}
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
     [[nodiscard]] NodeType getNodeType() const override { return ND_BREAK;}
 };
 
 struct ContinueStmt final : Node {
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
+    ContinueStmt(): Node(ND_CONTINUE) {}
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
     [[nodiscard]] NodeType getNodeType() const override { return ND_CONTINUE; }
@@ -1058,9 +1015,8 @@ struct Protocol final : GlobalNode {
         }
     }
 
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
+    Protocol(): GlobalNode(ND_PROTOCOL) {}
+    NodeType getNodeType() const override { return ND_PROTOCOL; }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
     CGValue llvmCodegen(LLVMBackend &instance) override { return {}; }
@@ -1105,6 +1061,8 @@ struct Struct final : GlobalNode {
     std::vector<std::unique_ptr<Node>> members;
     std::vector<Ident> protocols;
 
+    Struct(): GlobalNode(ND_STRUCT) {}
+
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_STRUCT;
     }
@@ -1117,10 +1075,6 @@ struct Struct final : GlobalNode {
         for (auto& member : members) {
             member->replaceType(from, to);
         }
-    }
-
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
     }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
@@ -1140,14 +1094,11 @@ struct Condition final : Node {
         return bool_expr.expr;
     }
 
-
+    Condition(): Node(ND_COND) {}
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_COND;
     }
 
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
-    }
 
     void replaceType(const std::string_view from, Type* to) override {
         bool_expr.replaceType(from, to);
