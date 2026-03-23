@@ -657,8 +657,10 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     }
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "=") {
-        var_node->initialized = true;
         forwardStream();
+        if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "undefined") {
+               var_node->initialized = false;
+        } else var_node->initialized = true;
         var_node->value = parseExpr();
     }
 

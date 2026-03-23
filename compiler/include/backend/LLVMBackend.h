@@ -116,8 +116,15 @@ public:
     }
 
     /// Convenient function to construct an llvm `i64` from a `size_t`
-    llvm::Value* toLLVMInt(const std::size_t i) {
-        return llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), i);
+    llvm::Value* toLLVMInt(const std::size_t i, const int size_in_bits = 64) {
+        switch (size_in_bits) {
+            case 8:   return llvm::ConstantInt::get(llvm::Type::getInt8Ty(Context), i);
+            case 16:  return llvm::ConstantInt::get(llvm::Type::getInt16Ty(Context), i);
+            case 32:  return llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), i);
+            case 64:  return llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), i);
+            case 128: return llvm::ConstantInt::get(llvm::Type::getInt128Ty(Context), i);
+            default:  throw std::runtime_error("LLVMBackend::toLLVMInt: invalid size_in_bits");
+        }
     }
 
     /// Calls `print` on the llvm module

@@ -37,7 +37,7 @@ inline const std::unordered_set<std::string_view> KeywordSet = {
     "true", "false", "class", "public", "protocol",
     "const", "static", "break", "continue", "elif",
     "extern", "comptime", "let", "import", "export",
-    "var", "fn", "volatile", "struct",
+    "var", "fn", "volatile", "struct", "undefined"
 };
 
 

@@ -56,6 +56,13 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                 m_Parser.forwardStream();
                 return ret;
             }
+
+            if (m_Stream.CurTok.value == "undefined") {
+                auto ret = std::make_unique<UndefinedValue>();
+                SET_NODE_ATTRS(ret.get());
+                m_Parser.forwardStream();
+                return ret;
+            }
         }
 
         case PUNC: {

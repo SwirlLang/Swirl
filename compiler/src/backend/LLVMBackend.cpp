@@ -1100,6 +1100,9 @@ CGValue Var::llvmCodegen(LLVMBackend &instance) {
             assert(val != nullptr);
             var->setInitializer(val);
             instance.BoundMemory = nullptr;
+        } else if (value.expr == nullptr) {
+            // when the `undefined` keyword isn't used, initialize with 0's
+            var->setInitializer(llvm::Constant::getNullValue(type));
         }
 
         // handle references
@@ -1122,6 +1125,15 @@ CGValue Var::llvmCodegen(LLVMBackend &instance) {
             instance.Builder.CreateStore(init, var_alloca, is_volatile);
 
             instance.BoundMemory = nullptr;
+        } else if (value.expr == nullptr) {
+            // when the `undefined` keyword isn't used, initialize with 0's
+            instance.Builder.CreateMemSet(
+                var_alloca,
+                instance.toLLVMInt(0, 8),
+                instance.getDataLayout().getTypeAllocSize(type),
+                llvm::MaybeAlign());
+
+            // TODO: make the memset inline in freestanding mode ^
         }
 
         // handle references

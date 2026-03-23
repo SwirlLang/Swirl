@@ -39,6 +39,7 @@ enum NodeType {
     ND_CONTINUE,    // 21
     ND_INTRINSIC,   // 22
     ND_PROTOCOL,    // 23
+    ND_UNDEFINED,   // 24
 };
 
 
@@ -407,6 +408,11 @@ struct ReturnStatement final : Node {
     }
 
     AnalysisResult analyzeSemantics(AnalysisContext&) override;
+};
+
+
+struct UndefinedValue final : Node {
+           UndefinedValue() : Node(ND_UNDEFINED) {}
 };
 
 struct IntLit final : Node {
