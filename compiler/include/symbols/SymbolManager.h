@@ -25,8 +25,8 @@ class Namespace {
 public:
     explicit Namespace(sw::FileHandle* mod_handle): m_IDMan(mod_handle) {}
 
-    IdentInfo* getNewIDInfo(const std::string& name) {
-        return m_IDMan.createNew(name);
+    IdentInfo* getNewIDInfo(const std::string& name, const bool is_fictitious = false) {
+        return m_IDMan.createNew(name, is_fictitious);
     }
 
     auto begin() const {
@@ -66,6 +66,9 @@ class SymbolManager {
 
     // maps qualifier-names to their paths
     std::unordered_map<std::string, Namespace*> m_QualifierTable;
+
+    // maps fictitious IDs to parent enum nodes
+    std::unordered_map<IdentInfo*, Enum*> m_FictitiousIDTable;
 
     ErrorCallback_t m_ErrorCallback;
     sw::FileHandle* m_ModuleHandle{};
@@ -217,6 +220,21 @@ public:
                 "'" + id->toString() + "'");
         m_IdToTableEntry.insert({id, entry});
     }
+
+
+    void registerFictitiousID(IdentInfo* id, Enum* enum_node) {
+        if (m_FictitiousIDTable.contains(id)) {
+            throw std::runtime_error("SymbolTable::registerFictitiousIDValue: id already in the table");
+        } m_FictitiousIDTable.insert({id, enum_node});
+    }
+
+
+    Enum* getFictitiousIDValue(IdentInfo* id) {
+        if (m_FictitiousIDTable.contains(id)) {
+            return m_FictitiousIDTable[id];
+        } throw std::runtime_error("SymbolTable::getFictitiousIDValue: id not in the table");
+    }
+
 
     bool typeExists(IdentInfo* id) const {
         return m_TypeManager.contains(id);

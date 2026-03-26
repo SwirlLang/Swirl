@@ -382,6 +382,25 @@ AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
 }
 
 
+AnalysisResult Enum::analyzeSemantics(AnalysisContext& ctx) {
+    if (enum_type.has_value()) {
+        enum_type->analyzeSemantics(ctx);
+        if (enum_type->type && !enum_type->type->isIntegral()) {
+            ctx.reportError(ErrCode::ENUM_TYPE_NOT_INTEGRAL, {});
+        }
+    } else {
+        enum_type = TypeWrapper{};
+        enum_type->type = &GlobalTypeI32;
+    }
+
+    const auto ty = dynamic_cast<EnumType*>(ctx.SymMan.lookupType(ident));
+    ty->of_type = enum_type->type;
+
+    analysis_cache = {.deduced_type = ty};
+    return {.deduced_type = ty};
+}
+
+
 AnalysisResult Var::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     AnalysisResult ret;
@@ -615,7 +634,13 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     }
 
     auto decl = ctx.SymMan.lookupDecl(this->value);
-    ret.deduced_type = decl.swirl_type;
+
+    if (value->isFictitious()) {
+        const auto enum_node = ctx.SymMan.getFictitiousIDValue(value);
+        enum_node->enum_type->analyzeSemantics(ctx);
+        ret.deduced_type = enum_node->enum_type->type;
+
+    } else ret.deduced_type = decl.swirl_type;
 
     analysis_cache = ret;
     return ret;

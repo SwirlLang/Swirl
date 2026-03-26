@@ -128,6 +128,7 @@ public:
     std::unique_ptr<ReturnStatement> parseRet();
     std::unique_ptr<Intrinsic>       parseIntrinsic();
     std::unique_ptr<Protocol>        parseProtocol();
+    std::unique_ptr<Enum>            parseEnum();
 
     Var parseParam(bool&);
     std::unique_ptr<Var>      parseVar(bool is_volatile = false);

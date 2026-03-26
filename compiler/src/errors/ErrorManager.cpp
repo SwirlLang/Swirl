@@ -102,6 +102,9 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
                 ctx.str_2
                 );
 
+        case ErrCode::ENUM_TYPE_NOT_INTEGRAL:
+            return "Enumeration types must be integral.";
+
 
         case ErrCode::NO_DIR_IMPORT:
             return "Importing directories is not allowed yet.";

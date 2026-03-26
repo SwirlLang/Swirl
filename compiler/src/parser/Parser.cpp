@@ -207,6 +207,9 @@ SwNode Parser::dispatch() {
                 if (m_Stream.CurTok.value == "protocol")
                     return parseProtocol();
 
+                if (m_Stream.CurTok.value == "enum")
+                    return parseEnum();
+
                 if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false")
                     return std::make_unique<Expression>(parseExpr());
 
@@ -877,6 +880,65 @@ Ident Parser::parseIdent() {
 
     if (ret.full_qualification.size() == 1 && ret.full_qualification.at(0).generic_args.empty()) {
         ret.value = SymbolTable.getIDInfoFor(ret.full_qualification.front().name);
+    }
+
+    return ret;
+}
+
+
+std::unique_ptr<Enum> Parser::parseEnum() {
+    auto ret = std::make_unique<Enum>();
+    SET_NODE_ATTRS(ret.get());
+
+    forwardStream();  // skip 'enum'
+    TableEntry entry;
+    entry.is_enum  = true;
+    entry.node_ptr = ret.get();
+    ret->ident  = SymbolTable.registerDecl(forwardStream().value, entry);
+
+    auto scope = SymbolTable.newScope();
+    SymbolTable.lookupDecl(ret->ident).scope = scope;
+
+    auto ty = new EnumType();
+    ty->scope = entry.scope;
+    ty->id = ret->ident;
+
+    SymbolTable.registerType(ret->ident, ty);
+
+    if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
+        forwardStream();  // skip ':'
+        ret->enum_type = parseType();
+    }
+
+    forwardStream(); // skip "{"
+    while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
+        if (m_Stream.eof()) {
+            reportError(ErrCode::UNEXPECTED_EOF);
+            break;
+        }
+
+        if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ",") {
+            forwardStream();
+            continue;
+        }
+
+        if (m_Stream.CurTok.type == IDENT) {
+            auto name = forwardStream().value;
+            ret->addEntry(name);
+
+            const auto id_info = scope->getNewIDInfo(name, true);
+            SymbolTable.registerFictitiousID(id_info, ret.get());
+            continue;
+        }
+
+        reportError(ErrCode::SYNTAX_ERROR, {.msg = "Expected identifier."});
+        forwardStream();
+    } forwardStream();  // skip '}'
+
+    SymbolTable.moveToPreviousScope();
+
+    if (m_RecursionDepth == 1) {
+        NodeJmpTable[ret->ident] = ret.get();
     }
 
     return ret;

@@ -55,6 +55,7 @@ enum class ErrCode {
     NOT_DEREFERENCE_ABLE,     // type cannot be dereferenced,
     NO_SUCH_PROTOCOL,         // the protocol does not exist
     PROTOCOL_NOT_SATISFIED,   // the protocol hasn't been satisfied
+    ENUM_TYPE_NOT_INTEGRAL,   // enum types should be integral
     // ----------*----------- //
 
 

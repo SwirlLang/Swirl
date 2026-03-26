@@ -3,6 +3,8 @@
 
 
 TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {
+    static TableEntry fictitious_table_entry{.is_exported = true};
+    if (id->isFictitious()) { return fictitious_table_entry; }
     if (sw::FileHandle* mod_path = id->getModuleFileHandle(); mod_path != m_ModuleHandle) {
         return m_ModuleMap.get(mod_path).SymbolTable.m_IdToTableEntry.at(id);
     } return m_IdToTableEntry.at(id);
@@ -71,7 +73,7 @@ IdentInfo* SymbolManager::getIDInfoFor(
             if (!qual_id)
                 return nullptr;
 
-            // handle generics
+            // TODO: handle generics
             if (!id.full_qualification.at(0).generic_args.empty()) {
 
             }

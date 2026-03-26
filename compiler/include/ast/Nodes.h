@@ -40,6 +40,7 @@ enum NodeType {
     ND_INTRINSIC,   // 22
     ND_PROTOCOL,    // 23
     ND_UNDEFINED,   // 24
+    ND_ENUM,
 };
 
 
@@ -951,6 +952,22 @@ struct ContinueStmt final : Node {
     [[nodiscard]] NodeType getNodeType() const override { return ND_CONTINUE; }
 };
 
+
+struct Enum final : Node {
+    Enum() : Node(ND_ENUM), ident(nullptr) {}
+
+    IdentInfo* ident;
+    std::optional<TypeWrapper> enum_type;
+    std::unordered_map<std::string, int> entries;
+
+    int counter = 0;
+    void addEntry(const std::string_view name) {
+        entries.emplace(name, counter++);
+    }
+
+    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+    CGValue llvmCodegen(LLVMBackend& instance) override;
+};
 
 struct Protocol final : GlobalNode {
     struct MethodSignature {

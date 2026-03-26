@@ -38,6 +38,14 @@ llvm::Type* FunctionType::llvmCodegen(LLVMBackend& instance) {
     return function;
 }
 
+llvm::Type* EnumType::llvmCodegen(LLVMBackend& instance) {
+    return of_type->llvmCodegen(instance);
+}
+
+std::string EnumType::toString() const {
+    return "enum " + id->toString();
+}
+
 llvm::Type* TypeStr::llvmCodegen(LLVMBackend& instance) {
     if (instance.LLVMTypeCache.contains(this)) {
         return instance.LLVMTypeCache[this];

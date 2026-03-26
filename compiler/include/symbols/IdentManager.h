@@ -9,15 +9,16 @@
 class IdentInfo {
     std::string id;
     sw::FileHandle* handle = nullptr;
-
+    bool is_fictitious = false;
     friend class IdentManager;
 
 public:
     IdentInfo() = delete;
 
-    explicit IdentInfo(std::string ident, sw::FileHandle* mod_handle)
+    explicit IdentInfo(std::string ident, sw::FileHandle* mod_handle, const bool is_fictitious = false)
         : id(std::move(ident))
-        , handle(mod_handle) {}
+        , handle(mod_handle)
+        , is_fictitious(is_fictitious) {}
 
     [[nodiscard]]
     const std::string& toString() const {
@@ -27,6 +28,10 @@ public:
     [[nodiscard]]
     sw::FileHandle* getModuleFileHandle() const {
         return handle;
+    }
+
+    bool isFictitious() const {
+        return is_fictitious;
     }
 };
 
@@ -41,8 +46,8 @@ public:
     explicit IdentManager(sw::FileHandle* mod_handle): m_ModuleHandle(mod_handle) {}
 
     /// registers a new IdentInfo and returns its pointer
-    IdentInfo* createNew(const std::string& id) {
-        m_IdentTable.emplace(id, new IdentInfo(id, m_ModuleHandle));
+    IdentInfo* createNew(const std::string& id, const bool is_fictitious = false) {
+        m_IdentTable.emplace(id, new IdentInfo(id, m_ModuleHandle, is_fictitious));
         return m_IdentTable.at(id).get();
     }
 

@@ -10,6 +10,7 @@ namespace llvm {
 }
 
 struct TableEntry {
+    bool is_enum     = false;
     bool is_const    = false;
     bool is_param    = false;
     bool is_exported = false;

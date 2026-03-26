@@ -15,7 +15,7 @@ namespace llvm { class Type; }
 
 struct Type {
     enum SwTypes {
-        FUNCTION, STRUCT,
+        FUNCTION, STRUCT, ENUM,
 
         I8, I16, I32, I64, I128,
         U8, U16, U32, U64, U128,
@@ -135,6 +135,20 @@ struct FunctionType final : Type {
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
+struct EnumType final : Type {
+    Type* of_type = nullptr;
+    IdentInfo* id = nullptr;
+
+    EnumType() = default;
+    explicit EnumType(Type* t, IdentInfo* i): of_type(t), id(i) {}
+
+    SwTypes getTypeTag() override {
+        return ENUM;
+    }
+
+    llvm::Type* llvmCodegen(LLVMBackend&) override;
+    [[nodiscard]] std::string toString() const override;
+};
 
 struct StructType final : Type {
     IdentInfo* ident = nullptr;

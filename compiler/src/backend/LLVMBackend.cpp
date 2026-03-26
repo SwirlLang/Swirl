@@ -296,6 +296,13 @@ CGValue Ident::llvmCodegen(LLVMBackend& instance) {
     PRE_SETUP();
     const auto e = instance.SymMan.lookupDecl(this->value);
 
+    if (value->isFictitious()) {
+        auto enum_node = instance.SymMan.getFictitiousIDValue(value);
+        return {nullptr, llvm::ConstantInt::get(
+            enum_node->enum_type->type->llvmCodegen(instance),
+            enum_node->entries.at(full_qualification.back().name))};
+    }
+
     if (!instance.isLocalScope()) {
         auto global_var = llvm::dyn_cast<llvm::GlobalVariable>(e.llvm_value);
         return CGValue::rValue(global_var->getInitializer());
@@ -318,6 +325,10 @@ CGValue Ident::llvmCodegen(LLVMBackend& instance) {
 
 CGValue ImportNode::llvmCodegen([[maybe_unused]] LLVMBackend &instance) {
     return {nullptr, nullptr};
+}
+
+CGValue Enum::llvmCodegen(LLVMBackend& instance) {
+    return {};
 }
 
 
