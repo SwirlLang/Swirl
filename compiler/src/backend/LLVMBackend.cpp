@@ -89,6 +89,13 @@ llvm::Value* CGValue::getLValue() {
     } return m_LValue;
 }
 
+bool CGValue::isLValue() const {
+    if (m_LValue || (m_RValue && m_RValue->getType()->isPointerTy())) {
+        return true;
+    } return false;
+}
+
+
 /// If there's no held rvalue, creates and returns a load of the held lvalue, returns the held
 /// rvalue otherwise.
 llvm::Value* CGValue::getRValue(LLVMBackend& instance) {
@@ -757,7 +764,21 @@ CGValue Op::llvmCodegen(LLVMBackend &instance) {
                 // );
             // ---- * ---- * ---- * ---- * ---- //
             } else {  // otherwise...
-                auto inst_ptr = operands.at(0)->llvmCodegen(instance).getLValue();
+
+                auto operand = operands.at(0)->llvmCodegen(instance);
+
+                // fetch the instance's struct-type
+                auto struct_sw_ty = instance.fetchSwType(operands.at(0));
+                auto struct_ty = dynamic_cast<StructType*>(struct_sw_ty->getWrappedTypeOrInstance());
+
+                llvm::Value* inst_ptr;
+                if (operand.isLValue()) {
+                    inst_ptr = operand.getLValue();
+                } else {
+                    // when the LHS isn't an LValue
+                    inst_ptr = instance.Builder.CreateAlloca(struct_ty->llvmCodegen(instance));
+                    instance.Builder.CreateStore(operand.getRValue(instance), inst_ptr);
+                }
 
                 // in the special case when dot is using with pure-rvalues
                 // e.g., functions returning struct instances
@@ -766,10 +787,6 @@ CGValue Op::llvmCodegen(LLVMBackend &instance) {
                     instance.Builder.CreateStore(inst_ptr, tmp);
                     inst_ptr = tmp;
                 }
-
-                // fetch the instance's struct-type
-                auto struct_sw_ty = instance.fetchSwType(operands.at(0));
-                auto struct_ty = dynamic_cast<StructType*>(struct_sw_ty->getWrappedTypeOrInstance());
 
                 // handle the special case of methods, lower them into regular function calls
                 if (operands.at(1)->getNodeType() == ND_CALL) {

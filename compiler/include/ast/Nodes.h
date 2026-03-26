@@ -80,6 +80,8 @@ public:
     CGValue(): m_LValue(nullptr), m_RValue(nullptr) {}
     CGValue(llvm::Value* lvalue, llvm::Value* rvalue): m_LValue(lvalue), m_RValue(rvalue) {}
 
+    bool isLValue() const;
+
     llvm::Value*   getLValue();
     llvm::Value*   getRValue(LLVMBackend&);
 
