@@ -700,31 +700,20 @@ std::unique_ptr<FuncCall> Parser::parseCall(std::optional<Ident> ident) {
     }
 
     forwardStream();  // skip '('
-
-    if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ")") {
-        forwardStream();
-    }
-    else {
-        while (true) {
-            if (m_Stream.CurTok.type == PUNC) {
-                if (m_Stream.CurTok.value == ",")
-                    forwardStream();
-                if (m_Stream.CurTok.value == ")")
-                    break;
-            }
-
-            if (m_Stream.eof()) {
-                reportError(ErrCode::UNEXPECTED_EOF);
-                break;
-            }
-
-            call_node->args.emplace_back(parseExpr());
+    while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ")")) {
+        if (m_Stream.eof()) {
+            reportError(ErrCode::UNEXPECTED_EOF);
+            break;
         }
-    }
 
-    if (m_Stream.CurTok.value == ")") {
-        forwardStream();
-    }
+        if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ",") {
+            forwardStream();
+            continue;
+        }
+
+        call_node->args.emplace_back(parseExpr());
+    } forwardStream();
+
     return call_node;
 }
 
