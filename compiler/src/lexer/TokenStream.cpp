@@ -70,7 +70,7 @@ std::string TokenStream::readEscaped(const char _end) const {
 
 Token TokenStream::readString(const char del) const {
     auto str = readEscaped(del);
-    if (!m_Stream.eof()) m_Stream.next();  // escape the '"'
+    // if (!m_Stream.eof()) m_Stream.next();  // escape the '"'
     return {STRING, std::move(str), getStreamState()};
 }
 
