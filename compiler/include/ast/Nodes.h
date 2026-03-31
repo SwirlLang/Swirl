@@ -14,34 +14,39 @@
 #include "utils/FileSystem.h"
 
 
+#define SW_NODE_LIST \
+    SW_NODE(ND_INVALID, Node) \
+    SW_NODE(ND_EXPR, Expression) \
+    SW_NODE(ND_INT, IntLit) \
+    SW_NODE(ND_FLOAT, FloatLit) \
+    SW_NODE(ND_OP, Op) \
+    SW_NODE(ND_VAR, Var) \
+    SW_NODE(ND_STR, StrLit) \
+    SW_NODE(ND_CALL, FuncCall) \
+    SW_NODE(ND_IDENT, Ident) \
+    SW_NODE(ND_FUNC, Function) \
+    SW_NODE(ND_RET, ReturnStatement) \
+    SW_NODE(ND_COND, Condition) \
+    SW_NODE(ND_WHILE, WhileLoop) \
+    SW_NODE(ND_STRUCT, Struct) \
+    SW_NODE(ND_IMPORT, ImportNode) \
+    SW_NODE(ND_ARRAY, ArrayLit) \
+    SW_NODE(ND_TYPE, TypeWrapper) \
+    SW_NODE(ND_BOOL, BoolLit) \
+    SW_NODE(ND_SCOPE, Scope) \
+    SW_NODE(ND_BREAK, BreakStmt) \
+    SW_NODE(ND_CONTINUE, ContinueStmt) \
+    SW_NODE(ND_INTRINSIC, Intrinsic) \
+    SW_NODE(ND_PROTOCOL, Protocol) \
+    SW_NODE(ND_UNDEFINED, UndefinedValue) \
+    SW_NODE(ND_ENUM, Enum)
+
+
+#define SW_NODE(x, y) x,
 enum NodeType {
-    ND_INVALID,     //  0
-    ND_EXPR,        //  1
-    ND_INT,         //  2
-    ND_FLOAT,       //  3
-    ND_OP,          //  4
-    ND_VAR,         //  5
-    ND_STR,         //  6
-    ND_CALL,        //  7
-    ND_IDENT,       //  8
-    ND_FUNC,        //  9
-    ND_RET,         // 10
-    ND_ASSIGN,      // 11
-    ND_COND,        // 12
-    ND_WHILE,       // 13
-    ND_STRUCT,      // 14
-    ND_IMPORT,      // 15
-    ND_ARRAY,       // 16
-    ND_TYPE,        // 17
-    ND_BOOL,        // 18
-    ND_SCOPE,       // 19
-    ND_BREAK,       // 20
-    ND_CONTINUE,    // 21
-    ND_INTRINSIC,   // 22
-    ND_PROTOCOL,    // 23
-    ND_UNDEFINED,   // 24
-    ND_ENUM,
+    SW_NODE_LIST
 };
+#undef SW_NODE
 
 
 struct Node;
