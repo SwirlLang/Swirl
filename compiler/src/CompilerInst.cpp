@@ -24,7 +24,6 @@ LLD_HAS_DRIVER(mingw)
     #endif
 #endif
 
-
 void CompilerInst::addPackageEntry(const std::string_view package, const bool is_project) {
     // when true, do not try to parse the author-name and package-version from the path
     if (is_project) {
@@ -49,10 +48,9 @@ void CompilerInst::startLLVMCodegen() {
 
     for (Parser* parser : m_ModuleManager) {
         auto* backend = llvm_backends.emplace_back(new LLVMBackend{*parser}).get();
-        m_ThreadPool.enqueue([backend] {
-            backend->startGeneration();
-        });
-    } m_ThreadPool.wait();
+        m_ThreadPool.enqueue([backend] { backend->startGeneration(); });
+    }
+    m_ThreadPool.wait();
 
     for (const auto& backend : llvm_backends) {
         backend->printIR();
@@ -80,9 +78,8 @@ void CompilerInst::generateObjectFiles(Backends_t& backends) {
     for (const auto& [counter, backend] : llvm::enumerate(backends)) {
         llvm::legacy::PassManager pass_man;
         std::error_code ec;
-        llvm::raw_fd_ostream dest((build_dir / "obj" / ("output_" + std::to_string(counter))).string(),
-            ec,
-            llvm::sys::fs::OpenFlags::OF_None);
+        llvm::raw_fd_ostream dest((build_dir / "obj" / ("output_" + std::to_string(counter))).string(), ec,
+                                  llvm::sys::fs::OpenFlags::OF_None);
 
         if (ec) {
             throw std::runtime_error("llvm::raw_fd_ostream failed! " + ec.message());
@@ -141,42 +138,51 @@ void CompilerInst::produceExecutable() {
 
     // decide driver flavor based on toolchain
     const bool is_win = triple.getOS() == llvm::Triple::Win32;
-
+    const bool is_linux = triple.getOS() == llvm::Triple::Linux;
     // a DriverDef is composed of a "flavor" and a `link` "callback"
     lld::DriverDef platform_driver = {SW_LLD_FLAVOR, &lld::SW_LLD_DRIVER_NAMESPACE::link};
-
-    // accumulate the runtime files
-    std::vector<std::string> sw_runtime{};
-    sw_runtime.push_back(runtime_path.string());
 
     // toolchain-specific linker args (kept as strings for lifetime)
     std::vector<std::string> toolchain_args;
 
-    if (is_win) {
-#ifdef _MSC_VER
-        // MSVC toolchain
-        sw_runtime.emplace_back("kernel32.lib");
-        sw_runtime.emplace_back("shell32.lib");
-        sw_runtime.emplace_back("/subsystem:console");
-        sw_runtime.emplace_back("/entry:_start");
-        sw_runtime.emplace_back("/STACK:8388607");
-#else
-        // MinGW toolchain
-        sw_runtime.emplace_back(R"(C:\Windows\System32\kernel32.dll)");
-        sw_runtime.emplace_back(R"(C:\Windows\System32\shell32.dll)");
-        sw_runtime.emplace_back("/subsystem:console");
-        sw_runtime.emplace_back("/entry:_start");
-        sw_runtime.emplace_back("/STACK:8388607");
-#endif
-    }
+    // windows build is currently not supported, but the code is left here for future reference
+    //     if (is_win) {
+    // #ifdef _MSC_VER
+    //         // MSVC toolchain
+    //         sw_runtime.emplace_back("kernel32.lib");
+    //         sw_runtime.emplace_back("shell32.lib");
+    //         sw_runtime.emplace_back("/subsystem:console");
+    //         sw_runtime.emplace_back("/entry:_start");
+    //         sw_runtime.emplace_back("/STACK:8388607");
+    // #else
+    //         // MinGW toolchain
+    //         sw_runtime.emplace_back(R"(C:\Windows\System32\kernel32.dll)");
+    //         sw_runtime.emplace_back(R"(C:\Windows\System32\shell32.dll)");
+    //         sw_runtime.emplace_back("/subsystem:console");
+    //         sw_runtime.emplace_back("/entry:_start");
+    //         sw_runtime.emplace_back("/STACK:8388607");
+    // #endif
+    //     }
 
-    // accumulate the linker arguments
     std::vector args{SW_LLD_DRIVER_NAME};
 
-    // push all the runtime files
-    for (auto& arg : sw_runtime) {
-        args.push_back(arg.c_str());
+    args.push_back("-static");
+    args.push_back("-L/usr/lib/swirl");
+    args.push_back("/usr/lib/swirl/crt1.o");
+    args.push_back("/usr/lib/swirl/crti.o");
+
+    for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
+        args.push_back((new std::string(file.path().string()))->c_str());
     }
+
+    args.push_back("--start-group");
+    args.push_back("-lc");
+    args.push_back("--end-group");
+    args.push_back("/usr/lib/swirl/crtn.o");
+
+    // accumulate the linker arguments
+
+    // push all the runtime files
 
     // push toolchain-specific args (e.g., -L<mingw>/lib)
     for (auto& a : toolchain_args) {
@@ -184,9 +190,6 @@ void CompilerInst::produceExecutable() {
     }
 
     // iterate over all object files of the build directory and push their paths to the vector
-    for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
-        args.push_back((new std::string(file.path().string()))->c_str());
-    }
 
     // compute the output path
     if (m_OutputPath.empty()) {
@@ -204,13 +207,13 @@ void CompilerInst::produceExecutable() {
     args.push_back((new std::string(m_OutputPath.string()))->c_str());
 #endif
 
-    if (!is_win) {
-        // Add standard library search paths
-        args.push_back("-L/usr/lib");
-        args.push_back("-L/usr/lib64");
-        args.push_back("-L/lib");
-        args.push_back("-L/lib64");
-    }
+    // if (!is_win) {
+    //     // Add standard library search paths
+    //     args.push_back("-L/usr/lib");
+    //     args.push_back("-L/usr/lib64");
+    //     args.push_back("-L/lib");
+    //     args.push_back("-L/lib64");
+    // }
 
     for (auto& lib : LinkTargets) {
         // Check if this is a full path to a library
