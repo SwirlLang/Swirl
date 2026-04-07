@@ -42,7 +42,7 @@ sw::FileHandle* sw::FileSystem::open(const std::filesystem::path& file_path) {
     }
 
     const auto handle = new FileHandle(file_path.string());
-    m_FileTable[std::string(file_path)] = std::unique_ptr<FileHandle>(handle);
+    m_FileTable[file_path] = std::unique_ptr<FileHandle>(handle);
 
     assert(handle != nullptr);
     return handle;
