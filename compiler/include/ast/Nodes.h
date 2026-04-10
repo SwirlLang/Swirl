@@ -777,7 +777,7 @@ struct FuncCall final : Node {
     std::vector<Expression> args;
     std::vector<TypeWrapper> generic_args;
 
-    FuncCall(): Node(ND_FUNC) {}
+    FuncCall(): Node(ND_CALL) {}
 
     IdentInfo* getIdentInfo() override {
         return ident.getIdentInfo();

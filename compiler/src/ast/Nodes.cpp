@@ -146,9 +146,11 @@ void Op::replaceType(const std::string_view from, Type* to) {
 }
 
 void Ident::replaceType(const std::string_view from, Type* to) {
-    for (const auto& arg : full_qualification) {
-        for (auto* type : arg.generic_args) {
+    for (auto& [name, generic_args] : full_qualification) {
+        for (auto* type : generic_args) {
             type->replaceType(from, to);
+        } if (name == from) {
+            name = to->getIdent()->toString();
         }
     }
 }

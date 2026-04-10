@@ -4,6 +4,7 @@
 
 #include "ast/Nodes.h"
 #include "parser/Parser.h"
+#include "visitors/SymbolResolver.h"
 #include "parser/SemanticAnalysis.h"
 #include "managers/ModuleManager.h"
 
@@ -13,15 +14,6 @@ using NodesVec = std::vector<SwNode>;
 
 #define PRE_SETUP() if (analysis_cache.has_value()) return *analysis_cache; \
     AnalysisContext::SemaSetupHandler GET_UNIQUE_NAME(presetup){ctx, this};
-
-
-struct TypeInfo {
-    bool is_integral;
-    bool is_floating_point;
-    bool is_struct;
-    bool is_reference;
-    bool is_pointer;
-};
 
 
 Type* AnalysisContext::deduceType(Type* type1, Type* type2, const SourceLocation& location) const {
@@ -601,46 +593,17 @@ AnalysisResult Ident::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
     AnalysisResult ret;
 
-    if (!full_qualification.empty() && ctx.CurGenericArgNames.contains(full_qualification.front().name)) {
-        return {};
-    }
-
-    for (auto& id : full_qualification) {
-        for (const auto& gen_arg : id.generic_args) {
-            gen_arg->analyzeSemantics(ctx);
-        }
-    }
-
-    if (!value) {
-        value = ctx.SymMan.getIDInfoFor(
-            *this,
-            [ctx](auto a, auto b) {
-                ctx.reportError(a, std::move(b));
-            },
-
-            [ctx, this](ErrCode code, ErrorContext err_ctx) {
-                err_ctx.location = location;
-                ctx.reportError(code, std::move(err_ctx));
-            });
-    }
-
-    if (!value) {
-        ctx.reportError(
-            ErrCode::UNDEFINED_IDENTIFIER,
-            {.str_1 = full_qualification.back().name}
-            );
-        analysis_cache = ret;
+    if (!value)
         return ret;
-    }
-
-    auto decl = ctx.SymMan.lookupDecl(this->value);
 
     if (value->isFictitious()) {
         const auto enum_node = ctx.SymMan.getFictitiousIDValue(value);
         enum_node->enum_type->analyzeSemantics(ctx);
         ret.deduced_type = enum_node->enum_type->type;
-
-    } else ret.deduced_type = decl.swirl_type;
+    } else {
+        const auto decl = ctx.SymMan.lookupDecl(this->value);
+        ret.deduced_type = decl.swirl_type;
+    }
 
     analysis_cache = ret;
     return ret;
@@ -727,7 +690,7 @@ AnalysisResult Function::analyzeSemantics(AnalysisContext& ctx) {
     for (auto& child : children) {
         if (child->getNodeType() == ND_RET) {
             return_stmt_counter++;
-            auto ret_analysis = child->analyzeSemantics(ctx);
+            const auto ret_analysis = child->analyzeSemantics(ctx);
 
             if (fn_type->ret_type != nullptr) {
                 // TODO: check for implicit convertibility

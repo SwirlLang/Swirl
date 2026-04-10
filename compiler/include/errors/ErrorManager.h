@@ -79,6 +79,7 @@ enum class ErrCode {
 
 
     TOO_FEW_ARGS,
+    NOT_A_GENERIC,
     NON_INTEGRAL_INDICES,
     INDEX_OUT_OF_BOUNDS,
     NON_INT_ARRAY_SIZE,

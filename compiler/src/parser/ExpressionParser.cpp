@@ -41,6 +41,7 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
         case IDENT: {
             auto id = std::make_unique<Ident>(m_Parser.parseIdent());
             SET_NODE_ATTRS(id.get());
+            assert(!id->full_qualification.empty());
 
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
                 // `id` HAS BEEN MOVED!

@@ -6,16 +6,6 @@
 #include "utils/FileSystem.h"
 
 
-// Thread-safe wrapper over a Parser pointer
-class Module {
-    Parser*    m_ParserPtr;
-    std::mutex m_Mutex;
-
-public:
-    explicit Module(Parser* parser) : m_ParserPtr(parser) {}
-};
-
-
 /// This is a helper class which works with the `Parser`, it manages the entire collection of modules
 /// and keeps them in a topologically sorted order (based on who depends on whom).
 class ModuleManager {

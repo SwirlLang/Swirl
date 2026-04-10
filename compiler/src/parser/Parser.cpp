@@ -20,6 +20,7 @@
 #include "parser/SemanticAnalysis.h"
 
 #include "CompilerInst.h"
+#include "visitors/SymbolResolver.h"
 
 /// Automatically sets certain node attributes
 #define SET_NODE_ATTRS(x) NodeAttrHelper GET_UNIQUE_NAME(attr_setter_){x, *this}
@@ -120,7 +121,6 @@ void Parser::ignoreButExpect(const Token& tok) {
 TypeWrapper Parser::parseType() {
     TypeWrapper wrapper;
     SET_NODE_ATTRS(&wrapper);
-
 
     // handle references and pointers (*&T...)
     bool is_reference_present = false;
@@ -428,6 +428,9 @@ void Parser::parse() {
 
 /// begin semantic analysis  ///
 void Parser::performSema() {
+    sema::SymbolResolver resolver{*this};
+    resolver.dispatch(AST, sema::SymbolResolver::Data{});
+
     AnalysisContext analysis_ctx{*this};
     analysis_ctx.startAnalysis();
 }
@@ -445,9 +448,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     auto func_nd = std::make_unique<Function>();
     SET_NODE_ATTRS(func_nd.get());
 
-    const std::string func_ident = m_IsBeingCloned ?
-        m_Stream.next().value + "__Sw_cloned_" + std::to_string(getCloneCount())
-        : m_Stream.next().value;
+    const std::string func_ident = m_Stream.next().value;
 
     // handle the special case of `main`
     if (func_ident == "main" && !m_IsMainModule) {
@@ -871,6 +872,7 @@ Ident Parser::parseIdent() {
         ret.value = SymbolTable.getIDInfoFor(ret.full_qualification.front().name);
     }
 
+    assert(!ret.full_qualification.empty());
     return ret;
 }
 
@@ -1052,7 +1054,7 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     const auto struct_name = forwardStream().value;
     m_CurrentStructTy.push_back(struct_ty);
 
-    // ask for a decl registry to the symbol manager
+    // ask for a decl registry from the symbol manager
     ret->ident = SymbolTable.registerDecl(struct_name, {
         .is_exported = ret->is_exported,
     });

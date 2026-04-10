@@ -30,6 +30,7 @@ public:
         return handle;
     }
 
+    [[nodiscard]]
     bool isFictitious() const {
         return is_fictitious;
     }

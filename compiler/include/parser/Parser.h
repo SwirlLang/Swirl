@@ -54,6 +54,14 @@ struct std::hash<SwObject> {
 };
 
 
+struct Module {
+    AST_t ast;
+    SymbolManager symbol_table;
+    ErrorCallback_t error_callback;
+    sw::FileHandle* file_handle = nullptr;
+};
+
+
 class Parser {
     TokenStream      m_Stream;
     SourceManager    m_SrcMan;
@@ -69,7 +77,6 @@ class Parser {
     bool         m_IsMainModule       = false;    // is the module the parser represents the main one?
     bool         m_IsBeingCloned      = false;
 
-    std::size_t          m_CloneCount = 0;
     std::vector<Type*>   m_CurrentStructTy{nullptr};  // the type of the struct being parsed
 
     std::string          m_ExternAttributes;
@@ -107,6 +114,8 @@ class Parser {
     friend class ExpressionParser;
     friend class ClonedState;
 
+    template <typename T>
+    friend class SemaVisitor;
 
 public:
     SymbolManager SymbolTable;
@@ -154,9 +163,6 @@ public:
 
     void toggleIsMainModule() { m_IsMainModule = !m_IsMainModule; }
 
-    std::size_t getCloneCount() {
-        return ++m_CloneCount;
-    }
 
     /// Calls `inserter` with the symbol name for each exported-symbol in the AST
     template <typename Inserter_t> requires std::invocable<Inserter_t, std::string>

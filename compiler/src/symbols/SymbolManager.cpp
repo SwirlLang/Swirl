@@ -10,6 +10,7 @@ TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {
     } return m_IdToTableEntry.at(id);
 }
 
+
 Type* SymbolManager::lookupType(IdentInfo* id) {
     if (!id) return nullptr;
     if (const auto mod_path = id->getModuleFileHandle(); mod_path != m_ModuleHandle) {
@@ -17,50 +18,24 @@ Type* SymbolManager::lookupType(IdentInfo* id) {
     } return m_TypeManager.getFor(id);
 }
 
+
 IdentInfo* SymbolManager::getIdInfoFromModule(sw::FileHandle* mod_path, const std::string& name) const {
     return m_ModuleMap.get(mod_path).SymbolTable.getIdInfoOfAGlobal(name, true);
 }
 
-IdentInfo* SymbolManager::instantiateGenerics(IdentInfo* id, const std::vector<TypeWrapper*>& args, const ErrorCallback_t& err) {
-    const auto node = lookupDecl(id).node_ptr;
-    assert(node != nullptr);
 
-    // TODO: potential race condition
-    Parser& parser_instance = m_ModuleMap.get(id->getModuleFileHandle());
-    const auto cloned_node  = parser_instance.cloneNode(id);
-    const auto glob_node    = cloned_node->to<GlobalNode>();
-
-    std::vector<Type*> type_values;
-    type_values.reserve(args.size());
-
-    for (auto& arg: args) {
-        type_values.push_back(arg->type);
-    }
-
-    auto instantiated_node = glob_node->instantiate(parser_instance, type_values, err);
-    parser_instance.AST.push_back(std::move(instantiated_node));
-    return parser_instance.AST.back()->getIdentInfo();
-}
-
-
-IdentInfo* SymbolManager::getIDInfoFor(
-    const Ident& id,
-    const std::optional<ErrorCallback_t>& err_callback,
-    const std::optional<ErrorCallback_t>& generic_err_callback) {
-
-    auto report_error = [&err_callback](ErrCode code, const ErrorContext& ctx) {
+IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<ErrorCallback_t>& err_callback) {
+    auto report_error = [&err_callback](const ErrCode code, const ErrorContext& ctx) {
         if (err_callback.has_value())
             (*err_callback)(code, ctx);
     };
 
+    if (id.full_qualification.empty()) {
+        throw std::runtime_error("SymbolManager::getIDInfoFor: `Ident::full_qualification::size` is 0!");
+    }
+
     if (id.full_qualification.size() == 1) {
         auto glob_id = getIdInfoOfAGlobal(id.full_qualification.front().name);
-
-        // handle generic arguments
-        if (!id.full_qualification.front().generic_args.empty()) {
-            assert(generic_err_callback.has_value());
-            return instantiateGenerics(glob_id, id.full_qualification.front().generic_args, *generic_err_callback);
-        }
         return glob_id;
     }
 
@@ -73,12 +48,7 @@ IdentInfo* SymbolManager::getIDInfoFor(
             if (!qual_id)
                 return nullptr;
 
-            // TODO: handle generics
-            if (!id.full_qualification.at(0).generic_args.empty()) {
-
-            }
-
-            auto tmp = lookupDecl(qual_id);
+            const auto tmp = lookupDecl(qual_id);
             look_at = tmp.scope;
             continue;
         }
@@ -116,16 +86,27 @@ IdentInfo* SymbolManager::getIDInfoFor(
         return nullptr;
     }
 
-    auto value = look_at->getIDInfoFor(id.full_qualification.back().name).value();
-    if (value && !lookupDecl(value).is_exported) {
+    const auto value = look_at->getIDInfoFor(id.full_qualification.back().name);
+
+    if (!value.has_value()) {
+        report_error(
+            ErrCode::NO_SYMBOL_IN_NAMESPACE,
+            {
+                .str_1 = id.full_qualification.back().name,
+                .str_2 = id.full_qualification.at(id.full_qualification.size() - 2).name,
+                .location = id.location
+            }); return nullptr;
+    }
+
+    if (*value && !lookupDecl(*value).is_exported) {
         report_error(
             ErrCode::SYMBOL_NOT_EXPORTED,
             {
-                .str_1 = value->toString(),
+                .str_1 = (*value)->toString(),
                 .location = id.location
             });
         return nullptr;
-    } return value;
+    } return *value;
 }
 
 
