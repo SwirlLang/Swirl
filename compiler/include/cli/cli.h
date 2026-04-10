@@ -10,8 +10,8 @@ struct Argument {
     std::string desc;
 
     bool value_required;
-    bool repeatable = false;         // Add this
-    std::vector<std::string> values; // Change this from std::string
+    bool repeatable = false; 
+    std::vector<std::string> values;
 };
 
 class cli {
@@ -20,7 +20,7 @@ class cli {
 
     bool contains_flag(std::string_view flag);
     std::string get_flag_value(std::string_view flag);
-    std::vector<std::string> get_flag_values(std::string_view flag); // Add this
+    std::vector<std::string> get_flag_values(std::string_view flag);
     std::string print_usage(std::string exe_name);
     std::string generate_help();
 
