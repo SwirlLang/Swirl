@@ -4,9 +4,7 @@
 
 #include "ast/Nodes.h"
 #include "parser/Parser.h"
-#include "visitors/SymbolResolver.h"
 #include "parser/SemanticAnalysis.h"
-#include "managers/ModuleManager.h"
 
 
 using SwNode = std::unique_ptr<Node>;
@@ -246,35 +244,6 @@ AnalysisResult ArrayLit::analyzeSemantics(AnalysisContext& ctx) {
 
 AnalysisResult ImportNode::analyzeSemantics(AnalysisContext& ctx) {
     PRE_SETUP();
-    // specific-symbol imports
-    if (!imported_symbols.empty()) {
-        for (auto& symbol : imported_symbols) {
-            IdentInfo* id = ctx.SymMan.getIdInfoFromModule(mod_handle, symbol.actual_name);
-
-            if (!id) {
-                ctx.reportError(
-                    ErrCode::SYMBOL_NOT_FOUND_IN_MOD,
-                    {.path_1 = mod_handle->getPath(), .str_1 = symbol.actual_name}
-                    );
-                continue;
-            }
-
-            if (!ctx.SymMan.lookupDecl(id).is_exported) {
-                ctx.reportError(
-                    ErrCode::SYMBOL_NOT_EXPORTED,
-                    {.str_1 = symbol.actual_name}
-                    );
-            }
-
-            // make the symbol manager aware of the foreign symbol's `IdentInfo*`
-            ctx.SymMan.registerForeignID(
-                symbol.assigned_alias.empty() ? symbol.actual_name : symbol.assigned_alias, id, is_exported
-                );
-
-            ctx.GlobalNodeJmpTable.insert({id, ctx.ModuleMap.get(mod_handle).NodeJmpTable.at(id)});
-        } return {};
-    }
-
     return {};
 }
 
@@ -351,7 +320,7 @@ AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
 
             for (auto& mem : protocol->members) {
                 if (!member_lookup.contains(mem)) {
-                    ctx.reportError(ErrCode::PROTOCOL_NOT_SATISFIED, {
+                    ctx.reportError(ErrCode::PROTOCOL_VIOLATED, {
                         .str_1 = ident->toString(),
                         .str_2 =   mem.toString()
                     });
@@ -360,7 +329,7 @@ AnalysisResult Struct::analyzeSemantics(AnalysisContext& ctx) {
 
             for (auto& method : protocol->methods) {
                 if (!method_lookup.contains(method)) {
-                    ctx.reportError(ErrCode::PROTOCOL_NOT_SATISFIED, {
+                    ctx.reportError(ErrCode::PROTOCOL_VIOLATED, {
                         .str_1 = proto_id.toString(),
                         .str_2 = method.toString()
                     });

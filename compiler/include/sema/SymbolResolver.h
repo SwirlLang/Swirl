@@ -1,10 +1,13 @@
 #pragma once
-#include "visitors/SemaVisitor.h"
+#include "managers/ModuleManager.h"
+#include "SemaVisitor.h"
 
 
 namespace sema {
 struct SymbolResolver : SemaVisitor<SymbolResolver> {
     SymbolManager&    SymMan;
+    ModuleManager&    ModuleMap;
+    std::unordered_map<IdentInfo*, Node*>& GlobalNodeJmpTable;
 
     struct Data {
         std::unordered_set<std::string> ignore_symbols{};
@@ -13,7 +16,42 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
 
 
     explicit SymbolResolver(Parser& parser)
-        : SemaVisitor(parser), SymMan(parser.SymbolTable) {}
+        : SemaVisitor(parser)
+        , SymMan(parser.SymbolTable)
+        , ModuleMap(parser.ModuleMap)
+        , GlobalNodeJmpTable(parser.NodeJmpTable) {}
+
+
+    void handle(ImportNode* node, const Data&) {
+        if (!node->imported_symbols.empty()) {
+            for (auto& symbol : node->imported_symbols) {
+                IdentInfo* id = SymMan.getIdInfoFromModule(node->mod_handle, symbol.actual_name);
+
+                if (!id) {
+                    reportError(
+                        ErrCode::SYMBOL_NOT_FOUND_IN_MOD,
+                        {.path_1 = node->mod_handle->getPath(), .str_1 = symbol.actual_name}
+                        );
+                    continue;
+                }
+
+                if (!SymMan.lookupDecl(id).is_exported) {
+                    reportError(
+                        ErrCode::SYMBOL_NOT_EXPORTED,
+                        {.str_1 = symbol.actual_name}
+                        );
+                }
+
+                // make the symbol manager aware of the foreign symbol's `IdentInfo*`
+                SymMan.registerForeignID(
+                    symbol.assigned_alias.empty() ? symbol.actual_name : symbol.assigned_alias,
+                    id, node->is_exported
+                    );
+
+                GlobalNodeJmpTable.insert({id, ModuleMap.get(node->mod_handle).NodeJmpTable.at(id)});
+            }
+        }
+    }
 
 
     void handle(Function* node, Data data) {
@@ -42,8 +80,7 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             }
 
             if (i >= generic_params->size()) {
-                // TODO: report error
-                assert("too many generic args");
+                reportError(ErrCode::TOO_MANY_GENERIC_ARGS, {});
                 break;
             }
 
@@ -57,6 +94,7 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             return false;
         } return true;
     }
+
 
     void handle(Ident* node, const Data& data) const {
         assert(!node->full_qualification.empty());

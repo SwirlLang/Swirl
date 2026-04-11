@@ -54,7 +54,7 @@ enum class ErrCode {
     SLICE_NOT_COMPATIBLE,     // when slice types are not compatible with each other
     NOT_DEREFERENCE_ABLE,     // type cannot be dereferenced,
     NO_SUCH_PROTOCOL,         // the protocol does not exist
-    PROTOCOL_NOT_SATISFIED,   // the protocol hasn't been satisfied
+    PROTOCOL_VIOLATED,        // the protocol hasn't been satisfied
     ENUM_TYPE_NOT_INTEGRAL,   // enum types should be integral
     // ----------*----------- //
 
@@ -79,6 +79,7 @@ enum class ErrCode {
 
 
     TOO_FEW_ARGS,
+    TOO_MANY_GENERIC_ARGS,
     NOT_A_GENERIC,
     NON_INTEGRAL_INDICES,
     INDEX_OUT_OF_BOUNDS,

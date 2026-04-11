@@ -20,7 +20,7 @@
 #include "parser/SemanticAnalysis.h"
 
 #include "CompilerInst.h"
-#include "visitors/SymbolResolver.h"
+#include "sema/SymbolResolver.h"
 
 /// Automatically sets certain node attributes
 #define SET_NODE_ATTRS(x) NodeAttrHelper GET_UNIQUE_NAME(attr_setter_){x, *this}
@@ -31,13 +31,13 @@ using SwNode = std::unique_ptr<Node>;
 Parser::Parser(sw::FileSystem& fs, const fs::path& path, ErrorCallback_t error_callback, ModuleManager& mod_man)
     : m_Stream(m_SrcMan)
     , m_SrcMan(fs.open(path))
-    , m_ModuleMap(mod_man)
     , m_ErrorCallback(std::move(error_callback))
     , m_FileHandle(fs.open(path))
     , m_FileSystem(fs)
+    , ModuleMap(mod_man)
     , SymbolTable(
         fs.open(path),
-        m_ModuleMap,
+        ModuleMap,
         [this](auto code, const auto& ctx) {
         reportError(code, ctx);
     }) {}
@@ -325,17 +325,17 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
     auto handle = m_FileSystem.open(mod_path);
     ret.mod_handle = handle;
 
-    if (!m_ModuleMap.contains(handle)) {
-        m_ModuleMap.insert(handle, new Parser{m_FileSystem, ret.mod_handle->getPath(), m_ErrorCallback, m_ModuleMap});
-        m_ModuleMap.get(handle).parse();
+    if (!ModuleMap.contains(handle)) {
+        ModuleMap.insert(handle, new Parser{m_FileSystem, ret.mod_handle->getPath(), m_ErrorCallback, ModuleMap});
+        ModuleMap.get(handle).parse();
     }
 
-    if (m_Dependencies.contains(&m_ModuleMap.get(handle))) {
+    if (m_Dependencies.contains(&ModuleMap.get(handle))) {
         reportError(ErrCode::DUPLICATE_IMPORT);
     }
 
-    m_Dependencies.insert(&m_ModuleMap.get(handle));
-    m_ModuleMap.get(handle).m_Dependents.insert(this);
+    m_Dependencies.insert(&ModuleMap.get(handle));
+    ModuleMap.get(handle).m_Dependents.insert(this);
 
     // specific-symbol import
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "{") {
@@ -361,7 +361,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {  // wildcard
             forwardStream();
             ret.is_wildcard = true;
-            m_ModuleMap.get(handle).insertExportedSymbolsInto([&ret](std::string name) {
+            ModuleMap.get(handle).insertExportedSymbolsInto([&ret](std::string name) {
                 ret.imported_symbols.push_back({.actual_name = std::move(name)});
             });
         }
@@ -400,19 +400,19 @@ void Parser::parse() {
         builtin_import->mod_handle  = builtin_handle;
 
         // TODO: remove duplicate import-registration logic
-        if (!m_ModuleMap.contains(builtin_handle)) {
-            m_ModuleMap.insert(builtin_handle, new Parser{
-                m_FileSystem, builtin_handle->getPath(), m_ErrorCallback, m_ModuleMap});
-            m_ModuleMap.get(builtin_handle).parse();
+        if (!ModuleMap.contains(builtin_handle)) {
+            ModuleMap.insert(builtin_handle, new Parser{
+                m_FileSystem, builtin_handle->getPath(), m_ErrorCallback, ModuleMap});
+            ModuleMap.get(builtin_handle).parse();
         }
 
-        m_ModuleMap.get(builtin_handle).insertExportedSymbolsInto([&builtin_import](std::string name) {
+        ModuleMap.get(builtin_handle).insertExportedSymbolsInto([&builtin_import](std::string name) {
             builtin_import->imported_symbols.push_back({.actual_name = std::move(name)});
         });
 
-        m_Dependencies.insert(&m_ModuleMap.get(builtin_handle));
-        m_ModuleMap.get(builtin_handle).m_Dependents.insert(this);
-        m_ModuleMap.get(builtin_handle).performSema();
+        m_Dependencies.insert(&ModuleMap.get(builtin_handle));
+        ModuleMap.get(builtin_handle).m_Dependents.insert(this);
+        ModuleMap.get(builtin_handle).performSema();
 
         AST.emplace_back(std::move(builtin_import));
     }
@@ -423,7 +423,7 @@ void Parser::parse() {
 
     m_UnresolvedDeps = m_Dependencies.size();
     if (m_Dependencies.empty())
-        m_ModuleMap.m_ZeroDepVec.push_back(this);
+        ModuleMap.m_ZeroDepVec.push_back(this);
 }
 
 /// begin semantic analysis  ///
@@ -439,7 +439,7 @@ void Parser::performSema() {
 void Parser::decrementUnresolvedDeps() {
     m_UnresolvedDeps--;
     if (m_UnresolvedDeps == 0) {
-        m_ModuleMap.m_BackBuffer.push_back(this);
+        ModuleMap.m_BackBuffer.push_back(this);
     }
 }
 

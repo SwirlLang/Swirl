@@ -25,7 +25,7 @@ public:
     explicit AnalysisContext(Parser& parser)
     : GlobalNodeJmpTable(parser.NodeJmpTable)
     , SymMan(parser.SymbolTable)
-    , ModuleMap(parser.m_ModuleMap)
+    , ModuleMap(parser.ModuleMap)
     , SrcMan(&parser.m_SrcMan)
     , ErrCallback(parser.m_ErrorCallback)
     , m_AST(parser.AST)

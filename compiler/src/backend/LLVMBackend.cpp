@@ -29,7 +29,7 @@
 
 
 LLVMBackend::LLVMBackend(Parser& parser)
-    : ModuleManager(parser.m_ModuleMap),
+    : ModuleManager(parser.ModuleMap),
       LModule{
         std::make_unique<llvm::Module>(
             ModuleManager.getModuleUID(parser.m_FileHandle->getPath()),

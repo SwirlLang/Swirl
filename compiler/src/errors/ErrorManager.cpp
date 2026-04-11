@@ -95,7 +95,7 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             );
         case ErrCode::NO_SUCH_PROTOCOL:
             return std::format("No such protocol exists.");
-        case ErrCode::PROTOCOL_NOT_SATISFIED:
+        case ErrCode::PROTOCOL_VIOLATED:
             return std::format(
                 "The protocol {} requires `{}`'s implementation.",
                 ctx.str_1,
@@ -130,6 +130,8 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
 
         case ErrCode::NOT_A_GENERIC:
             return std::format("{} is not a generic construct.", ctx.str_1);
+        case ErrCode::TOO_MANY_GENERIC_ARGS:
+            return std::format("Too many generic arguments.");
         case ErrCode::INITIALIZER_REQUIRED:
             return "Initialization is required here.";
         case ErrCode::NON_INTEGRAL_INDICES:

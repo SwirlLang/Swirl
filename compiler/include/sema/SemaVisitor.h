@@ -8,6 +8,9 @@
 #include "ast/Visitor.h"
 #include "errors/ErrorManager.h"
 
+#define SEMA_DISABLE_ERROR_CODE(code) \
+    auto GET_UNIQUE_NAME(err_code_disabler) = SemaVisitor<decltype(*this)>::DisableErrorCode(*this, code)
+
 
 template <typename T>
 class SemaVisitor : public RecursiveVisitor<T> {
@@ -36,7 +39,25 @@ public:
 
     friend class RecursiveVisitor<T>;
 
+    struct DisableErrorCode {
+        DisableErrorCode(SemaVisitor& instance,  ErrCode code)
+            : m_Instance(instance)
+            , m_ErrorCode(code)
+        {
+            if (!instance.m_DisabledErrorCodes.contains(code)) {
+                m_Instance.m_DisabledErrorCodes.insert(code);
+            }
+        }
 
+        ~DisableErrorCode() {
+            m_Instance.m_DisabledErrorCodes.erase(m_ErrorCode);
+        }
+
+
+    private:
+        SemaVisitor& m_Instance;
+        ErrCode      m_ErrorCode;
+    };
 
 private:
     std::vector<Node*> m_NodeStack;

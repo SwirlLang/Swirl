@@ -65,7 +65,6 @@ struct Module {
 class Parser {
     TokenStream      m_Stream;
     SourceManager    m_SrcMan;
-    ModuleManager&   m_ModuleMap;
 
     ErrorCallback_t  m_ErrorCallback;  // the callback for reporting an error
     ExpressionParser m_ExpressionParser{*this};
@@ -118,9 +117,9 @@ class Parser {
     friend class SemaVisitor;
 
 public:
-    SymbolManager SymbolTable;
-
     AST_t AST;
+    ModuleManager& ModuleMap;
+    SymbolManager SymbolTable;
     std::unordered_map<IdentInfo*, Node*> NodeJmpTable;  // maps global symbols to their nodes
 
     explicit Parser(sw::FileSystem& fs, const std::filesystem::path& path, ErrorCallback_t, ModuleManager&);
