@@ -9,14 +9,15 @@
 const std::vector<Argument> application_flags = {
     {{"-h", "--help"}, "Show the help message.", false, {}},
     {{"-o", "--output"}, "Output file name.", true, {}},
+    {{"-r", "--run"}, "Run the executable generated.", false, {}},
     {{"-v", "--version"}, "Show the version of Swirl.", false, {}},
     {{"-j", "--threads"}, "No. of threads to use (excluding the main-thread).", true},
     {{"-t", "--target"}, "The target-triple of the target-platform.", true},
     {{"-l", "--library"}, "The name of the library to link against.", true, true},
     {{"-p", "--project"}, "/path/to/project/root.", true},
-    {{"-d", "--dependency"}, "Register a dependency, in the format `path:name`.", true, true},
+    {{"-dep", "--dependency"}, "Register a dependency, in the format `path:name`.", true, true},
     {{"-depth", "--depth"}, "Set the recursion-depth.", true, false},
-    {{"-Ld", "--debug"}, "Log the steps of compilation.", false, {}},
+    {{"-d", "--debug"}, "Log the steps of compilation.", false, {}},
 };
 
 
@@ -66,14 +67,18 @@ int main(const int argc, const char** argv) {
             for (const auto& lib : app.get_flag_values("-l"))
                 CompilerInst::appendLinkTarget(lib);
         }
-        if (app.contains_flag("-d")) {
+        if (app.contains_flag("-dep")) {
             // format: `path:alias`
-            for (const auto& dep : app.get_flag_values("-d"))
+            for (const auto& dep : app.get_flag_values("-dep"))
                 CompilerInst::addPackageEntry(dep);
         }
         if (app.contains_flag("-p"))
             CompilerInst::addPackageEntry(
                 app.get_flag_value("-p") + ':' + fs::path(app.get_flag_value("-p")).filename().string(), true);
+        if (app.contains_flag("-r"))
+                compiler_inst.run_exe = true;
+        if (app.contains_flag("-d"))
+                compiler_inst.debug_mode = true;
         else {
             // if `-p` isn't passed explicitly, assume that the project root is the
             // directory in which the source file resides

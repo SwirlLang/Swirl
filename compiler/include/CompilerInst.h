@@ -50,7 +50,8 @@ public:
     inline static std::string TargetTriple;
     inline static std::unordered_set<std::string> LinkTargets;
     inline static std::unordered_map<std::string, PackageInfo> PackageTable;
-
+    inline static bool run_exe = false;
+    inline static bool debug_mode = false;
 
     explicit CompilerInst(fs::path path) : m_SrcPath(std::move(path)) {
         m_ErrorCallback = [this](const ErrCode code, const ErrorContext& ctx) {
@@ -110,16 +111,21 @@ public:
         // || --- *---*   Sema   *---* --- || //
         int batch_no = 1;
         while (!m_ModuleManager.zeroVecIsEmpty()) {
-            std::println("Batch-{}: ", batch_no++);
-
+            if (debug_mode) {
+                std::println("Batch-{}: ", batch_no);
+            }
+            batch_no++;
             while (const auto mod = m_ModuleManager.popZeroDepVec()) {
-                std::print("{}, ", mod->m_FileHandle->getPath().string());
+                if (debug_mode) {
+                    std::print("{}, ", mod->m_FileHandle->getPath().string());
+                    std::println("\n-------------");
+                }
+                
                 m_ThreadPool.enqueue([mod] {
                     mod->performSema();
                 });
             }
 
-            std::println("\n-------------");
             m_ModuleManager.swapBuffers();
             m_ThreadPool.wait();
         } m_ThreadPool.wait();

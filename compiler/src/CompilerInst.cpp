@@ -52,8 +52,10 @@ void CompilerInst::startLLVMCodegen() {
     }
     m_ThreadPool.wait();
 
-    for (const auto& backend : llvm_backends) {
-        backend->printIR();
+    if (debug_mode) {
+        for (const auto& backend : llvm_backends) {
+            backend->printIR();
+        }
     }
 
     generateObjectFiles(llvm_backends);
@@ -166,12 +168,12 @@ void CompilerInst::produceExecutable() {
         args.push_back("-L" + ((m_SrcPath.parent_path() / "lib")).string());
         args.push_back((m_SrcPath.parent_path() / "lib" / "crt1.o").string());
         args.push_back((m_SrcPath.parent_path() / "lib" / "crti.o").string());
-        
+
         // iterate over all object files of the build directory and push their paths to the vector
         for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
             args.push_back(file.path().string());
         }
-        
+
         args.push_back("--start-group");
         args.push_back("-lc");
         args.push_back("--end-group");
@@ -217,4 +219,12 @@ void CompilerInst::produceExecutable() {
 
     // do the final ritual
     lld::lldMain(llvm_args, llvm::outs(), llvm::errs(), {platform_driver});
+    if (run_exe) {
+
+#ifdef WIN32
+        system(std::format("{}", m_OutputPath.string()).c_str());
+#else
+        system(std::format("./{}", m_OutputPath.string()).c_str());
+#endif
+    }
 }
