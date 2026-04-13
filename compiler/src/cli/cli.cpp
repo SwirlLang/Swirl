@@ -56,8 +56,7 @@ std::string cli::generate_help() {
     for (const auto& arg : *m_flags) {
         auto& [f1, f2] = arg.flags;
         msg += "\t" + f1 + ", " + f2;
-        for (unsigned int c = 0; c < max_width - f1.size() - f2.size() - 2; c++)
-            msg += ' ';
+        msg += std::string(max_width - f1.size() - f2.size() - 2, ' ');
         msg += "     " + arg.desc + '\n';
     }
     return msg;
@@ -93,7 +92,9 @@ std::vector<Argument> cli::parse() {
 
             // Check if this flag was already supplied
             auto supplied_it = std::ranges::find_if(parsed_args, [&](const Argument& a) {
-                return std::get<0>(a.flags) == std::get<0>(flag_it->flags);
+                auto& [f1, f2] = a.flags;
+                auto& [ref_f1, ref_f2] = flag_it->flags;
+                return f1 == ref_f1;
             });
 
             if (supplied_it != parsed_args.end()) { // Flag was already seen
