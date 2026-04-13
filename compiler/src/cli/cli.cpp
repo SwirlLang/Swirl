@@ -7,31 +7,30 @@ cli::cli(int argc, const char** argv, const std::vector<Argument>& flags)
     : m_argc(argc), m_argv(argv), m_flags(&flags), m_input_file(), m_args(parse()) {}
 
 bool cli::contains_flag(std::string_view flag) {
-    return std::any_of(m_args.cbegin(), m_args.cend(), [&](const Argument& a) {
+    for (const auto& a : m_args) {
         auto& [f1, f2] = a.flags;
-        return f1 == flag || f2 == flag;
-    });
+        if (f1 == flag || f2 == flag)
+            return true;
+    }
+    return false;
 }
 
 std::string cli::get_flag_value(std::string_view flag) {
-    auto it = std::find_if(m_args.cbegin(), m_args.cend(), [&](const Argument& a) {
+    for (const auto& a : m_args) {
         auto& [f1, f2] = a.flags;
-        return f1 == flag || f2 == flag;
-    });
-    if (it != m_args.cend() && !it->values.empty()) {
-        return it->values.front();
+        if ((f1 == flag || f2 == flag) && !a.values.empty()) {
+            return a.values.front();
+        }
     }
     return "";
 }
 
 std::vector<std::string> cli::get_flag_values(std::string_view flag) {
-    auto it = std::find_if(m_args.cbegin(), m_args.cend(), [&](const Argument& a) {
+    for (const auto& a : m_args) {
         auto& [f1, f2] = a.flags;
-        return f1 == flag || f2 == flag;
-    });
-
-    if (it != m_args.cend()) {
-        return it->values;
+        if ((f1 == flag || f2 == flag) && !a.values.empty()) {
+            return a.values;
+        }
     }
     return {};
 }
@@ -47,14 +46,14 @@ Flags:
 
 std::string cli::generate_help() {
     std::size_t max_width = 0;
-    std::for_each(m_flags->cbegin(), m_flags->cend(), [&](const Argument& arg) {
+    for (const auto& arg : *m_flags) {
         auto& [f1, f2] = arg.flags;
         if (f1.size() + f2.size() + 2 > max_width)
             max_width = f1.size() + f2.size() + 3;
-    });
+    }
 
     std::string msg;
-    for (const Argument& arg : *m_flags) {
+    for (const auto& arg : *m_flags) {
         auto& [f1, f2] = arg.flags;
         msg += "\t" + f1 + ", " + f2;
         for (unsigned int c = 0; c < max_width - f1.size() - f2.size() - 2; c++)
@@ -82,7 +81,7 @@ std::vector<Argument> cli::parse() {
         if (arg_it->starts_with("-")) {
 
             // check if the flag exists in the flag vector
-            auto flag_it = std::find_if(m_flags->cbegin(), m_flags->cend(), [&](const Argument& a) {
+            auto flag_it = std::ranges::find_if(*m_flags, [&](const Argument& a) {
                 auto& [f1, f2] = a.flags;
                 return f1 == *arg_it || f2 == *arg_it;
             });
@@ -93,7 +92,7 @@ std::vector<Argument> cli::parse() {
             }
 
             // Check if this flag was already supplied
-            auto supplied_it = std::find_if(parsed_args.begin(), parsed_args.end(), [&](const Argument& a) {
+            auto supplied_it = std::ranges::find_if(parsed_args, [&](const Argument& a) {
                 return std::get<0>(a.flags) == std::get<0>(flag_it->flags);
             });
 
