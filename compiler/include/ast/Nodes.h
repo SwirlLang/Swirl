@@ -6,7 +6,6 @@
 #include <vector>
 #include <span>
 
-#include "Nodes.h"
 #include "utils/utils.h"
 #include "lexer/Tokens.h"
 #include "parser/evaluation.h"
@@ -59,18 +58,10 @@ class Parser;
 class Namespace;
 class IdentInfo;
 class LLVMBackend;
-class AnalysisContext;
 namespace llvm { class Value; }
 
 using SwNode   = std::unique_ptr<Node>;
 using NodesVec = std::vector<SwNode>;
-
-
-struct AnalysisResult {
-    bool       is_erroneous       = false;
-    Type*      deduced_type       = nullptr;
-    Namespace* computed_namespace = nullptr;
-};
 
 
 struct SourceLocation {
@@ -102,8 +93,6 @@ private:
 // The common base class of all the nodes
 struct Node {
     SourceLocation location;
-    std::optional<AnalysisResult> analysis_cache;
-
     NodeType kind;
 
     bool is_exported = false;
@@ -159,10 +148,6 @@ struct Node {
     virtual void replaceType(std::string_view from, Type* to) {}
 
     virtual EvalResult evaluate(Parser&);
-    virtual AnalysisResult analyzeSemantics(AnalysisContext&) {
-        return {};
-    }
-
     virtual CGValue llvmCodegen([[maybe_unused]] LLVMBackend &instance) {
         throw std::runtime_error("llvmCodegen called on Node instance");
     }
@@ -272,7 +257,7 @@ struct Expression final : Node {
 
     EvalResult     evaluate(Parser&) override;
     CGValue        llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
 };
 
 
@@ -382,7 +367,7 @@ struct Op final : Node {
 
     EvalResult     evaluate(Parser& instance) override;
     CGValue        llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
 };
 
 
@@ -415,7 +400,7 @@ struct ReturnStatement final : Node {
         value.replaceType(from, to);
     }
 
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
 };
 
 
@@ -448,7 +433,7 @@ struct IntLit final : Node {
     EvalResult   evaluate(Parser &) override;
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
 };
 
 struct FloatLit final : Node {
@@ -473,7 +458,7 @@ struct FloatLit final : Node {
     EvalResult   evaluate(Parser &) override;
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
 };
 
 
@@ -495,7 +480,7 @@ struct BoolLit final : Node {
     }
 
     EvalResult   evaluate(Parser &) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
 };
@@ -524,7 +509,6 @@ struct StrLit final : Node {
     EvalResult   evaluate(Parser&) override;
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct TypeWrapper;
@@ -575,7 +559,6 @@ public:
 
     EvalResult     evaluate(Parser&) override;
     CGValue        llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 
@@ -620,15 +603,13 @@ struct TypeWrapper final : Node {
 
     std::string toString() const override;
     CGValue llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct Var final : GlobalNode {
     IdentInfo* var_ident = nullptr;
-    TypeWrapper var_type;
+    std::optional<TypeWrapper> var_type = std::nullopt;
 
     Expression value;
-    Node* parent = nullptr;
 
     bool initialized = false;
     bool is_const    = false;
@@ -646,10 +627,9 @@ struct Var final : GlobalNode {
     }
 
     void replaceType(const std::string_view from, Type* to) override {
-        var_type.replaceType(from, to);
+        var_type->replaceType(from, to);
         value.replaceType(from, to);
     }
-
 
 
     std::string toString() const override {
@@ -663,7 +643,7 @@ struct Var final : GlobalNode {
             else ret += "var ";
         }
 
-        ret += std::format("{}: {} ", var_ident->toString(), var_type.toString());
+        ret += std::format("{}: {} ", var_ident->toString(), var_type->toString());
         if (initialized) {
             ret += std::format("= {};\n", value.toString());
         } else ret += ";\n";
@@ -673,7 +653,6 @@ struct Var final : GlobalNode {
     [[nodiscard]] SwNode& getExprValue() override { return value.expr; }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 struct Scope final : Node {
@@ -692,7 +671,6 @@ struct Scope final : Node {
     }
 
 
-
     std::string toString() const override {
         std::string ret = "{\n";
         for (const auto& child : children) {
@@ -702,7 +680,7 @@ struct Scope final : Node {
     }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
 };
 
 
@@ -765,7 +743,7 @@ struct Function final : GlobalNode {
     }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
     std::unique_ptr<Node> instantiate(Parser&, std::span<Type*>, std::function<void (ErrCode, ErrorContext)>) override;
 };
 
@@ -833,7 +811,6 @@ struct FuncCall final : Node {
 
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 
@@ -870,7 +847,7 @@ struct Intrinsic final : Node {
     }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
 };
 
 
@@ -893,7 +870,7 @@ struct ImportNode final : Node {
     }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
 };
 
 
@@ -918,7 +895,7 @@ struct ArrayLit final : Node {
         }
     }
 
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
     CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
@@ -941,7 +918,6 @@ struct WhileLoop final : Node {
     }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };
 
 
@@ -972,7 +948,7 @@ struct Enum final : Node {
         entries.emplace(name, counter++);
     }
 
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
     CGValue llvmCodegen(LLVMBackend& instance) override;
 };
 
@@ -1048,7 +1024,7 @@ struct Protocol final : GlobalNode {
     Protocol(): GlobalNode(ND_PROTOCOL) {}
     NodeType getNodeType() const override { return ND_PROTOCOL; }
 
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
     CGValue llvmCodegen(LLVMBackend &instance) override { return {}; }
     std::unique_ptr<Node> instantiate(
         Parser& instance, std::span<Type*>, std::function<void(ErrCode, ErrorContext)>) override;
@@ -1107,7 +1083,7 @@ struct Struct final : GlobalNode {
         }
     }
 
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
+
     CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
@@ -1149,5 +1125,4 @@ struct Condition final : Node {
     }
 
     CGValue llvmCodegen(LLVMBackend &instance) override;
-    AnalysisResult analyzeSemantics(AnalysisContext&) override;
 };

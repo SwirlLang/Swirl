@@ -18,11 +18,68 @@
 #define SET_STATE_TO(attr_name, attr_value) SW_PASTE(attr_name, ___) GET_UNIQUE_NAME(raii_inst){attr_name, attr_value}
 
 
+namespace detail {
+template <typename T>
+struct ExactType {
+    operator T() const;
+    template <typename U> operator U() const = delete;
+};
+
+template <typename D, typename T, typename... Args>
+concept HasExactHandle = requires(D& d, T* node, Args&&... args) {
+    { d.handle(node, std::forward<Args>(args)...) } -> std::same_as<void>;
+};
+
+
+template <typename D, typename T, typename... Args>
+concept HasPreVisit = requires (D& d, T* node, Args&&... args) {
+    { d.preVisit(node, std::forward<Args>(args)...) } -> std::same_as<bool>;
+};
+
+
+template <typename D, typename T, typename... Args>
+concept HasPostVisit = requires (D& d, T* node, Args&&... args) {
+    { d.postVisit(node, std::forward<Args>(args)...) } -> std::same_as<void>;
+};
+
+
+template <typename D, typename T, typename... Args>
+concept HasShouldTraverse = requires (D& d, T* node, Args&&... args) {
+    { d.shouldTraverse(node, std::forward<Args>(args)...) } -> std::same_as<bool>;
+};
+
+
+template <typename Callable, typename Ret>
+concept UnifierCallable =
+    std::same_as<Ret, void> || requires (Callable& callable, Ret& ret)
+{
+    { callable(ret, ret) } -> std::convertible_to<Ret>;
+};
+
+
+template <typename Ret>
+struct DefaultUnifier {
+    Ret operator()(Ret&, Ret&) {
+        static_assert(std::is_default_constructible_v<Ret>);
+        return Ret{};
+    }
+};
+
+template <>
+struct DefaultUnifier<void> {
+    void operator()() const {}
+};
+}
+
+
 #define SW_NODE(x, y) case x: \
-    return dispatchAs<y>(node, std::forward<Args>(args)...);
+return dispatchAs<y>(node, std::forward<Args>(args)...);
 
 
-template <typename Derived, typename Ret>
+template <typename Derived,
+          typename Ret,
+          typename Unifier_t = detail::DefaultUnifier<Ret>>
+requires detail::UnifierCallable<Unifier_t, Ret>
 class Visitor {
 public:
     template <typename... Args>
@@ -39,14 +96,28 @@ public:
         }
     }
 
-    template <typename... Args>
+
+    template <typename... Args> requires std::is_void_v<Ret>
     void dispatch(AST_t& ast, Args&&... args) {
         for (auto& node : ast) {
             dispatch(node.get(), std::forward<Args>(args)...);
         }
     }
 
+
+    template <typename... Args> requires (!std::is_void_v<Ret>)
+    Ret dispatch(AST_t& ast, Args&&... args) {
+        std::optional<Ret> ret;
+        for (auto& node : ast) {
+            auto result = dispatch(node.get(), std::forward<Args>(args)...);
+            ret = ret.has_value() ? m_UnifierCallable(ret.value(), result) : result;
+        } return ret.has_value() ? *ret : Ret{};
+    }
+
+
 private:
+    Unifier_t m_UnifierCallable;
+
     template <typename T, typename... Args>
     Ret dispatchAs(Node* node, Args&&... args) {
         auto* derived = static_cast<Derived*>(this);
@@ -65,38 +136,6 @@ private:
 #define SW_PRE_VISIT_IMPL_HOOK(x)
 #define SW_POST_VISIT_IMPL_HOOK(x)
 #endif
-
-
-namespace detail {
-    template <typename T>
-    struct ExactType {
-        operator T() const;
-        template <typename U> operator U() const = delete;
-    };
-
-   template <typename D, typename T, typename... Args>
-   concept HasExactHandle = requires(D& d, T* node, Args&&... args) {
-        { d.handle(node, std::forward<Args>(args)...) } -> std::same_as<void>;
-   };
-
-
-    template <typename D, typename T, typename... Args>
-    concept HasPreVisit = requires (D& d, T* node, Args&&... args) {
-        { d.preVisit(node, std::forward<Args>(args)...) } -> std::same_as<bool>;
-    };
-
-
-    template <typename D, typename T, typename... Args>
-    concept HasPostVisit = requires (D& d, T* node, Args&&... args) {
-        { d.postVisit(node, std::forward<Args>(args)...) } -> std::same_as<void>;
-    };
-
-
-    template <typename D, typename T, typename... Args>
-    concept HasShouldTraverse = requires (D& d, T* node, Args&&... args) {
-        { d.shouldTraverse(node, std::forward<Args>(args)...) } -> std::same_as<bool>;
-    };
-}
 
 
 /*
@@ -250,7 +289,9 @@ private:
 
     template <typename... Args>
     void traverse(Var* node, Args&&... args) {
-        this->dispatch(&node->var_type, std::forward<Args>(args)...);
+        if (node->var_type.has_value()) {
+            this->dispatch(&node->var_type.value(), std::forward<Args>(args)...);
+        }
 
         if (node->initialized) {
             this->dispatch(&node->value, std::forward<Args>(args)...);

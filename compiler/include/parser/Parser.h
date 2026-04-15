@@ -21,6 +21,7 @@ class Parser;
 class ModuleManager;
 class AnalysisContext;
 namespace sw { class FileSystem; }
+namespace sema { template <typename T> class SemaVisitor; }
 
 /// A type which can represent either a `Type*` or a `Node*`.
 struct SwObject : std::variant<Type*, Node*> {
@@ -75,6 +76,7 @@ class Parser {
     bool         m_LastSymIsExtern    = false;
     bool         m_IsMainModule       = false;    // is the module the parser represents the main one?
     bool         m_IsBeingCloned      = false;
+    bool         m_IsSemaComplete     = false;
 
     std::vector<Type*>   m_CurrentStructTy{nullptr};  // the type of the struct being parsed
 
@@ -114,7 +116,7 @@ class Parser {
     friend class ClonedState;
 
     template <typename T>
-    friend class SemaVisitor;
+    friend class sema::SemaVisitor;
 
 public:
     AST_t AST;

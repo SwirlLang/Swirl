@@ -1103,9 +1103,9 @@ CGValue FuncCall::llvmCodegen(LLVMBackend &instance) {
 
 CGValue Var::llvmCodegen(LLVMBackend &instance) {
     PRE_SETUP();
-    assert(var_type.type != nullptr);
+    assert(var_type->type != nullptr);
 
-    llvm::Type* type = var_type.type->llvmCodegen(instance);
+    llvm::Type* type = var_type->type->llvmCodegen(instance);
     assert(type != nullptr);
 
     llvm::Value* init = nullptr;
@@ -1134,7 +1134,7 @@ CGValue Var::llvmCodegen(LLVMBackend &instance) {
         }
 
         // handle references
-        if (var_type.type->getTypeTag() == Type::REFERENCE) {
+        if (var_type->type->getTypeTag() == Type::REFERENCE) {
             instance.SymMan.lookupDecl(this->var_ident).llvm_value = instance.RefMemory;
         } else instance.SymMan.lookupDecl(this->var_ident).llvm_value = var;
     } else {
@@ -1146,7 +1146,7 @@ CGValue Var::llvmCodegen(LLVMBackend &instance) {
 
         if (initialized) {
             // instance.BoundMemory = var_alloca;
-            SET_BOUND_TYPE_STATE(var_type.type);
+            SET_BOUND_TYPE_STATE(var_type->type);
             init = value.llvmCodegen(instance).getRValue(instance);
             assert(init != nullptr);
 
@@ -1165,7 +1165,7 @@ CGValue Var::llvmCodegen(LLVMBackend &instance) {
         }
 
         // handle references
-        if (var_type.type->getTypeTag() == Type::REFERENCE) {
+        if (var_type->type->getTypeTag() == Type::REFERENCE) {
             instance.SymMan.lookupDecl(this->var_ident).llvm_value = instance.RefMemory;
         } else instance.SymMan.lookupDecl(this->var_ident).llvm_value = var_alloca;
     }

@@ -231,6 +231,13 @@ public:
     }
 
 
+    bool isForeignID(const IdentInfo* id) const {
+        if (id->getModuleFileHandle() == m_ModuleHandle) {
+            return true;
+        } return false;
+    }
+
+
     bool typeExists(IdentInfo* id) const {
         return m_TypeManager.contains(id);
     }

@@ -91,7 +91,9 @@ std::unordered_map<std::pair<std::string_view, int>, Op::OpTag_t> OpTagMap = {
 };
 
 
-Op::Op(const std::string_view str, const int8_t adicity): value(std::string(str)), arity(adicity) {
+Op::Op(const std::string_view str, const int8_t adicity)
+    : Node(ND_OP), value(std::string(str)), arity(adicity)
+{
     op_type = getTagFor(str, adicity);  // compute and set the tag of the operator node
 }
 
@@ -134,6 +136,33 @@ std::string TypeWrapper::toString() const {
 Ident::Qualifier::~Qualifier() {
     for (const auto* type : generic_args) {
         delete type;
+    }
+}
+
+
+void Op::setType(Type* to) const {
+    if (op_type == DOT)
+        return;
+
+    if (operands.front()->getNodeType() == ND_EXPR) {
+        dynamic_cast<Expression*>(operands.front().get())->setType(to);
+    }
+
+    if (arity == 1) return;
+    if (operands.back()->getNodeType() == ND_EXPR) {
+        auto expr = dynamic_cast<Expression*>(operands.back().get());
+        expr->setType(to);
+        return;
+    }
+}
+
+void Expression::setType(Type* to) {
+    expr_type = to;
+    if (expr->getNodeType() == ND_EXPR) {
+        dynamic_cast<Expression*>(expr.get())->setType(to);
+    }
+    else if (expr->getNodeType() == ND_OP) {
+        dynamic_cast<Op*>(expr.get())->setType(to);
     }
 }
 

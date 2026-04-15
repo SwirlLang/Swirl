@@ -96,6 +96,12 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
     }
 
 
+    bool preVisit(Op* node, const Data& data) {
+        if (node->op_type == Op::DOT) {
+            return false;
+        } return true;
+    }
+
     void handle(Ident* node, const Data& data) const {
         assert(!node->full_qualification.empty());
 

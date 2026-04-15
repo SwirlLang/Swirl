@@ -17,10 +17,11 @@
 #include "errors/ErrorManager.h"
 #include "symbols/SymbolManager.h"
 #include "managers/ModuleManager.h"
-#include "parser/SemanticAnalysis.h"
 
 #include "CompilerInst.h"
 #include "sema/SymbolResolver.h"
+#include "sema/TypeResolver.h"
+
 
 /// Automatically sets certain node attributes
 #define SET_NODE_ATTRS(x) NodeAttrHelper GET_UNIQUE_NAME(attr_setter_){x, *this}
@@ -428,11 +429,19 @@ void Parser::parse() {
 
 /// begin semantic analysis  ///
 void Parser::performSema() {
+    // TODO: the following logic to prevent builtins from undergoing sema twice is a temporary workaround until
+    //       they are completely integrated into the dependency system.
+    if (m_IsSemaComplete) {
+        return;
+    }
+
     sema::SymbolResolver resolver{*this};
     resolver.dispatch(AST, sema::SymbolResolver::Data{});
 
-    AnalysisContext analysis_ctx{*this};
-    analysis_ctx.startAnalysis();
+    sema::TypeResolver type_resolver{*this};
+    type_resolver.dispatch(AST);
+
+    m_IsSemaComplete = true;
 }
 
 
@@ -456,7 +465,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     }
 
     if (m_CurrentStructTy.back()) {
-        const auto struct_scope = dynamic_cast<StructType*>(m_CurrentStructTy.back())->scope;
+        const auto struct_scope = m_CurrentStructTy.back()->to<StructType>()->scope;
         assert(struct_scope);
         func_nd->ident = struct_scope->getNewIDInfo(func_ident);
     }
@@ -558,7 +567,7 @@ Var Parser::parseParam(bool& method_is_static) {
         param.var_type  = TypeWrapper(SymbolTable.getReferenceType(m_CurrentStructTy.back(), is_mutable));
         param.var_ident = SymbolTable.registerDecl("self", {
             .is_param = true,
-            .swirl_type = param.var_type.type,
+            .swirl_type = param.var_type->type,
         });
 
         method_is_static = false;
@@ -657,7 +666,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();
         var_node->var_type = parseType();
-        var_node->var_type.is_mutable = !var_node->is_const;
+        var_node->var_type->is_mutable = !var_node->is_const;
     }
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "=") {
@@ -970,7 +979,7 @@ std::unique_ptr<Protocol> Parser::parseProtocol() {
                 const auto var = dynamic_cast<Var*>(child.get());
                 ret->members.push_back(Protocol::MemberSignature{
                     .name = var->var_ident->toString(),
-                    .type = std::move(var->var_type),
+                    .type = std::move(var->var_type.value()),
                 });
                 break;
             }
@@ -983,7 +992,7 @@ std::unique_ptr<Protocol> Parser::parseProtocol() {
 
                 func_params.reserve(func->params.size());
                 for (auto& var : func->params) {
-                    func_params.push_back(std::move(var.var_type));
+                    func_params.push_back(std::move(var.var_type.value()));
                 }
 
                 ret->methods.push_back(Protocol::MethodSignature{

@@ -48,6 +48,8 @@ struct Type {
     virtual bool         isFloatingPoint() { return false; }
     virtual bool         isUnsigned()      { return false; }
     virtual bool         isPointerType()   { return false; }
+    virtual bool         isStructType()    { return false; }
+    virtual bool         isArrayType()     { return false; }
 
     virtual std::optional<ErrCode> canImplicitlyConvertTo(Type* to) {
         return ErrCode::INCOMPATIBLE_TYPES;
@@ -62,7 +64,7 @@ struct Type {
     }
 
     [[nodiscard]] virtual std::string toString() const = 0;
-    [[nodiscard]] virtual IdentInfo* getIdent() const { return nullptr; }
+    [[nodiscard]] virtual IdentInfo*  getIdent() const { return nullptr; }
 
     /// Returns the wrapped-type, only valid for types which wrap another, e.g. Array, Reference, Slice etc.
     [[nodiscard]] virtual Type* getWrappedType() {
@@ -79,6 +81,11 @@ struct Type {
     [[nodiscard]]
     virtual FunctionType* getBuiltinMethodSignature(std::string_view name) {
         return nullptr;
+    }
+
+    template <typename From>
+    std::add_pointer_t<From> to() {
+        return dynamic_cast<std::add_pointer_t<From>>(this);
     }
 
     virtual bool isReferenceLikeType() { return getTypeTag() == REFERENCE || getTypeTag() == POINTER; }
@@ -165,6 +172,10 @@ struct StructType final : Type {
         return other->getTypeTag() == STRUCT && (field_types == dynamic_cast<StructType*>(other)->field_types);
     }
 
+    bool isStructType() override {
+        return true;
+    }
+
     llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
@@ -187,6 +198,10 @@ struct ArrayType final : Type {
 
     std::size_t getAggregateSize() override {
         return size;
+    }
+
+    bool isArrayType() override {
+        return true;
     }
 
     llvm::Type* llvmCodegen(LLVMBackend&) override;

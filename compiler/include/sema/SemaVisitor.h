@@ -3,6 +3,7 @@
 #define SW_POST_VISIT_IMPL_HOOK(x) self->popNodeFromStack(x)
 
 #include <utility>
+#include <mutex>
 
 #include "parser/Parser.h"
 #include "ast/Visitor.h"
@@ -11,6 +12,23 @@
 #define SEMA_DISABLE_ERROR_CODE(code) \
     auto GET_UNIQUE_NAME(err_code_disabler) = SemaVisitor<decltype(*this)>::DisableErrorCode(*this, code)
 
+namespace sema {
+class GlobalCache {
+public:
+    void insert(Node* node) {
+        auto guard = std::lock_guard(m_Mutex);
+        m_VisitedNodes.insert(node);
+    }
+
+    bool contains(Node* node) {
+        auto guard = std::lock_guard(m_Mutex);
+        return m_VisitedNodes.contains(node);
+    }
+
+private:
+    std::mutex m_Mutex;
+    std::unordered_set<Node*> m_VisitedNodes;
+};
 
 template <typename T>
 class SemaVisitor : public RecursiveVisitor<T> {
@@ -76,3 +94,4 @@ private:
         m_NodeStack.pop_back();
     }
 };
+}

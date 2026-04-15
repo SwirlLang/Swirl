@@ -130,6 +130,14 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
 
         case ErrCode::NOT_A_GENERIC:
             return std::format("{} is not a generic construct.", ctx.str_1);
+        case ErrCode::NOT_ENOUGH_ARGS:
+            return std::format(
+                "Function `{}` takes {} arguments, but only {} were provided.",
+                ctx.str_1,
+                ctx.type_1->to<FunctionType>()->param_types.size(),
+                ctx.str_2
+                );
+
         case ErrCode::TOO_MANY_GENERIC_ARGS:
             return std::format("Too many generic arguments.");
         case ErrCode::INITIALIZER_REQUIRED:
@@ -156,6 +164,8 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return "Configuration variables must be initialized with literals.";
         case ErrCode::SLICE_NOT_COMPATIBLE:
             return "Incompatible slice.";  // TODO
+        case ErrCode::CONDITION_NOT_BOOL:
+            return "Conditions must be boolean expressions.";
 
         case ErrCode::NOT_ALLOWED_CT_CTX:
             return "This construct is not allowed in compile-time evaluated context.";
