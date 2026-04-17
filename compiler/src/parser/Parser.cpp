@@ -13,7 +13,6 @@
 #include "parser/Parser.h"
 
 #include "lexer/Tokens.h"
-#include "backend/LLVMBackend.h"
 #include "errors/ErrorManager.h"
 #include "symbols/SymbolManager.h"
 #include "managers/ModuleManager.h"

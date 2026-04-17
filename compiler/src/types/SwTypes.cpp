@@ -1,11 +1,13 @@
-#include <llvm/IR/DerivedTypes.h>
-#include <types/SwTypes.h>
-#include <backend/LLVMBackend.h>
-#include <llvm/TargetParser/Triple.h>
-#include <symbols/IdentManager.h>
-
+#include "types/SwTypes.h"
 #include "CompilerInst.h"
 #include "types/definitions.h"
+#include "symbols/IdentManager.h"
+#include "../../include/backend/LLVMBackend.h"
+
+
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/TargetParser/Triple.h>
+
 
 
 std::string FunctionType::toString() const {
@@ -22,15 +24,20 @@ std::string PointerType::toString() const {
         : "" + of_type->toString() + '*';
 }
 
-llvm::Type* FunctionType::llvmCodegen(LLVMBackend& instance) {
-    std::vector<llvm::Type*> llvm_param_types;
-    llvm_param_types.reserve(this->param_types.size());
+std::string EnumType::toString() const {
+    return "enum " + id->toString();
+}
 
-    for (const auto& ptr : this->param_types)
-        llvm_param_types.push_back(ptr->llvmCodegen(instance));
+
+llvm::Type* LLVMBackend::llvmCodegen(FunctionType* type, const SwContext& ctx) {
+    std::vector<llvm::Type*> llvm_param_types;
+    llvm_param_types.reserve(type->param_types.size());
+
+    for (const auto& ptr : type->param_types)
+        llvm_param_types.push_back(codegen(ptr, ctx));
 
     llvm::FunctionType* function = llvm::FunctionType::get(
-        ret_type == nullptr ? llvm::Type::getVoidTy(instance.Context) : this->ret_type->llvmCodegen(instance),
+        type->ret_type == nullptr ? llvm::Type::getVoidTy(LLVMContext) : codegen(type->ret_type, ctx),
         llvm_param_types,
         false
     );
@@ -38,141 +45,153 @@ llvm::Type* FunctionType::llvmCodegen(LLVMBackend& instance) {
     return function;
 }
 
-llvm::Type* EnumType::llvmCodegen(LLVMBackend& instance) {
-    return of_type->llvmCodegen(instance);
+
+llvm::Type* LLVMBackend::llvmCodegen(EnumType* type, const SwContext& ctx) {
+    return codegen(type->of_type, ctx);
 }
 
-std::string EnumType::toString() const {
-    return "enum " + id->toString();
-}
 
-llvm::Type* TypeStr::llvmCodegen(LLVMBackend& instance) {
-    if (instance.LLVMTypeCache.contains(this)) {
-        return instance.LLVMTypeCache[this];
+llvm::Type* LLVMBackend::llvmCodegen(TypeStr* type, SwContext ctx) {
+    if (LLVMTypeCache.contains(type)) {
+        return LLVMTypeCache[type];
     }
 
-    const auto ret = instance.SymMan.lookupType(
-        instance.SymMan.getIdInfoOfAGlobal("str"))->llvmCodegen(instance);
-
-    instance.LLVMTypeCache[this] = ret;
+    const auto ret = codegen(SymMan.lookupType(SymMan.getIdInfoOfAGlobal("str")), ctx);
+    LLVMTypeCache[type] = ret;
     return ret;
 }
 
 
-llvm::Type* StructType::llvmCodegen(LLVMBackend& instance) {
-    if (instance.LLVMTypeCache.contains(this)) {
-        return instance.LLVMTypeCache[this];
+llvm::Type* LLVMBackend::llvmCodegen(StructType* type, const SwContext& ctx) {
+    if (LLVMTypeCache.contains(type)) {
+        return LLVMTypeCache[type];
     }
 
     std::vector<llvm::Type*> llvm_fields;
-    llvm_fields.reserve(field_types.size());
+    llvm_fields.reserve(type->field_types.size());
 
-    for (const auto& field : field_types) {
-        llvm_fields.push_back(field->llvmCodegen(instance));
+    for (const auto& field : type->field_types) {
+        llvm_fields.push_back(codegen(field, ctx));
     }
 
-    const auto struct_t = llvm::StructType::create(instance.Context, this->ident->toString());
+    const auto struct_t = llvm::StructType::create(LLVMContext, type->ident->toString());
     struct_t->setBody(llvm_fields);
 
-    instance.LLVMTypeCache[this] = struct_t;
+    LLVMTypeCache[type] = struct_t;
     return struct_t;
 }
 
 
-llvm::Type* PointerType::llvmCodegen(LLVMBackend& instance) {
-    return llvm::PointerType::get(instance.Context, 0);
+llvm::Type* LLVMBackend::llvmCodegen(PointerType*, SwContext) {
+    return llvm::PointerType::get(LLVMContext, 0);
 }
 
 
-llvm::Type* SliceType::llvmCodegen(LLVMBackend& instance) {
-    if (instance.LLVMTypeCache.contains(this)) {
-        return instance.LLVMTypeCache[this];
+llvm::Type* LLVMBackend::llvmCodegen(SliceType* type, const SwContext& context) {
+    if (LLVMTypeCache.contains(type)) {
+        return LLVMTypeCache[type];
     }
 
-     const auto struct_t = llvm::StructType::create(
-        instance.Context,
-        "__Slice"
-    );
+    const auto struct_t = llvm::StructType::create(LLVMContext, "__Slice");
 
     struct_t->setBody({
-        instance.SymMan.getPointerType(of_type, false)
-            ->llvmCodegen(instance),  // pointer to the first element
-        llvm::Type::getInt64Ty(instance.Context)  // size
+        codegen(SymMan.getPointerType(type->of_type, false), context),  // pointer to the first element
+        llvm::Type::getInt64Ty(LLVMContext)  // size
     });
 
-    instance.LLVMTypeCache[this] = struct_t;
+    LLVMTypeCache[type] = struct_t;
     return struct_t;
 }
 
 
-llvm::Type* VoidType::llvmCodegen(LLVMBackend& instance) {
-    return llvm::Type::getVoidTy(instance.Context);
+llvm::Type* LLVMBackend::llvmCodegen(VoidType*, SwContext) {
+    return llvm::Type::getVoidTy(LLVMContext);
+
 }
 
-llvm::Type* ReferenceType::llvmCodegen(LLVMBackend& instance) {
+llvm::Type* LLVMBackend::llvmCodegen(ReferenceType* type, const SwContext& context) {
     // references to strings compile to a slice (i8* + i64)
-    if (of_type->getTypeTag() == STR) {
+    if (type->of_type->getTypeTag() == Type::STR) {
         SliceType ty{&GlobalTypeI8};
-        return ty.llvmCodegen(instance);
+        return codegen(&ty, context);
     }
 
-    return llvm::PointerType::get(instance.Context, 0);
+    return llvm::PointerType::get(LLVMContext, 0);
+
 }
 
-llvm::Type* ArrayType::llvmCodegen(LLVMBackend& instance) {
-    if (instance.LLVMTypeCache.contains(this)) {
-        return instance.LLVMTypeCache[this];
+llvm::Type* LLVMBackend::llvmCodegen(ArrayType* type, const SwContext& context) {
+    if (LLVMTypeCache.contains(type)) {
+        return LLVMTypeCache[type];
     }
-    const auto arr_struct = llvm::StructType::create(instance.Context, "__Arr");
-    arr_struct->setBody(llvm::ArrayType::get(of_type->llvmCodegen(instance), size));
-    instance.LLVMTypeCache[this] = arr_struct;
+
+    const auto arr_struct = llvm::StructType::create(LLVMContext, "__Arr");
+    arr_struct->setBody(llvm::ArrayType::get(codegen(type->of_type, context), type->size));
+    LLVMTypeCache[type] = arr_struct;
     return arr_struct;
 }
 
 
-llvm::Type* TypeChar::llvmCodegen(LLVMBackend& instance) {
-    return llvm::Type::getInt8Ty(instance.Context);
+llvm::Type* LLVMBackend::llvmCodegen(TypeChar*, SwContext) {
+    return llvm::Type::getInt8Ty(LLVMContext);
 }
 
 
-llvm::Type* TypeI8::llvmCodegen(LLVMBackend& instance) {
-    const auto ret = llvm::Type::getInt8Ty(instance.Context);
+llvm::Type* LLVMBackend::llvmCodegen(TypeI32* type, SwContext) {
+    return llvm::Type::getInt32Ty(LLVMContext);
+}
+
+llvm::Type* LLVMBackend::llvmCodegen(TypeI16* type, SwContext) {
+    return llvm::Type::getInt16Ty(LLVMContext);
+}
+
+llvm::Type* LLVMBackend::llvmCodegen(TypeI8*, SwContext) {
+    const auto ret = llvm::Type::getInt8Ty(LLVMContext);
     return ret;
 }
 
-llvm::Type* TypeI32::llvmCodegen(LLVMBackend& instance) {
-    const auto ret = llvm::Type::getInt32Ty(instance.Context);
-    return ret;
+llvm::Type* LLVMBackend::llvmCodegen(TypeI64* type, SwContext) {
+    return llvm::Type::getInt64Ty(LLVMContext);
 }
 
-llvm::Type* TypeI16::llvmCodegen(LLVMBackend& instance) {
-    const auto ret = llvm::Type::getInt16Ty(instance.Context);
-    return ret;
+llvm::Type* LLVMBackend::llvmCodegen(TypeI128* type, SwContext) {
+    return llvm::Type::getInt128Ty(LLVMContext);
 }
 
-llvm::Type* TypeI64::llvmCodegen(LLVMBackend& instance) {
-    const auto ret = llvm::Type::getInt64Ty(instance.Context);
-    return ret;
+llvm::Type* LLVMBackend::llvmCodegen(TypeF32* type, SwContext) {
+    return llvm::Type::getFloatTy(LLVMContext);
 }
 
-llvm::Type* TypeI128::llvmCodegen(LLVMBackend& instance) {
-    const auto ret = llvm::Type::getInt128Ty(instance.Context);
-    return ret;
+llvm::Type* LLVMBackend::llvmCodegen(TypeF64* type, SwContext) {
+    return llvm::Type::getDoubleTy(LLVMContext);
 }
 
-llvm::Type* TypeF32::llvmCodegen(LLVMBackend& instance) {
-    const auto ret = llvm::Type::getFloatTy(instance.Context);
-    return ret;
+llvm::Type* LLVMBackend::llvmCodegen(TypeBool* type, SwContext) {
+    return llvm::Type::getInt1Ty(LLVMContext);
 }
 
-llvm::Type* TypeF64::llvmCodegen(LLVMBackend& instance) {
-    const auto ret = llvm::Type::getDoubleTy(instance.Context);
-    return ret;
+
+llvm::Type* LLVMBackend::llvmCodegen(TypeU8* type, SwContext context) {
+    return llvm::Type::getInt8Ty(LLVMContext);
 }
 
-llvm::Type* TypeBool::llvmCodegen(LLVMBackend& instance) {
-    const auto ret = llvm::Type::getInt1Ty(instance.Context);
-    return ret;
+
+llvm::Type* LLVMBackend::llvmCodegen(TypeU16* type, SwContext context) {
+    return llvm::Type::getInt16Ty(LLVMContext);
+}
+
+
+llvm::Type* LLVMBackend::llvmCodegen(TypeU32* type, SwContext context) {
+    return llvm::Type::getInt32Ty(LLVMContext);
+}
+
+
+llvm::Type* LLVMBackend::llvmCodegen(TypeU64* type, SwContext context) {
+    return llvm::Type::getInt64Ty(LLVMContext);
+}
+
+llvm::Type* LLVMBackend::llvmCodegen(TypeU128* type, SwContext context) {
+    return llvm::Type::getInt128Ty(LLVMContext);
 }
 
 
@@ -181,8 +200,8 @@ llvm::Type* TypeBool::llvmCodegen(LLVMBackend& instance) {
     unsigned int  Name::getBitWidth() { return BitWidth; } \
     bool Name::isIntegral() { return IsIntegral; } \
     bool Name::isFloatingPoint() { return !(IsIntegral); } \
-    llvm::Type* Name::llvmCodegen(LLVMBackend& _) { \
-        return llvm::Type::getIntNTy(_.Context, BitWidth); \
+    llvm::Type* LLVMBackend::llvmCodegen(Name* type, SwContext context) { \
+        return llvm::Type::getIntNTy(LLVMContext, BitWidth); \
         }
 
 #define DEFINE_ATTRIBUTES(Name, IsIntegral) \
@@ -240,16 +259,16 @@ unsigned int TypeCL::getBitWidth() {
     throw std::runtime_error("TypeCL::isUnsigned: unsupported arch");
 }
 
-llvm::Type* TypeCL::llvmCodegen(LLVMBackend& instance) {
-    return llvm::Type::getIntNTy(instance.Context, getBitWidth());
+llvm::Type* LLVMBackend::llvmCodegen(TypeCL* type, SwContext) {
+    return llvm::Type::getIntNTy(LLVMContext, type->getBitWidth());
 }
 
 unsigned int TypeCSSizeT::getBitWidth() {
     return fetchPointerSize(llvm::Triple(CompilerInst::TargetTriple).getArch());
 }
 
-llvm::Type* TypeCSSizeT::llvmCodegen(LLVMBackend& instance) {
-    return llvm::Type::getIntNTy(instance.Context, getBitWidth());
+llvm::Type* LLVMBackend::llvmCodegen(TypeCSSizeT* type, SwContext) {
+    return llvm::Type::getIntNTy(LLVMContext, type->getBitWidth());
 }
 
 
@@ -257,16 +276,18 @@ unsigned int TypeCSizeT::getBitWidth() {
     return TypeCSSizeT{}.getBitWidth();
 }
 
-llvm::Type* TypeCSizeT::llvmCodegen(LLVMBackend& instance) {
-    return TypeCSSizeT{}.llvmCodegen(instance);
+llvm::Type* LLVMBackend::llvmCodegen(TypeCSizeT* type, const SwContext& ctx) {
+    auto a = TypeCSSizeT{};
+    return codegen(&a, ctx);
 }
 
 unsigned int TypeCUL::getBitWidth() {
     return TypeCL{}.getBitWidth();
 }
 
-llvm::Type* TypeCUL::llvmCodegen(LLVMBackend& instance) {
-    return TypeCL{}.llvmCodegen(instance);
+llvm::Type* LLVMBackend::llvmCodegen(TypeCUL* type, SwContext context) {
+    auto a = TypeCL{};
+    return codegen(&a, context);
 }
 
 
@@ -274,8 +295,8 @@ unsigned int TypeCPtrDiffT::getBitWidth() {
     return fetchPointerSize(llvm::Triple(CompilerInst::TargetTriple).getArch());
 }
 
-llvm::Type* TypeCPtrDiffT::llvmCodegen(LLVMBackend& instance) {
-    return llvm::Type::getIntNTy(instance.Context, getBitWidth());
+llvm::Type* LLVMBackend::llvmCodegen(TypeCPtrDiffT* type, SwContext) {
+    return llvm::Type::getIntNTy(LLVMContext, type->getBitWidth());
 }
 
 
@@ -287,8 +308,8 @@ unsigned int TypeCWChar::getBitWidth() {
 }
 
 
-llvm::Type* TypeCWChar::llvmCodegen(LLVMBackend& instance) {
-    return llvm::Type::getIntNTy(instance.Context, getBitWidth());
+llvm::Type* LLVMBackend::llvmCodegen(TypeCWChar* type, SwContext) {
+    return llvm::Type::getIntNTy(LLVMContext, type->getBitWidth());
 }
 
 
@@ -326,19 +347,19 @@ unsigned int TypeCLDouble::getBitWidth() {
 }
 
 
-llvm::Type* TypeCLDouble::llvmCodegen(LLVMBackend& instance) {
+llvm::Type* LLVMBackend::llvmCodegen(TypeCLDouble* type, SwContext) {
     const auto triple = llvm::Triple(CompilerInst::TargetTriple);
 
     if (triple.getOS() == llvm::Triple::Linux && triple.getArch() == llvm::Triple::x86) {
-        return llvm::Type::getX86_FP80Ty(instance.Context);
+        return llvm::Type::getX86_FP80Ty(LLVMContext);
     }
 
     if ((triple.getOS() == llvm::Triple::Linux || triple.getOS() == llvm::Triple::Darwin) &&
         triple.getArch() == llvm::Triple::x86_64) {
-        return llvm::Type::getFP128Ty(instance.Context);
+        return llvm::Type::getFP128Ty(LLVMContext);
         }
 
-    return llvm::Type::getDoubleTy(instance.Context);
+    return llvm::Type::getDoubleTy(LLVMContext);
 }
 
 
@@ -347,8 +368,9 @@ unsigned int TypeCIntPtr::getBitWidth() {
 }
 
 
-llvm::Type* TypeCIntPtr::llvmCodegen(LLVMBackend& instance) {
-    return TypeCSSizeT{}.llvmCodegen(instance);
+llvm::Type* LLVMBackend::llvmCodegen(TypeCIntPtr*, SwContext ctx) {
+    auto a = TypeCSSizeT{};
+    return codegen(&a, ctx);
 }
 
 
@@ -357,7 +379,8 @@ unsigned int TypeCUIntPtr::getBitWidth() {
 }
 
 
-llvm::Type* TypeCUIntPtr::llvmCodegen(LLVMBackend& instance) {
-    return TypeCSSizeT{}.llvmCodegen(instance);
+llvm::Type* LLVMBackend::llvmCodegen(TypeCUIntPtr* type, const SwContext& context) {
+    auto a = TypeCSSizeT{};
+    return codegen(&a, context);
 }
 

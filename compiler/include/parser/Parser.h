@@ -110,10 +110,10 @@ class Parser {
 
     friend class CompilerInst;
     friend class ModuleManager;
-    friend class LLVMBackend;
     friend class AnalysisContext;
     friend class ExpressionParser;
     friend class ClonedState;
+    friend class LLVMBackend;
 
     template <typename T>
     friend class sema::SemaVisitor;

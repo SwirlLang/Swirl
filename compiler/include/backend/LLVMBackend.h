@@ -1,96 +1,157 @@
 #pragma once
-#include <memory>
-#include <stack>
-#include <stdexcept>
-#include <vector>
-#include <unordered_set>
-
-#include "parser/Parser.h"
 #include "ast/Nodes.h"
+#include "definitions.h"
+#include "types/SwTypes.h"
+#include "types/definitions.h"
 #include "symbols/SymbolManager.h"
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
-#include <llvm/MC/TargetRegistry.h>
-#include <llvm/Support/CodeGen.h>
-#include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
-#include <llvm/Target/TargetOptions.h>
-#include <llvm/TargetParser/Host.h>
 
 
+class ModuleManager;
+class SymbolManager;
 
-using SwAST_t = std::vector<std::unique_ptr<Node>>;
+#define SW_LLVM_SET_CURRENT_PARENT(x) LLVMBackend::ParentSetter GET_UNIQUE_NAME(Par){this, x};
 
-struct ManglingContext {
-    Type* encapsulator = nullptr;  // if set, signals that a mangled method name is requested
+
+struct SwContext {
+    Type* bound_type = nullptr;
+
+    llvm::Value* bound_memory = nullptr;   // used by arrays to handle nesting
+    llvm::BasicBlock* break_to = nullptr;
+    llvm::BasicBlock* continue_to = nullptr;
+};
+
+
+class CGValue {
+public:
+    CGValue(): m_LValue(nullptr), m_RValue(nullptr) {}
+    CGValue(llvm::Value* lvalue, llvm::Value* rvalue): m_LValue(lvalue), m_RValue(rvalue) {}
+
+    [[nodiscard]]
+    bool isLValue() const;
+
+    [[nodiscard]]
+    llvm::Value*   getLValue() const;
+    llvm::Value*   getRValue(LLVMBackend&, const SwContext& context) const;
+
+    static CGValue lValue(llvm::Value* lvalue);
+    static CGValue rValue(llvm::Value* rvalue);
+
+private:
+    llvm::Value* m_LValue;
+    llvm::Value* m_RValue;
 };
 
 
 class LLVMBackend {
 public:
-    llvm::LLVMContext Context;
-    llvm::IRBuilder<> Builder{Context};
+    llvm::LLVMContext LLVMContext;
+    llvm::IRBuilder<> Builder{LLVMContext};
 
     ::ModuleManager& ModuleManager;
-    std::unique_ptr<llvm::Module> LModule;
-
-    std::vector<std::unique_ptr<Node>> AST;
     SymbolManager& SymMan;
+
+    std::unique_ptr<llvm::Module> LModule;
+    std::unordered_map<Type*, llvm::Type*> LLVMTypeCache;
 
     inline static llvm::TargetMachine* TargetMachine = nullptr;
 
-    std::unordered_map<Type*, llvm::Type*> LLVMTypeCache;
+    llvm::Function* CurParent       = nullptr;
+    llvm::Value*    RefMemory       = nullptr;  // set by the addr-taking op after computation
+    llvm::Value*    ComputedPtr     = nullptr;  // set GEP operations like `[]` or `.`
+    Type*           StructFieldType = nullptr;  // used to "bubble-up" struct-field types
+    llvm::Value*    StructFieldPtr  = nullptr;  // used to "bubble-up" StructGEPd pointers
 
-    // ----------------[flags]-------------------
-    llvm::Value* RefMemory = nullptr;       // set by the addr-taking op after computation
-    llvm::Value* ComputedPtr = nullptr;     // set GEP operations like `[]` or `.`
-    llvm::Value* BoundMemory = nullptr;     // a temporary used by arrays to handle nesting
-    llvm::Value* StructFieldPtr = nullptr;  // used to "bubble-up" StructGEPd pointers
-    Type*        StructFieldType = nullptr; // used to "bubble-up" struct-field types
-    // -------------------------------------------------------
 
-    struct   SetupHandler;
-    struct   BoundTypeStateHelper;
-    explicit LLVMBackend(Parser& parser);
+    LLVMBackend() = delete;
+    explicit  LLVMBackend(Parser& parser);
 
-    struct LoopMetadata {
-        llvm::BasicBlock* break_to = nullptr;
-        llvm::BasicBlock* continue_to = nullptr;
+    struct ParentSetter {
+        ParentSetter(LLVMBackend* instance, llvm::Function* parent)
+            : instance(instance) { instance->CurParent = parent; }
+
+        ~ParentSetter() { instance->CurParent = nullptr; }
+
+    private:
+        LLVMBackend* instance;
     };
 
-    // holds states which are specific to each call
-    struct StackState {
-        std::vector<bool> is_lvalue = {false};
-    };
+    /// calls `codegen` on all top AST nodes
+    void dispatch(const AST_t& ast) {
+        for (auto& node : ast) {
+            codegen(node.get(), {});
+        }
+    }
 
-    /// Calculates and returns a mangled string which corresponds to the `IdentInfo*`
-    std::string mangleString(IdentInfo*);
+    /// Calls the corresponding `llvmCodegen` on `node` and returns it
+    CGValue codegen(Node* node, SwContext ctx) {
+    #define SW_NODE(x, y) case x: return llvmCodegen(static_cast<y*>(node), std::move(ctx));
+        switch (node->kind) {
+            SW_NODE_LIST // NOLINT(*-pro-type-static-cast-downcast)
+        } throw std::runtime_error("LLVMBackend::dispatch: unexpected node kind");
+    #undef SW_NODE
+    }
+
+
+    CGValue codegen(const SwNode& node, const SwContext& ctx) {
+        return codegen(node.get(), ctx);
+    }
+
+    llvm::Type* codegen(Type* type, SwContext ctx) {
+    #define SW_TYPE(x, y) case Type::x: return llvmCodegen(static_cast<y*>(type), std::move(ctx));
+        switch (type->getTypeTag()) {  // TODO: remove this virtual call
+            SW_TYPE_LIST // NOLINT(*-pro-type-static-cast-downcast)
+        } throw std::runtime_error("LLVMBackend::dispatch: unexpected type tag");
+    #undef SW_TYPE
+    }
+
+
+    std::string mangleString(IdentInfo* id) const;
 
     /// Performs any necessary type casts (controlled by `BoundTypeState`), then returns the llvm::Value*
     /// note: `subject` is supposed to be a "loaded" value
-    llvm::Value* castIfNecessary(Type* source_type, llvm::Value* subject);
+    llvm::Value* castIfNecessary(Type* source_type, llvm::Value* subject, const SwContext& context);
+
 
     /// Codegens the vector of nodes while respecting statements like `return`. If `condition` is not
     /// nullptr, checks whether it is a `ConstantInt`, and if so, whether it is 0 (in which case no
     /// code generation takes place).
-    void codegenChildrenUntilRet(NodesVec& children, llvm::Value* condition = nullptr);
+    void codegenChildrenUntilRet(const NodesVec& children, const SwContext& context, llvm::Value* condition = nullptr);
 
-    /// Begins the IR generation
-    void startGeneration() {
-        for (const auto& node : AST) {
-            if (!m_ResolvedList.contains(m_CurParentIndex))
-                node->llvmCodegen(*this);
-            m_CurParentIndex++;
+    llvm::Module* getLLVMModule() const {
+        return LModule.get();
+    }
+
+    const llvm::DataLayout& getDataLayout() const {
+        return LModule->getDataLayout();
+    }
+
+    /// Convenient function to construct a llvm int from a `size_t`
+    llvm::Value* toLLVMInt(const std::size_t i, const int size_in_bits = 64) {
+        switch (size_in_bits) {
+            case 8   : return llvm::ConstantInt::get(llvm::Type::getInt8Ty(LLVMContext), i);
+            case 16  : return llvm::ConstantInt::get(llvm::Type::getInt16Ty(LLVMContext), i);
+            case 32  : return llvm::ConstantInt::get(llvm::Type::getInt32Ty(LLVMContext), i);
+            case 64  : return llvm::ConstantInt::get(llvm::Type::getInt64Ty(LLVMContext), i);
+            case 128 : return llvm::ConstantInt::get(llvm::Type::getInt128Ty(LLVMContext), i);
+            default  : throw std::runtime_error("LLVMBackend::toLLVMInt: invalid size_in_bits");
         }
     }
 
-    /// Tries to fetch the swirl-type of the node, throws an exception on failure
-    Type* fetchSwType(const std::unique_ptr<Node>& node) const {
-        return fetchSwType(node.get());
+
+    /// Calls `print` on the llvm module
+    void printIR() const {
+        // bonus: run the llvm verifier on the module
+        verifyModule(*LModule, &llvm::errs());
+        LModule->print(llvm::outs(), nullptr);
     }
+
+
 
     Type* fetchSwType(Node* node) const {
         switch (node->getNodeType()) {
@@ -115,127 +176,94 @@ public:
         }
     }
 
-    /// Convenient function to construct an llvm int from a `size_t`
-    llvm::Value* toLLVMInt(const std::size_t i, const int size_in_bits = 64) {
-        switch (size_in_bits) {
-            case 8   : return llvm::ConstantInt::get(llvm::Type::getInt8Ty(Context), i);
-            case 16  : return llvm::ConstantInt::get(llvm::Type::getInt16Ty(Context), i);
-            case 32  : return llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), i);
-            case 64  : return llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), i);
-            case 128 : return llvm::ConstantInt::get(llvm::Type::getInt128Ty(Context), i);
-            default  : throw std::runtime_error("LLVMBackend::toLLVMInt: invalid size_in_bits");
-        }
+
+    Type* fetchSwType(const SwNode& node) const {
+        return fetchSwType(node.get());
     }
 
-    /// Calls `print` on the llvm module
-    void printIR() const {
-        // bonus: run the llvm verifier on the module
-        verifyModule(*LModule, &llvm::errs());
-        LModule->print(llvm::outs(), nullptr);
-    }
 
-    Type* getBoundTypeState() const {
-        return m_LatestBoundType.top();
-    }
-
-    llvm::Type* getBoundLLVMType() {
-        assert(m_LatestBoundType.top() != nullptr);
-        return m_LatestBoundType.top()->llvmCodegen(*this);
-    }
-
-    void setManglingContext(const ManglingContext& ctx) {
-        m_ManglingContexts.push(ctx);
-    }
-
-    void restoreManglingContext() {
-        m_ManglingContexts.pop();
-    }
-
-    auto getManglingContext() {
-        return m_ManglingContexts.top();
-    }
-
-    void setBoundTypeState(Type* to) {
-        assert(to != nullptr);
-        m_LatestBoundType.emplace(to);
-    }
-
-    void restoreBoundTypeState() {
-        m_LatestBoundType.pop();
-    }
-
-    const llvm::DataLayout& getDataLayout() const {
-        return LModule->getDataLayout();
-    }
-
-    llvm::Module* getLLVMModule() const {
-        return LModule.get();
+    bool isLocalScope() const {
+        return CurParent != nullptr;
     }
 
     llvm::Function* getCurrentParent() const {
-        return m_CurParent;
+        return CurParent;
     }
 
-    void setCurrentParent(llvm::Function* parent) {
-        m_CurParent = parent;
-    }
 
-    void setLoopMetadata(const LoopMetadata& metadata) {
-        assert(metadata.break_to != nullptr);
-        assert(metadata.continue_to != nullptr);
-        m_LoopMetadataStack.push(metadata);
-    }
+    // --- --- llvmCodegen for Nodes --- --- //
+    CGValue llvmCodegen(Node*, const SwContext&)           { return {}; }
+    CGValue llvmCodegen(Enum*, const SwContext&)           { return {}; }
+    CGValue llvmCodegen(ImportNode*, const SwContext&)     { return {}; }
+    CGValue llvmCodegen(Protocol*, const SwContext&)       { return {}; }
+    CGValue llvmCodegen(UndefinedValue*, const SwContext&) { return {}; }
 
-    void restoreLoopMetadata() {
-        assert(!m_LoopMetadataStack.empty());
-        m_LoopMetadataStack.pop();
-    }
-
-    LoopMetadata getLoopMetadata() {
-        assert(!m_LoopMetadataStack.empty());
-        return m_LoopMetadataStack.top();
-    }
-
-    bool isLocalScope() const {
-        return m_CurParent != nullptr;
-    }
-
-private:
-    std::unordered_set<std::size_t> m_ResolvedList;
-    std::size_t m_CurParentIndex = 0;
-    llvm::Function* m_CurParent = nullptr;
-
-    std::stack<Type*>           m_LatestBoundType;
-    std::stack<LoopMetadata>    m_LoopMetadataStack;
-    std::stack<ManglingContext> m_ManglingContexts;
-    std::stack<StackState>      m_CodegenStack;
-};
+    CGValue llvmCodegen(Expression* node, SwContext context);
+    CGValue llvmCodegen(const IntLit* node, const SwContext &context);
+    CGValue llvmCodegen(const FloatLit* node, const SwContext& context);
+    CGValue llvmCodegen(Op* node, SwContext context);
+    CGValue llvmCodegen(Var* node, const SwContext& context);
+    CGValue llvmCodegen(const StrLit* node, const SwContext& context);
+    CGValue llvmCodegen(FuncCall* node, const SwContext& context);
+    CGValue llvmCodegen(Ident* node, const SwContext& context);
+    CGValue llvmCodegen(Function* node, const SwContext& context);
+    CGValue llvmCodegen(Condition* node, const SwContext& context);
+    CGValue llvmCodegen(WhileLoop* node, SwContext context);
+    CGValue llvmCodegen(Struct* node, const SwContext& context);
+    CGValue llvmCodegen(ArrayLit* node, const SwContext& context);
+    CGValue llvmCodegen(const TypeWrapper* node, const SwContext& context);
+    CGValue llvmCodegen(BoolLit* node, SwContext context);
+    CGValue llvmCodegen(Scope* node, const SwContext& context);
+    CGValue llvmCodegen(BreakStmt* node, const SwContext& context);
+    CGValue llvmCodegen(ContinueStmt* node, const SwContext& context);
+    CGValue llvmCodegen(Intrinsic* node, const SwContext& context);
+    CGValue llvmCodegen(ReturnStatement* node, const SwContext& context);
 
 
-struct LLVMBackend::SetupHandler {
-    SetupHandler(LLVMBackend& instance, Node* ptr): instance(instance), node(ptr) {
-        instance.m_CodegenStack.emplace();
-    }
-
-    ~SetupHandler() {
-        instance.m_CodegenStack.pop();
-    }
-
-private:
-    LLVMBackend& instance;
-    Node* node;
-};
-
-
-struct LLVMBackend::BoundTypeStateHelper {
-    BoundTypeStateHelper(LLVMBackend& instance, Type* value): instance(instance) {
-        instance.setBoundTypeState(value);
-    }
-
-    ~BoundTypeStateHelper() {
-        instance.restoreBoundTypeState();
-    }
-
-private:
-    LLVMBackend& instance;
+    // --- llvmCodegen for Types (implementation in SwTypes.cpp) --- //
+    llvm::Type* llvmCodegen(FunctionType* type, const SwContext &context);
+    llvm::Type* llvmCodegen(StructType* type, const SwContext &context);
+    llvm::Type* llvmCodegen(EnumType* type, const SwContext &context);
+    llvm::Type* llvmCodegen(TypeI8* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeI16* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeI32* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeI64* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeI128* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeU8* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeU16* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeU32* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeU64* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeU128* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeF32* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeF64* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeBool* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeStr* type, SwContext context);
+    llvm::Type* llvmCodegen(ReferenceType* type, const SwContext& context);
+    llvm::Type* llvmCodegen(PointerType* type, SwContext context);
+    llvm::Type* llvmCodegen(ArrayType* type, const SwContext& context);
+    llvm::Type* llvmCodegen(SliceType* type, const SwContext &context);
+    llvm::Type* llvmCodegen(VoidType* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCInt* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCUInt* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCLL* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCULL* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCL* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCUL* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCSizeT* type, const SwContext& context);
+    llvm::Type* llvmCodegen(TypeCSSizeT* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeChar* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCSChar* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCUChar* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCShort* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCUShort* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCBool* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCFloat* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCDouble* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCLDouble* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCIntPtr* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCUIntPtr* type, const SwContext& context);
+    llvm::Type* llvmCodegen(TypeCPtrDiffT* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCIntMax* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCUIntMax* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCWChar* type, SwContext context);
 };

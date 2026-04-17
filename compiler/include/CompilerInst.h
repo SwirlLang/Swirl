@@ -11,6 +11,8 @@
 #include "managers/ModuleManager.h"
 #include "utils/FileSystem.h"
 
+#include <llvm/TargetParser/Host.h>
+
 
 namespace fs = std::filesystem;
 using ThreadPool = sw::ThreadPool;
@@ -50,8 +52,9 @@ public:
     inline static std::string TargetTriple;
     inline static std::unordered_set<std::string> LinkTargets;
     inline static std::unordered_map<std::string, PackageInfo> PackageTable;
-    inline static bool run_exe = false;
-    inline static bool debug_mode = false;
+
+    inline static bool RunExe = false;
+    inline static bool DebugMode = true;
 
     explicit CompilerInst(fs::path path) : m_SrcPath(std::move(path)) {
         m_ErrorCallback = [this](const ErrCode code, const ErrorContext& ctx) {
@@ -111,12 +114,12 @@ public:
         // || --- *---*   Sema   *---* --- || //
         int batch_no = 1;
         while (!m_ModuleManager.zeroVecIsEmpty()) {
-            if (debug_mode) {
+            if (DebugMode) {
                 std::println("Batch-{}: ", batch_no);
             }
             batch_no++;
             while (const auto mod = m_ModuleManager.popZeroDepVec()) {
-                if (debug_mode) {
+                if (DebugMode) {
                     std::print("{}, ", mod->m_FileHandle->getPath().string());
                     std::println("\n-------------");
                 }

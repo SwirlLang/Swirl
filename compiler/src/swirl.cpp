@@ -76,9 +76,9 @@ int main(const int argc, const char** argv) {
             CompilerInst::addPackageEntry(
                 app.get_flag_value("-p") + ':' + fs::path(app.get_flag_value("-p")).filename().string(), true);
         if (app.contains_flag("-r"))
-                compiler_inst.run_exe = true;
+                compiler_inst.RunExe = true;
         if (app.contains_flag("-d"))
-                compiler_inst.debug_mode = true;
+                compiler_inst.DebugMode = true;
         else {
             // if `-p` isn't passed explicitly, assume that the project root is the
             // directory in which the source file resides

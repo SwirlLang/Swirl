@@ -1,6 +1,6 @@
 #include "CompilerInst.h"
-
 #include "backend/LLVMBackend.h"
+
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/FileSystem.h>
 #include <lld/Common/Driver.h>
@@ -48,11 +48,11 @@ void CompilerInst::startLLVMCodegen() {
 
     for (Parser* parser : m_ModuleManager) {
         auto* backend = llvm_backends.emplace_back(new LLVMBackend{*parser}).get();
-        m_ThreadPool.enqueue([backend] { backend->startGeneration(); });
+        m_ThreadPool.enqueue([backend, &parser] { backend->dispatch(parser->AST); });
     }
     m_ThreadPool.wait();
 
-    if (debug_mode) {
+    if (DebugMode) {
         for (const auto& backend : llvm_backends) {
             backend->printIR();
         }
@@ -219,7 +219,7 @@ void CompilerInst::produceExecutable() {
 
     // do the final ritual
     lld::lldMain(llvm_args, llvm::outs(), llvm::errs(), {platform_driver});
-    if (run_exe) {
+    if (RunExe) {
 
 #ifdef WIN32
         system(std::format("{}", m_OutputPath.string()).c_str());

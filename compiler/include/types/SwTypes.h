@@ -13,26 +13,69 @@ struct Var;
 namespace llvm { class Type; }
 
 
+#define SW_TYPE_LIST \
+    SW_TYPE(FUNCTION, FunctionType) \
+    SW_TYPE(STRUCT, StructType) \
+    SW_TYPE(ENUM, EnumType) \
+    \
+    SW_TYPE(I8, TypeI8) \
+    SW_TYPE(I16, TypeI16) \
+    SW_TYPE(I32, TypeI32) \
+    SW_TYPE(I64, TypeI64) \
+    SW_TYPE(I128, TypeI128) \
+    \
+    SW_TYPE(U8, TypeU8) \
+    SW_TYPE(U16, TypeU16) \
+    SW_TYPE(U32, TypeU32) \
+    SW_TYPE(U64, TypeU64) \
+    SW_TYPE(U128, TypeU128) \
+    \
+    SW_TYPE(F32, TypeF32) \
+    SW_TYPE(F64, TypeF64) \
+    \
+    SW_TYPE(BOOL, TypeBool) \
+    SW_TYPE(STR, TypeStr) \
+    SW_TYPE(CHAR, TypeChar) \
+    \
+    SW_TYPE(REFERENCE, ReferenceType) \
+    SW_TYPE(POINTER, PointerType) \
+    SW_TYPE(ARRAY, ArrayType) \
+    SW_TYPE(SLICE, SliceType) \
+    SW_TYPE(VOID, VoidType) \
+    \
+    SW_TYPE(C_INT, TypeCInt) \
+    SW_TYPE(C_UINT, TypeCUInt) \
+    SW_TYPE(C_LL, TypeCLL) \
+    SW_TYPE(C_ULL, TypeCULL) \
+    SW_TYPE(C_L, TypeCL) \
+    SW_TYPE(C_UL, TypeCUL) \
+    SW_TYPE(C_SIZE_T, TypeCSizeT) \
+    SW_TYPE(C_SSIZE_T, TypeCSSizeT) \
+    \
+    SW_TYPE(C_CHAR, TypeChar) \
+    SW_TYPE(C_SCHAR, TypeCSChar) \
+    SW_TYPE(C_UCHAR, TypeCUChar) \
+    SW_TYPE(C_SHORT, TypeCShort) \
+    SW_TYPE(C_USHORT, TypeCUShort) \
+    \
+    SW_TYPE(C_BOOL, TypeCBool) \
+    SW_TYPE(C_FLOAT, TypeCFloat) \
+    SW_TYPE(C_DOUBLE, TypeCDouble) \
+    SW_TYPE(C_LDOUBLE, TypeCLDouble) \
+    \
+    SW_TYPE(C_INTPTR, TypeCIntPtr) \
+    SW_TYPE(C_UINTPTR, TypeCUIntPtr) \
+    SW_TYPE(C_PTRDIFF_T, TypeCPtrDiffT) \
+    SW_TYPE(C_INTMAX, TypeCIntMax) \
+    SW_TYPE(C_UINTMAX, TypeCUIntMax) \
+    SW_TYPE(C_WCHAR, TypeCWChar)
+
+
 struct Type {
     enum SwTypes {
-        FUNCTION, STRUCT, ENUM,
-
-        I8, I16, I32, I64, I128,
-        U8, U16, U32, U64, U128,
-        F32, F64,
-
-        BOOL, STR, CHAR,
-        REFERENCE, POINTER, ARRAY, SLICE, VOID,
-
-        C_INT, C_UINT, C_LL, C_ULL, C_L, C_UL,
-        C_SIZE_T, C_SSIZE_T,
-
-        C_CHAR, C_SCHAR, C_UCHAR,
-        C_SHORT, C_USHORT,
-        C_BOOL, C_FLOAT, C_DOUBLE, C_LDOUBLE,
-        C_INTPTR, C_UINTPTR, C_PTRDIFF_T,
-        C_INTMAX, C_UINTMAX,
-        C_WCHAR,
+    #define SW_TYPE(x, y) x,
+        SW_TYPE_LIST
+    #undef SW_TYPE
     };
 
 
@@ -41,8 +84,6 @@ struct Type {
     SourceLocation location;
 
     virtual SwTypes     getTypeTag() = 0;
-
-    virtual llvm::Type* llvmCodegen(LLVMBackend&) = 0;
 
     virtual bool         isIntegral()      { return false; }
     virtual bool         isFloatingPoint() { return false; }
@@ -138,8 +179,6 @@ struct FunctionType final : Type {
     bool operator==(Type* other) override {
         return other->getTypeTag() == FUNCTION && (param_types == dynamic_cast<FunctionType*>(other)->param_types);
     }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 struct EnumType final : Type {
@@ -153,7 +192,6 @@ struct EnumType final : Type {
         return ENUM;
     }
 
-    llvm::Type* llvmCodegen(LLVMBackend&) override;
     [[nodiscard]] std::string toString() const override;
 };
 
@@ -175,8 +213,6 @@ struct StructType final : Type {
     bool isStructType() override {
         return true;
     }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 
@@ -203,8 +239,6 @@ struct ArrayType final : Type {
     bool isArrayType() override {
         return true;
     }
-
-    llvm::Type* llvmCodegen(LLVMBackend&) override;
 };
 
 
@@ -221,8 +255,6 @@ struct TypeChar final : Type {
     std::string toString() const override {
         return "char";
     }
-
-    llvm::Type* llvmCodegen(LLVMBackend&) override;
 };
 
 
@@ -238,8 +270,6 @@ struct TypeStr final : Type {
     std::size_t getAggregateSize() override {
         return 8 * 2;  // in bytes
     }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 struct ReferenceType final : Type {
@@ -263,7 +293,7 @@ struct ReferenceType final : Type {
         return of_type;
     }
 
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
+    
 };
 
 struct PointerType final : Type {
@@ -280,8 +310,6 @@ struct PointerType final : Type {
     SwTypes    getTypeTag() override { return POINTER; }
 
     Type* getWrappedType() override { return of_type; }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 
@@ -296,8 +324,6 @@ struct SliceType final : Type {
 
     SwTypes getTypeTag() override { return SLICE; }
     Type* getWrappedType() override { return of_type; }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 
@@ -305,8 +331,6 @@ struct VoidType final : Type {
     [[nodiscard]] std::string toString() const override { return "void"; }
     [[nodiscard]] IdentInfo* getIdent() const override { return nullptr; }
     SwTypes getTypeTag() override { return VOID; }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 
@@ -317,8 +341,6 @@ struct TypeI8 : IntegralType {
 
     bool isIntegral() override { return true; }
     unsigned int getBitWidth() override { return 8; }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 struct TypeI16 : IntegralType {
@@ -328,8 +350,6 @@ struct TypeI16 : IntegralType {
 
     bool isIntegral() override { return true; }
     unsigned int getBitWidth() override { return 16; }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 struct TypeI32 : IntegralType {
@@ -339,8 +359,6 @@ struct TypeI32 : IntegralType {
 
     bool isIntegral() override { return true; }
     unsigned int getBitWidth() override { return 32; }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 struct TypeI64 : IntegralType {
@@ -350,8 +368,6 @@ struct TypeI64 : IntegralType {
 
     bool isIntegral() override { return true; }
     unsigned int getBitWidth() override { return 64; }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 struct TypeI128 : IntegralType {
@@ -361,8 +377,6 @@ struct TypeI128 : IntegralType {
 
     bool isIntegral() override { return true; }
     unsigned int getBitWidth() override { return 128; }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 // Unsigned types
@@ -404,7 +418,7 @@ struct TypeF32 final : FloatingPointType {
     bool isFloatingPoint() override { return true; }
     unsigned int getBitWidth() override { return 32; }
 
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
+    
 };
 
 struct TypeF64 final : FloatingPointType {
@@ -414,8 +428,6 @@ struct TypeF64 final : FloatingPointType {
 
     bool isFloatingPoint() override { return true; }
     unsigned int getBitWidth() override { return 64; }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 struct TypeBool final : Type {
@@ -426,8 +438,6 @@ struct TypeBool final : Type {
     SwTypes getTypeTag() override { return BOOL; }
 
     unsigned int getBitWidth() override { return 1; }
-
-    llvm::Type* llvmCodegen(LLVMBackend& instance) override;
 };
 
 
@@ -442,7 +452,6 @@ struct Name final : Type { \
     bool isFloatingPoint() override; \
     bool isUnsigned() override { return is_usn; } \
     explicit Name(bool is_unsigned = false): is_usn(is_unsigned)  {} \
-    llvm::Type* llvmCodegen(LLVMBackend&) override; \
 };
 
 DEFINE_CTYPE(TypeCInt,       "c_int",       C_INT)

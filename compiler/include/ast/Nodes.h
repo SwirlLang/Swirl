@@ -41,6 +41,7 @@
     SW_NODE(ND_ENUM, Enum)
 
 
+
 #define SW_NODE(x, y) x,
 enum NodeType {
     SW_NODE_LIST
@@ -58,7 +59,6 @@ class Parser;
 class Namespace;
 class IdentInfo;
 class LLVMBackend;
-namespace llvm { class Value; }
 
 using SwNode   = std::unique_ptr<Node>;
 using NodesVec = std::vector<SwNode>;
@@ -68,25 +68,6 @@ struct SourceLocation {
     StreamState     from;
     StreamState     to;
     sw::FileHandle* source = nullptr;
-};
-
-
-class CGValue {
-public:
-    CGValue(): m_LValue(nullptr), m_RValue(nullptr) {}
-    CGValue(llvm::Value* lvalue, llvm::Value* rvalue): m_LValue(lvalue), m_RValue(rvalue) {}
-
-    bool isLValue() const;
-
-    llvm::Value*   getLValue();
-    llvm::Value*   getRValue(LLVMBackend&);
-
-    static CGValue lValue(llvm::Value* lvalue);
-    static CGValue rValue(llvm::Value* rvalue);
-
-private:
-    llvm::Value* m_LValue;
-    llvm::Value* m_RValue;
 };
 
 
@@ -148,10 +129,6 @@ struct Node {
     virtual void replaceType(std::string_view from, Type* to) {}
 
     virtual EvalResult evaluate(Parser&);
-    virtual CGValue llvmCodegen([[maybe_unused]] LLVMBackend &instance) {
-        throw std::runtime_error("llvmCodegen called on Node instance");
-    }
-
     virtual SwNode clone() {
         throw std::runtime_error("clone unimplemented!");
     }
@@ -256,8 +233,6 @@ struct Expression final : Node {
     }
 
     EvalResult     evaluate(Parser&) override;
-    CGValue        llvmCodegen(LLVMBackend &instance) override;
-
 };
 
 
@@ -366,8 +341,6 @@ struct Op final : Node {
     void replaceType(std::string_view from, Type* to) override;
 
     EvalResult     evaluate(Parser& instance) override;
-    CGValue        llvmCodegen(LLVMBackend &instance) override;
-
 };
 
 
@@ -376,8 +349,6 @@ struct ReturnStatement final : Node {
     FunctionType* parent_fn_type = nullptr;  // holds the function-signature of the parent
 
     ReturnStatement(): Node(ND_RET) {}
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_RET;
@@ -418,8 +389,6 @@ struct IntLit final : Node {
         return ND_INT;
     }
 
-
-
     [[nodiscard]] bool isLiteral() const override {
         return true;
     }
@@ -431,8 +400,6 @@ struct IntLit final : Node {
     }
 
     EvalResult   evaluate(Parser &) override;
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
 
 };
 
@@ -456,9 +423,6 @@ struct FloatLit final : Node {
     }
 
     EvalResult   evaluate(Parser &) override;
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
-
 };
 
 
@@ -481,8 +445,6 @@ struct BoolLit final : Node {
 
     EvalResult   evaluate(Parser &) override;
 
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
 
@@ -508,7 +470,7 @@ struct StrLit final : Node {
 
     EvalResult   evaluate(Parser&) override;
 
-    CGValue llvmCodegen(LLVMBackend &instance) override;
+
 };
 
 struct TypeWrapper;
@@ -558,7 +520,6 @@ public:
     void replaceType(std::string_view from, Type* to) override;
 
     EvalResult     evaluate(Parser&) override;
-    CGValue        llvmCodegen(LLVMBackend &instance) override;
 };
 
 
@@ -602,7 +563,7 @@ struct TypeWrapper final : Node {
 
 
     std::string toString() const override;
-    CGValue llvmCodegen(LLVMBackend &instance) override;
+
 };
 
 struct Var final : GlobalNode {
@@ -651,8 +612,6 @@ struct Var final : GlobalNode {
     }
 
     [[nodiscard]] SwNode& getExprValue() override { return value.expr; }
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
 struct Scope final : Node {
@@ -678,9 +637,6 @@ struct Scope final : Node {
         } ret += "}\n";
         return ret;
     }
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
-
 };
 
 
@@ -741,8 +697,6 @@ struct Function final : GlobalNode {
 
         return ret;
     }
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
 
     std::unique_ptr<Node> instantiate(Parser&, std::span<Type*>, std::function<void (ErrCode, ErrorContext)>) override;
 };
@@ -808,9 +762,6 @@ struct FuncCall final : Node {
         } ret += ");";
         return ret;
     }
-
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
 
@@ -845,9 +796,6 @@ struct Intrinsic final : Node {
             arg.replaceType(from, to);
         }
     }
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
-
 };
 
 
@@ -868,9 +816,6 @@ struct ImportNode final : Node {
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_IMPORT;
     }
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
-
 };
 
 
@@ -894,9 +839,6 @@ struct ArrayLit final : Node {
             element.replaceType(from, to);
         }
     }
-
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
 
@@ -916,22 +858,19 @@ struct WhileLoop final : Node {
             child->replaceType(from, to);
         }
     }
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
 
 struct BreakStmt final : Node {
     BreakStmt(): Node(ND_BREAK) {}
 
-    CGValue llvmCodegen(LLVMBackend &instance) override;
+
     [[nodiscard]] NodeType getNodeType() const override { return ND_BREAK;}
 };
 
 struct ContinueStmt final : Node {
     ContinueStmt(): Node(ND_CONTINUE) {}
 
-    CGValue llvmCodegen(LLVMBackend &instance) override;
     [[nodiscard]] NodeType getNodeType() const override { return ND_CONTINUE; }
 };
 
@@ -947,9 +886,6 @@ struct Enum final : Node {
     void addEntry(const std::string_view name) {
         entries.emplace(name, counter++);
     }
-
-
-    CGValue llvmCodegen(LLVMBackend& instance) override;
 };
 
 struct Protocol final : GlobalNode {
@@ -1024,8 +960,6 @@ struct Protocol final : GlobalNode {
     Protocol(): GlobalNode(ND_PROTOCOL) {}
     NodeType getNodeType() const override { return ND_PROTOCOL; }
 
-
-    CGValue llvmCodegen(LLVMBackend &instance) override { return {}; }
     std::unique_ptr<Node> instantiate(
         Parser& instance, std::span<Type*>, std::function<void(ErrCode, ErrorContext)>) override;
 };
@@ -1082,9 +1016,6 @@ struct Struct final : GlobalNode {
             member->replaceType(from, to);
         }
     }
-
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
 };
 
 
@@ -1123,6 +1054,4 @@ struct Condition final : Node {
             }
         }
     }
-
-    CGValue llvmCodegen(LLVMBackend &instance) override;
 };
