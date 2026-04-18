@@ -2,7 +2,7 @@
 <img width=150 src="https://raw.githubusercontent.com/SwirlLang/branding/main/logos/logo-transparent.png">
 
 # Swirl Programming Language
-A modern, beginner-friendly language that combines power, performance, and simplicity.
+An LLVM-based systems programming language for learning and experimentation.
 
 [Website](https://swirl-lang.netlify.app) |
 [Docs](https://swirl-lang.netlify.app/docs) |
@@ -16,7 +16,7 @@ A modern, beginner-friendly language that combines power, performance, and simpl
 </div>
 <div align="center">
 
-To get a general idea, take a look at the [scaffold](https://github.com/SwirlLang/Swirl/blob/main/scaffold.md).
+To get a general idea, take a look at the [docs](https://swirl-lang.netlify.app/docs).
 </div>
 
 
