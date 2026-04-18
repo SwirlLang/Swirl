@@ -102,11 +102,13 @@ public:
         return codegen(node.get(), ctx);
     }
 
+
     llvm::Type* codegen(Type* type, SwContext ctx) {
     #define SW_TYPE(x, y) case Type::x: return llvmCodegen(static_cast<y*>(type), std::move(ctx));
-        switch (type->getTypeTag()) {  // TODO: remove this virtual call
+        switch (type->kind) {
             SW_TYPE_LIST // NOLINT(*-pro-type-static-cast-downcast)
-        } throw std::runtime_error("LLVMBackend::dispatch: unexpected type tag");
+            default: throw std::runtime_error("LLVMBackend::dispatch: unexpected type tag");
+        }
     #undef SW_TYPE
     }
 
@@ -150,7 +152,6 @@ public:
         verifyModule(*LModule, &llvm::errs());
         LModule->print(llvm::outs(), nullptr);
     }
-
 
 
     Type* fetchSwType(Node* node) const {
