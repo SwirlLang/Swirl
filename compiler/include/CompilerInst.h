@@ -1,11 +1,11 @@
 #pragma once
-#include <print>
 #include <utility>
 #include <filesystem>
 #include <unordered_set>
 
 #include "parser/Parser.h"
 #include "utils/Threadpool.h"
+#include "utils/logging.h"
 #include "backend/LLVMBackend.h"
 #include "errors/ErrorPipeline.h"
 #include "managers/ModuleManager.h"
@@ -114,16 +114,11 @@ public:
         // || --- *---*   Sema   *---* --- || //
         int batch_no = 1;
         while (!m_ModuleManager.zeroVecIsEmpty()) {
-            if (DebugMode) {
-                std::println("Batch-{}: ", batch_no);
-            }
+            SW_LOG_INFO("Batch-{}: ", batch_no);
             batch_no++;
             while (const auto mod = m_ModuleManager.popZeroDepVec()) {
-                if (DebugMode) {
-                    std::print("{}, ", mod->m_FileHandle->getPath().string());
-                    std::println("\n-------------");
-                }
-                
+                SW_LOG_INFO("{}, ", mod->m_FileHandle->getPath().string());
+
                 m_ThreadPool.enqueue([mod] {
                     mod->performSema();
                 });

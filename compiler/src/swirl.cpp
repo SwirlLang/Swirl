@@ -21,6 +21,9 @@ const std::vector<Argument> application_flags = {
 };
 
 
+bool SW_IS_DEBUG = false;
+
+
 int main(const int argc, const char** argv) {
     cli app(argc, argv, application_flags);
 
@@ -75,16 +78,19 @@ int main(const int argc, const char** argv) {
         if (app.contains_flag("-p"))
             CompilerInst::addPackageEntry(
                 app.get_flag_value("-p") + ':' + fs::path(app.get_flag_value("-p")).filename().string(), true);
-        if (app.contains_flag("-r"))
-                compiler_inst.RunExe = true;
-        if (app.contains_flag("-d"))
-                compiler_inst.DebugMode = true;
         else {
             // if `-p` isn't passed explicitly, assume that the project root is the
             // directory in which the source file resides
             CompilerInst::addPackageEntry(source_file_path.parent_path().string() + ':' +
                                               source_file_path.parent_path().filename().string(),
                                           true);
+        }
+
+        if (app.contains_flag("-r"))
+                CompilerInst::RunExe = true;
+        if (app.contains_flag("-d")) {
+            SW_IS_DEBUG = true;
+            CompilerInst::DebugMode = true;
         }
 
         compiler_inst.compile();
