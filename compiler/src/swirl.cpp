@@ -6,6 +6,7 @@
 #include "CompilerInst.h"
 #include "include/SwirlConfig.h"
 
+
 const std::vector<Argument> application_flags = {
     {{"-h", "--help"}, "Show the help message.", false, {}},
     {{"-o", "--output"}, "Output file name.", true, {}},
@@ -28,26 +29,27 @@ int main(const int argc, const char** argv) {
     cli app(argc, argv, application_flags);
 
     if (app.contains_flag("-h")) {
-        std::println("{}{}", app.print_usage(argv[0]), app.generate_help());
+        detail::stdout_write_line("{}{}", app.print_usage(argv[0]), app.generate_help());
         return 0;
     }
 
     if (app.contains_flag("-v")) {
-        std::println("Swirl v{}.{}.{}, built on {}.", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, __DATE__);
+        detail::stdout_write_line(
+            "Swirl v{}.{}.{}, built on {}.", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, __DATE__);
         return 0;
     }
 
-    std::string _file = app.get_file();
+    const std::string _file = app.get_file();
 
     if (_file.empty()) {
-        std::println(stderr, "No input file");
+        detail::stderr_write_line("No input file");
         return 1;
     }
 
     std::filesystem::path source_file_path = _file;
 
     if (!exists(source_file_path)) {
-        std::println(stderr, "File \"{}\" not found!", source_file_path.string());
+        detail::stderr_write_line("File \"{}\" not found!", source_file_path.string());
         return 1;
     }
 

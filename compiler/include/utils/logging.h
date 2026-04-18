@@ -37,7 +37,7 @@ inline std::string colorize(const std::string_view str, const Color color) {
 
 
 template <typename... Args>
-void formatted_log_write(std::format_string<Args...> fmt, Args... args) {
+void stdout_write(std::format_string<Args...> fmt, Args... args) {
 #ifdef __cpp_lib_print
     std::print(fmt, std::forward<Args>(args)...);
 #else
@@ -47,11 +47,21 @@ void formatted_log_write(std::format_string<Args...> fmt, Args... args) {
 
 
 template <typename... Args>
-void formatted_log_write_line(std::format_string<Args...> fmt, Args... args) {
+void stdout_write_line(std::format_string<Args...> fmt, Args... args) {
 #ifdef __cpp_lib_print
     std::println(fmt, std::forward<Args>(args)...);
 #else
     std::cout << std::format(fmt, std::forward<Args>(args)...) << std::endl;
+#endif
+}
+
+
+template <typename... Args>
+void stderr_write_line(std::format_string<Args...> fmt, Args... args) {
+#ifdef __cpp_lib_print
+    std::println(stderr, fmt, std::forward<Args>(args)...);
+#else
+    std::cerr << std::format(fmt, std::forward<Args>(args)...) << std::endl;
 #endif
 }
 }
@@ -60,7 +70,7 @@ void formatted_log_write_line(std::format_string<Args...> fmt, Args... args) {
 #define SW_LOG_INFO(...) \
     do { \
         if (SW_IS_DEBUG) { \
-            detail::formatted_log_write_line("{}{}", \
+            detail::stdout_write_line("{}{}", \
                 detail::colorize("[INFO]  ", detail::Color::CYAN), \
                 std::format(__VA_ARGS__)); \
         } \
@@ -70,7 +80,7 @@ void formatted_log_write_line(std::format_string<Args...> fmt, Args... args) {
 #define SW_LOG_WARN(...) \
     do { \
         if (SW_IS_DEBUG) { \
-            detail::formatted_log_write_line("{}{}", \
+            detail::stdout_write_line("{}{}", \
                 detail::colorize("[WARN]  ", detail::Color::YELLOW), \
                 std::format(__VA_ARGS__)); \
         } \
