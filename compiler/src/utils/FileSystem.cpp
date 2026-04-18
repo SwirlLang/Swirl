@@ -2,6 +2,7 @@
 #include <ostream>
 #include <fstream>
 #include <filesystem>
+#include <sstream>
 
 #include "utils/FileSystem.h"
 
