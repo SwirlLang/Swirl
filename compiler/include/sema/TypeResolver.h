@@ -374,17 +374,15 @@ public:
 
     void handle(Var* node) {
         if (node->var_type.has_value()) {
-            inferType(&*node->var_type, {});
+            inferType(&node->var_type.value(), {});
         }
 
-
-        if (!node->initialized && !node->is_param && (!node->var_type.has_value() || node->is_const)) {
+        if (!node->initialized && (!node->is_param && node->is_const)) {
             reportError(
                 ErrCode::INITIALIZER_REQUIRED,
                 {.ident = node->var_ident}
             ); return;
         }
-
 
         Type* bound_type = node->var_type.has_value()
             ? (node->var_type->type->isArrayType()
@@ -394,9 +392,9 @@ public:
 
 
         if (node->initialized) {
-            auto val_ty = inferType(&node->value, {.bound_type = bound_type}).deduced_type;
+            const auto val_ty = inferType(&node->value, {.bound_type = bound_type}).deduced_type;
 
-            if (!node->var_type.has_value() || node->var_type->type == nullptr) {
+            if (!node->var_type.has_value()) {
                 node->var_type = TypeWrapper{};
                 node->var_type->type = val_ty;
                 node->value.setType(val_ty);
