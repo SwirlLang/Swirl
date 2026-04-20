@@ -408,6 +408,12 @@ public:
     }
 
 
+    void handle(Expression* node) {
+        const auto ty = inferType(node->expr.get(), {}).deduced_type;
+        node->setType(ty);
+    }
+
+
     void handle(Condition* node) {
         const auto if_condition_ty = inferType(&node->bool_expr, {}).deduced_type;
 
@@ -422,7 +428,6 @@ public:
             }
         }
     }
-
 
     void handle(WhileLoop* node) {
         const auto condition_ty = inferType(&node->condition, {}).deduced_type;
