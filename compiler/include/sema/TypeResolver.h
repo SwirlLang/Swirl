@@ -244,6 +244,7 @@ public:
     TypeInfo evaluateType(Expression* node, const TypeContext& ctx) {
         const auto ret = inferType(node->expr, ctx);
         node->setType(ret.deduced_type);
+        VisitedNodes.insert(node);
         return ret;
     }
 
@@ -344,9 +345,7 @@ public:
             if (checkTypeCompatibility(type, CommonFunctionType)) {
                 node->value.setType(CommonFunctionType);
             }
-        }
-
-        if (!CommonFunctionType) {
+        } else {
             CommonFunctionType = type;
         }
 
@@ -405,8 +404,16 @@ public:
         }
 
         SymMan.lookupDecl(node->var_ident).swirl_type = node->var_type->type;
+        if (node->var_type->type) {
+            assert(node->var_type->type->getTypeTag() != Type::VOID);
+        }
     }
 
+    bool preVisit(Expression* node) {
+        if (VisitedNodes.contains(node)) {
+            return false;
+        } return true;
+    }
 
     void handle(Expression* node) {
         const auto ty = inferType(node->expr.get(), {}).deduced_type;

@@ -1013,15 +1013,23 @@ CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
 
     assert(node->ident.value);
     auto& entry = SymMan.lookupDecl(node->ident.value);
-    
+
+    int8_t bias = 0;
     if (entry.method_of && !entry.is_static) {
         // push the implicit instance pointer if the callee is a method and not static
         assert(ComputedPtr);
         arguments.push_back(ComputedPtr);  // push the ComputedPtr as an implicit argument
+        bias = 1;
     }
 
-    for (auto& item : node->args)
-        arguments.push_back(codegen(&item, context).getRValue(*this, context));
+    for (const auto& [index, item] : llvm::enumerate(node->args)) {
+        auto new_ctx = context;
+        new_ctx.bound_type =
+            SymMan.lookupType(node->getIdentInfo())
+                ->to<FunctionType>()->param_types.at(index + bias);
+
+        arguments.push_back(codegen(&item, new_ctx).getRValue(*this, new_ctx));
+    }
 
     if (!func->getReturnType()->isVoidTy()) {
         auto call = Builder.CreateCall(func, arguments, node->ident.value->toString());
@@ -1038,6 +1046,7 @@ CGValue LLVMBackend::llvmCodegen(Var* node, const SwContext& context) {
 
     llvm::Type* type = codegen(node->var_type->type, context);
     assert(type != nullptr);
+    assert(!type->isVoidTy());
 
     llvm::Value* init = nullptr;
 
