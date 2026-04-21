@@ -61,6 +61,14 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
                 data.ignore_symbols.insert(param.name);
             }
         }
+
+        for (auto& param : node->params) {
+            visit(&param, data);
+        } visit(&node->return_type, data);
+
+        for (auto& child : node->children) {
+            visit(child.get(), data);
+        }
     }
 
 
@@ -70,6 +78,8 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             auto fn_node = SymMan.lookupDecl(node->ident.value).node_ptr->to<Function>();
             generic_params = &fn_node->generic_params;
         }
+
+        visit(&node->ident, data);
 
         for (const auto& [i, arg] : std::views::enumerate(node->generic_args)) {
             // Id to node table required
@@ -85,6 +95,10 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             }
 
             data.generic_args.insert({generic_params->at(i).name, arg.type_id}); // TODO
+        }
+
+        for (auto& arg : node->args) {
+            visit(&arg, data);
         }
     }
 

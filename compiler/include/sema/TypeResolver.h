@@ -326,6 +326,11 @@ public:
             fn_type->param_types.push_back(param_type);
             SymMan.lookupDecl(param.var_ident).swirl_type = param_type;
         }
+
+        // visit children
+        for (auto& child : node->children) {
+            visit(child.get());
+        }
     }
 
 
@@ -428,11 +433,23 @@ public:
             reportError(ErrCode::CONDITION_NOT_BOOL, {});
         }
 
-        for (auto& [condition, _] : node->elif_children) {
+        for (auto& child : node->if_children) {
+            visit(child.get());
+        }
+
+        for (auto& [condition, children] : node->elif_children) {
             const auto cond_ty = inferType(&condition, {}).deduced_type;
             if (!checkTypeCompatibility(cond_ty, &GlobalTypeBool, false)) {
                 reportError(ErrCode::CONDITION_NOT_BOOL, {});
             }
+
+            for (auto& child : children) {
+                visit(child.get());
+            }
+        }
+
+        for (auto& child : node->else_children) {
+            visit(child.get());
         }
     }
 
@@ -440,6 +457,10 @@ public:
         const auto condition_ty = inferType(&node->condition, {}).deduced_type;
         if (!checkTypeCompatibility(condition_ty, &GlobalTypeBool, false)) {
             reportError(ErrCode::CONDITION_NOT_BOOL, {});
+        }
+
+        for (auto& child : node->children) {
+            visit(child.get());
         }
     }
 

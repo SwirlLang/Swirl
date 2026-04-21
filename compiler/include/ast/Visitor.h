@@ -25,8 +25,13 @@ struct ExactType {
     template <typename U> operator U() const = delete;
 };
 
+
+template <std::size_t N, typename... Args>
+using get_type_at = std::tuple_element_t<N, std::tuple<Args...>>;
+
+
 template <typename D, typename T, typename... Args>
-concept HasExactHandle = requires(D& d, T* node, Args&&... args) {
+concept HasHandle = requires(D& d, T* node, Args&&... args) {
     { d.handle(node, std::forward<Args>(args)...) } -> std::same_as<void>;
 };
 
@@ -142,8 +147,7 @@ private:
  * This visitor class attempts to traverse the entire AST and provides the following hooks:
  * - `bool preVisit`: called first upon the visit, if it returns true, then the other hooks (beside `postVisit`)
  *                    are called.
- * - `void handle`:   can contain the main node mutation or reading logic.
- *
+ * - `void handle`:   if overridden, is responsible for traversal too.
  * - `bool shouldTraverse`: if this returns `true`, then further traversal of the node continues.
  * - `void postVisit`     : always called for symmetry with `preVisit`. */
 template <typename Derived>
@@ -173,17 +177,17 @@ private:
         }
 
         if (handle_node) {
-            if constexpr (HasExactHandle<Derived, T, Args...>) {
+            if constexpr (HasHandle<Derived, T, Args...>) {
                 self->handle(node, std::forward<Args>(args)...);
-            }
+            } else {
+                bool should_traverse = true;
+                if constexpr (HasShouldTraverse<Derived, T, Args...>) {
+                    should_traverse = self->shouldTraverse(node, std::forward<Args>(args)...);
+                }
 
-            bool should_traverse = true;
-            if constexpr (HasShouldTraverse<Derived, T, Args...>) {
-                should_traverse = self->shouldTraverse(node, std::forward<Args>(args)...);
-            }
-
-            if (should_traverse) {
-                this->traverse(node, std::forward<Args>(args)...);
+                if (should_traverse) {
+                    this->traverse(node, std::forward<Args>(args)...);
+                }
             }
         }
 
