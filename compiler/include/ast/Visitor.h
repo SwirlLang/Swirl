@@ -215,7 +215,7 @@ private:
         }
 
         for (auto& arg : node->generic_args) {
-            this->dispatch(&arg, std::forward<Args>(args)...);
+            this->dispatch(arg.get(), std::forward<Args>(args)...);
         }
     }
 
@@ -370,10 +370,25 @@ private:
     template <typename... Args>
     void traverse(Ident* node, Args&&... args) {
         for (auto& arg : node->full_qualification) {
-            for (TypeWrapper* ty : arg.generic_args) {
-                this->dispatch(ty, std::forward<Args>(args)...);
-            }
+            this->dispatch(&arg.generic_args, std::forward<Args>(args)...);
         }
+    }
+
+
+    template <typename... Args>
+    void traverse(GenericArgList* node, Args&&... args) {
+        for (auto& arg : node->generic_args) {
+            this->dispatch(arg.get(), std::forward<Args>(args)...);
+        }
+    }
+
+
+    template <typename... Args>
+    void traverse(GenericArg* node, Args&&... args) {
+        if (node->isEmpty()) return;
+        if (node->isExpression()) {
+            this->dispatch(&node->getExpr(), std::forward<Args>(args)...);
+        } else this->dispatch(&node->getType(), std::forward<Args>(args)...);
     }
 
 

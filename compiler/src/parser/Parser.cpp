@@ -437,8 +437,10 @@ void Parser::performSema() {
     sema::SymbolResolver resolver{*this};
     resolver.dispatch(AST, sema::SymbolResolver::Data{});
 
-    sema::TypeResolver type_resolver{*this};
-    type_resolver.dispatch(AST);
+    if (!resolver.errorsOccurred()) {
+        sema::TypeResolver type_resolver{*this};
+        type_resolver.dispatch(AST);
+    }
 
     m_IsSemaComplete = true;
 }
@@ -481,8 +483,20 @@ std::unique_ptr<Function> Parser::parseFunction() {
     auto function_t = std::make_unique<FunctionType>();
 
 
-    // parsing the parameters...
-    SymbolTable.newScope();  // emplace the function body scope
+    const auto fn_scope = SymbolTable.newScope();  // create the function body scope
+
+    // register the generic parameters
+    for (auto& g_param : func_nd->generic_params) {
+        const auto generic_id = fn_scope->getNewIDInfo(g_param.name);
+        const auto generic_ty = new GenericType{};
+
+        generic_ty->id = generic_id;
+        g_param.id = generic_id;
+
+        SymbolTable.registerType(generic_id, generic_ty);
+    }
+
+    // parse the parameters...
     if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != ")") {
         while (m_Stream.CurTok.value != ")" && m_Stream.CurTok.type != PUNC) {
             func_nd->params.emplace_back(parseParam(method_is_static));
@@ -537,7 +551,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}") && !m_Stream.eof()) {
         func_nd->children.push_back(dispatch());
     } forwardStream();
-    SymbolTable.moveToPreviousScope();  // decrement the scope index back to the global scope
+    SymbolTable.moveToPreviousScope();  // back to the global scope
 
     m_LatestFuncNode = nullptr;
     return func_nd;
@@ -620,8 +634,10 @@ std::vector<GenericParam> Parser::parseGenericParamList() {
 }
 
 
-Parser::GenericArgList_t Parser::parseGenericArgList() {
-    GenericArgList_t args;
+GenericArgList Parser::parseGenericArgList() {
+    GenericArgList ret;
+    auto& args = ret.generic_args;
+
     forwardStream();  // skip '<'
 
     while (true) {
@@ -640,10 +656,14 @@ Parser::GenericArgList_t Parser::parseGenericArgList() {
             continue;
         }
 
-        args.push_back(parseType());
+        // parsing logic: if comptime - parseExpr, otherwise parseType
+        if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "comptime") {
+            forwardStream();
+            args.emplace_back(new GenericArg(parseExpr()));
+        } else args.emplace_back(new GenericArg(parseType()));
     }
 
-    return args;
+    return ret;
 }
 
 
@@ -755,7 +775,7 @@ std::unique_ptr<Intrinsic> Parser::parseIntrinsic() {
         ignoreButExpect({PUNC, "("});
 
         Expression arg;
-        call_node->ident.full_qualification.emplace_back("sizeof");
+        call_node->ident.full_qualification.push_back({.name = "sizeof"});
         call_node->intrinsic_type = Intrinsic::SIZEOF;
 
         if (m_Stream.CurTok.value == "@" && m_Stream.CurTok.type == PUNC)
@@ -855,6 +875,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
     return cnd;
 }
 
+
 Ident Parser::parseIdent() {
     Ident ret;
     SET_NODE_ATTRS(&ret);
@@ -863,17 +884,10 @@ Ident Parser::parseIdent() {
     while (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "::") {
         forwardStream();
 
-        // generic arg list
+        // check for generics
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
-            auto gen_args = parseGenericArgList();
-            for (auto& type : gen_args) {
-                ret.full_qualification.back().generic_args.push_back(
-                    new TypeWrapper(std::move(type)));
-            }
-            continue;
-        }
-
-        ret.full_qualification.emplace_back(forwardStream().value);
+            ret.full_qualification.back().generic_args = parseGenericArgList();
+        } else ret.full_qualification.emplace_back(forwardStream().value);
     }
 
     if (ret.full_qualification.size() == 1 && ret.full_qualification.at(0).generic_args.empty()) {
@@ -975,7 +989,7 @@ std::unique_ptr<Protocol> Parser::parseProtocol() {
         auto child = dispatch();
         switch (child->getNodeType()) {
             case ND_VAR: {
-                const auto var = dynamic_cast<Var*>(child.get());
+                const auto var = child.get()->to<Var>();
                 ret->members.push_back(Protocol::MemberSignature{
                     .name = var->var_ident->toString(),
                     .type = std::move(var->var_type.value()),
@@ -984,7 +998,7 @@ std::unique_ptr<Protocol> Parser::parseProtocol() {
             }
 
             case ND_FUNC: {
-                const auto func  = dynamic_cast<Function*>(child.get());
+                const auto func  = child.get()->to<Function>();
                 std::vector<TypeWrapper> func_params;
 
                 // TODO: allow protocols to be used as "types" in the methods' params within the protocol
@@ -1129,44 +1143,4 @@ Expression Parser::parseExpr() {
     auto ret = m_ExpressionParser.parseExpr();
     SET_NODE_ATTRS(&ret);
     return ret;
-}
-
-
-class ClonedState {
-public:
-    explicit ClonedState(Parser& parser): m_Parser(parser) {
-        parser.m_IsBeingCloned = true;
-    }
-
-    ~ClonedState() {
-        m_Parser.m_IsBeingCloned = false;
-    }
-
-private:
-    Parser& m_Parser;
-};
-
-
-std::unique_ptr<Node> Parser::cloneNode(IdentInfo* id) {
-    // assert(m_GlobalOffsets.contains(id));
-    // const auto glob_location = m_GlobalOffsets.at(id);
-    // m_SrcMan.switchSource(glob_location[0].Line, glob_location[1].Line);
-
-    ClonedState _(*this);
-
-    const Node* node = SymbolTable.lookupDecl(id).node_ptr;
-    assert(node != nullptr);
-
-    m_SrcMan.switchSource(node->location);
-
-    forwardStream();
-
-    while (true) {
-        if (m_Stream.eof()) throw std::runtime_error("Unexpected EOF");
-        if (m_Stream.CurTok.type == KEYWORD) {
-            if (m_Stream.CurTok.value == "fn"      ||
-                m_Stream.CurTok.value == "struct"  ||
-                m_Stream.CurTok.value == "protocol" ) break;
-        }
-    } return dispatch();
 }

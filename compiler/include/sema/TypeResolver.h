@@ -29,22 +29,24 @@ public:
         , SymMan(parser.SymbolTable)
         , GlobalNodeJmpTable(parser.NodeJmpTable) {}
 
-
-    Type* unify(Type* type1, Type* type2);
-    bool checkTypeCompatibility(Type* from, Type* to, bool report_errors = true);
-
     struct TypeInfo {
         Type* deduced_type = nullptr;
         Namespace* computed_namespace = nullptr;
     };
+
+
+    Type* unify(Type* type1, Type* type2);
+    bool checkTypeCompatibility(Type* from, Type* to, bool report_errors = true);
+
 
     Function* getCurrentParentFunc() const {
         assert(!CurrentParentFunction.empty());
         return CurrentParentFunction.back();
     }
 
-    bool preVisit(Function* node) {
-        if (VisitedNodes.contains(node)) {
+
+    bool preVisit(Function* node, const bool is_generic = false) {
+        if (VisitedNodes.contains(node) && !is_generic) {
             return false;
         }
 
@@ -73,7 +75,6 @@ public:
         ReturnStmtCounter = 0;
         CommonFunctionType = nullptr;
     }
-
 
 
     TypeInfo inferType(Node* node, TypeContext ctx) {
@@ -144,12 +145,13 @@ public:
 
         // has id
         if (!node->type_id.full_qualification.empty()) {
-            const auto type_id_info = SymMan.getIDInfoFor(
-                node->type_id, [this](auto a, auto b) {
-                    reportError(a, std::move(b));
-                });
+            if (node->type_id.value == nullptr) {
+                node->type_id.value = SymMan.getIDInfoFor(
+                   node->type_id, [this](auto a, auto b) {
+                       reportError(a, std::move(b));
+                   });
+            }
 
-            node->type_id.value = type_id_info;
             if (node->type_id.value != nullptr) {
                 ret = SymMan.lookupType(node->type_id.value);
             }
@@ -224,9 +226,8 @@ public:
     }
 
 
-    TypeInfo evaluateType(Ident* node, const TypeContext& ctx) {
+    TypeInfo evaluateType(const Ident* node, const TypeContext& ctx) {
         assert(node->value);
-
         Type* ret = nullptr;
         if (node->value->isFictitious()) {
             const auto enum_node = SymMan.getFictitiousIDValue(node->value);
@@ -244,7 +245,6 @@ public:
     TypeInfo evaluateType(Expression* node, const TypeContext& ctx) {
         const auto ret = inferType(node->expr, ctx);
         node->setType(ret.deduced_type);
-        VisitedNodes.insert(node);
         return ret;
     }
 
@@ -253,7 +253,8 @@ public:
         if (ctx.is_method_call) {
             assert(ctx.method_id);
             node->ident.value = ctx.method_id;
-        } // assuming `SymbolResolver` has resolved the ID otherwise
+        } handle(&node->ident);
+        // assuming `SymbolResolver` has resolved the ID otherwise
 
         assert(node->ident.getIdentInfo());
         auto* id = node->ident.getIdentInfo();
@@ -263,6 +264,13 @@ public:
             const auto function = SymMan.lookupDecl(id).node_ptr;
             assert(function && function->getNodeType() == ND_FUNC);
             analyzeNodeWithID(id);
+
+            if (!node->ident.full_qualification.back().generic_args.empty()) {
+                const auto fn_node = function->to<Function>();
+                preVisit(fn_node, true);
+                handle(fn_node, true);
+                postVisit(fn_node);
+            }
         }
 
         // fetch the corresponding Function's type
@@ -311,7 +319,7 @@ public:
 
     TypeInfo evaluateType(Op* node, TypeContext ctx);
 
-    void handle(Function* node) {
+    void handle(Function* node, bool is_generic_inst = false) {
         inferType(&node->return_type, {});
 
         auto* fn_type = SymMan.lookupType(node->ident)->to<FunctionType>();
@@ -319,18 +327,44 @@ public:
 
         CommonFunctionType = fn_type->ret_type;
 
-        assert(fn_type->param_types.size() <= 1);
+        assert(fn_type->param_types.size() <= 1 || is_generic_inst);
         for (auto& param : node->params) {
             visit(&param);
-            auto param_type = param.var_type.value().type;
-            fn_type->param_types.push_back(param_type);
-            SymMan.lookupDecl(param.var_ident).swirl_type = param_type;
+
+            if (!is_generic_inst) {
+                auto param_type = param.var_type.value().type;
+                fn_type->param_types.push_back(param_type);
+                SymMan.lookupDecl(param.var_ident).swirl_type = param_type;
+            }
         }
 
         // visit children
         for (auto& child : node->children) {
             visit(child.get());
         }
+    }
+
+
+    void handle(Ident* node) {
+        assert(node->value);
+        const auto target_node = SymMan.lookupDecl(node->value).node_ptr->to<GlobalNode>();
+
+        for (auto qualifier : node->full_qualification) {
+            for (const auto& [i, arg] : std::views::enumerate(qualifier.generic_args)) {
+                if (i < target_node->generic_params.size()) {
+                    auto generic_ty = SymMan.lookupType(target_node->generic_params.at(i).id);
+                    assert(generic_ty != nullptr);
+
+                    if (arg->isType()) {
+                        const auto arg_ty = inferType(&arg->getType(), {}).deduced_type;
+                        generic_ty->to<GenericType>()->contained_type = arg_ty;
+
+                        node->type_instantiation_map.insert({generic_ty, arg_ty});
+                    }
+                }
+            }
+        }
+
     }
 
 
@@ -414,11 +448,6 @@ public:
         }
     }
 
-    bool preVisit(Expression* node) {
-        if (VisitedNodes.contains(node)) {
-            return false;
-        } return true;
-    }
 
     void handle(Expression* node) {
         const auto ty = inferType(node->expr.get(), {}).deduced_type;
@@ -510,7 +539,7 @@ public:
                     if (!member_lookup.contains(mem)) {
                         reportError(ErrCode::PROTOCOL_VIOLATED, {
                             .str_1 =   node->ident->toString(),
-                            .str_2 =   mem.toString()
+                            .str_2 =   mem.name
                         });
                     }
                 }
@@ -519,7 +548,7 @@ public:
                     if (!method_lookup.contains(method)) {
                         reportError(ErrCode::PROTOCOL_VIOLATED, {
                             .str_1 = proto_id.toString(),
-                            .str_2 = method.toString()
+                            .str_2 = "<placeholder>"  // TODO
                         });
                     }
                 }
@@ -531,7 +560,6 @@ public:
         if (!GlobalNodeJmpTable.contains(id)) { return; }
         this->visit(GlobalNodeJmpTable[id]);
     }
-
 
     Type* getEvalType(Node* node) const {
         switch (node->getNodeType()) {

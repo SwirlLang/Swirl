@@ -132,7 +132,7 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return std::format("{} is not a generic construct.", ctx.str_1);
         case ErrCode::NOT_ENOUGH_ARGS:
             return std::format(
-                "Function `{}` takes {} arguments, but only {} were provided.",
+                "Function `{}` takes {} arguments, but {} were provided.",
                 ctx.str_1,
                 ctx.type_1->to<FunctionType>()->param_types.size(),
                 ctx.str_2

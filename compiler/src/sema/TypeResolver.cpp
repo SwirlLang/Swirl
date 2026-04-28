@@ -96,19 +96,17 @@ Type* sema::TypeResolver::unify(Type* type1, Type* type2) {
         } return type2;
     }
 
-    if (type1->getTypeTag() == Type::ARRAY && type2->getTypeTag() == Type::ARRAY) {
-        const auto arr_1 = dynamic_cast<ArrayType*>(type1);
-        const auto arr_2 = dynamic_cast<ArrayType*>(type2);
-
-        if (arr_1->size != arr_2->size) {
+    if (type1->isArrayType() && type2->isArrayType()) {
+        if (type1->getAggregateSize() != type2->getAggregateSize()) {
             reportError(
                 ErrCode::DISTINCTLY_SIZED_ARR,
-                {.type_1 = arr_1, .type_2 = arr_2}
+                {.type_1 = type1, .type_2 = type2}
                 );
             return nullptr;
         }
 
-        return SymMan.getArrayType(unify(arr_1->of_type, arr_2->of_type), arr_1->size);
+        return SymMan.getArrayType(
+            unify(type1->getWrappedType(), type2->getWrappedType()), type1->getAggregateSize());
     }
 
 

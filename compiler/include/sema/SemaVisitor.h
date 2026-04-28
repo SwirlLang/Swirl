@@ -44,15 +44,21 @@ public:
     }
 
 
-    void reportError(const ErrCode code, ErrorContext context) const {
+    void reportError(const ErrCode code, ErrorContext context) {
         if (m_DisabledErrorCodes.contains(code))
             return;
 
+        m_ErrorOccurred = true;
         context.src_man = m_SourceManager;
+
         if (!context.location.has_value()) {
             assert(!m_NodeStack.empty());
             context.location = m_NodeStack.back()->location;
         } m_Callback(code, std::move(context));
+    }
+
+    bool errorsOccurred() const {
+        return m_ErrorOccurred;
     }
 
     friend class RecursiveVisitor<T>;
@@ -84,6 +90,7 @@ private:
 
     std::unordered_set<ErrCode> m_DisabledErrorCodes;
 
+    bool m_ErrorOccurred = false;
 
     void pushNodeToStack(Node* node) {
         m_NodeStack.push_back(node);

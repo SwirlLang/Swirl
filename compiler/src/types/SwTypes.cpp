@@ -106,19 +106,24 @@ llvm::Type* LLVMBackend::llvmCodegen(SliceType* type, const SwContext& context) 
 
 llvm::Type* LLVMBackend::llvmCodegen(VoidType*, SwContext) {
     return llvm::Type::getVoidTy(LLVMContext);
-
 }
+
+
+llvm::Type* LLVMBackend::llvmCodegen(const GenericType* type, const SwContext& context) {
+    if (type->contained_type) {
+        return codegen(type->contained_type, context);
+    } throw std::runtime_error("GenericType::llvmCodegen: no contained type!");
+}
+
 
 llvm::Type* LLVMBackend::llvmCodegen(ReferenceType* type, const SwContext& context) {
     // references to strings compile to a slice (i8* + i64)
     if (type->of_type->getTypeTag() == Type::STR) {
         SliceType ty{&GlobalTypeI8};
         return codegen(&ty, context);
-    }
-
-    return llvm::PointerType::get(LLVMContext, 0);
-
+    } return llvm::PointerType::get(LLVMContext, 0);
 }
+
 
 llvm::Type* LLVMBackend::llvmCodegen(ArrayType* type, const SwContext& context) {
     if (LLVMTypeCache.contains(type)) {

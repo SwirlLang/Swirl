@@ -124,19 +124,10 @@ Op::OpTag_t Op::getTagFor(const std::string_view str, int arity) {
 }
 
 
-void Ident::ImplDeleter::operator()(const TypeWrapper* ptr) const {
-    delete ptr;
-}
-
-std::string TypeWrapper::toString() const {
-    assert(type);
-    return type->toString();
-}
-
-Ident::Qualifier::~Qualifier() {
-    for (const auto* type : generic_args) {
-        delete type;
-    }
+GenericArgList::~GenericArgList() {
+    // for (const auto ptr : generic_args) {
+    //     delete ptr;
+    // }
 }
 
 
@@ -164,68 +155,6 @@ void Expression::setType(Type* to) {
     else if (expr->getNodeType() == ND_OP) {
         dynamic_cast<Op*>(expr.get())->setType(to);
     }
-}
-
-void Op::replaceType(const std::string_view from, Type* to) {
-    if (op_type == CAST_OP) {
-        assert(operands.at(1)->getNodeType() == ND_TYPE);
-        auto* operand = dynamic_cast<TypeWrapper*>(operands.at(1).get());
-        operand->replaceType(from, to);
-    }
-}
-
-void Ident::replaceType(const std::string_view from, Type* to) {
-    for (auto& [name, generic_args] : full_qualification) {
-        for (auto* type : generic_args) {
-            type->replaceType(from, to);
-        } if (name == from) {
-            name = to->getIdent()->toString();
-        }
-    }
-}
-
-
-std::unique_ptr<Node> Function::instantiate(
-    Parser& instance,
-    const std::span<Type*> args,
-    ErrorCallback_t err_callback)
-{
-    auto cloned = instance.cloneNode(ident);
-    const auto fn_node = dynamic_cast<Function*>(cloned.get());
-    fn_node->generic_params.clear();
-
-    assert(fn_node != nullptr);
-    assert(generic_params.size() >= args.size());
-
-    std::size_t i = 0;
-    for (Type* arg : args) {
-        fn_node->replaceType(generic_params.at(i).name, arg);
-        i++;
-    }
-
-    return cloned;
-}
-
-std::unique_ptr<Node> Protocol::instantiate(
-    Parser& instance,
-    const std::span<Type*> args,
-    std::function<void(ErrCode, ErrorContext)>)
-{
-    assert(protocol_id);
-    auto cloned = instance.cloneNode(protocol_id);
-
-    auto proto_node = dynamic_cast<Protocol*>(cloned.get());
-    assert(proto_node != nullptr);
-    assert(generic_params.size() >= args.size());
-
-    proto_node->generic_params.clear();
-    std::size_t i = 0;
-    for (Type* arg : args) {
-        proto_node->replaceType(generic_params.at(i).name, arg);
-        i++;
-    }
-
-    return cloned;
 }
 
 

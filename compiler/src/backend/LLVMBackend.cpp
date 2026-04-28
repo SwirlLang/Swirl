@@ -6,7 +6,6 @@
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
-#include <llvm/IR/Verifier.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/CodeGen.h>
 #include <llvm/Support/TargetSelect.h>
@@ -89,18 +88,25 @@ LLVMBackend::LLVMBackend(Parser& parser)
 }
 
 
-std::string LLVMBackend::mangleString(IdentInfo* id) const {
+std::string LLVMBackend::mangleString(IdentInfo* id, const ManglingContext& ctx) const {
     auto decl_lookup = SymMan.lookupDecl(id);
 
-    if (decl_lookup.node_ptr) {
-        // do not mangle `extern "C"` symbols
-        if (decl_lookup.node_ptr->isGlobal()) {
-            if (dynamic_cast<GlobalNode*>(
-                decl_lookup.node_ptr
-            )->extern_attributes.contains("C")) {
+    if (auto node = decl_lookup.node_ptr) {
+        // do not mangle `extern "C"` symbols or the "main" function
+        if (node->isGlobal()) {
+            const bool non_mangling_condition =
+                node->to<GlobalNode>()->extern_attributes.contains("C") ||
+                node->getNodeType() == ND_FUNC && !decl_lookup.method_of && id->toString() == "main";
+
+            if (non_mangling_condition) {
                 return id->toString();
             }
         }
+    }
+
+    std::string ret = "__Sw_" + ModuleManager.getModuleUID(id->getModuleFileHandle()->getPath()) + "_";
+    for (auto& arg : ctx.generic_args) {
+        ret.append(arg->toString());
     }
 
     if (decl_lookup.method_of) {
@@ -108,21 +114,20 @@ std::string LLVMBackend::mangleString(IdentInfo* id) const {
         assert(type != nullptr);
 
         // unwrap the type if needed
-        if (type->getTypeTag() == Type::REFERENCE)
-            type = dynamic_cast<ReferenceType*>(type)->of_type;
-        assert(type->getTypeTag() != Type::POINTER);
+        if (type->isReferenceType())
+            type = type->to<ReferenceType>()->of_type;
+        assert(!type->isPointerType());
 
-        return "__Sw_" + type->toString() +
-               '_' + ModuleManager.getModuleUID(id->getModuleFileHandle()->getPath()) + "_" + id->toString();
-    } return "__Sw_" + ModuleManager.getModuleUID(id->getModuleFileHandle()->getPath()) + '_' + id->toString();
+        return type->toString() + '_' + ret + id->toString();
+    } return ret + id->toString();
 }
 
 
 llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subject, const SwContext& context) {
     // perform implicit-dereferencing, if applicable
-    if (source_type->getTypeTag() == Type::REFERENCE) {
+    if (source_type->isReferenceType()) {
         auto referenced_type = source_type->to<ReferenceType>()->of_type;
-        if (context.bound_type->getTypeTag() != Type::REFERENCE) {
+        if (!context.bound_type->isReferenceType()) {
             subject = Builder.CreateLoad(
                 codegen(referenced_type, context),
                 subject, "implicit_deref"
@@ -134,12 +139,12 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
     //     return Builder.CreatePtrToInt(subject, getBoundTypeState()->llvmCodegen(*this));
     // }
 
-    if (context.bound_type != source_type && source_type->getTypeTag() != Type::STRUCT) {
-        if (context.bound_type->isIntegral() || context.bound_type->getTypeTag() == Type::BOOL) {
+    if (context.bound_type != source_type && !source_type->isStructType()) {
+        if (context.bound_type->isIntegral() || context.bound_type->isBoolean()) {
             // if the destination type is unsigned or if the source type is boolean
             // perform a zero-extension or truncation
             if (source_type->isIntegral()) {
-                if (context.bound_type->isUnsigned() || source_type->getTypeTag() == Type::BOOL) {
+                if (context.bound_type->isUnsigned() || source_type->isBoolean()) {
                     return Builder.CreateZExtOrTrunc(subject, codegen(context.bound_type, context));
                 } return Builder.CreateSExtOrTrunc(subject, codegen(context.bound_type, context));
             }
@@ -213,7 +218,7 @@ CGValue LLVMBackend::llvmCodegen(const IntLit* node, const SwContext& context) {
 
     else if (context.bound_type->isFloatingPoint()) {
         ret = llvm::ConstantFP::get(codegen(context.bound_type, context), node->value);
-    } else if (context.bound_type->getTypeTag() == Type::BOOL) {
+    } else if (context.bound_type->isBoolean()) {
         ret = llvm::ConstantInt::get(llvm::Type::getInt32Ty(LLVMContext), std::to_string(toInteger(node->value)), 10);
     }
 
@@ -287,7 +292,7 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
             Type* type = fetchSwType(operand);
 
             // handle slice-creation for array types
-            if (type->getTypeTag() == Type::ARRAY && !node->common_type->isPointerType()) {
+            if (type->isArrayType() && !node->common_type->isPointerType()) {
                 auto slice_type = SymMan.getSliceType(type->getWrappedType(), node->is_mutable);
 
                 auto slice_llvm_ty = codegen(slice_type, context);
@@ -646,13 +651,15 @@ CGValue LLVMBackend::llvmCodegen(const StrLit* node, const SwContext& context) {
 CGValue LLVMBackend::llvmCodegen(Ident* node, const SwContext& context) {
     const auto e = SymMan.lookupDecl(node->value);
 
+    // handle enum contained IDs
     if (node->value->isFictitious()) {
-        auto enum_node = SymMan.getFictitiousIDValue(node->value);
+        const auto enum_node = SymMan.getFictitiousIDValue(node->value);
         return {nullptr, llvm::ConstantInt::get(
             codegen(enum_node->enum_type->type, context),
             enum_node->entries.at(node->full_qualification.back().name))};
     }
 
+    // IDs of global variables
     if (!isLocalScope()) {
         auto global_var = llvm::dyn_cast<llvm::GlobalVariable>(e.llvm_value);
         return CGValue::rValue(global_var->getInitializer());
@@ -670,14 +677,12 @@ CGValue LLVMBackend::llvmCodegen(Ident* node, const SwContext& context) {
 
 
 CGValue LLVMBackend::llvmCodegen(Function* node, const SwContext& context) {
-    if (!node->generic_params.empty())
+    if (!node->generic_params.empty() && !context.is_generic_inst)
         return {};
 
     const auto fn_sw_type = SymMan.lookupType(node->ident)->to<FunctionType>();
 
-    const auto name = node->is_extern || node->ident->toString() == "main" ?
-                          node->ident->toString() :
-                          mangleString(node->ident);
+    const auto name = mangleString(node->ident, {.is_generic = true, .generic_args = context.generic_args});
 
     const auto linkage = (node->is_exported || node->is_extern || node->ident->toString() == "main"
                          ) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
@@ -710,7 +715,7 @@ CGValue LLVMBackend::llvmCodegen(Function* node, const SwContext& context) {
         || Builder.GetInsertBlock()->empty())
         Builder.CreateRetVoid();
 
-    return {};
+    return CGValue::lValue(func);
 }
 
 
@@ -848,7 +853,7 @@ CGValue LLVMBackend::llvmCodegen(ArrayLit* node, const SwContext& context) {
 
         for (auto [i, element] : llvm::enumerate(node->elements)) {
             ptr = Builder.CreateGEP(arr_type, base_ptr, {toLLVMInt(0), toLLVMInt(i)});
-            if (element.expr_type->getTypeTag() == Type::ARRAY) {
+            if (element.expr_type->isArrayType()) {
                 auto new_ctx = context;
                 new_ctx.bound_memory = ptr;
                 new_ctx.bound_type = element_type;
@@ -865,7 +870,7 @@ CGValue LLVMBackend::llvmCodegen(ArrayLit* node, const SwContext& context) {
 
     for (auto [i, element] : llvm::enumerate(node->elements)) {
         ptr = Builder.CreateGEP(arr_type, base_ptr, {toLLVMInt(0), toLLVMInt(i)});
-        if (element.expr_type->getTypeTag() == Type::ARRAY) {
+        if (element.expr_type->isArrayType()) {
             auto new_ctx = context;
             new_ctx.bound_memory = ptr;
             new_ctx.bound_type = element_type;
@@ -885,7 +890,7 @@ CGValue LLVMBackend::llvmCodegen(const TypeWrapper* node, const SwContext& conte
 }
 
 
-CGValue LLVMBackend::llvmCodegen(BoolLit* node, SwContext context) {
+CGValue LLVMBackend::llvmCodegen(BoolLit* node, const SwContext& context) {
     return CGValue::rValue(llvm::ConstantInt::getBool(LLVMContext, node->value));
 }
 
@@ -930,6 +935,7 @@ CGValue LLVMBackend::llvmCodegen(ContinueStmt* node, const SwContext& context) {
     Builder.CreateBr(context.continue_to);
     return {};
 }
+
 
 CGValue LLVMBackend::llvmCodegen(Intrinsic* node, const SwContext& context) {
     switch (node->intrinsic_type) {
@@ -991,13 +997,45 @@ CGValue LLVMBackend::llvmCodegen(Struct* node, const SwContext& context) {
 }
 
 
+llvm::Function* LLVMBackend::instantiateGenericFunction(Ident& id, Function* function) {
+    for (auto [key, value] : id.type_instantiation_map) {
+        key->to<GenericType>()->contained_type = value;
+    }
+
+    const auto insertion_cache = Builder.saveIP();
+    const auto cur_parent = CurParent;
+
+    SwContext ctx{.is_generic_inst = true};
+    for (const auto& arg : id.full_qualification.back().generic_args) {
+        if (arg->isType()) {
+            ctx.generic_args.push_back(arg->getType().type);
+        }
+    }
+
+    const auto ret = llvmCodegen(function, ctx).getLValue();
+
+    // restore cache
+    Builder.restoreIP(insertion_cache);
+    CurParent = cur_parent;
+
+    return llvm::dyn_cast<llvm::Function>(ret);
+}
+
+
 CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
     std::vector<llvm::Type*> paramTypes;
 
     assert(node->ident.getIdentInfo());
     const auto fn_name = node->ident.getIdentInfo();
 
-    llvm::Function* func = LModule->getFunction(mangleString(fn_name));
+    llvm::Function* func;
+    if (node->ident.type_instantiation_map.empty()) {
+        func = LModule->getFunction(mangleString(fn_name));
+    } else {
+        const auto fn_ptr = SymMan.lookupDecl(node->ident.value).node_ptr->to<Function>();
+        func = instantiateGenericFunction(node->ident, fn_ptr);
+    }
+
     if (!func) {
         [[maybe_unused]] auto fn = llvm::Function::Create(
             llvm::dyn_cast<llvm::FunctionType>(codegen(SymMan.lookupType(node->ident.getIdentInfo()), context)),
@@ -1012,7 +1050,7 @@ CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
     arguments.reserve(node->args.size() + 1);
 
     assert(node->ident.value);
-    auto& entry = SymMan.lookupDecl(node->ident.value);
+    const auto& entry = SymMan.lookupDecl(node->ident.value);
 
     int8_t bias = 0;
     if (entry.method_of && !entry.is_static) {
@@ -1022,6 +1060,7 @@ CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
         bias = 1;
     }
 
+    // push the function arguments
     for (const auto& [index, item] : llvm::enumerate(node->args)) {
         auto new_ctx = context;
         new_ctx.bound_type =
@@ -1074,7 +1113,7 @@ CGValue LLVMBackend::llvmCodegen(Var* node, const SwContext& context) {
         }
 
         // handle references
-        if (node->var_type->type->getTypeTag() == Type::REFERENCE) {
+        if (node->var_type->type->isReferenceType()) {
             SymMan.lookupDecl(node->var_ident).llvm_value = RefMemory;
         } else SymMan.lookupDecl(node->var_ident).llvm_value = var;
     } else {
@@ -1105,7 +1144,7 @@ CGValue LLVMBackend::llvmCodegen(Var* node, const SwContext& context) {
         }
 
         // handle references
-        if (node->var_type->type->getTypeTag() == Type::REFERENCE) {
+        if (node->var_type->type->isReferenceType()) {
             SymMan.lookupDecl(node->var_ident).llvm_value = RefMemory;
         } else SymMan.lookupDecl(node->var_ident).llvm_value = var_alloca;
     }

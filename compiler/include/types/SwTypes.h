@@ -40,6 +40,8 @@ struct Var;
     SW_TYPE(ARRAY, ArrayType) \
     SW_TYPE(SLICE, SliceType) \
     SW_TYPE(VOID, VoidType) \
+    SW_TYPE(GENERIC, GenericType) \
+    \
     \
     SW_TYPE(C_INT, TypeCInt) \
     SW_TYPE(C_UINT, TypeCUInt) \
@@ -68,7 +70,6 @@ struct Var;
     SW_TYPE(C_UINTMAX, TypeCUIntMax) \
     SW_TYPE(C_WCHAR, TypeCWChar)
 
-
 struct Type {
     enum SwTypes {
     #define SW_TYPE(x, y) x,
@@ -84,14 +85,16 @@ struct Type {
 
     virtual SwTypes     getTypeTag() = 0;
 
+    virtual bool         isBoolean()       { return false;}
     virtual bool         isIntegral()      { return false; }
     virtual bool         isFloatingPoint() { return false; }
     virtual bool         isUnsigned()      { return false; }
     virtual bool         isPointerType()   { return false; }
     virtual bool         isStructType()    { return false; }
     virtual bool         isArrayType()     { return false; }
+    virtual bool         isReferenceType() { return false; }
 
-    explicit Type(SwTypes tag): kind(tag) {}
+    explicit Type(const SwTypes tag): kind(tag) {}
 
     virtual unsigned int getBitWidth() {
         throw std::runtime_error("Error: getBitWidth unimplemented!");
@@ -117,13 +120,9 @@ struct Type {
     }
 
     template <typename From>
-    std::add_pointer_t<From> to() {
-        return dynamic_cast<std::add_pointer_t<From>>(this);
-    }
+    std::add_pointer_t<From> to();
 
     virtual bool isReferenceLikeType() { return getTypeTag() == REFERENCE || getTypeTag() == POINTER; }
-    virtual bool operator==(Type* other) { return getTypeTag() == other->getTypeTag(); }
-
     virtual ~Type() = default;
 };
 
@@ -157,11 +156,8 @@ struct FunctionType final : Type {
     [[nodiscard]] IdentInfo* getIdent() const override { return ident; }
 
     [[nodiscard]] std::string toString() const override;
-
-    bool operator==(Type* other) override {
-        return other->getTypeTag() == FUNCTION && (param_types == dynamic_cast<FunctionType*>(other)->param_types);
-    }
 };
+
 
 struct EnumType final : Type {
     Type* of_type = nullptr;
@@ -177,6 +173,7 @@ struct EnumType final : Type {
     [[nodiscard]] std::string toString() const override;
 };
 
+
 struct StructType final : Type {
     IdentInfo* ident = nullptr;
 
@@ -190,12 +187,90 @@ struct StructType final : Type {
     [[nodiscard]] std::string toString() const override;
     [[nodiscard]] IdentInfo*  getIdent() const override { return ident; }
 
-    bool operator==(Type* other) override {
-        return other->getTypeTag() == STRUCT && (field_types == dynamic_cast<StructType*>(other)->field_types);
+    bool isStructType() override {
+        return true;
+    }
+};
+
+
+struct GenericType final : Type {
+    IdentInfo* id = nullptr;
+    Type* contained_type = nullptr;
+
+    GenericType(): Type(GENERIC) {}
+
+    SwTypes getTypeTag() override {
+        return contained_type ? contained_type->getTypeTag() : GENERIC;
+    }
+
+    unsigned int getBitWidth() override {
+        return contained_type ? contained_type->getBitWidth() :
+            throw std::runtime_error("`GenericType`: `getBitWidth` called on an invalid type!");
+    }
+
+    bool isBoolean() override {
+        return contained_type ? contained_type->isBoolean() : false;
+    }
+
+    bool isIntegral() override {
+        return contained_type ? contained_type->isIntegral() : false;
+    }
+
+    bool isFloatingPoint() override {
+        return contained_type ? contained_type->isFloatingPoint() : false;
+    }
+
+    bool isUnsigned() override {
+        return contained_type ? contained_type->isUnsigned() : false;
+    }
+
+    bool isArrayType() override {
+        return contained_type ? contained_type->isArrayType() : false;
+    }
+
+    bool isPointerType() override {
+        return contained_type ? contained_type->isPointerType() : false;
+    }
+
+    bool isReferenceType() override {
+        return contained_type ? contained_type->isReferenceType() : false;
+    }
+
+    bool isReferenceLikeType() override {
+        return contained_type ? contained_type->isReferenceLikeType() : false;
     }
 
     bool isStructType() override {
-        return true;
+        return contained_type ? contained_type->isStructType() : false;
+    }
+
+    [[nodiscard]]
+    bool containsType() const {
+        return contained_type != nullptr;
+    }
+
+    Type* getWrappedType() override {
+        return contained_type ? contained_type->getWrappedType() : nullptr;
+    }
+
+    Type* getWrappedTypeOrInstance() override {
+        return contained_type ? contained_type->getWrappedTypeOrInstance() : this;
+    }
+
+    std::size_t getAggregateSize() override {
+        return contained_type ? contained_type->getAggregateSize() :
+            throw std::runtime_error("`getAggregateSize` called on an unsuitable type.");
+    }
+
+    [[nodiscard]]
+    std::string toString() const override {
+        assert(id != nullptr);
+        return contained_type ? contained_type->toString() : id->toString();
+    }
+
+    [[nodiscard]]
+    IdentInfo* getIdent() const override {
+        return contained_type ? contained_type->getIdent() : id;
     }
 };
 
@@ -258,6 +333,7 @@ struct TypeStr final : Type {
     }
 };
 
+
 struct ReferenceType final : Type {
     Type* of_type = nullptr;
 
@@ -269,18 +345,17 @@ struct ReferenceType final : Type {
         return std::string("&") + (is_mutable ? "mut " : "") + of_type->toString();
     }
 
-    SwTypes    getTypeTag() override { return REFERENCE; }
-
-    bool operator==(Type* other) override {
-        return other->getTypeTag() == REFERENCE && (of_type == dynamic_cast<ReferenceType*>(other)->of_type);
-    }
+    SwTypes getTypeTag() override { return REFERENCE; }
 
     Type* getWrappedType() override {
         return of_type;
     }
 
-    
+    bool isReferenceType() override {
+        return true;
+    }
 };
+
 
 struct PointerType final : Type {
     Type*    of_type = nullptr;
@@ -333,6 +408,7 @@ struct TypeI8 : IntegralType {
     unsigned int getBitWidth() override { return 8; }
 };
 
+
 struct TypeI16 : IntegralType {
     TypeI16(): IntegralType(I16) {}
 
@@ -343,6 +419,7 @@ struct TypeI16 : IntegralType {
     bool isIntegral() override { return true; }
     unsigned int getBitWidth() override { return 16; }
 };
+
 
 struct TypeI32 : IntegralType {
     TypeI32(): IntegralType(I32) {}
@@ -355,6 +432,7 @@ struct TypeI32 : IntegralType {
     unsigned int getBitWidth() override { return 32; }
 };
 
+
 struct TypeI64 : IntegralType {
     TypeI64(): IntegralType(I64) {}
 
@@ -365,6 +443,7 @@ struct TypeI64 : IntegralType {
     bool isIntegral() override { return true; }
     unsigned int getBitWidth() override { return 64; }
 };
+
 
 struct TypeI128 : IntegralType {
     TypeI128(): IntegralType(I128) {}
@@ -377,6 +456,7 @@ struct TypeI128 : IntegralType {
     unsigned int getBitWidth() override { return 128; }
 };
 
+
 // Unsigned types
 struct TypeU8 final : TypeI8 {
     [[nodiscard]] std::string toString() const override { return "u8"; }
@@ -384,11 +464,13 @@ struct TypeU8 final : TypeI8 {
     bool isUnsigned() override { return true; }
 };
 
+
 struct TypeU16 final : TypeI16 {
     [[nodiscard]] std::string toString() const override { return "u16"; }
     SwTypes getTypeTag() override { return U16; }
     bool isUnsigned() override { return true; }
 };
+
 
 struct TypeU32 final : TypeI32 {
     [[nodiscard]] std::string toString() const override { return "u32"; }
@@ -396,17 +478,20 @@ struct TypeU32 final : TypeI32 {
     bool isUnsigned() override { return true; }
 };
 
+
 struct TypeU64 final : TypeI64 {
     [[nodiscard]] std::string toString() const override { return "u64"; }
     SwTypes getTypeTag() override { return U64; }
     bool isUnsigned() override { return true; }
 };
 
+
 struct TypeU128 final : TypeI128 {
     [[nodiscard]] std::string toString() const override { return "u128"; }
     SwTypes getTypeTag() override { return U128; }
     bool isUnsigned() override { return true; }
 };
+
 
 struct TypeF32 final : FloatingPointType {
     TypeF32(): FloatingPointType(F32) {}
@@ -420,6 +505,7 @@ struct TypeF32 final : FloatingPointType {
 
     
 };
+
 
 struct TypeF64 final : FloatingPointType {
     TypeF64(): FloatingPointType(F64) {}
@@ -435,6 +521,7 @@ struct TypeF64 final : FloatingPointType {
 struct TypeBool final : Type {
     TypeBool(): Type(BOOL) {}
 
+    [[nodiscard]] bool isBoolean() override { return true; }
     [[nodiscard]] bool isUnsigned() override { return true; }
     [[nodiscard]] bool isIntegral() override { return true; }
     [[nodiscard]] std::string toString() const override { return "bool"; }
@@ -443,6 +530,14 @@ struct TypeBool final : Type {
 
     unsigned int getBitWidth() override { return 1; }
 };
+
+
+template<typename To>
+std::add_pointer_t<To> Type::to() {
+    if (this->getTypeTag() == GENERIC && !std::same_as<To, GenericType>) {
+        return dynamic_cast<std::add_pointer_t<To>>(dynamic_cast<GenericType*>(this)->contained_type);
+    } return dynamic_cast<std::add_pointer_t<To>>(this);
+}
 
 
 // C types
@@ -482,4 +577,3 @@ DEFINE_CTYPE(TypeCUIntMax,   "c_uintmax_t", C_UINTMAX)
 DEFINE_CTYPE(TypeCWChar,     "c_wchar_t",   C_WCHAR)
 
 #undef DEFINE_CTYPE
-

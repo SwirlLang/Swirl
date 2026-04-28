@@ -10,13 +10,13 @@ namespace llvm {
 }
 
 struct TableEntry {
-    bool is_enum     = false;
-    bool is_const    = false;
-    bool is_param    = false;
-    bool is_exported = false;
-    bool is_volatile = false;
-    bool is_static   = false;
-    bool is_protocol = false;
+    bool is_enum          = false;
+    bool is_const         = false;
+    bool is_param         = false;
+    bool is_exported      = false;
+    bool is_volatile      = false;
+    bool is_static        = false;
+    bool is_protocol      = false;
     bool is_mod_namespace = false;
 
     Namespace*  scope      = nullptr;  // set when the entry also encodes a namespace

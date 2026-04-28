@@ -94,7 +94,9 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
                 break;
             }
 
-            data.generic_args.insert({generic_params->at(i).name, arg.type_id}); // TODO
+            if (arg->isType()) {
+                data.generic_args.insert({generic_params->at(i).name, arg->getType().type_id}); // TODO
+            }
         }
 
         for (auto& arg : node->args) {
@@ -116,7 +118,7 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
         } return true;
     }
 
-    void handle(Ident* node, const Data& data) const {
+    void handle(Ident* node, const Data& data) {
         assert(!node->full_qualification.empty());
 
         // do not attempt resolution if the symbol is ignored

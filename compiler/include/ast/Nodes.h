@@ -3,8 +3,8 @@
 #include <filesystem>
 #include <stdexcept>
 #include <utility>
+#include <variant>
 #include <vector>
-#include <span>
 
 #include "utils/utils.h"
 #include "lexer/Tokens.h"
@@ -38,8 +38,9 @@
     SW_NODE(ND_INTRINSIC, Intrinsic) \
     SW_NODE(ND_PROTOCOL, Protocol) \
     SW_NODE(ND_UNDEFINED, UndefinedValue) \
-    SW_NODE(ND_ENUM, Enum)
-
+    SW_NODE(ND_ENUM, Enum) \
+    SW_NODE(ND_GEN_ARG, GenericArg) \
+    SW_NODE(ND_GEN_ARG_LIST, GenericArgList)
 
 
 #define SW_NODE(x, y) x,
@@ -122,16 +123,7 @@ struct Node {
         throw std::runtime_error("getSwType: unimplemented!");
     }
 
-    virtual std::string toString() const {
-        throw std::runtime_error("Node::toString: not implemented!");
-    }
-
-    virtual void replaceType(std::string_view from, Type* to) {}
-
     virtual EvalResult evaluate(Parser&);
-    virtual SwNode clone() {
-        throw std::runtime_error("clone unimplemented!");
-    }
 
     template <typename From>
     std::add_pointer_t<From> to() {
@@ -139,16 +131,12 @@ struct Node {
     }
 };
 
-enum class ErrCode;
-struct ErrorContext;
 
 struct GenericParam final : Node {
     std::string name;
-
-    std::string toString() const override {
-        return name;
-    }
+    IdentInfo*  id;
 };
+
 
 struct GlobalNode : Node {
     bool is_extern   = false;
@@ -161,13 +149,6 @@ struct GlobalNode : Node {
     [[nodiscard]]
     bool isGlobal() const override {
         return true;
-    }
-
-    virtual std::unique_ptr<Node> instantiate(Parser& instance,
-        std::span<Type*>,
-        std::function<void (ErrCode, ErrorContext)>)
-    {
-        throw std::runtime_error("Generic instantiation unimplemented!");
     }
 };
 
@@ -216,23 +197,7 @@ struct Expression final : Node {
         return expr_type;
     }
 
-    std::string toString() const override {
-        return '(' + expr->toString() + ')';
-    }
-
-    void replaceType(const std::string_view from, Type* to) override {
-        assert(expr != nullptr);
-        expr->replaceType(from, to);
-    }
-
-    SwNode clone() override {
-        auto ret = std::make_unique<Expression>();
-        ret->expr = expr->clone();
-        ret->expr_type = expr_type;
-        return ret;
-    }
-
-    EvalResult     evaluate(Parser&) override;
+    EvalResult evaluate(Parser&) override;
 };
 
 
@@ -293,8 +258,6 @@ struct Op final : Node {
     // set the type of sub-expression instances to `to`
     void setType(Type* to) const;
 
-
-
     [[nodiscard]]
     NodeType getNodeType() const override { return ND_OP; }
     Type* getSwType() override { return common_type; }
@@ -309,38 +272,11 @@ struct Op final : Node {
         return operands.at(1);
     }
 
-    std::string toString() const override {
-        switch (arity) {
-            case 1:
-                return value + operands.at(0)->toString();
-            case 2:
-                return operands.at(0)->toString() + value + operands.at(1)->toString();
-            default: throw std::runtime_error("Op::toString: invalid arity");;
-        }
-    }
-
-    SwNode clone() override {
-        auto ret = std::make_unique<Op>();
-        ret->value = value;
-        ret->arity = arity;
-
-        for (auto& operand : operands) {
-            ret->operands.push_back(operand->clone());
-        }
-
-        ret->is_mutable = is_mutable;
-        ret->op_type = op_type;
-        ret->common_type = common_type;
-        return ret;
-    }
-
     static int getLBPFor(OpTag_t op);
     static int getRBPFor(OpTag_t op);
     static int getPBPFor(OpTag_t op);
 
-    void replaceType(std::string_view from, Type* to) override;
-
-    EvalResult     evaluate(Parser& instance) override;
+    EvalResult evaluate(Parser& instance) override;
 };
 
 
@@ -353,25 +289,6 @@ struct ReturnStatement final : Node {
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_RET;
     }
-
-
-
-    std::string toString() const override {
-        return "return " + value.toString();
-    }
-
-    SwNode clone() override {
-        auto ret = std::make_unique<ReturnStatement>();
-        ret->value = std::move(*dynamic_cast<Expression*>(value.clone().get()));
-        ret->parent_fn_type = parent_fn_type;
-        return ret;
-    }
-
-    void replaceType(const std::string_view from, Type* to) override {
-        value.replaceType(from, to);
-    }
-
-
 };
 
 
@@ -393,14 +310,7 @@ struct IntLit final : Node {
         return true;
     }
 
-    std::string toString() const override { return value; }
-
-    SwNode clone() override {
-        return std::make_unique<IntLit>(value);
-    }
-
-    EvalResult   evaluate(Parser &) override;
-
+    EvalResult evaluate(Parser &) override;
 };
 
 struct FloatLit final : Node {
@@ -415,11 +325,6 @@ struct FloatLit final : Node {
 
     [[nodiscard]] bool isLiteral() const override {
         return true;
-    }
-
-    std::string toString() const override { return value; }
-    SwNode clone() override {
-        return std::make_unique<FloatLit>(value);
     }
 
     EvalResult   evaluate(Parser &) override;
@@ -438,13 +343,7 @@ struct BoolLit final : Node {
         return true;
     }
 
-    std::string toString() const override { return value ? "true" : "false"; }
-    SwNode clone() override {
-        return std::make_unique<BoolLit>(value);
-    }
-
-    EvalResult   evaluate(Parser &) override;
-
+    EvalResult evaluate(Parser &) override;
 };
 
 
@@ -463,34 +362,47 @@ struct StrLit final : Node {
         return true;
     }
 
-    std::string toString() const override { return value; }
-    SwNode clone() override {
-        return std::make_unique<StrLit>(value);
-    }
-
     EvalResult   evaluate(Parser&) override;
-
-
 };
 
-struct TypeWrapper;
+
+struct GenericArg;
+struct GenericArgList final : Node {
+    GenericArgList(): Node(ND_GEN_ARG_LIST) {}
+
+    std::vector<std::shared_ptr<GenericArg>> generic_args;
+
+    ~GenericArgList() override;
+
+    // GenericArgList(const GenericArgList&) = delete;
+    // GenericArgList& operator=(const GenericArgList&) = delete;
+    //
+    // GenericArgList(GenericArgList&&) = default;
+    // GenericArgList& operator=(GenericArgList&&) = default;
+
+    auto begin() { return generic_args.begin(); }
+    auto end()   { return generic_args.end(); }
+
+    [[nodiscard]] auto size()    const { return generic_args.size(); }
+    [[nodiscard]] bool empty()   const { return generic_args.empty(); }
+
+    [[nodiscard]] auto at(const std::size_t i) const { return generic_args.at(i); }
+};
+
+
 struct Ident final : Node {
 private:
-    struct ImplDeleter {
-        void operator()(const TypeWrapper* ptr) const;
-    };
-
-
     struct Qualifier {
         std::string name;
-        std::vector<TypeWrapper*> generic_args;
-
-        ~Qualifier();
+        GenericArgList generic_args;
     };
 
 public:
     IdentInfo* value = nullptr;
     std::vector<Qualifier> full_qualification;
+
+    // to keep pre-computed generic instantiation steps to avoid repetitive looping
+    std::unordered_map<Type*, Type*> type_instantiation_map;
 
     Ident(): Node(ND_IDENT) {}
 
@@ -508,18 +420,17 @@ public:
         return this;
     }
 
-    std::string toString() const override {
+    [[nodiscard]]
+    std::string toString() const {
         std::string ret;
         for (auto& id : full_qualification) {
             ret += id.name + "::";
         } ret.pop_back();
-          ret.pop_back();
+        ret.pop_back();
         return ret;
     }
 
-    void replaceType(std::string_view from, Type* to) override;
-
-    EvalResult     evaluate(Parser&) override;
+    EvalResult evaluate(Parser&) override;
 };
 
 
@@ -550,21 +461,44 @@ struct TypeWrapper final : Node {
     NodeType getNodeType() const override {
         return ND_TYPE;
     }
+};
 
-    void replaceType(const std::string_view from, Type* to) override {
-        if (!type_id.full_qualification.empty()) {
-            if (type_id.full_qualification.front().name == from) {
-                type = to;
-            }
-        } if (of_type) {
-            of_type->replaceType(from, to);
-        }
+
+struct GenericArg final : Node {
+    GenericArg(): Node(ND_GEN_ARG) {}
+
+    explicit GenericArg(Expression expr): GenericArg() { value = std::move(expr); }
+    explicit GenericArg(TypeWrapper  ty): GenericArg() { value = std::move(ty); }
+
+
+    [[nodiscard]]
+    bool isType() const {
+        return std::holds_alternative<TypeWrapper>(value);
+    }
+
+    [[nodiscard]]
+    bool isEmpty() const {
+        return std::holds_alternative<std::monostate>(value);
+    }
+
+    [[nodiscard]]
+    bool isExpression() const {
+        return std::holds_alternative<Expression>(value);
+    }
+
+    Expression& getExpr() {
+        return std::get<Expression>(value);
+    }
+
+    TypeWrapper& getType() {
+        return std::get<TypeWrapper>(value);
     }
 
 
-    std::string toString() const override;
-
+private:
+    std::variant<std::monostate, Expression, TypeWrapper> value;
 };
+
 
 struct Var final : GlobalNode {
     IdentInfo* var_ident = nullptr;
@@ -587,30 +521,6 @@ struct Var final : GlobalNode {
         return var_ident;
     }
 
-    void replaceType(const std::string_view from, Type* to) override {
-        var_type->replaceType(from, to);
-        value.replaceType(from, to);
-    }
-
-
-    std::string toString() const override {
-        std::string ret;
-
-        if (!is_param) {
-            if (is_comptime)
-                ret += "comptime ";
-            else if (is_const)
-                ret += "let ";
-            else ret += "var ";
-        }
-
-        ret += std::format("{}: {} ", var_ident->toString(), var_type->toString());
-        if (initialized) {
-            ret += std::format("= {};\n", value.toString());
-        } else ret += ";\n";
-        return ret;
-    }
-
     [[nodiscard]] SwNode& getExprValue() override { return value.expr; }
 };
 
@@ -621,21 +531,6 @@ struct Scope final : Node {
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_SCOPE;
-    }
-
-    void replaceType(const std::string_view from, Type* to) override {
-        for (const auto& child : children) {
-            child->replaceType(from, to);
-        }
-    }
-
-
-    std::string toString() const override {
-        std::string ret = "{\n";
-        for (const auto& child : children) {
-            ret += child->toString();
-        } ret += "}\n";
-        return ret;
     }
 };
 
@@ -657,48 +552,6 @@ struct Function final : GlobalNode {
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_FUNC;
     }
-
-    void replaceType(const std::string_view from, Type* to) override {
-        for (auto& param : params) {
-            param.replaceType(from, to);
-        }
-
-        return_type.replaceType(from, to);
-        for (const auto& child : children) {
-            child->replaceType(from, to);
-        }
-    }
-
-    std::string toString() const override {
-        std::string ret = std::format("fn {}", ident->toString());
-
-        if (!generic_params.empty()) {
-            ret += "<";
-            for (auto& param : generic_params) {
-                ret += param.toString();
-            } ret += ">(";
-        }
-
-        for (auto& param : params) {
-            ret += param.toString();
-            ret += ", ";
-        }
-
-        if (ret.ends_with(", ")) {
-            ret.pop_back();
-            ret.pop_back();
-        }
-
-        ret += std::format("): {} {{", return_type.toString());
-
-        for (auto& child : children) {
-            ret += child->toString();
-        } ret += "}\n";
-
-        return ret;
-    }
-
-    std::unique_ptr<Node> instantiate(Parser&, std::span<Type*>, std::function<void (ErrCode, ErrorContext)>) override;
 };
 
 
@@ -707,7 +560,7 @@ struct FuncCall final : Node {
     Type* signature = nullptr;  // supposed to hold the signature of the callee
 
     std::vector<Expression> args;
-    std::vector<TypeWrapper> generic_args;
+    GenericArgList          generic_args;
 
     FuncCall(): Node(ND_CALL) {}
 
@@ -723,45 +576,7 @@ struct FuncCall final : Node {
         return &ident;
     }
 
-    [[nodiscard]] NodeType     getNodeType() const override { return ND_CALL; }
-
-    void replaceType(const std::string_view from, Type* to) override {
-        for (auto& ty : generic_args) {
-            ty.replaceType(from, to);
-        }
-
-        for (auto& val : args) {
-            val.replaceType(from, to);
-        }
-    }
-
-    std::string toString() const override {
-        std::string ret = ident.toString();
-
-        if (!generic_args.empty()) {
-            ret.append("::<");
-            for (auto& ty : generic_args) {
-                ret += ty.toString() + ", ";
-            }
-
-            if (ret.ends_with(", ")) {
-                ret.pop_back();
-                ret.pop_back();
-            }
-        }
-
-        ret += ">(";
-        for (auto& val : args) {
-            ret += val.toString();
-            ret += ", ";
-        }
-
-        if (ret.ends_with(", ")) {
-            ret.pop_back();
-            ret.pop_back();
-        } ret += ");";
-        return ret;
-    }
+    [[nodiscard]] NodeType getNodeType() const override { return ND_CALL; }
 };
 
 
@@ -787,15 +602,7 @@ struct Intrinsic final : Node {
         }; intrinsic_type = tag_map.at(ident.full_qualification.at(0).name);
     }
 
-
-
     [[nodiscard]] NodeType getNodeType() const override { return ND_INTRINSIC; }
-
-    void replaceType(const std::string_view from, Type* to) override {
-        for (auto& arg : args) {
-            arg.replaceType(from, to);
-        }
-    }
 };
 
 
@@ -833,12 +640,6 @@ struct ArrayLit final : Node {
     bool isLiteral() const override {
         return true;
     }
-
-    void replaceType(const std::string_view from, Type* to) override {
-        for (auto& element : elements) {
-            element.replaceType(from, to);
-        }
-    }
 };
 
 
@@ -851,19 +652,11 @@ struct WhileLoop final : Node {
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_WHILE;
     }
-
-    void replaceType(const std::string_view from, Type* to) override {
-        condition.replaceType(from, to);
-        for (const auto& child : children) {
-            child->replaceType(from, to);
-        }
-    }
 };
 
 
 struct BreakStmt final : Node {
     BreakStmt(): Node(ND_BREAK) {}
-
 
     [[nodiscard]] NodeType getNodeType() const override { return ND_BREAK;}
 };
@@ -894,14 +687,6 @@ struct Protocol final : GlobalNode {
         TypeWrapper return_type;
         std::vector<TypeWrapper> params;
 
-        std::string toString() const {
-            std::string ret =  "fn " + name + "(";
-            for (auto& param : params) {
-                ret += param.toString();
-            } ret += "): " + return_type.toString();
-            return ret;
-        }
-
         bool operator==(const MethodSignature& other) const {
             return name == other.name && other.return_type.type == return_type.type &&
                 std::equal(params.begin(), params.end(),
@@ -910,29 +695,14 @@ struct Protocol final : GlobalNode {
                         return a.type == b.type;
                     });
         }
-
-        void replaceType(const std::string_view from, Type* to) {
-            return_type.replaceType(from, to);
-            for (auto& ty : params) {
-                ty.replaceType(from, to);
-            }
-        }
     };
 
     struct MemberSignature {
         std::string  name;
         TypeWrapper  type{};
 
-        std::string toString() const {
-            return name + ": " + type.toString();
-        }
-
         bool operator==(const MemberSignature& other) const {
             return name == other.name && other.type.type == type.type;
-        }
-
-        void replaceType(const std::string_view from, Type* to) {
-            type.replaceType(from, to);
         }
     };
 
@@ -947,21 +717,10 @@ struct Protocol final : GlobalNode {
         return protocol_id;
     }
 
-    void replaceType(const std::string_view from, Type* to) override {
-        for (auto& member : members) {
-            member.replaceType(from, to);
-        }
-
-        for (auto& method : methods) {
-            method.replaceType(from, to);
-        }
-    }
-
     Protocol(): GlobalNode(ND_PROTOCOL) {}
-    NodeType getNodeType() const override { return ND_PROTOCOL; }
 
-    std::unique_ptr<Node> instantiate(
-        Parser& instance, std::span<Type*>, std::function<void(ErrCode, ErrorContext)>) override;
+    [[nodiscard]]
+    NodeType getNodeType() const override { return ND_PROTOCOL; }
 };
 
 
@@ -1010,12 +769,6 @@ struct Struct final : GlobalNode {
     IdentInfo* getIdentInfo() override {
         return ident;
     }
-
-    void replaceType(const std::string_view from, Type* to) override {
-        for (auto& member : members) {
-            member->replaceType(from, to);
-        }
-    }
 };
 
 
@@ -1034,24 +787,5 @@ struct Condition final : Node {
     Condition(): Node(ND_COND) {}
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_COND;
-    }
-
-
-    void replaceType(const std::string_view from, Type* to) override {
-        bool_expr.replaceType(from, to);
-        for (const auto& child : else_children) {
-            child->replaceType(from, to);
-        }
-
-        for (const auto& child : if_children) {
-            child->replaceType(from, to);
-        }
-
-        for (auto& child : elif_children) {
-            std::get<0>(child).replaceType(from, to);
-            for (auto& c : std::get<1>(child)) {
-                c->replaceType(from, to);
-            }
-        }
     }
 };

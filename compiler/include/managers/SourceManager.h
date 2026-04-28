@@ -38,20 +38,11 @@ public:
 
     /** @brief resets the state of the m_Stream */
     void reset();
-    void switchSource(std::size_t from, std::size_t to);
-    void switchSource(const std::string& source);
-    void switchSource(const SourceLocation& loc);
 
     /** @brief returns a const-ref to the source's path */
     [[nodiscard]] const std::filesystem::path& getSourcePath() const {
         return m_SourcePath;
     }
-
-    /// Similar to `getLineAt` but:
-    /// - allows the caller to handle errors
-    /// - beautifies the lines by adding line numbers to their left, the numbers are arranged based on
-    ///   `max_line_no`, which encodes the right-most line number in the error interval ([from, to <- this]).
-    std::optional<std::string> getEnumeratedLine(std::size_t at, std::size_t max_line_no);
 
     [[nodiscard]] std::string getLineAt(std::size_t) const;
     [[nodiscard]] std::string getCurrentLine() const;

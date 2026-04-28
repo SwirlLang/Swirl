@@ -20,6 +20,8 @@ class SymbolManager;
 
 struct SwContext {
     Type* bound_type = nullptr;
+    bool  is_generic_inst = false;
+    std::vector<Type*> generic_args;
 
     llvm::Value* bound_memory = nullptr;   // used by arrays to handle nesting
     llvm::BasicBlock* break_to = nullptr;
@@ -113,7 +115,11 @@ public:
     }
 
 
-    std::string mangleString(IdentInfo* id) const;
+    struct ManglingContext {
+        bool is_generic; std::vector<Type*> generic_args;
+    };
+
+    std::string mangleString(IdentInfo* id, const ManglingContext& ctx = {.is_generic = false}) const;
 
     /// Performs any necessary type casts (controlled by `BoundTypeState`), then returns the llvm::Value*
     /// note: `subject` is supposed to be a "loaded" value
@@ -124,6 +130,9 @@ public:
     /// nullptr, checks whether it is a `ConstantInt`, and if so, whether it is 0 (in which case no
     /// code generation takes place).
     void codegenChildrenUntilRet(const NodesVec& children, const SwContext& context, llvm::Value* condition = nullptr);
+
+    /// Triggers the generation of an instantiated generic function and returns its `llvm::Function*`.
+    llvm::Function* instantiateGenericFunction(Ident& id, Function* function);
 
     llvm::Module* getLLVMModule() const {
         return LModule.get();
@@ -213,7 +222,7 @@ public:
     CGValue llvmCodegen(Struct* node, const SwContext& context);
     CGValue llvmCodegen(ArrayLit* node, const SwContext& context);
     CGValue llvmCodegen(const TypeWrapper* node, const SwContext& context);
-    CGValue llvmCodegen(BoolLit* node, SwContext context);
+    CGValue llvmCodegen(BoolLit* node, const SwContext& context);
     CGValue llvmCodegen(Scope* node, const SwContext& context);
     CGValue llvmCodegen(BreakStmt* node, const SwContext& context);
     CGValue llvmCodegen(ContinueStmt* node, const SwContext& context);
@@ -244,6 +253,8 @@ public:
     llvm::Type* llvmCodegen(ArrayType* type, const SwContext& context);
     llvm::Type* llvmCodegen(SliceType* type, const SwContext &context);
     llvm::Type* llvmCodegen(VoidType* type, SwContext context);
+    llvm::Type* llvmCodegen(const GenericType* type, const SwContext& context);
+
     llvm::Type* llvmCodegen(TypeCInt* type, SwContext context);
     llvm::Type* llvmCodegen(TypeCUInt* type, SwContext context);
     llvm::Type* llvmCodegen(TypeCLL* type, SwContext context);
