@@ -240,8 +240,8 @@ SwNode Parser::dispatch() {
 
                     if (m_Stream.CurTok.type == STRING) {
                         m_ExternAttributes = std::move(m_Stream.CurTok.value);
-                    } forwardStream();
-                    continue;
+                        forwardStream();
+                    } continue;
                 }
 
                 reportError(ErrCode::UNEXPECTED_KEYWORD, {.str_1 = m_Stream.CurTok.value});
@@ -269,7 +269,7 @@ SwNode Parser::dispatch() {
                 // ignore semicolons
                 if (m_Stream.CurTok.value == ";") {
                     forwardStream();
-                    continue;
+                    return std::make_unique<Node>();
                 }
 
                 if (m_Stream.CurTok.value == "}") {
