@@ -881,13 +881,20 @@ Ident Parser::parseIdent() {
     SET_NODE_ATTRS(&ret);
 
     ret.full_qualification.emplace_back(forwardStream().value);
+    if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "!") {
+        forwardStream();
+        ret.full_qualification.back().generic_args = parseGenericArgList();
+    }
+
     while (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "::") {
         forwardStream();
+        ret.full_qualification.emplace_back(forwardStream().value);
 
         // check for generics
-        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
+        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "!") {
+            forwardStream();
             ret.full_qualification.back().generic_args = parseGenericArgList();
-        } else ret.full_qualification.emplace_back(forwardStream().value);
+        }
     }
 
     if (ret.full_qualification.size() == 1 && ret.full_qualification.at(0).generic_args.empty()) {
@@ -1081,6 +1088,11 @@ std::unique_ptr<Struct> Parser::parseStruct() {
         .is_exported = ret->is_exported,
     });
 
+    // parse generic parameters
+    if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
+        ret->generic_params = parseGenericParamList();
+    }
+
     // register the type and the scope of the struct as a qualifier
     SymbolTable.registerType(ret->ident, struct_ty);
 
@@ -1094,6 +1106,12 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     struct_ty->scope = scope_pointer;
 
     SymbolTable.lookupDecl(ret->ident).scope = scope_pointer;
+
+    // register the generic parameters in the scope
+    for (auto& param : ret->generic_params) {
+        param.id = scope_pointer->getNewIDInfo(param.name);
+        SymbolTable.registerType(param.id, new GenericType());
+    }
 
     // handle the children
     std::size_t i = 0;
