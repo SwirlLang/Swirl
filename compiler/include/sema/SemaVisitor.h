@@ -8,6 +8,8 @@
 #include "parser/Parser.h"
 #include "ast/Visitor.h"
 #include "errors/ErrorManager.h"
+#include "managers/ModuleManager.h"
+
 
 #define SEMA_DISABLE_ERROR_CODE(code) \
     auto GET_UNIQUE_NAME(err_code_disabler) = SemaVisitor<decltype(*this)>::DisableErrorCode(*this, code)
@@ -30,15 +32,16 @@ private:
     std::unordered_set<Node*> m_VisitedNodes;
 };
 
+
 template <typename T>
 class SemaVisitor : public RecursiveVisitor<T> {
 public:
     explicit
-    SemaVisitor(Parser& parser)
-        : m_Callback(parser.m_ErrorCallback)
-        , m_SourceManager(&parser.m_SrcMan)
+    SemaVisitor(Module* module, ErrorCallback_t error_callback)
+        : m_Callback(std::move(error_callback))
+        , m_Module(module)
     {
-        parser.SymbolTable.setErrorCallback([this](const ErrCode code, ErrorContext ctx) {
+        module->symbol_table.setErrorCallback([this](const ErrCode code, ErrorContext ctx) {
             reportError(code, std::move(ctx));
         });
     }
@@ -49,7 +52,7 @@ public:
             return;
 
         m_ErrorOccurred = true;
-        context.src_man = m_SourceManager;
+        context.module = m_Module;
 
         if (!context.location.has_value()) {
             assert(!m_NodeStack.empty());
@@ -86,7 +89,7 @@ public:
 private:
     std::vector<Node*> m_NodeStack;
     ErrorCallback_t    m_Callback;
-    SourceManager*     m_SourceManager;
+    Module*            m_Module;
 
     std::unordered_set<ErrCode> m_DisabledErrorCodes;
 
@@ -100,5 +103,4 @@ private:
     void popNodeFromStack(Node*) {
         m_NodeStack.pop_back();
     }
-};
-}
+};}

@@ -2,7 +2,6 @@
 #include <memory>
 #include <mutex>
 #include <utility>
-#include <concepts>
 #include <filesystem>
 #include <unordered_set>
 
@@ -19,6 +18,7 @@
 
 class Parser;
 class ModuleManager;
+struct Module;
 
 namespace sw   { class FileSystem; }
 namespace sema { template <typename T> class SemaVisitor; }
@@ -55,18 +55,11 @@ struct std::hash<SwObject> {
 };
 
 
-struct Module {
-    AST_t ast;
-    SymbolManager symbol_table;
-    ErrorCallback_t error_callback;
-    sw::FileHandle* file_handle = nullptr;
-};
-
-
 class Parser {
     TokenStream      m_Stream;
     SourceManager    m_SrcMan;
 
+    Module*          m_Module;
     ErrorCallback_t  m_ErrorCallback;  // the callback for reporting an error
     ExpressionParser m_ExpressionParser{*this};
 
@@ -74,27 +67,17 @@ class Parser {
     Function*    m_LatestFuncNode     = nullptr;
     bool         m_LastSymWasExported = false;
     bool         m_LastSymIsExtern    = false;
-    bool         m_IsMainModule       = false;    // is the module the parser represents the main one?
-    bool         m_IsBeingCloned      = false;
-    bool         m_IsSemaComplete     = false;
 
     std::vector<Type*>   m_CurrentStructTy{nullptr};  // the type of the struct being parsed
 
     std::string          m_ExternAttributes;
     Expression           m_AttributeList;
-    std::optional<Token> m_ReturnFakeToken = std::nullopt;
     // ---*--- ---*--- ---*---
 
     int                   m_RecursionDepth = 0;
-    std::size_t           m_UnresolvedDeps{};  // counter for the no. of unresolved dependencies
     std::vector<SwObject> m_ParseStack;        // currently-being-parsed object pointer stays at the top
 
     sw::FileHandle*       m_FileHandle;
-
-    std::unordered_set<Parser*> m_Dependents;     // the modules which directly depend on this module
-    std::unordered_set<Parser*> m_Dependencies;  // the modules which this module depends on
-    std::unordered_set<Parser*> m_CumulativeDependents;  // all modules which directly or indirectly depend on this one
-
 
     // used for buffering error reports until the nodes/types have been completed
     std::unordered_map<SwObject, std::vector<std::tuple<ErrCode, ErrorContext>>> m_ErrorQueue;
@@ -112,21 +95,17 @@ class Parser {
 
     friend class CompilerInst;
     friend class ModuleManager;
-    friend class AnalysisContext;
     friend class ExpressionParser;
-    friend class ClonedState;
     friend class LLVMBackend;
 
     template <typename T>
     friend class sema::SemaVisitor;
 
 public:
-    AST_t AST;
     ModuleManager& ModuleMap;
-    SymbolManager SymbolTable;
-    std::unordered_map<IdentInfo*, Node*> NodeJmpTable;  // maps global symbols to their nodes
+    std::unordered_map<IdentInfo*, Node*>& NodeJmpTable;  // maps global symbols to their nodes
 
-    explicit Parser(sw::FileSystem& fs, const std::filesystem::path& path, ErrorCallback_t, ModuleManager&);
+    explicit Parser(Module* module, ErrorCallback_t error_callback, ModuleManager& mod_man);
 
 
     std::unique_ptr<Node>            dispatch();
@@ -156,29 +135,13 @@ public:
     GenericArgList   parseGenericArgList();
 
     void parse();
-    void performSema();
     void ignoreButExpect(const Token&);
     void stackSafeguard() const;
 
-    void toggleIsMainModule() { m_IsMainModule = !m_IsMainModule; }
-
-
-    /// Calls `inserter` with the symbol name for each exported-symbol in the AST
-    template <typename Inserter_t> requires std::invocable<Inserter_t, std::string>
-    void insertExportedSymbolsInto(Inserter_t inserter) {
-        for (const auto& node : AST) {
-            if (node->is_exported) {
-                inserter(node->getIdentInfo()->toString());
-            }
-        }
-    }
-
-    /// Decrements the unresolved-deps counter of dependents
-    void decrementUnresolvedDeps();
 
     /// Buffers the reported errors, also sets certain context attributes automatically
     void reportError(const ErrCode code, ErrorContext ctx = {}) {
-        ctx.src_man = &m_SrcMan;
+        ctx.module = m_Module;
         m_ErrorQueue.at(m_ParseStack.back()).emplace_back(code, ctx);
     }
 };

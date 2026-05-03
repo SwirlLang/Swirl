@@ -201,17 +201,18 @@ EvalResult StrLit::evaluate(Parser&) {
 
 
 EvalResult Ident::evaluate(Parser& ctx) {
-    if (const auto node = ctx.SymbolTable.lookupDecl(getIdentInfo()).node_ptr) {
-        if (node->getNodeType() == ND_VAR) {
-            const auto var = dynamic_cast<Var*>(node);
-
-            // only allow config variables
-            if (!var->is_comptime) {
-                ctx.reportError(ErrCode::NOT_A_CT_VAR);
-                return {};
-            } return var->value.evaluate(ctx);
-        } ctx.reportError(ErrCode::NOT_ALLOWED_CT_CTX);
-    } return {};
+    // if (const auto node = ctx.SymbolTable.lookupDecl(getIdentInfo()).node_ptr) {
+    //     if (node->getNodeType() == ND_VAR) {
+    //         const auto var = dynamic_cast<Var*>(node);
+    //
+    //         // only allow config variables
+    //         if (!var->is_comptime) {
+    //             ctx.reportError(ErrCode::NOT_A_CT_VAR);
+    //             return {};
+    //         } return var->value.evaluate(ctx);
+    //     } ctx.reportError(ErrCode::NOT_ALLOWED_CT_CTX);
+    // }
+    return {};
 }
 
 

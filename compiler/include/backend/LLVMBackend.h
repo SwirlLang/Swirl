@@ -71,7 +71,7 @@ public:
 
 
     LLVMBackend() = delete;
-    explicit  LLVMBackend(Parser& parser);
+    explicit LLVMBackend(Module* module);
 
     struct ParentSetter {
         ParentSetter(LLVMBackend* instance, llvm::Function* parent)
@@ -155,9 +155,8 @@ public:
     }
 
 
-    /// Calls `print` on the llvm module
+    /// Calls `print` on the llvm module after verification
     void printIR() const {
-        // bonus: run the llvm verifier on the module
         verifyModule(*LModule, &llvm::errs());
         LModule->print(llvm::outs(), nullptr);
     }

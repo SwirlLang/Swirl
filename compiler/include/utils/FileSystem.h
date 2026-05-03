@@ -6,18 +6,24 @@
 #include <unordered_map>
 
 namespace sw {
+
+class FileSystem;
 class FileHandle {
 public:
-    explicit FileHandle(std::string_view file_path);
+    explicit FileHandle(std::string_view file_path, FileSystem* fs);
 
     std::string_view readAll();
     std::unique_ptr<std::istream> getStream();
 
     const std::filesystem::path& getPath();
 
+    [[nodiscard]]
+    FileSystem* getFileSystemHandle() const;
+
 private:
     std::filesystem::path m_Path;
     std::optional<std::string> m_FileContent;
+    FileSystem* m_FileSystem = nullptr;
 
     friend class FileSystem;
 };

@@ -1,5 +1,7 @@
 #pragma once
 #include <print>
+
+#include "managers/ModuleManager.h"
 #include "types/definitions.h"
 #include "sema/SemaVisitor.h"
 
@@ -21,13 +23,16 @@ public:
     std::vector<Function*> CurrentParentFunction = {nullptr};
     std::unordered_map<IdentInfo*, Node*> GlobalNodeJmpTable;
 
+    bool IsGenericInst = false;
+    CREATE_STATE_RAII_WRAPPER(IsGenericInst);
+
 
     inline static GlobalCache VisitedNodes;
 
-    explicit TypeResolver(Parser& parser)
-        : SemaVisitor(parser)
-        , SymMan(parser.SymbolTable)
-        , GlobalNodeJmpTable(parser.NodeJmpTable) {}
+    explicit TypeResolver(Module* module, const ErrorCallback_t& error_callback)
+        : SemaVisitor(module, error_callback)
+        , SymMan(module->symbol_table)
+        , GlobalNodeJmpTable(module->node_jmp_table) {}
 
     struct TypeInfo {
         Type* deduced_type = nullptr;
@@ -45,8 +50,8 @@ public:
     }
 
 
-    bool preVisit(Function* node, const bool is_generic = false) {
-        if (VisitedNodes.contains(node) && !is_generic) {
+    bool preVisit(Function* node) {
+        if (VisitedNodes.contains(node) && !IsGenericInst) {
             return false;
         }
 
@@ -264,13 +269,6 @@ public:
             const auto function = SymMan.lookupDecl(id).node_ptr;
             assert(function && function->getNodeType() == ND_FUNC);
             analyzeNodeWithID(id);
-
-            if (!node->ident.full_qualification.back().generic_args.empty()) {
-                const auto fn_node = function->to<Function>();
-                preVisit(fn_node, true);
-                handle(fn_node, true);
-                postVisit(fn_node);
-            }
         }
 
         // fetch the corresponding Function's type
@@ -319,7 +317,7 @@ public:
 
     TypeInfo evaluateType(Op* node, TypeContext ctx);
 
-    void handle(Function* node, bool is_generic_inst = false) {
+    void handle(Function* node) {
         inferType(&node->return_type, {});
 
         auto* fn_type = SymMan.lookupType(node->ident)->to<FunctionType>();
@@ -327,11 +325,11 @@ public:
 
         CommonFunctionType = fn_type->ret_type;
 
-        assert(fn_type->param_types.size() <= 1 || is_generic_inst);
+        assert(fn_type->param_types.size() <= 1 || IsGenericInst);
         for (auto& param : node->params) {
             visit(&param);
 
-            if (!is_generic_inst) {
+            if (!IsGenericInst) {
                 auto param_type = param.var_type.value().type;
                 fn_type->param_types.push_back(param_type);
                 SymMan.lookupDecl(param.var_ident).swirl_type = param_type;
@@ -349,7 +347,12 @@ public:
         assert(node->value);
         const auto target_node = SymMan.lookupDecl(node->value).node_ptr->to<GlobalNode>();
 
+        Ident tmp;
+
         for (auto qualifier : node->full_qualification) {
+            tmp.full_qualification.push_back({.name = qualifier.name});
+
+            // iterate over the generic args and activate the generic type
             for (const auto& [i, arg] : std::views::enumerate(qualifier.generic_args)) {
                 if (i < target_node->generic_params.size()) {
                     auto generic_ty = SymMan.lookupType(target_node->generic_params.at(i).id);
@@ -363,8 +366,16 @@ public:
                     }
                 }
             }
-        }
 
+            // if generic arguments exist, analyze the instantiated node
+            if (!qualifier.generic_args.empty()) {
+                if (const auto id = SymMan.getIDInfoFor(tmp)) {
+                    if (const auto node_ptr = SymMan.lookupDecl(id).node_ptr) {
+                        evaluateGenericInst(node_ptr);
+                    }
+                }
+            }
+        }
     }
 
 
@@ -493,6 +504,7 @@ public:
         }
     }
 
+
     void postVisit(Struct* node) {
         const auto ty = SymMan.lookupType(node->ident)->to<StructType>();
 
@@ -560,6 +572,13 @@ public:
         if (!GlobalNodeJmpTable.contains(id)) { return; }
         this->visit(GlobalNodeJmpTable[id]);
     }
+
+
+    void evaluateGenericInst(Node* node) {
+        SET_STATE_TO(IsGenericInst, true);
+        visit(node);
+    }
+
 
     Type* getEvalType(Node* node) const {
         switch (node->getNodeType()) {

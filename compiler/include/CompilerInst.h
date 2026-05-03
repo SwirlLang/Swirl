@@ -100,13 +100,16 @@ public:
             m_ErrorManager.m_OutputPipeline = &err_pipeline;
         }
 
-        m_MainModParser = new Parser(m_Filesystem, m_SrcPath, m_ErrorCallback, m_ModuleManager);
-        m_MainModParser->toggleIsMainModule();
-        m_ModuleManager.setMainModParser(m_MainModParser);
+        // create a module for the main source file
+        const auto file_handle = m_Filesystem.open(m_SrcPath);
+        const auto main_module = new Module{file_handle, m_ModuleManager};
+        main_module->m_IsMainModule = true;
 
-        m_MainModParser->parse();
+        // add an entry to the module manager
+        m_ModuleManager.insert(file_handle, main_module);
+        main_module->parse(m_ErrorCallback);
 
-        // check for parser errors and abort if present
+        // check for parser errors and flush if present
         if (m_ErrorManager.errorOccurred()) {
             m_ErrorManager.flush();
         }
@@ -117,10 +120,10 @@ public:
             SW_LOG_INFO("Batch-{}: ", batch_no);
             batch_no++;
             while (const auto mod = m_ModuleManager.popZeroDepVec()) {
-                SW_LOG_INFO("{}, ", mod->m_FileHandle->getPath().string());
+                SW_LOG_INFO("{}, ", mod->file_handle->getPath().string());
 
-                m_ThreadPool.enqueue([mod] {
-                    mod->performSema();
+                m_ThreadPool.enqueue([this, mod] {
+                    mod->performSema(m_ErrorCallback);
                 });
             }
 

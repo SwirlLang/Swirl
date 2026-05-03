@@ -2,12 +2,14 @@
 #include <mutex>
 #include <optional>
 #include <filesystem>
+#include <functional>
 
 #include "ast/Nodes.h"
 
 
 struct Type;
 struct Node;
+struct Module;
 class IdentInfo;
 class SourceManager;
 class ErrorPipeline;
@@ -26,7 +28,7 @@ struct ErrorContext {
     std::string str_2{};
     std::optional<SourceLocation> location = std::nullopt;
 
-    SourceManager* src_man = nullptr;
+    Module* module = nullptr;
     std::unordered_map<IdentInfo*, Node*>* decl_table = nullptr;
 };
 

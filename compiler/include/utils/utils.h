@@ -2,9 +2,6 @@
 #include <cassert>
 #include <string>
 #include <thread>
-#include <queue>
-#include <functional>
-#include <filesystem>
 #include <condition_variable>
 
 namespace fs = std::filesystem;

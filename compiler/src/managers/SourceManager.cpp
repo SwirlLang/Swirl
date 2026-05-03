@@ -5,12 +5,16 @@
 
 #include "CompilerInst.h"
 #include "managers/SourceManager.h"
+#include "managers/ModuleManager.h"
 #include "utils/FileSystem.h"
 
 
-SourceManager::SourceManager(sw::FileHandle* file_handle): m_SourcePath(file_handle->getPath()) {
+SourceManager::SourceManager(Module* module)
+    : m_SourcePath(module->file_handle->getPath())
+    , m_LineOffsets(module->m_LineOffsets)
+{
     std::size_t pos = 0;
-    auto stream = std::move(file_handle->getStream());
+    const auto stream = std::move(module->file_handle->getStream());
 
     for (std::string line; std::getline(*stream, line); ) {
         line += '\n';
@@ -19,6 +23,7 @@ SourceManager::SourceManager(sw::FileHandle* file_handle): m_SourcePath(file_han
         pos += line.size();
     }
 }
+
 
 char SourceManager::peek() const {
     return m_Source.at(Pos);

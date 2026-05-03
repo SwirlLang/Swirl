@@ -15,11 +15,11 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
     };
 
 
-    explicit SymbolResolver(Parser& parser)
-        : SemaVisitor(parser)
-        , SymMan(parser.SymbolTable)
-        , ModuleMap(parser.ModuleMap)
-        , GlobalNodeJmpTable(parser.NodeJmpTable) {}
+    explicit SymbolResolver(Module* module, const ErrorCallback_t& error_callback)
+        : SemaVisitor(module, error_callback)
+        , SymMan(module->symbol_table)
+        , ModuleMap(module->getModuleManager())
+        , GlobalNodeJmpTable(module->node_jmp_table) {}
 
 
     void handle(ImportNode* node, const Data&) {
@@ -48,7 +48,7 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
                     id, node->is_exported
                     );
 
-                GlobalNodeJmpTable.insert({id, ModuleMap.get(node->mod_handle).NodeJmpTable.at(id)});
+                GlobalNodeJmpTable.insert({id, ModuleMap.get(node->mod_handle).node_jmp_table.at(id)});
             }
         }
     }

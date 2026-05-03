@@ -18,8 +18,6 @@
 #include "managers/ModuleManager.h"
 
 #include "CompilerInst.h"
-#include "sema/SymbolResolver.h"
-#include "sema/TypeResolver.h"
 
 
 /// Automatically sets certain node attributes
@@ -28,19 +26,18 @@
 using SwNode = std::unique_ptr<Node>;
 
 
-Parser::Parser(sw::FileSystem& fs, const fs::path& path, ErrorCallback_t error_callback, ModuleManager& mod_man)
+Parser::Parser(Module* module, ErrorCallback_t error_callback, ModuleManager& mod_man)
     : m_Stream(m_SrcMan)
-    , m_SrcMan(fs.open(path))
+    , m_SrcMan(module)
+    , m_Module(module)
     , m_ErrorCallback(std::move(error_callback))
-    , m_FileHandle(fs.open(path))
-    , m_FileSystem(fs)
+    , m_FileHandle(module->file_handle)
+    , m_FileSystem(*module->file_handle->getFileSystemHandle())
     , ModuleMap(mod_man)
-    , SymbolTable(
-        fs.open(path),
-        ModuleMap,
-        [this](auto code, const auto& ctx) {
+    , NodeJmpTable(module->node_jmp_table)
+    { m_Module->symbol_table.setErrorCallback([this](auto code, const auto& ctx) {
         reportError(code, ctx);
-    }) {}
+    });}
 
 
 void Parser::stackSafeguard() const {
@@ -326,16 +323,16 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
     ret.mod_handle = handle;
 
     if (!ModuleMap.contains(handle)) {
-        ModuleMap.insert(handle, new Parser{m_FileSystem, ret.mod_handle->getPath(), m_ErrorCallback, ModuleMap});
-        ModuleMap.get(handle).parse();
+        ModuleMap.insert(handle);
+        ModuleMap.get(handle).parse(m_ErrorCallback);
     }
 
-    if (m_Dependencies.contains(&ModuleMap.get(handle))) {
+    if (m_Module->dependencies.contains(&ModuleMap.get(handle))) {
         reportError(ErrCode::DUPLICATE_IMPORT);
     }
 
-    m_Dependencies.insert(&ModuleMap.get(handle));
-    ModuleMap.get(handle).m_Dependents.insert(this);
+    m_Module->dependencies.insert(&ModuleMap.get(handle));
+    ModuleMap.get(handle).dependents.insert(m_Module);
 
     // specific-symbol import
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "{") {
@@ -372,12 +369,12 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
         const auto name = ret.mod_handle->getPath().filename().replace_extension().string();
 
         // register the module-prefix in the symbol manager
-        SymbolTable.registerDecl(
+        m_Module->symbol_table.registerDecl(
             ret.alias.empty() ? name : ret.alias,
             {
                 .is_exported = ret.is_exported,
                 .is_mod_namespace = true,
-                .scope = SymbolTable.getGlobalScopeFromModule(ret.mod_handle)
+                .scope = m_Module->symbol_table.getGlobalScopeFromModule(ret.mod_handle)
             }) ? void() : reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {
                 .str_1 = ret.alias.empty() ? name : ret.alias
             });
@@ -401,56 +398,27 @@ void Parser::parse() {
 
         // TODO: remove duplicate import-registration logic
         if (!ModuleMap.contains(builtin_handle)) {
-            ModuleMap.insert(builtin_handle, new Parser{
-                m_FileSystem, builtin_handle->getPath(), m_ErrorCallback, ModuleMap});
-            ModuleMap.get(builtin_handle).parse();
+            ModuleMap.insert(builtin_handle);
+            ModuleMap.get(builtin_handle).parseAndRunSema(m_ErrorCallback);
         }
 
         ModuleMap.get(builtin_handle).insertExportedSymbolsInto([&builtin_import](std::string name) {
             builtin_import->imported_symbols.push_back({.actual_name = std::move(name)});
         });
 
-        m_Dependencies.insert(&ModuleMap.get(builtin_handle));
-        ModuleMap.get(builtin_handle).m_Dependents.insert(this);
-        ModuleMap.get(builtin_handle).performSema();
+        m_Module->dependencies.insert(&ModuleMap.get(builtin_handle));
+        ModuleMap.get(builtin_handle).dependents.insert(m_Module);
 
-        AST.emplace_back(std::move(builtin_import));
+        m_Module->ast.emplace_back(std::move(builtin_import));
     }
 
     while (!m_Stream.eof()) {
-        AST.emplace_back(dispatch());
+        m_Module->ast.emplace_back(dispatch());
     }
 
-    m_UnresolvedDeps = m_Dependencies.size();
-    if (m_Dependencies.empty())
-        ModuleMap.m_ZeroDepVec.push_back(this);
-}
-
-/// begin semantic analysis  ///
-void Parser::performSema() {
-    // TODO: the following logic to prevent builtins from undergoing sema twice is a temporary workaround until
-    //       they are completely integrated into the dependency system.
-    if (m_IsSemaComplete) {
-        return;
-    }
-
-    sema::SymbolResolver resolver{*this};
-    resolver.dispatch(AST, sema::SymbolResolver::Data{});
-
-    if (!resolver.errorsOccurred()) {
-        sema::TypeResolver type_resolver{*this};
-        type_resolver.dispatch(AST);
-    }
-
-    m_IsSemaComplete = true;
-}
-
-
-void Parser::decrementUnresolvedDeps() {
-    m_UnresolvedDeps--;
-    if (m_UnresolvedDeps == 0) {
-        ModuleMap.m_BackBuffer.push_back(this);
-    }
+    m_Module->unresolved_deps = m_Module->dependencies.size();
+    if (m_Module->dependencies.empty())
+        ModuleMap.m_ZeroDepVec.push_back(m_Module);
 }
 
 
@@ -461,7 +429,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     const std::string func_ident = m_Stream.next().value;
 
     // handle the special case of `main`
-    if (func_ident == "main" && !m_IsMainModule) {
+    if (func_ident == "main" && !m_Module->isMainModule()) {
         reportError(ErrCode::MAIN_REDEFINED);
     }
 
@@ -483,7 +451,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     auto function_t = std::make_unique<FunctionType>();
 
 
-    const auto fn_scope = SymbolTable.newScope();  // create the function body scope
+    const auto fn_scope = m_Module->symbol_table.newScope();  // create the function body scope
 
     // register the generic parameters
     for (auto& g_param : func_nd->generic_params) {
@@ -493,7 +461,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
         generic_ty->id = generic_id;
         g_param.id = generic_id;
 
-        SymbolTable.registerType(generic_id, generic_ty);
+        m_Module->symbol_table.registerType(generic_id, generic_ty);
     }
 
     // parse the parameters...
@@ -522,11 +490,11 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     if (!m_CurrentStructTy.back()) {  // when the function is not a method
         // register the function in the global scope
-        func_nd->ident = SymbolTable.registerDecl(func_ident, entry, 0);
+        func_nd->ident = m_Module->symbol_table.registerDecl(func_ident, entry, 0);
     } else {
         // not a method, func_nd.ident has been set before
         assert(func_nd->ident);
-        auto _ = SymbolTable.registerDecl(func_nd->ident, entry);
+        auto _ = m_Module->symbol_table.registerDecl(func_nd->ident, entry);
         assert(_);
     }
 
@@ -534,7 +502,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
 
     // register the function's signature as a type in the symbol manager
-    SymbolTable.registerType(func_nd->ident, function_t.release());
+    m_Module->symbol_table.registerType(func_nd->ident, function_t.release());
 
     // ReSharper disable once CppDFALocalValueEscapesFunction
     m_LatestFuncNode = func_nd.get();
@@ -542,7 +510,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
 
     if (func_nd->is_extern) {
         // TODO: report an error if a body is provided
-        SymbolTable.moveToPreviousScope();
+        m_Module->symbol_table.moveToPreviousScope();
         return func_nd;
     }
 
@@ -551,7 +519,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}") && !m_Stream.eof()) {
         func_nd->children.push_back(dispatch());
     } forwardStream();
-    SymbolTable.moveToPreviousScope();  // back to the global scope
+    m_Module->symbol_table.moveToPreviousScope();  // back to the global scope
 
     m_LatestFuncNode = nullptr;
     return func_nd;
@@ -577,8 +545,8 @@ Var Parser::parseParam(bool& method_is_static) {
         }
 
         assert(m_CurrentStructTy.back() != nullptr);
-        param.var_type  = TypeWrapper(SymbolTable.getReferenceType(m_CurrentStructTy.back(), is_mutable));
-        param.var_ident = SymbolTable.registerDecl("self", {
+        param.var_type  = TypeWrapper(m_Module->symbol_table.getReferenceType(m_CurrentStructTy.back(), is_mutable));
+        param.var_ident = m_Module->symbol_table.registerDecl("self", {
             .is_param = true,
             .swirl_type = param.var_type->type,
         });
@@ -601,7 +569,7 @@ Var Parser::parseParam(bool& method_is_static) {
     TableEntry param_entry;
     // param_entry.swirl_type = param.var_type;
     param_entry.is_param = true;
-    param.var_ident = SymbolTable.registerDecl(var_name, param_entry);
+    param.var_ident = m_Module->symbol_table.registerDecl(var_name, param_entry);
 
     return param;
 }
@@ -709,7 +677,7 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
     entry.node_ptr    = var_node.get();
     // entry.swirl_type  = var_node->var_type;
 
-    var_node->var_ident = SymbolTable.registerDecl(var_ident, entry);
+    var_node->var_ident = m_Module->symbol_table.registerDecl(var_ident, entry);
 
     // is a global variable
     if (m_RecursionDepth == 1) {
@@ -829,11 +797,11 @@ std::unique_ptr<Condition> Parser::parseCondition() {
 
     forwardStream();  // skip the opening brace
 
-    SymbolTable.newScope();
+    m_Module->symbol_table.newScope();
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}"))
         cnd->if_children.push_back(dispatch());
     forwardStream();
-    SymbolTable.moveToPreviousScope();
+    m_Module->symbol_table.moveToPreviousScope();
 
     // handle `else(s)`
     if (!(m_Stream.CurTok.type == KEYWORD && (m_Stream.CurTok.value == "else" || m_Stream.CurTok.value == "elif")))
@@ -841,7 +809,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
 
     if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "elif") {
         while (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "elif") {
-            SymbolTable.newScope();
+            m_Module->symbol_table.newScope();
             forwardStream();
 
             std::tuple<Expression, std::vector<SwNode>> children;
@@ -859,17 +827,17 @@ std::unique_ptr<Condition> Parser::parseCondition() {
             } forwardStream();
 
             cnd->elif_children.emplace_back(std::move(children));
-            SymbolTable.moveToPreviousScope();
+            m_Module->symbol_table.moveToPreviousScope();
         }
     }
 
     if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "else") {
-        SymbolTable.newScope();
+        m_Module->symbol_table.newScope();
         forwardStream(2);
         while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
             cnd->else_children.push_back(dispatch());
         } forwardStream();
-        SymbolTable.moveToPreviousScope();
+        m_Module->symbol_table.moveToPreviousScope();
     }
 
     return cnd;
@@ -898,7 +866,7 @@ Ident Parser::parseIdent() {
     }
 
     if (ret.full_qualification.size() == 1 && ret.full_qualification.at(0).generic_args.empty()) {
-        ret.value = SymbolTable.getIDInfoFor(ret.full_qualification.front().name);
+        ret.value = m_Module->symbol_table.getIDInfoFor(ret.full_qualification.front().name);
     }
 
     assert(!ret.full_qualification.empty());
@@ -914,16 +882,16 @@ std::unique_ptr<Enum> Parser::parseEnum() {
     TableEntry entry;
     entry.is_enum  = true;
     entry.node_ptr = ret.get();
-    ret->ident  = SymbolTable.registerDecl(forwardStream().value, entry);
+    ret->ident  = m_Module->symbol_table.registerDecl(forwardStream().value, entry);
 
-    auto scope = SymbolTable.newScope();
-    SymbolTable.lookupDecl(ret->ident).scope = scope;
+    auto scope = m_Module->symbol_table.newScope();
+    m_Module->symbol_table.lookupDecl(ret->ident).scope = scope;
 
     auto ty = new EnumType();
     ty->scope = entry.scope;
     ty->id = ret->ident;
 
-    SymbolTable.registerType(ret->ident, ty);
+    m_Module->symbol_table.registerType(ret->ident, ty);
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();  // skip ':'
@@ -947,7 +915,7 @@ std::unique_ptr<Enum> Parser::parseEnum() {
             ret->addEntry(name);
 
             const auto id_info = scope->getNewIDInfo(name, true);
-            SymbolTable.registerFictitiousID(id_info, ret.get());
+            m_Module->symbol_table.registerFictitiousID(id_info, ret.get());
             continue;
         }
 
@@ -955,7 +923,7 @@ std::unique_ptr<Enum> Parser::parseEnum() {
         forwardStream();
     } forwardStream();  // skip '}'
 
-    SymbolTable.moveToPreviousScope();
+    m_Module->symbol_table.moveToPreviousScope();
 
     if (m_RecursionDepth == 1) {
         NodeJmpTable[ret->ident] = ret.get();
@@ -1035,7 +1003,7 @@ std::unique_ptr<Protocol> Parser::parseProtocol() {
     }
 
     const TableEntry entry{.is_protocol = true, .node_ptr = ret.get()};
-    ret->protocol_id = SymbolTable.registerDecl(ret->protocol_name, entry);
+    ret->protocol_id = m_Module->symbol_table.registerDecl(ret->protocol_name, entry);
 
     if (m_RecursionDepth == 1) {
         NodeJmpTable.insert({ret->protocol_id, ret.get()});
@@ -1084,7 +1052,7 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     m_CurrentStructTy.push_back(struct_ty);
 
     // ask for a decl registry from the symbol manager
-    ret->ident = SymbolTable.registerDecl(struct_name, {
+    ret->ident = m_Module->symbol_table.registerDecl(struct_name, {
         .is_exported = ret->is_exported,
     });
 
@@ -1094,7 +1062,7 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     }
 
     // register the type and the scope of the struct as a qualifier
-    SymbolTable.registerType(ret->ident, struct_ty);
+    m_Module->symbol_table.registerType(ret->ident, struct_ty);
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         ret->protocols = parseProtocolList();
@@ -1102,15 +1070,15 @@ std::unique_ptr<Struct> Parser::parseStruct() {
 
     // create the struct's scope
     ignoreButExpect({PUNC, "{"});  // skip '{'
-    const auto scope_pointer = SymbolTable.newScope();
+    const auto scope_pointer = m_Module->symbol_table.newScope();
     struct_ty->scope = scope_pointer;
 
-    SymbolTable.lookupDecl(ret->ident).scope = scope_pointer;
+    m_Module->symbol_table.lookupDecl(ret->ident).scope = scope_pointer;
 
     // register the generic parameters in the scope
     for (auto& param : ret->generic_params) {
         param.id = scope_pointer->getNewIDInfo(param.name);
-        SymbolTable.registerType(param.id, new GenericType());
+        m_Module->symbol_table.registerType(param.id, new GenericType());
     }
 
     // handle the children
@@ -1127,10 +1095,10 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     m_CurrentStructTy.pop_back();
 
     // exit the struct's scope
-    SymbolTable.moveToPreviousScope();
+    m_Module->symbol_table.moveToPreviousScope();
 
     struct_ty->ident = ret->ident;
-    SymbolTable.lookupDecl(ret->ident).scope = scope_pointer;
+    m_Module->symbol_table.lookupDecl(ret->ident).scope = scope_pointer;
 
     if (m_RecursionDepth == 1) {
         NodeJmpTable.insert({ret->getIdentInfo(), ret.get()});
@@ -1147,12 +1115,12 @@ std::unique_ptr<WhileLoop> Parser::parseWhile() {
     forwardStream();
     loop->condition = parseExpr();
 
-    SymbolTable.newScope();
+    m_Module->symbol_table.newScope();
     forwardStream();
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
         loop->children.push_back(dispatch());
     } forwardStream();
-    SymbolTable.moveToPreviousScope();
+    m_Module->symbol_table.moveToPreviousScope();
 
     return loop;
 }

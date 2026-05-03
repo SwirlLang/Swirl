@@ -4,6 +4,7 @@
 
 
 class IdentInfo;
+struct Module;
 struct SourceLocation;
 namespace sw { class FileHandle; }
 
@@ -14,12 +15,12 @@ class SourceManager {
 
     std::filesystem::path m_SourcePath;
 
-    std::vector<std::array<std::size_t, 2>> m_LineOffsets;  // (line no. - 1) : {its starting pos, size}
+    std::vector<std::array<std::size_t, 2>>& m_LineOffsets;  // (line no. - 1) : {its starting pos, size}
     std::size_t Pos = 0, Line = 1, Col = 0;
 
 public:
 
-    explicit SourceManager(sw::FileHandle* file_handle);
+    explicit SourceManager(Module* module);
 
     /** @brief Returns the next value without discarding it */
     [[nodiscard]] char peek() const;

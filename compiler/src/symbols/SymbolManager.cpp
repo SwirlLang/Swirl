@@ -6,7 +6,7 @@ TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {
     static TableEntry fictitious_table_entry{.is_exported = true};
     if (id->isFictitious()) { return fictitious_table_entry; }
     if (sw::FileHandle* mod_path = id->getModuleFileHandle(); mod_path != m_ModuleHandle) {
-        return m_ModuleMap.get(mod_path).SymbolTable.m_IdToTableEntry.at(id);
+        return m_ModuleMap.get(mod_path).symbol_table.m_IdToTableEntry.at(id);
     } return m_IdToTableEntry.at(id);
 }
 
@@ -14,13 +14,13 @@ TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {
 Type* SymbolManager::lookupType(IdentInfo* id) {
     if (!id) return nullptr;
     if (const auto mod_path = id->getModuleFileHandle(); mod_path != m_ModuleHandle) {
-        return m_ModuleMap.get(mod_path).SymbolTable.m_TypeManager.getFor(id);
+        return m_ModuleMap.get(mod_path).symbol_table.m_TypeManager.getFor(id);
     } return m_TypeManager.getFor(id);
 }
 
 
 IdentInfo* SymbolManager::getIdInfoFromModule(sw::FileHandle* mod_path, const std::string& name) const {
-    return m_ModuleMap.get(mod_path).SymbolTable.getIdInfoOfAGlobal(name, true);
+    return m_ModuleMap.get(mod_path).symbol_table.getIdInfoOfAGlobal(name, true);
 }
 
 
@@ -111,5 +111,5 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
 
 
 Namespace* SymbolManager::getGlobalScopeFromModule(sw::FileHandle* mod) const {
-    return m_ModuleMap.get(mod).SymbolTable.getGlobalScope();
+    return m_ModuleMap.get(mod).symbol_table.getGlobalScope();
 }

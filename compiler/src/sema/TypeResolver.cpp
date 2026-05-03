@@ -1,5 +1,9 @@
 #include "sema/TypeResolver.h"
 
+#include "sema/SymbolResolver.h"
+#include "errors/ErrorManager.h"
+#include "parser/Parser.h"
+
 
 bool sema::TypeResolver::checkTypeCompatibility(Type* from, Type* to, bool report_errors) {
     if (!from || !to) return false;
@@ -343,4 +347,22 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, TypeCont
         node->common_type = unify(analysis_1.deduced_type, analysis_1.deduced_type);
     else node->common_type = analysis_1.deduced_type;
     return ret;
+}
+
+
+// TODO: to be removed once Sema gets decoupled from the module
+void Module::performSema(const ErrorCallback_t& error_callback) {
+    if (m_IsSemaComplete) {
+        return;
+    }
+
+    sema::SymbolResolver resolver{this, error_callback};
+    resolver.dispatch(ast, sema::SymbolResolver::Data{});
+
+    if (!resolver.errorsOccurred()) {
+        sema::TypeResolver type_resolver{this, error_callback};
+        type_resolver.dispatch(ast);
+    }
+
+    m_IsSemaComplete = true;
 }

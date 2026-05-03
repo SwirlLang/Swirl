@@ -46,10 +46,11 @@ void CompilerInst::startLLVMCodegen() {
     Backends_t llvm_backends;
     llvm_backends.reserve(m_ModuleManager.size());
 
-    for (Parser* parser : m_ModuleManager) {
-        auto* backend = llvm_backends.emplace_back(new LLVMBackend{*parser}).get();
-        m_ThreadPool.enqueue([backend, &parser] { backend->dispatch(parser->AST); });
+    for (Module* module : m_ModuleManager) {
+        auto* backend = llvm_backends.emplace_back(new LLVMBackend{module}).get();
+        m_ThreadPool.enqueue([backend, module] { backend->dispatch(module->ast); });
     }
+
     m_ThreadPool.wait();
 
     if (DebugMode) {

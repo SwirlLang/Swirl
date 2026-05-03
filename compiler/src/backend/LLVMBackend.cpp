@@ -49,12 +49,12 @@ llvm::Value* CGValue::getRValue(LLVMBackend& instance, const SwContext& context)
     } return m_RValue;
 }
 
-LLVMBackend::LLVMBackend(Parser& parser)
-    : ModuleManager(parser.ModuleMap)
-      , SymMan(parser.SymbolTable)
+LLVMBackend::LLVMBackend(Module* module)
+    : ModuleManager(module->getModuleManager())
+      , SymMan(module->symbol_table)
       , LModule{
           std::make_unique<llvm::Module>(
-              ModuleManager.getModuleUID(parser.m_FileHandle->getPath()),
+              ModuleManager.getModuleUID(module->file_handle->getPath()),
               LLVMContext)
       }
 {
@@ -985,6 +985,10 @@ CGValue LLVMBackend::llvmCodegen(ReturnStatement* node, const SwContext& context
 
 
 CGValue LLVMBackend::llvmCodegen(Struct* node, const SwContext& context) {
+    if (!node->generic_params.empty() && !context.is_generic_inst) {
+        return {};
+    }
+
     const auto struct_sw_ty = SymMan.lookupType(node->ident);
     assert(struct_sw_ty);
 

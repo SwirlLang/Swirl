@@ -773,8 +773,8 @@ struct Struct final : GlobalNode {
 
 
 struct Condition final : Node {
-    Expression bool_expr;
     bool       is_comptime = false;
+    Expression bool_expr;
 
     std::vector<std::unique_ptr<Node>> if_children{};
     std::vector<std::tuple<Expression, std::vector<std::unique_ptr<Node>>>> elif_children;
