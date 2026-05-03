@@ -12,6 +12,13 @@ struct OpInfo {
 };
 
 
+struct PairHash {
+    std::size_t operator()(const std::pair<std::string_view, int>& pair) const noexcept {
+        return combineHashes(std::hash<std::string_view>()(pair.first), std::hash<int>()(pair.second));
+    }
+};
+
+
 const static
 std::unordered_map<Op::OpTag_t, OpInfo> OpInfoTable = {
     {Op::ASSIGNMENT, {0, OpInfo::RIGHT}},
@@ -53,7 +60,7 @@ std::unordered_map<Op::OpTag_t, OpInfo> OpInfoTable = {
 
 
 const static
-std::unordered_map<std::pair<std::string_view, int>, Op::OpTag_t> OpTagMap = {
+std::unordered_map<std::pair<std::string_view, int>, Op::OpTag_t, PairHash> OpTagMap = {
     {{"+", 2}, Op::BINARY_ADD},
     {{"-", 2}, Op::BINARY_SUB},
 
