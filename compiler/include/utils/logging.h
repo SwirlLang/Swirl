@@ -1,11 +1,11 @@
 #pragma once
+#include <format>
 #include <string_view>
 
 #ifdef __has_include(<print>)
 #include <print>
 #else
 #include <iostream>
-#include <format>
 #include <ostream>
 #endif
 
@@ -14,10 +14,11 @@ extern bool SW_IS_DEBUG;
 
 namespace detail {
 constexpr std::string_view ANSI_CODE_RED    = "\x1b[31m";
+constexpr std::string_view ANSI_CODE_CYAN   = "\033[36m";
 constexpr std::string_view ANSI_CODE_GREEN  = "\x1b[32m";
 constexpr std::string_view ANSI_CODE_YELLOW = "\x1b[33m";
 constexpr std::string_view ANSI_CODE_RESET  = "\x1b[0m";
-constexpr std::string_view ANSI_CODE_CYAN   = "\033[36m";
+
 
 enum class Color {
     CYAN,  YELLOW,
