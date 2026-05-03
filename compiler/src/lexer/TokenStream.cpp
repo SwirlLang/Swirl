@@ -36,8 +36,16 @@ bool TokenStream::isId(const char chr) {
     return isIdStart(chr) || isDigit(chr);
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc99-designator"
+static constexpr bool OpCharTable[256] = {
+    ['='] = true, ['+'] = true, ['-'] = true, ['*'] = true, ['/'] = true, ['%'] = true,
+    [':'] = true, ['.'] = true,
+    ['|'] = true, ['&'] = true, ['!'] = true, ['>'] = true, ['<'] = true
+};
+
 bool TokenStream::isOpChar(const char _chr) {
-    return "+-*/%><=&|.:!"sv.find(_chr) != std::string::npos;
+    return OpCharTable[static_cast<unsigned char>(_chr)];
 }
 
 std::string TokenStream::readEscaped(const char _end) const {
