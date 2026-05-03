@@ -83,24 +83,106 @@ Token TokenStream::readString(const char del) const {
 }
 
 Token TokenStream::readOperator() const {
-    Token tok = {OP, std::string(1, m_Stream.getCurrentChar()), getStreamState()};
-    if (m_Stream.eof()) return tok;
+    const char curr = m_Stream.getCurrentChar();
+    const char next = m_Stream.eof() ? '\0' : m_Stream.peek();
 
-    const auto pot_op = std::string(1, m_Stream.getCurrentChar()) + m_Stream.peek();
-    if (OperatorSet.contains(pot_op)) {
-        m_Stream.next();
-
-        // discard the next operator if it's a comment not at EOF
-        if (pot_op == "//") {
-            if (m_Stream.eof()) [[unlikely]] {
-                return {NONE, "TOKEN:EOF", getStreamState()};
-            } m_Stream.next();
+    // Trie-based switch for efficient operator matching
+    switch (curr) {
+    case '=':
+        if (next == '=') {
+            m_Stream.next();
+            return {OP, "==", getStreamState()};
         }
+        return {OP, "=", getStreamState()};
 
-        return {OP, pot_op, getStreamState()};
+    case '+':
+        if (next == '=') {
+            m_Stream.next();
+            return {OP, "+=", getStreamState()};
+        }
+        return {OP, "+", getStreamState()};
+
+    case '-':
+        if (next == '=') {
+            m_Stream.next();
+            return {OP, "-=", getStreamState()};
+        }
+        return {OP, "-", getStreamState()};
+
+    case '*':
+        if (next == '=') {
+            m_Stream.next();
+            return {OP, "*=", getStreamState()};
+        }
+        return {OP, "*", getStreamState()};
+
+    case '/':
+        if (next == '=') {
+            m_Stream.next();
+            return {OP, "/=", getStreamState()};
+        }
+        if (next == '/') {
+            if (!m_Stream.eof())
+                m_Stream.next();
+            return {OP, "//", getStreamState()};
+        }
+        return {OP, "/", getStreamState()};
+
+    case '%':
+        if (next == '=') {
+            m_Stream.next();
+            return {OP, "%=", getStreamState()};
+        }
+        return {OP, "%", getStreamState()};
+
+    case ':':
+        if (next == ':') {
+            m_Stream.next();
+            return {OP, "::", getStreamState()};
+        }
+        return {OP, ":", getStreamState()};
+
+    case '|':
+        if (next == '|') {
+            m_Stream.next();
+            return {OP, "||", getStreamState()};
+        }
+        return {OP, "|", getStreamState()};
+
+    case '&':
+        if (next == '&') {
+            m_Stream.next();
+            return {OP, "&&", getStreamState()};
+        }
+        return {OP, "&", getStreamState()};
+
+    case '!':
+        if (next == '=') {
+            m_Stream.next();
+            return {OP, "!=", getStreamState()};
+        }
+        return {OP, "!", getStreamState()};
+
+    case '>':
+        if (next == '=') {
+            m_Stream.next();
+            return {OP, ">=", getStreamState()};
+        }
+        return {OP, ">", getStreamState()};
+
+    case '<':
+        if (next == '=') {
+            m_Stream.next();
+            return {OP, "<=", getStreamState()};
+        }
+        return {OP, "<", getStreamState()};
+
+    case '.':
+        return {OP, ".", getStreamState()};
+
+    default:
+        return {OP, std::string(1, curr), getStreamState()};
     }
-
-    return tok;
 }
 
 Token TokenStream::readNextTok() {
