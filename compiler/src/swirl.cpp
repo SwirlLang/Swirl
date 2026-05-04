@@ -1,31 +1,31 @@
+#include <filesystem>
 #include <string>
 #include <vector>
-#include <filesystem>
 
-#include "cli/cli.h"
 #include "CompilerInst.h"
+#include "cli/cli.h"
 #include "include/SwirlConfig.h"
 
 
 const std::vector<Argument> application_flags = {
-    {{"-h", "--help"}, "Show the help message.", false, {}},
-    {{"-o", "--output"}, "Output file name.", true, {}},
-    {{"-r", "--run"}, "Run the executable generated.", false, {}},
-    {{"-v", "--version"}, "Show the version of Swirl.", false, {}},
-    {{"-j", "--threads"}, "No. of threads to use (excluding the main-thread).", true},
-    {{"-t", "--target"}, "The target-triple of the target-platform.", true},
-    {{"-l", "--library"}, "The name of the library to link against.", true, true},
-    {{"-p", "--project"}, "/path/to/project/root.", true},
-    {{"-dep", "--dependency"}, "Register a dependency, in the format `path:name`.", true, true},
-    {{"-depth", "--depth"}, "Set the recursion-depth.", true, false},
-    {{"-d", "--debug"}, "Log the steps of compilation.", false, {}},
+        {{"-h", "--help"}, "Show the help message.", false, {}},
+        {{"-o", "--output"}, "Output file name.", true, {}},
+        {{"-r", "--run"}, "Run the executable generated.", false, {}},
+        {{"-v", "--version"}, "Show the version of Swirl.", false, {}},
+        {{"-j", "--threads"}, "No. of threads to use (excluding the main-thread).", true},
+        {{"-t", "--target"}, "The target-triple of the target-platform.", true},
+        {{"-l", "--library"}, "The name of the library to link against.", true, true},
+        {{"-p", "--project"}, "/path/to/project/root.", true},
+        {{"-dep", "--dependency"}, "Register a dependency, in the format `path:name`.", true, true},
+        {{"-depth", "--depth"}, "Set the recursion-depth.", true, false},
+        {{"-d", "--debug"}, "Log the steps of compilation.", false, {}},
 };
 
 
 bool SW_IS_DEBUG = false;
 
 
-int main(const int argc, const char** argv) {
+int main(const int argc, const char **argv) {
     cli app(argc, argv, application_flags);
 
     if (app.contains_flag("-h")) {
@@ -34,8 +34,8 @@ int main(const int argc, const char** argv) {
     }
 
     if (app.contains_flag("-v")) {
-        detail::stdout_write_line(
-            "Swirl v{}.{}.{}, built on {}.", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, __DATE__);
+        detail::stdout_write_line("Swirl v{}.{}.{}, built on {}.", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
+                                  __DATE__);
         return 0;
     }
 
@@ -69,27 +69,27 @@ int main(const int argc, const char** argv) {
         if (app.contains_flag("-depth"))
             CompilerInst::setRecursionDepth(app.get_flag_value("-depth"));
         if (app.contains_flag("-l")) {
-            for (const auto& lib : app.get_flag_values("-l"))
+            for (const auto &lib: app.get_flag_values("-l"))
                 CompilerInst::appendLinkTarget(lib);
         }
         if (app.contains_flag("-dep")) {
             // format: `path:alias`
-            for (const auto& dep : app.get_flag_values("-dep"))
+            for (const auto &dep: app.get_flag_values("-dep"))
                 CompilerInst::addPackageEntry(dep);
         }
         if (app.contains_flag("-p"))
             CompilerInst::addPackageEntry(
-                app.get_flag_value("-p") + ':' + fs::path(app.get_flag_value("-p")).filename().string(), true);
+                    app.get_flag_value("-p") + ':' + fs::path(app.get_flag_value("-p")).filename().string(), true);
         else {
             // if `-p` isn't passed explicitly, assume that the project root is the
             // directory in which the source file resides
             CompilerInst::addPackageEntry(source_file_path.parent_path().string() + ':' +
-                                              source_file_path.parent_path().filename().string(),
+                                                  source_file_path.parent_path().filename().string(),
                                           true);
         }
 
         if (app.contains_flag("-r"))
-                CompilerInst::RunExe = true;
+            CompilerInst::RunExe = true;
         if (app.contains_flag("-d")) {
             SW_IS_DEBUG = true;
             CompilerInst::DebugMode = true;
