@@ -1,14 +1,13 @@
 #include <string>
-#include <algorithm>
 #include <definitions.h>
-#include <string_view>
 
 #include "lexer/TokenStream.h"
+#include "lexer/Tokens.h"
 
 using namespace std::string_view_literals;
 
 bool TokenStream::isKeyword(const std::string& _str) {
-    return KeywordSet.contains(_str);
+    return KeywordMap.contains(_str);
 }
 
 bool TokenStream::isDigit(const char chr) {
@@ -34,6 +33,20 @@ bool TokenStream::isIdStart(const char chr) {
 bool TokenStream::isId(const char chr) {
     return isIdStart(chr) || isDigit(chr);
 }
+
+static constexpr auto PuncTable = [] {
+    std::array<Token::TokenValue, 256> table{};
+    table['{'] = Token::PUNC_LBRACE;
+    table['}'] = Token::PUNC_RBRACE;
+    table['('] = Token::PUNC_LPAREN;
+    table[')'] = Token::PUNC_RPAREN;
+    table['['] = Token::PUNC_LBRACKET;
+    table[']'] = Token::PUNC_RBRACKET;
+    table[','] = Token::PUNC_COMMA;
+    table[';'] = Token::PUNC_SEMI;
+    table['#'] = Token::PUNC_HASH;
+    return table;
+}();
 
 static constexpr auto OpCharTable = []() {
     std::array<bool, 256> table{};
@@ -112,7 +125,7 @@ std::string TokenStream::readEscaped(const char _end) const {
 Token TokenStream::readString(const char del) const {
     auto str = readEscaped(del);
     // if (!m_Stream.eof()) m_Stream.next();  // escape the '"'
-    return {STRING, std::move(str), getStreamState()};
+    return {STRING, std::move(str), getStreamState(), Token::STRING};
 }
 
 Token TokenStream::readOperator() const {
@@ -124,97 +137,98 @@ Token TokenStream::readOperator() const {
     case '=':
         if (next == '=') {
             m_Stream.next();
-            return {OP, "==", getStreamState()};
+            return {OP, "==", getStreamState(), Token::OP_EQ};
         }
-        return {OP, "=", getStreamState()};
+        return {OP, "=", getStreamState(), Token::OP_ASSIGN};
 
     case '+':
         if (next == '=') {
             m_Stream.next();
-            return {OP, "+=", getStreamState()};
+            return {OP, "+=", getStreamState(), Token::OP_PLUS_ASSIGN};
         }
-        return {OP, "+", getStreamState()};
+        return {OP, "+", getStreamState(), Token::OP_PLUS};
 
     case '-':
         if (next == '=') {
             m_Stream.next();
-            return {OP, "-=", getStreamState()};
+            return {OP, "-=", getStreamState(), Token::OP_MINUS_ASSIGN};
         }
-        return {OP, "-", getStreamState()};
+        return {OP, "-", getStreamState(), Token::OP_MINUS};
 
     case '*':
         if (next == '=') {
             m_Stream.next();
-            return {OP, "*=", getStreamState()};
+            return {OP, "*=", getStreamState(), Token::OP_MUL_ASSIGN};
         }
-        return {OP, "*", getStreamState()};
+        return {OP, "*", getStreamState(), Token::OP_MUL};
 
     case '/':
         if (next == '=') {
             m_Stream.next();
-            return {OP, "/=", getStreamState()};
+            return {OP, "/=", getStreamState(), Token::OP_DIV_ASSIGN};
         }
         if (next == '/') {
             if (!m_Stream.eof())
                 m_Stream.next();
-            return {OP, "//", getStreamState()};
+            return {OP, "//", getStreamState(), Token::OP_COMMENT};
         }
-        return {OP, "/", getStreamState()};
+        return {OP, "/", getStreamState(), Token::OP_DIV};
 
     case '%':
         if (next == '=') {
             m_Stream.next();
-            return {OP, "%=", getStreamState()};
+            return {OP, "%=", getStreamState(), Token::OP_MOD_ASSIGN};
         }
-        return {OP, "%", getStreamState()};
+        return {OP, "%", getStreamState(), Token::OP_MOD};
 
     case ':':
         if (next == ':') {
             m_Stream.next();
-            return {OP, "::", getStreamState()};
+            return {OP, "::", getStreamState(), Token::OP_SCOPE_RES};
         }
-        return {OP, ":", getStreamState()};
+        return {OP, ":", getStreamState(), Token::PUNC_COLON};
 
     case '|':
         if (next == '|') {
             m_Stream.next();
-            return {OP, "||", getStreamState()};
+            return {OP, "||", getStreamState(), Token::OP_LOGICAL_OR};
         }
-        return {OP, "|", getStreamState()};
+        return {OP, "|", getStreamState(), Token::OP_BITWISE_OR};
 
     case '&':
         if (next == '&') {
             m_Stream.next();
-            return {OP, "&&", getStreamState()};
+            return {OP, "&&", getStreamState(), Token::OP_LOGICAL_AND};
         }
-        return {OP, "&", getStreamState()};
+        return {OP, "&", getStreamState(), Token::OP_BITWISE_AND};
 
     case '!':
         if (next == '=') {
             m_Stream.next();
-            return {OP, "!=", getStreamState()};
+            return {OP, "!=", getStreamState(), Token::OP_NOT_EQ};
         }
-        return {OP, "!", getStreamState()};
+        return {OP, "!", getStreamState(), Token::OP_NOT};
 
     case '>':
         if (next == '=') {
             m_Stream.next();
-            return {OP, ">=", getStreamState()};
+            return {OP, ">=", getStreamState(), Token::OP_GT_EQ};
         }
-        return {OP, ">", getStreamState()};
+        return {OP, ">", getStreamState(), Token::OP_GT};
 
     case '<':
         if (next == '=') {
             m_Stream.next();
-            return {OP, "<=", getStreamState()};
+            return {OP, "<=", getStreamState(), Token::OP_LT_EQ};
         }
-        return {OP, "<", getStreamState()};
+        return {OP, "<", getStreamState(), Token::OP_LT};
 
     case '.':
-        return {OP, ".", getStreamState()};
+        return {OP, ".", getStreamState(), Token::OP_DOT};
 
     default:
-        return {OP, std::string(1, curr), getStreamState()};
+        // TODO: use swirl error manager instead of throwing rawdog exceptions
+        throw std::runtime_error(std::format("Invalid operator character: {}", curr));
     }
 }
 
@@ -236,18 +250,19 @@ Token TokenStream::readNextTok() {
                 const char next_char = m_Stream.peek();
                 if (!m_isPreviousTokIdent && isDigit(next_char) && next_char != '_')
                     return {NUMBER, "0" + readWhile(isDigit, [](const char c) { return c == '_'; }), getStreamState(),
-                            CT_FLOAT};
+                            Token::NUM_FLOAT};
 
                 if (next_char == '.' && !m_Stream.almostEOF() && m_Stream.peekDeeper() == '.') {
                     m_Stream.next();
                     m_Stream.next();
                     m_isPreviousTokIdent = false;
-                    return {OP, "...", getStreamState()};
+                    return {OP, "...", getStreamState(), Token::OP_ELLIPSIS};
                 }
             }
             m_isPreviousTokIdent = false;
             if (op.value == "//") {
-                return {COMMENT, readWhile([](const char c) { return c != '\n'; }), getStreamState()};
+                return {COMMENT, readWhile([](const char c) { return c != '\n'; }), getStreamState(),
+                        Token::OP_COMMENT};
             }
             return op;
         }
@@ -255,49 +270,50 @@ Token TokenStream::readNextTok() {
         m_isPreviousTokIdent = false;
         if (isIdStart(ch)) {
             auto val = readWhile(isId);
-            if (KeywordSet.contains(val))
-                return {KEYWORD, std::move(val), getStreamState()};
-            else if (val == "as")
-                return {OP, std::move(val), getStreamState()};
+            if (KeywordMap.contains(val)) {
+                Token::TokenValue kw_val = KeywordMap.at(val);
+                return {KEYWORD, std::move(val), getStreamState(), kw_val};
+            } else if (val == "as")
+                return {OP, std::move(val), getStreamState(), Token::OP_AS};
             m_isPreviousTokIdent = true;
-            return {IDENT, std::move(val), getStreamState()};
+            return {IDENT, std::move(val), getStreamState(), Token::IDENT};
         }
 
         if (isDigit(ch)) {
             if (m_Stream.eof())
-                return {NUMBER, std::string(1, ch), getStreamState(), CT_INT};
+                return {NUMBER, std::string(1, ch), getStreamState(), Token::NUM_INT};
             if (ch == '0') {
                 switch (m_Stream.peek()) {
                 case 'b':
                     m_Stream.next();
                     return {NUMBER, "0" + readWhile(isBinaryDigit, [](const char c) { return c == '_'; }),
-                            getStreamState(), CT_INT};
+                            getStreamState(), Token::NUM_INT};
                 case 'o':
                     m_Stream.next();
                     return {NUMBER, "0" + readWhile(isOctalDigit, [](const char c) { return c == '_'; }),
-                            getStreamState(), CT_INT};
+                            getStreamState(), Token::NUM_INT};
                 case 'x':
                     m_Stream.next();
                     return {NUMBER, "0" + readWhile(isHexDigit, [](const char c) { return c == '_'; }),
-                            getStreamState(), CT_INT};
+                            getStreamState(), Token::NUM_INT};
                 }
             }
             auto val = readWhile(isDigit, [](char c) { return c == '_'; });
             if (m_Stream.eof())
-                return {NUMBER, std::move(val), getStreamState(), CT_INT};
+                return {NUMBER, std::move(val), getStreamState(), Token::NUM_INT};
             if (m_Stream.peek() == '.') {
                 if (m_Stream.almostEOF())
-                    return {NUMBER, std::move(val), getStreamState(), CT_INT};
+                    return {NUMBER, std::move(val), getStreamState(), Token::NUM_INT};
                 if (isDigit(m_Stream.peekDeeper()) && m_Stream.peekDeeper() != '_') {
                     m_Stream.next();
                     return {NUMBER, val + readWhile(isDigit, [](const char c) { return c == '_'; }), getStreamState(),
-                            CT_FLOAT};
+                            Token::NUM_FLOAT};
                 }
             }
-            return {NUMBER, std::move(val), getStreamState(), CT_INT};
+            return {NUMBER, std::move(val), getStreamState(), Token::NUM_INT};
         }
 
-        return {PUNC, std::string(1, ch), getStreamState()};
+        return {PUNC, std::string(1, ch), getStreamState(), PuncTable.at(ch)};
     }
 }
 

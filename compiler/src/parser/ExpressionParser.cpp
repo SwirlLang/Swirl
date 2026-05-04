@@ -16,7 +16,7 @@ Node* ExpressionParser::parseComponent() {
     // this helper returns a packaged element-access operator if it detects its presence
     switch (m_Stream.CurTok.type) {
         case NUMBER: {
-            if (m_Stream.CurTok.meta == CT_FLOAT) {
+            if (m_Stream.CurTok.tokenid == Token::NUM_FLOAT) {
                 auto ret = make_node<FloatLit>(m_Stream.CurTok.value);
                 SET_NODE_ATTRS(ret);
                 m_Parser.forwardStream();

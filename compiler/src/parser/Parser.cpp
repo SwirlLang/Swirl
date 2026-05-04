@@ -1,60 +1,49 @@
-#include <filesystem>
-#include <memory>
-#include <fstream>
-#include <utility>
-#include <unordered_map>
-#include <vector>
-#include <optional>
-#include <functional>
 #include <expected>
+#include <filesystem>
+#include <fstream>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
-#include "utils/utils.h"
 #include "ast/Nodes.h"
 #include "parser/Parser.h"
+#include "utils/utils.h"
 
-#include "lexer/Tokens.h"
 #include "errors/ErrorManager.h"
-#include "symbols/SymbolManager.h"
+#include "lexer/Tokens.h"
 #include "managers/ModuleManager.h"
+#include "symbols/SymbolManager.h"
 
 #include "CompilerInst.h"
 
-
 /// Automatically sets certain node attributes
-#define SET_NODE_ATTRS(x) NodeAttrHelper GET_UNIQUE_NAME(attr_setter_){x, *this}
+#define SET_NODE_ATTRS(x)                                                                                              \
+    NodeAttrHelper GET_UNIQUE_NAME(attr_setter_) { x, *this }
 
-
-Parser::Parser(Module* module, ErrorCallback_t error_callback, ModuleManager& mod_man)
-    : m_Stream(m_SrcMan)
-    , m_SrcMan(module)
-    , m_Module(module)
-    , m_ErrorCallback(std::move(error_callback))
-    , m_FileHandle(module->file_handle)
-    , m_FileSystem(*module->file_handle->getFileSystemHandle())
-    , ModuleMap(mod_man)
-    , NodeJmpTable(module->node_jmp_table)
-    { m_Module->symbol_table.setErrorCallback([this](auto code, const auto& ctx) {
-        reportError(code, ctx);
-    });}
-
+Parser::Parser(Module *module, ErrorCallback_t error_callback, ModuleManager &mod_man) :
+    m_Stream(m_SrcMan), m_SrcMan(module), m_Module(module), m_ErrorCallback(std::move(error_callback)),
+    m_FileHandle(module->file_handle), m_FileSystem(*module->file_handle->getFileSystemHandle()), ModuleMap(mod_man),
+    NodeJmpTable(module->node_jmp_table) {
+    m_Module->symbol_table.setErrorCallback([this](auto code, const auto &ctx) { reportError(code, ctx); });
+}
 
 void Parser::stackSafeguard() const {
     if (m_RecursionDepth > CompilerInst::RecursionDepth) {
         std::println(stderr,
-            "Max recursion depth ({}) exceeded! "
-            "Use the `-depth <i>` flag to increase it.",
-            CompilerInst::RecursionDepth
-            );
+                     "Max recursion depth ({}) exceeded! "
+                     "Use the `-depth <i>` flag to increase it.",
+                     CompilerInst::RecursionDepth);
         std::exit(1);
     }
 }
 
-
 /// returns the current token and forwards the stream
 Token Parser::forwardStream(const uint8_t n) {
     Token ret = m_Stream.CurTok;
-    static const
-    auto get_opposite_brack = [](const char ch) {
+    static const auto get_opposite_brack = [](const char ch) {
         switch (ch) {
             case '}':
                 return '{';
@@ -75,43 +64,32 @@ Token Parser::forwardStream(const uint8_t n) {
 
     for (uint8_t _ = 0; _ < n; _++) {
         if (m_Stream.CurTok.type == PUNC) {
-            if (
-               m_Stream.CurTok.value == "{" ||
-               m_Stream.CurTok.value == "(" ||
-               m_Stream.CurTok.value == "[")
+            if (m_Stream.CurTok.value == "{" || m_Stream.CurTok.value == "(" || m_Stream.CurTok.value == "[")
                 m_BracketTracker.emplace_back(m_Stream.CurTok.value[0], m_Stream.getStreamState());
 
-            else if (
-                m_Stream.CurTok.value == "}" ||
-                m_Stream.CurTok.value == "]" ||
-                m_Stream.CurTok.value == ")"
-            ) {
-                if (m_BracketTracker.empty()
-                    || m_BracketTracker.back().val != get_opposite_brack(m_Stream.CurTok.value[0]))
-                {
-                    reportError(ErrCode::SYNTAX_ERROR, {
-                        .msg = std::format(
-                            "No '{}' is present to match '{}'.",
-                            get_opposite_brack(m_Stream.CurTok.value[0]),
-                            m_Stream.CurTok.value
-                        )
-                    });
-                } else m_BracketTracker.pop_back();
+            else if (m_Stream.CurTok.value == "}" || m_Stream.CurTok.value == "]" || m_Stream.CurTok.value == ")") {
+                if (m_BracketTracker.empty() ||
+                    m_BracketTracker.back().val != get_opposite_brack(m_Stream.CurTok.value[0])) {
+                    reportError(ErrCode::SYNTAX_ERROR, {.msg = std::format("No '{}' is present to match '{}'.",
+                                                                           get_opposite_brack(m_Stream.CurTok.value[0]),
+                                                                           m_Stream.CurTok.value)});
+                } else
+                    m_BracketTracker.pop_back();
             }
         }
 
         m_Stream.next();
-    } return ret;
+    }
+    return ret;
 }
-
 
 /// If `tok` is the current token in the stream, forward it, report a syntax error otherwise.
-void Parser::ignoreButExpect(const Token& tok) {
+void Parser::ignoreButExpect(const Token &tok) {
     if (m_Stream.CurTok != tok) {
         reportError(ErrCode::SYNTAX_ERROR, {.msg = std::format("Expected '{}'.", tok.value)});
-    } else forwardStream();
+    } else
+        forwardStream();
 }
-
 
 TypeWrapper Parser::parseType() {
     TypeWrapper wrapper;
@@ -122,7 +100,7 @@ TypeWrapper Parser::parseType() {
 
     while (m_Stream.CurTok.type == OP && (m_Stream.CurTok.value == "&" || m_Stream.CurTok.value == "*")) {
         if (m_Stream.CurTok.value == "&") {
-            wrapper.modifiers.push_back(TypeWrapper::Reference);  // do not push the slice-associated `&`
+            wrapper.modifiers.push_back(TypeWrapper::Reference); // do not push the slice-associated `&`
             is_reference_present = true;
             forwardStream();
         } else if (m_Stream.CurTok.value == "*") {
@@ -139,14 +117,15 @@ TypeWrapper Parser::parseType() {
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "|") {
             forwardStream();
 
-            if (m_Stream.CurTok.type == NUMBER && m_Stream.CurTok.meta == CT_INT) {
+            if (m_Stream.CurTok.type == NUMBER && m_Stream.CurTok.tokenid == Token::NUM_INT) {
                 wrapper.array_size = toInteger(forwardStream().value);
-            } else reportError(ErrCode::NON_INT_ARRAY_SIZE);
+            } else
+                reportError(ErrCode::NON_INT_ARRAY_SIZE);
             ignoreButExpect({PUNC, "]"});
         } else {
             if (wrapper.modifiers.back() == TypeWrapper::Reference)
                 wrapper.modifiers.pop_back();
-            wrapper.is_slice = true;  // only slices are allowed to not have a size
+            wrapper.is_slice = true; // only slices are allowed to not have a size
             ignoreButExpect({PUNC, "]"});
         }
 
@@ -161,142 +140,120 @@ TypeWrapper Parser::parseType() {
     }
 
     if (!is_reference_present && wrapper.is_slice) {
-        reportError(ErrCode::SYNTAX_ERROR, {
-            .msg = "Only slices are allowed to not have an explicit size. "
-            "Did you forgot to place an `&`?"
-        });
+        reportError(ErrCode::SYNTAX_ERROR, {.msg = "Only slices are allowed to not have an explicit size. "
+                                                   "Did you forgot to place an `&`?"});
     }
 
     return wrapper;
 }
 
-
-Node* Parser::dispatch() {
+Node *Parser::dispatch() {
     while (!m_Stream.eof()) {
-        // pattern matching in C++ when?
-        switch (m_Stream.CurTok.type) {
-            case KEYWORD:
-                if (m_Stream.CurTok.value == "let" ||
-                    m_Stream.CurTok.value == "var" ||
-                    m_Stream.CurTok.value == "comptime"
-                    ) return parseVar(false);
-
-                if (m_Stream.CurTok.value == "import")
-                    return parseImport();
-
-                if (m_Stream.CurTok.value == "fn")
-                    return parseFunction();
-
-                if (m_Stream.CurTok.value == "if")
-                    return parseCondition();
-
-                if (m_Stream.CurTok.value == "struct")
-                    return parseStruct();
-
-                if (m_Stream.CurTok.value == "while")
-                    return parseWhile();
-
-                if (m_Stream.CurTok.value == "return")
-                    return parseRet();
-
-                if (m_Stream.CurTok.value == "protocol")
-                    return parseProtocol();
-
-                if (m_Stream.CurTok.value == "enum")
-                    return parseEnum();
-
-                if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false")
-                    return m_Module->makeNode<Expression>(parseExpr());
-
-                if (m_Stream.CurTok.value == "volatile") {
-                    forwardStream();
-                    return parseVar(true);
-                }
-
-                if (m_Stream.CurTok.value == "break") {
-                    forwardStream();
-                    return m_Module->makeNode<BreakStmt>();
-                }
-
-                if (m_Stream.CurTok.value == "continue") {
-                    forwardStream();
-                    return m_Module->makeNode<ContinueStmt>();
-                }
-
-                if (m_Stream.CurTok.value == "export") {
-                    m_LastSymWasExported = true;
-                    forwardStream();
-                    continue;
-                }
-
-                if (m_Stream.CurTok.value == "extern") {
-                    m_LastSymIsExtern = true;
-                    forwardStream();
-
-                    if (m_Stream.CurTok.type == STRING) {
-                        m_ExternAttributes = std::move(m_Stream.CurTok.value);
-                        forwardStream();
-                    } continue;
-                }
-
-                reportError(ErrCode::UNEXPECTED_KEYWORD, {.str_1 = m_Stream.CurTok.value});
+        switch (m_Stream.CurTok.tokenid) {
+            case Token::KW_LET:
+            case Token::KW_VAR:
+            case Token::KW_COMPTIME:
+                return parseVar(false);
+            case Token::KW_IMPORT:
+                return parseImport();
+            case Token::KW_FN:
+                return parseFunction();
+            case Token::KW_IF:
+                return parseCondition();
+            case Token::KW_STRUCT:
+                return parseStruct();
+            case Token::KW_WHILE:
+                return parseWhile();
+            case Token::KW_RETURN:
+                return parseRet();
+            case Token::KW_PROTOCOL:
+                return parseProtocol();
+            case Token::KW_ENUM:
+                return parseEnum();
+            case Token::KW_TRUE:
+            case Token::KW_FALSE:
+                return m_Module->makeNode<Expression>(parseExpr());
+            case Token::KW_VOLATILE:
+                forwardStream();
+                return parseVar(true);
+            case Token::KW_BREAK:
+                forwardStream();
+                return m_Module->makeNode<BreakStmt>();
+            case Token::KW_CONTINUE:
+                forwardStream();
+                return m_Module->makeNode<ContinueStmt>();
+            case Token::KW_EXPORT:
+                m_LastSymWasExported = true;
                 forwardStream();
                 continue;
+            case Token::KW_EXTERN:
+                m_LastSymIsExtern = true;
+                forwardStream();
 
-            case NUMBER:
-            case STRING:
-            case IDENT:
-            case OP:
-                return m_Module->makeNode<Expression>(parseExpr());
-            case PUNC:
-                if (m_Stream.CurTok.value == "[" || m_Stream.CurTok.value == "(")
-                    return m_Module->makeNode<Expression>(parseExpr());
-
-                if (m_Stream.CurTok.value == "{")
-                    return parseScope();
-
-                if (m_Stream.CurTok.value == "#") {
+                if (m_Stream.CurTok.type == STRING) {
+                    m_ExternAttributes = std::move(m_Stream.CurTok.value);
                     forwardStream();
-                    m_AttributeList = parseExpr();
+                }
+                continue;
+
+            case Token::PUNC_LBRACKET:
+            case Token::PUNC_LPAREN:
+                return m_Module->makeNode<Expression>(parseExpr());
+
+            case Token::PUNC_LBRACE:
+                return parseScope();
+            case Token::PUNC_HASH: {
+                forwardStream();
+                m_AttributeList = parseExpr();
+                continue;
+            }
+
+            // ignore semicolons
+            case Token::PUNC_SEMI:
+                forwardStream();
+                return m_Module->makeNode<Node>();
+            case Token::PUNC_RBRACE:
+                if (m_BracketTracker.empty() || m_BracketTracker.back().val != '{') {
+                    forwardStream();
                     continue;
                 }
-
-                // ignore semicolons
-                if (m_Stream.CurTok.value == ";") {
-                    forwardStream();
-                    return m_Module->makeNode<Node>();
-                }
-
-                if (m_Stream.CurTok.value == "}") {
-                    if (m_BracketTracker.empty() || m_BracketTracker.back().val != '{') {
+                return m_Module->makeNode<Node>();
+            default:
+                switch (m_Stream.CurTok.type) {
+                    case KEYWORD:
+                        reportError(ErrCode::UNEXPECTED_KEYWORD, {.str_1 = m_Stream.CurTok.value});
                         forwardStream();
                         continue;
-                    } return m_Module->makeNode<Node>();
-                } [[fallthrough]];
-            default:
-                reportError(ErrCode::SYNTAX_ERROR);
-                forwardStream();
+                    case NUMBER:
+                    case STRING:
+                    case IDENT:
+                    case OP:
+                        return m_Module->makeNode<Expression>(parseExpr());
+                    default:
+                        reportError(ErrCode::SYNTAX_ERROR);
+                        forwardStream();
+                        break;
+                }
         }
     }
-
     reportError(ErrCode::UNEXPECTED_EOF);
     return {};
 }
 
-
-Node* Parser::parseImport() {
+Node *Parser::parseImport() {
     ImportNode ret;
     SET_NODE_ATTRS(&ret);
 
-    forwardStream();  // skip 'import'
+    forwardStream(); // skip 'import'
 
     fs::path mod_path;
 
     if (CompilerInst::PackageTable.contains(m_Stream.CurTok.value)) {
         mod_path = CompilerInst::PackageTable[m_Stream.CurTok.value].package_root;
-    } else reportError(ErrCode::PACKAGE_NOT_FOUND, {.str_1 = m_Stream.CurTok.value});
+    } else
+        reportError(ErrCode::PACKAGE_NOT_FOUND, {.str_1 = m_Stream.CurTok.value});
 
-    forwardStream();  // skip the current IDENT
+    forwardStream(); // skip the current IDENT
     ignoreButExpect({OP, "::"});
 
     while (m_Stream.CurTok.type == IDENT) {
@@ -334,53 +291,49 @@ Node* Parser::parseImport() {
 
     // specific-symbol import
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "{") {
-        forwardStream();  // skip '{'
+        forwardStream(); // skip '{'
 
         while (m_Stream.CurTok.type != PUNC || m_Stream.CurTok.value != "}") {
             ret.imported_symbols.emplace_back(forwardStream().value);
 
             if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {
-                forwardStream();  // skip "as"
+                forwardStream(); // skip "as"
                 ret.imported_symbols.back().assigned_alias = forwardStream().value;
             }
 
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ",") {
                 forwardStream();
             }
-        } ignoreButExpect({PUNC, "}"});
+        }
+        ignoreButExpect({PUNC, "}"});
     } else { // otherwise, if non-specific but aliased or wildcard
-        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {  // non-specific but aliased
+        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") { // non-specific but aliased
             forwardStream();
             ret.alias = forwardStream().value;
         }
-        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {  // wildcard
+        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") { // wildcard
             forwardStream();
             ret.is_wildcard = true;
-            ModuleMap.get(handle).insertExportedSymbolsInto([&ret](std::string name) {
-                ret.imported_symbols.push_back({.actual_name = std::move(name)});
-            });
-        }
-        else forwardStream();
+            ModuleMap.get(handle).insertExportedSymbolsInto(
+                    [&ret](std::string name) { ret.imported_symbols.push_back({.actual_name = std::move(name)}); });
+        } else
+            forwardStream();
     }
 
     if (ret.imported_symbols.empty() && !ret.is_wildcard) {
         const auto name = ret.mod_handle->getPath().filename().replace_extension().string();
 
         // register the module-prefix in the symbol manager
-        m_Module->symbol_table.registerDecl(
-            ret.alias.empty() ? name : ret.alias,
-            {
-                .is_exported = ret.is_exported,
-                .is_mod_namespace = true,
-                .scope = m_Module->symbol_table.getGlobalScopeFromModule(ret.mod_handle)
-            }) ? void() : reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {
-                .str_1 = ret.alias.empty() ? name : ret.alias
-            });
+        m_Module->symbol_table.registerDecl(ret.alias.empty() ? name : ret.alias,
+                                            {.is_exported = ret.is_exported,
+                                             .is_mod_namespace = true,
+                                             .scope = m_Module->symbol_table.getGlobalScopeFromModule(ret.mod_handle)})
+                ? void()
+                : reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {.str_1 = ret.alias.empty() ? name : ret.alias});
     }
 
     return m_Module->makeNode<ImportNode>(std::move(ret));
 }
-
 
 /// begin parsing ///
 void Parser::parse() {
@@ -392,7 +345,7 @@ void Parser::parse() {
         auto builtin_import = m_Module->makeNode<ImportNode>();
         builtin_import->is_wildcard = true;
         builtin_import->is_exported = false;
-        builtin_import->mod_handle  = builtin_handle;
+        builtin_import->mod_handle = builtin_handle;
 
         // TODO: remove duplicate import-registration logic
         if (!ModuleMap.contains(builtin_handle)) {
@@ -419,8 +372,7 @@ void Parser::parse() {
         ModuleMap.m_ZeroDepVec.push_back(m_Module);
 }
 
-
-Node* Parser::parseFunction() {
+Node *Parser::parseFunction() {
     auto func_nd = m_Module->makeNode<Function>();
     SET_NODE_ATTRS(func_nd);
 
@@ -448,11 +400,10 @@ Node* Parser::parseFunction() {
     ignoreButExpect({PUNC, "("});
     auto function_t = std::make_unique<FunctionType>();
 
-
-    const auto fn_scope = m_Module->symbol_table.newScope();  // create the function body scope
+    const auto fn_scope = m_Module->symbol_table.newScope(); // create the function body scope
 
     // register the generic parameters
-    for (auto& g_param : func_nd->generic_params) {
+    for (auto &g_param: func_nd->generic_params) {
         const auto generic_id = fn_scope->getNewIDInfo(g_param.name);
         const auto generic_ty = new GenericType{};
 
@@ -472,7 +423,7 @@ Node* Parser::parseFunction() {
     }
 
     // current token == ')'
-    forwardStream();  // skip ')'
+    forwardStream(); // skip ')'
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();
@@ -480,13 +431,13 @@ Node* Parser::parseFunction() {
     }
 
     TableEntry entry;
-    entry.swirl_type  = function_t.get();
+    entry.swirl_type = function_t.get();
     entry.is_exported = func_nd->is_exported;
-    entry.method_of   = m_CurrentStructTy.back();
-    entry.is_static   = method_is_static;
-    entry.node_ptr    = func_nd;
+    entry.method_of = m_CurrentStructTy.back();
+    entry.is_static = method_is_static;
+    entry.node_ptr = func_nd;
 
-    if (!m_CurrentStructTy.back()) {  // when the function is not a method
+    if (!m_CurrentStructTy.back()) { // when the function is not a method
         // register the function in the global scope
         func_nd->ident = m_Module->symbol_table.registerDecl(func_ident, entry, 0);
     } else {
@@ -497,7 +448,6 @@ Node* Parser::parseFunction() {
     }
 
     function_t->ident = func_nd->ident;
-
 
     // register the function's signature as a type in the symbol manager
     m_Module->symbol_table.registerType(func_nd->ident, function_t.release());
@@ -513,24 +463,24 @@ Node* Parser::parseFunction() {
     }
 
     // parse the children
-    forwardStream();  // skip '{'
+    forwardStream(); // skip '{'
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}") && !m_Stream.eof()) {
         func_nd->children.push_back(dispatch());
-    } forwardStream();
-    m_Module->symbol_table.moveToPreviousScope();  // back to the global scope
+    }
+    forwardStream();
+    m_Module->symbol_table.moveToPreviousScope(); // back to the global scope
 
     m_LatestFuncNode = nullptr;
     return func_nd;
 }
 
-
-Var Parser::parseParam(bool& method_is_static) {
+Var Parser::parseParam(bool &method_is_static) {
     Var param;
     param.is_param = true;
 
     SET_NODE_ATTRS(&param);
 
-    param.is_const = true;  // all parameters are immutable
+    param.is_const = true; // all parameters are immutable
 
     // special case of `&self`
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
@@ -543,11 +493,11 @@ Var Parser::parseParam(bool& method_is_static) {
         }
 
         assert(m_CurrentStructTy.back() != nullptr);
-        param.var_type  = TypeWrapper(m_Module->symbol_table.getReferenceType(m_CurrentStructTy.back(), is_mutable));
+        param.var_type = TypeWrapper(m_Module->symbol_table.getReferenceType(m_CurrentStructTy.back(), is_mutable));
         param.var_ident = m_Module->symbol_table.registerDecl("self", {
-            .is_param = true,
-            .swirl_type = param.var_type->type,
-        });
+                                                                              .is_param = true,
+                                                                              .swirl_type = param.var_type->type,
+                                                                      });
 
         method_is_static = false;
         ignoreButExpect({IDENT, "self"});
@@ -563,7 +513,6 @@ Var Parser::parseParam(bool& method_is_static) {
     if (param.initialized)
         param.value = parseExpr();
 
-
     TableEntry param_entry;
     // param_entry.swirl_type = param.var_type;
     param_entry.is_param = true;
@@ -572,11 +521,10 @@ Var Parser::parseParam(bool& method_is_static) {
     return param;
 }
 
-
 std::vector<GenericParam> Parser::parseGenericParamList() {
     std::vector<GenericParam> params;
 
-    forwardStream();  // skip '<'
+    forwardStream(); // skip '<'
     while (true) {
         if (m_Stream.eof()) {
             reportError(ErrCode::UNEXPECTED_EOF);
@@ -596,15 +544,15 @@ std::vector<GenericParam> Parser::parseGenericParamList() {
         GenericParam param;
         param.name = forwardStream().value;
         params.push_back(std::move(param));
-    } return params;
+    }
+    return params;
 }
-
 
 GenericArgList Parser::parseGenericArgList() {
     GenericArgList ret;
-    auto& args = ret.generic_args;
+    auto &args = ret.generic_args;
 
-    forwardStream();  // skip '<'
+    forwardStream(); // skip '<'
 
     while (true) {
         if (m_Stream.eof()) {
@@ -626,14 +574,14 @@ GenericArgList Parser::parseGenericArgList() {
         if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "comptime") {
             forwardStream();
             args.emplace_back(new GenericArg(parseExpr()));
-        } else args.emplace_back(new GenericArg(parseType()));
+        } else
+            args.emplace_back(new GenericArg(parseType()));
     }
 
     return ret;
 }
 
-
-Node* Parser::parseVar(const bool is_volatile) {
+Node *Parser::parseVar(const bool is_volatile) {
     auto ret = m_Module->makeNode<Var>();
     SET_NODE_ATTRS(ret);
 
@@ -645,8 +593,7 @@ Node* Parser::parseVar(const bool is_volatile) {
     ret->is_volatile = is_volatile;
 
     const std::string var_ident = m_Stream.next().value;
-    forwardStream();  // [:, =]
-
+    forwardStream(); // [:, =]
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();
@@ -657,8 +604,9 @@ Node* Parser::parseVar(const bool is_volatile) {
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "=") {
         forwardStream();
         if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "undefined") {
-               ret->initialized = false;
-        } else ret->initialized = true;
+            ret->initialized = false;
+        } else
+            ret->initialized = true;
         ret->value = parseExpr();
     }
 
@@ -669,10 +617,10 @@ Node* Parser::parseVar(const bool is_volatile) {
     }
 
     TableEntry entry;
-    entry.is_const    = ret->is_const;
+    entry.is_const = ret->is_const;
     entry.is_volatile = ret->is_volatile;
     entry.is_exported = ret->is_exported;
-    entry.node_ptr    = ret;
+    entry.node_ptr = ret;
     // entry.swirl_type  = var_node->var_type;
 
     ret->var_ident = m_Module->symbol_table.registerDecl(var_ident, entry);
@@ -685,8 +633,7 @@ Node* Parser::parseVar(const bool is_volatile) {
     return ret;
 }
 
-
-Node* Parser::parseCall(std::optional<Ident> ident) {
+Node *Parser::parseCall(std::optional<Ident> ident) {
     auto call_node = m_Module->makeNode<FuncCall>();
     SET_NODE_ATTRS(call_node);
     call_node->ident = std::move(ident.value());
@@ -695,7 +642,7 @@ Node* Parser::parseCall(std::optional<Ident> ident) {
         call_node->generic_args = parseGenericArgList();
     }
 
-    forwardStream();  // skip '('
+    forwardStream(); // skip '('
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ")")) {
         if (m_Stream.eof()) {
             reportError(ErrCode::UNEXPECTED_EOF);
@@ -708,19 +655,18 @@ Node* Parser::parseCall(std::optional<Ident> ident) {
         }
 
         call_node->args.emplace_back(parseExpr());
-    } forwardStream();
+    }
+    forwardStream();
 
     return call_node;
 }
 
-
-Node* Parser::parseRet() {
+Node *Parser::parseRet() {
     auto ret = m_Module->makeNode<ReturnStatement>();
     SET_NODE_ATTRS(ret);
 
     if (m_LatestFuncNode == nullptr) {
-        reportError(ErrCode::SYNTAX_ERROR, {
-            .msg = "`return` cannot appear outside functions."});
+        reportError(ErrCode::SYNTAX_ERROR, {.msg = "`return` cannot appear outside functions."});
     }
 
     forwardStream();
@@ -731,12 +677,11 @@ Node* Parser::parseRet() {
     return ret;
 }
 
-
-Node* Parser::parseIntrinsic() {
+Node *Parser::parseIntrinsic() {
     auto call_node = m_Module->makeNode<Intrinsic>();
     SET_NODE_ATTRS(call_node);
 
-    forwardStream();  // skip the `@`
+    forwardStream(); // skip the `@`
 
     if (m_Stream.CurTok.value == "sizeof") {
         forwardStream();
@@ -747,19 +692,20 @@ Node* Parser::parseIntrinsic() {
         call_node->intrinsic_type = Intrinsic::SIZEOF;
 
         if (m_Stream.CurTok.value == "@" && m_Stream.CurTok.type == PUNC)
-             arg = Expression::makeExpression(parseIntrinsic());
-        else arg = Expression::makeExpression(new TypeWrapper(parseType()));
+            arg = Expression::makeExpression(parseIntrinsic());
+        else
+            arg = Expression::makeExpression(new TypeWrapper(parseType()));
 
         call_node->args.push_back(std::move(arg));
         ignoreButExpect({PUNC, ")"});
 
-    } else *call_node = dynamic_cast<FuncCall*>(parseCall(parseIdent()));
+    } else
+        *call_node = dynamic_cast<FuncCall *>(parseCall(parseIdent()));
 
     return call_node;
 }
 
-
-Node* Parser::parseScope() {
+Node *Parser::parseScope() {
     auto scope = m_Module->makeNode<Scope>();
     SET_NODE_ATTRS(scope);
 
@@ -776,18 +722,18 @@ Node* Parser::parseScope() {
         }
 
         scope->children.emplace_back(dispatch());
-    } return scope;
+    }
+    return scope;
 }
 
-
-Node* Parser::parseCondition() {
+Node *Parser::parseCondition() {
     auto cnd = m_Module->makeNode<Condition>();
     SET_NODE_ATTRS(cnd);
 
-    forwardStream();  // skip "if"
+    forwardStream(); // skip "if"
     if (m_Stream.CurTok == Token{KEYWORD, "comptime"}) {
         cnd->is_comptime = true;
-        forwardStream();  // skip "comptime"
+        forwardStream(); // skip "comptime"
     }
 
     cnd->bool_expr = parseExpr();
@@ -795,7 +741,7 @@ Node* Parser::parseCondition() {
         cnd->bool_expr = Expression::makeExpression(cnd->bool_expr.evaluate(*this));
     }
 
-    forwardStream();  // skip the opening brace
+    forwardStream(); // skip the opening brace
 
     m_Module->symbol_table.newScope();
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}"))
@@ -812,19 +758,18 @@ Node* Parser::parseCondition() {
             m_Module->symbol_table.newScope();
             forwardStream();
 
-            std::tuple<Expression, std::vector<Node*>> children;
+            std::tuple<Expression, std::vector<Node *>> children;
             std::get<0>(children) = parseExpr();
 
             if (cnd->is_comptime) {
-                std::get<0>(children) = Expression::makeExpression(
-                    std::get<0>(children).evaluate(*this)
-                    );
+                std::get<0>(children) = Expression::makeExpression(std::get<0>(children).evaluate(*this));
             }
 
             forwardStream();
             while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
                 std::get<1>(children).push_back(dispatch());
-            } forwardStream();
+            }
+            forwardStream();
 
             cnd->elif_children.emplace_back(std::move(children));
             m_Module->symbol_table.moveToPreviousScope();
@@ -836,13 +781,13 @@ Node* Parser::parseCondition() {
         forwardStream(2);
         while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
             cnd->else_children.push_back(dispatch());
-        } forwardStream();
+        }
+        forwardStream();
         m_Module->symbol_table.moveToPreviousScope();
     }
 
     return cnd;
 }
-
 
 Ident Parser::parseIdent() {
     Ident ret;
@@ -873,16 +818,15 @@ Ident Parser::parseIdent() {
     return ret;
 }
 
-
-Node* Parser::parseEnum() {
+Node *Parser::parseEnum() {
     auto ret = m_Module->makeNode<Enum>();
     SET_NODE_ATTRS(ret);
 
-    forwardStream();  // skip 'enum'
+    forwardStream(); // skip 'enum'
     TableEntry entry;
-    entry.is_enum  = true;
+    entry.is_enum = true;
     entry.node_ptr = ret;
-    ret->ident  = m_Module->symbol_table.registerDecl(forwardStream().value, entry);
+    ret->ident = m_Module->symbol_table.registerDecl(forwardStream().value, entry);
 
     auto scope = m_Module->symbol_table.newScope();
     m_Module->symbol_table.lookupDecl(ret->ident).scope = scope;
@@ -894,7 +838,7 @@ Node* Parser::parseEnum() {
     m_Module->symbol_table.registerType(ret->ident, ty);
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
-        forwardStream();  // skip ':'
+        forwardStream(); // skip ':'
         ret->enum_type = parseType();
     }
 
@@ -921,7 +865,8 @@ Node* Parser::parseEnum() {
 
         reportError(ErrCode::SYNTAX_ERROR, {.msg = "Expected identifier."});
         forwardStream();
-    } forwardStream();  // skip '}'
+    }
+    forwardStream(); // skip '}'
 
     m_Module->symbol_table.moveToPreviousScope();
 
@@ -932,8 +877,7 @@ Node* Parser::parseEnum() {
     return ret;
 }
 
-
-Node* Parser::parseProtocol() {
+Node *Parser::parseProtocol() {
     auto ret = m_Module->makeNode<Protocol>();
     SET_NODE_ATTRS(ret);
 
@@ -966,27 +910,27 @@ Node* Parser::parseProtocol() {
             case ND_VAR: {
                 const auto var = child->to<Var>();
                 ret->members.push_back(Protocol::MemberSignature{
-                    .name = var->var_ident->toString(),
-                    .type = std::move(var->var_type.value()),
+                        .name = var->var_ident->toString(),
+                        .type = std::move(var->var_type.value()),
                 });
                 break;
             }
 
             case ND_FUNC: {
-                const auto func  = child->to<Function>();
+                const auto func = child->to<Function>();
                 std::vector<TypeWrapper> func_params;
 
                 // TODO: allow protocols to be used as "types" in the methods' params within the protocol
 
                 func_params.reserve(func->params.size());
-                for (auto& var : func->params) {
+                for (auto &var: func->params) {
                     func_params.push_back(std::move(var.var_type.value()));
                 }
 
                 ret->methods.push_back(Protocol::MethodSignature{
-                    .name = func->ident->toString(),
-                    .return_type = std::move(func->return_type),
-                    .params = std::move(func_params),
+                        .name = func->ident->toString(),
+                        .return_type = std::move(func->return_type),
+                        .params = std::move(func_params),
                 });
                 break;
             }
@@ -995,10 +939,9 @@ Node* Parser::parseProtocol() {
                 continue;
 
             default:
-                reportError(ErrCode::SYNTAX_ERROR, {
-                    .msg = "unexpected statement inside a protocol",
-                    .location = child->location
-                }); break;
+                reportError(ErrCode::SYNTAX_ERROR,
+                            {.msg = "unexpected statement inside a protocol", .location = child->location});
+                break;
         }
     }
 
@@ -1012,10 +955,9 @@ Node* Parser::parseProtocol() {
     return ret;
 }
 
-
 std::vector<Ident> Parser::parseProtocolList() {
     std::vector<Ident> ret;
-    forwardStream();  // skip ':'
+    forwardStream(); // skip ':'
 
     while (true) {
         if (m_Stream.eof()) {
@@ -1042,9 +984,8 @@ std::vector<Ident> Parser::parseProtocolList() {
     return ret;
 }
 
-
-Node* Parser::parseStruct() {
-    forwardStream();  // skip 'struct'
+Node *Parser::parseStruct() {
+    forwardStream(); // skip 'struct'
     auto ret = m_Module->makeNode<Struct>();
     SET_NODE_ATTRS(ret);
 
@@ -1054,8 +995,8 @@ Node* Parser::parseStruct() {
 
     // ask for a decl registry from the symbol manager
     ret->ident = m_Module->symbol_table.registerDecl(struct_name, {
-        .is_exported = ret->is_exported,
-    });
+                                                                          .is_exported = ret->is_exported,
+                                                                  });
 
     // parse generic parameters
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
@@ -1070,14 +1011,14 @@ Node* Parser::parseStruct() {
     }
 
     // create the struct's scope
-    ignoreButExpect({PUNC, "{"});  // skip '{'
+    ignoreButExpect({PUNC, "{"}); // skip '{'
     const auto scope_pointer = m_Module->symbol_table.newScope();
     struct_ty->scope = scope_pointer;
 
     m_Module->symbol_table.lookupDecl(ret->ident).scope = scope_pointer;
 
     // register the generic parameters in the scope
-    for (auto& param : ret->generic_params) {
+    for (auto &param: ret->generic_params) {
         param.id = scope_pointer->getNewIDInfo(param.name);
         m_Module->symbol_table.registerType(param.id, new GenericType());
     }
@@ -1091,7 +1032,8 @@ Node* Parser::parseStruct() {
             struct_ty->field_offsets.insert({member->getIdentInfo()->toString(), i++});
         }
         ret->members.emplace_back(member);
-    } ignoreButExpect({PUNC, "}"});  // skip '}'
+    }
+    ignoreButExpect({PUNC, "}"}); // skip '}'
 
     m_CurrentStructTy.pop_back();
 
@@ -1108,8 +1050,7 @@ Node* Parser::parseStruct() {
     return ret;
 }
 
-
-Node* Parser::parseWhile() {
+Node *Parser::parseWhile() {
     auto ret = m_Module->makeNode<WhileLoop>();
     SET_NODE_ATTRS(ret);
 
@@ -1120,12 +1061,12 @@ Node* Parser::parseWhile() {
     forwardStream();
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
         ret->children.push_back(dispatch());
-    } forwardStream();
+    }
+    forwardStream();
     m_Module->symbol_table.moveToPreviousScope();
 
     return ret;
 }
-
 
 Expression Parser::parseExpr() {
     auto ret = m_ExpressionParser.parseExpr();
