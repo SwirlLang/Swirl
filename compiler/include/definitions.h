@@ -20,17 +20,6 @@ consteval std::string_view getBonoPackagesDir() {
 #endif
 }
 
-
-consteval std::string_view getSwInternalComponentDir() {
-#if defined(_WIN32) || defined(_WIN64)
-    return "C:\\Program Files\\swirl\\bin\\";
-#elif defined(__linux__) || defined(__APPLE__)
-    return "/usr/local/libexec/swirl/";
-#else
-    #error "getSwLLDPath: failed to query platform"
-#endif
-}
-
 inline std::unordered_set<std::string> OperatorSet = {
     "=", "+=", "-=", "*=", "/=", "%=",
     "::",
