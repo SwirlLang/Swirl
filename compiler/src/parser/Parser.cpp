@@ -23,8 +23,6 @@
 /// Automatically sets certain node attributes
 #define SET_NODE_ATTRS(x) NodeAttrHelper GET_UNIQUE_NAME(attr_setter_){x, *this}
 
-using SwNode = std::unique_ptr<Node>;
-
 
 Parser::Parser(Module* module, ErrorCallback_t error_callback, ModuleManager& mod_man)
     : m_Stream(m_SrcMan)
@@ -135,7 +133,7 @@ TypeWrapper Parser::parseType() {
 
     if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[") {
         forwardStream();
-        wrapper.of_type = std::make_unique<TypeWrapper>(parseType());
+        wrapper.of_type = m_Module->makeNode<TypeWrapper>(parseType());
 
         // array declaration
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "|") {
@@ -173,7 +171,7 @@ TypeWrapper Parser::parseType() {
 }
 
 
-SwNode Parser::dispatch() {
+Node* Parser::dispatch() {
     while (!m_Stream.eof()) {
         // pattern matching in C++ when?
         switch (m_Stream.CurTok.type) {
@@ -208,7 +206,7 @@ SwNode Parser::dispatch() {
                     return parseEnum();
 
                 if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false")
-                    return std::make_unique<Expression>(parseExpr());
+                    return m_Module->makeNode<Expression>(parseExpr());
 
                 if (m_Stream.CurTok.value == "volatile") {
                     forwardStream();
@@ -217,12 +215,12 @@ SwNode Parser::dispatch() {
 
                 if (m_Stream.CurTok.value == "break") {
                     forwardStream();
-                    return std::make_unique<BreakStmt>();
+                    return m_Module->makeNode<BreakStmt>();
                 }
 
                 if (m_Stream.CurTok.value == "continue") {
                     forwardStream();
-                    return std::make_unique<ContinueStmt>();
+                    return m_Module->makeNode<ContinueStmt>();
                 }
 
                 if (m_Stream.CurTok.value == "export") {
@@ -249,10 +247,10 @@ SwNode Parser::dispatch() {
             case STRING:
             case IDENT:
             case OP:
-                return std::make_unique<Expression>(parseExpr());
+                return m_Module->makeNode<Expression>(parseExpr());
             case PUNC:
                 if (m_Stream.CurTok.value == "[" || m_Stream.CurTok.value == "(")
-                    return std::make_unique<Expression>(parseExpr());
+                    return m_Module->makeNode<Expression>(parseExpr());
 
                 if (m_Stream.CurTok.value == "{")
                     return parseScope();
@@ -266,14 +264,14 @@ SwNode Parser::dispatch() {
                 // ignore semicolons
                 if (m_Stream.CurTok.value == ";") {
                     forwardStream();
-                    return std::make_unique<Node>();
+                    return m_Module->makeNode<Node>();
                 }
 
                 if (m_Stream.CurTok.value == "}") {
                     if (m_BracketTracker.empty() || m_BracketTracker.back().val != '{') {
                         forwardStream();
                         continue;
-                    } return std::make_unique<Node>();
+                    } return m_Module->makeNode<Node>();
                 } [[fallthrough]];
             default:
                 reportError(ErrCode::SYNTAX_ERROR);
@@ -286,7 +284,7 @@ SwNode Parser::dispatch() {
 }
 
 
-std::unique_ptr<ImportNode> Parser::parseImport() {
+Node* Parser::parseImport() {
     ImportNode ret;
     SET_NODE_ATTRS(&ret);
 
@@ -380,7 +378,7 @@ std::unique_ptr<ImportNode> Parser::parseImport() {
             });
     }
 
-    return std::make_unique<ImportNode>(std::move(ret));
+    return m_Module->makeNode<ImportNode>(std::move(ret));
 }
 
 
@@ -391,7 +389,7 @@ void Parser::parse() {
     const auto builtin_handle = m_FileSystem.fetchHandleFor(SW_BUILTIN_FILE_PATH);
 
     if (m_FileHandle != builtin_handle) {
-        auto builtin_import = std::make_unique<ImportNode>();
+        auto builtin_import = m_Module->makeNode<ImportNode>();
         builtin_import->is_wildcard = true;
         builtin_import->is_exported = false;
         builtin_import->mod_handle  = builtin_handle;
@@ -409,7 +407,7 @@ void Parser::parse() {
         m_Module->dependencies.insert(&ModuleMap.get(builtin_handle));
         ModuleMap.get(builtin_handle).dependents.insert(m_Module);
 
-        m_Module->ast.emplace_back(std::move(builtin_import));
+        m_Module->ast.emplace_back(builtin_import);
     }
 
     while (!m_Stream.eof()) {
@@ -422,9 +420,9 @@ void Parser::parse() {
 }
 
 
-std::unique_ptr<Function> Parser::parseFunction() {
-    auto func_nd = std::make_unique<Function>();
-    SET_NODE_ATTRS(func_nd.get());
+Node* Parser::parseFunction() {
+    auto func_nd = m_Module->makeNode<Function>();
+    SET_NODE_ATTRS(func_nd);
 
     const std::string func_ident = m_Stream.next().value;
 
@@ -486,7 +484,7 @@ std::unique_ptr<Function> Parser::parseFunction() {
     entry.is_exported = func_nd->is_exported;
     entry.method_of   = m_CurrentStructTy.back();
     entry.is_static   = method_is_static;
-    entry.node_ptr    = func_nd.get();
+    entry.node_ptr    = func_nd;
 
     if (!m_CurrentStructTy.back()) {  // when the function is not a method
         // register the function in the global scope
@@ -505,8 +503,8 @@ std::unique_ptr<Function> Parser::parseFunction() {
     m_Module->symbol_table.registerType(func_nd->ident, function_t.release());
 
     // ReSharper disable once CppDFALocalValueEscapesFunction
-    m_LatestFuncNode = func_nd.get();
-    NodeJmpTable[func_nd->ident] = func_nd.get();
+    m_LatestFuncNode = func_nd;
+    NodeJmpTable[func_nd->ident] = func_nd;
 
     if (func_nd->is_extern) {
         // TODO: report an error if a body is provided
@@ -635,16 +633,16 @@ GenericArgList Parser::parseGenericArgList() {
 }
 
 
-std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
-    auto var_node = std::make_unique<Var>();
-    SET_NODE_ATTRS(var_node.get());
+Node* Parser::parseVar(const bool is_volatile) {
+    auto ret = m_Module->makeNode<Var>();
+    SET_NODE_ATTRS(ret);
 
     if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "comptime") {
-        var_node->is_comptime = true;
+        ret->is_comptime = true;
     }
 
-    var_node->is_const = m_Stream.CurTok.value[0] == 'l';
-    var_node->is_volatile = is_volatile;
+    ret->is_const = m_Stream.CurTok.value[0] == 'l';
+    ret->is_volatile = is_volatile;
 
     const std::string var_ident = m_Stream.next().value;
     forwardStream();  // [:, =]
@@ -652,44 +650,45 @@ std::unique_ptr<Var> Parser::parseVar(const bool is_volatile) {
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();
-        var_node->var_type = parseType();
-        var_node->var_type->is_mutable = !var_node->is_const;
+        ret->var_type = parseType();
+        ret->var_type->is_mutable = !ret->is_const;
     }
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "=") {
         forwardStream();
         if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "undefined") {
-               var_node->initialized = false;
-        } else var_node->initialized = true;
-        var_node->value = parseExpr();
+               ret->initialized = false;
+        } else ret->initialized = true;
+        ret->value = parseExpr();
     }
 
-    if (var_node->is_comptime && !var_node->initialized) {
+    if (ret->is_comptime && !ret->initialized) {
         reportError(ErrCode::INITIALIZER_REQUIRED);
-    } else if (var_node->is_comptime && var_node->initialized) {
-        var_node->value = Expression::makeExpression(var_node->value.evaluate(*this));
+    } else if (ret->is_comptime && ret->initialized) {
+        ret->value = Expression::makeExpression(ret->value.evaluate(*this));
     }
 
     TableEntry entry;
-    entry.is_const    = var_node->is_const;
-    entry.is_volatile = var_node->is_volatile;
-    entry.is_exported = var_node->is_exported;
-    entry.node_ptr    = var_node.get();
+    entry.is_const    = ret->is_const;
+    entry.is_volatile = ret->is_volatile;
+    entry.is_exported = ret->is_exported;
+    entry.node_ptr    = ret;
     // entry.swirl_type  = var_node->var_type;
 
-    var_node->var_ident = m_Module->symbol_table.registerDecl(var_ident, entry);
+    ret->var_ident = m_Module->symbol_table.registerDecl(var_ident, entry);
 
     // is a global variable
     if (m_RecursionDepth == 1) {
-        NodeJmpTable.insert({var_node->getIdentInfo(), var_node.get()});
+        NodeJmpTable.insert({ret->getIdentInfo(), ret});
     }
 
-    return var_node;
+    return ret;
 }
 
-std::unique_ptr<FuncCall> Parser::parseCall(std::optional<Ident> ident) {
-    auto call_node = std::make_unique<FuncCall>();
-    SET_NODE_ATTRS(call_node.get());
+
+Node* Parser::parseCall(std::optional<Ident> ident) {
+    auto call_node = m_Module->makeNode<FuncCall>();
+    SET_NODE_ATTRS(call_node);
     call_node->ident = std::move(ident.value());
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
@@ -714,9 +713,10 @@ std::unique_ptr<FuncCall> Parser::parseCall(std::optional<Ident> ident) {
     return call_node;
 }
 
-std::unique_ptr<ReturnStatement> Parser::parseRet() {
-    auto ret = std::make_unique<ReturnStatement>();
-    SET_NODE_ATTRS(ret.get());
+
+Node* Parser::parseRet() {
+    auto ret = m_Module->makeNode<ReturnStatement>();
+    SET_NODE_ATTRS(ret);
 
     if (m_LatestFuncNode == nullptr) {
         reportError(ErrCode::SYNTAX_ERROR, {
@@ -732,9 +732,9 @@ std::unique_ptr<ReturnStatement> Parser::parseRet() {
 }
 
 
-std::unique_ptr<Intrinsic> Parser::parseIntrinsic() {
-    auto call_node = std::make_unique<Intrinsic>();
-    SET_NODE_ATTRS(call_node.get());
+Node* Parser::parseIntrinsic() {
+    auto call_node = m_Module->makeNode<Intrinsic>();
+    SET_NODE_ATTRS(call_node);
 
     forwardStream();  // skip the `@`
 
@@ -753,15 +753,15 @@ std::unique_ptr<Intrinsic> Parser::parseIntrinsic() {
         call_node->args.push_back(std::move(arg));
         ignoreButExpect({PUNC, ")"});
 
-    } else *call_node = parseCall(parseIdent());
+    } else *call_node = dynamic_cast<FuncCall*>(parseCall(parseIdent()));
 
     return call_node;
 }
 
 
-std::unique_ptr<Scope> Parser::parseScope() {
-    auto scope = std::make_unique<Scope>();
-    SET_NODE_ATTRS(scope.get());
+Node* Parser::parseScope() {
+    auto scope = m_Module->makeNode<Scope>();
+    SET_NODE_ATTRS(scope);
 
     forwardStream(); // skip '{'
     while (true) {
@@ -780,9 +780,9 @@ std::unique_ptr<Scope> Parser::parseScope() {
 }
 
 
-std::unique_ptr<Condition> Parser::parseCondition() {
-    auto cnd = std::make_unique<Condition>();
-    SET_NODE_ATTRS(cnd.get());
+Node* Parser::parseCondition() {
+    auto cnd = m_Module->makeNode<Condition>();
+    SET_NODE_ATTRS(cnd);
 
     forwardStream();  // skip "if"
     if (m_Stream.CurTok == Token{KEYWORD, "comptime"}) {
@@ -812,7 +812,7 @@ std::unique_ptr<Condition> Parser::parseCondition() {
             m_Module->symbol_table.newScope();
             forwardStream();
 
-            std::tuple<Expression, std::vector<SwNode>> children;
+            std::tuple<Expression, std::vector<Node*>> children;
             std::get<0>(children) = parseExpr();
 
             if (cnd->is_comptime) {
@@ -874,14 +874,14 @@ Ident Parser::parseIdent() {
 }
 
 
-std::unique_ptr<Enum> Parser::parseEnum() {
-    auto ret = std::make_unique<Enum>();
-    SET_NODE_ATTRS(ret.get());
+Node* Parser::parseEnum() {
+    auto ret = m_Module->makeNode<Enum>();
+    SET_NODE_ATTRS(ret);
 
     forwardStream();  // skip 'enum'
     TableEntry entry;
     entry.is_enum  = true;
-    entry.node_ptr = ret.get();
+    entry.node_ptr = ret;
     ret->ident  = m_Module->symbol_table.registerDecl(forwardStream().value, entry);
 
     auto scope = m_Module->symbol_table.newScope();
@@ -915,7 +915,7 @@ std::unique_ptr<Enum> Parser::parseEnum() {
             ret->addEntry(name);
 
             const auto id_info = scope->getNewIDInfo(name, true);
-            m_Module->symbol_table.registerFictitiousID(id_info, ret.get());
+            m_Module->symbol_table.registerFictitiousID(id_info, ret);
             continue;
         }
 
@@ -926,16 +926,16 @@ std::unique_ptr<Enum> Parser::parseEnum() {
     m_Module->symbol_table.moveToPreviousScope();
 
     if (m_RecursionDepth == 1) {
-        NodeJmpTable[ret->ident] = ret.get();
+        NodeJmpTable[ret->ident] = ret;
     }
 
     return ret;
 }
 
 
-std::unique_ptr<Protocol> Parser::parseProtocol() {
-    auto ret = std::make_unique<Protocol>();
-    SET_NODE_ATTRS(ret.get());
+Node* Parser::parseProtocol() {
+    auto ret = m_Module->makeNode<Protocol>();
+    SET_NODE_ATTRS(ret);
 
     forwardStream(); // skip 'protocol'
     ret->protocol_name = forwardStream().value;
@@ -964,7 +964,7 @@ std::unique_ptr<Protocol> Parser::parseProtocol() {
         auto child = dispatch();
         switch (child->getNodeType()) {
             case ND_VAR: {
-                const auto var = child.get()->to<Var>();
+                const auto var = child->to<Var>();
                 ret->members.push_back(Protocol::MemberSignature{
                     .name = var->var_ident->toString(),
                     .type = std::move(var->var_type.value()),
@@ -973,7 +973,7 @@ std::unique_ptr<Protocol> Parser::parseProtocol() {
             }
 
             case ND_FUNC: {
-                const auto func  = child.get()->to<Function>();
+                const auto func  = child->to<Function>();
                 std::vector<TypeWrapper> func_params;
 
                 // TODO: allow protocols to be used as "types" in the methods' params within the protocol
@@ -1002,15 +1002,16 @@ std::unique_ptr<Protocol> Parser::parseProtocol() {
         }
     }
 
-    const TableEntry entry{.is_protocol = true, .node_ptr = ret.get()};
+    const TableEntry entry{.is_protocol = true, .node_ptr = ret};
     ret->protocol_id = m_Module->symbol_table.registerDecl(ret->protocol_name, entry);
 
     if (m_RecursionDepth == 1) {
-        NodeJmpTable.insert({ret->protocol_id, ret.get()});
+        NodeJmpTable.insert({ret->protocol_id, ret});
     }
 
     return ret;
 }
+
 
 std::vector<Ident> Parser::parseProtocolList() {
     std::vector<Ident> ret;
@@ -1042,10 +1043,10 @@ std::vector<Ident> Parser::parseProtocolList() {
 }
 
 
-std::unique_ptr<Struct> Parser::parseStruct() {
+Node* Parser::parseStruct() {
     forwardStream();  // skip 'struct'
-    auto ret = std::make_unique<Struct>();
-    SET_NODE_ATTRS(ret.get());
+    auto ret = m_Module->makeNode<Struct>();
+    SET_NODE_ATTRS(ret);
 
     const auto struct_ty = new StructType{};
     const auto struct_name = forwardStream().value;
@@ -1089,7 +1090,7 @@ std::unique_ptr<Struct> Parser::parseStruct() {
         if (member->getNodeType() == ND_VAR) {
             struct_ty->field_offsets.insert({member->getIdentInfo()->toString(), i++});
         }
-        ret->members.emplace_back(std::move(member));
+        ret->members.emplace_back(member);
     } ignoreButExpect({PUNC, "}"});  // skip '}'
 
     m_CurrentStructTy.pop_back();
@@ -1101,29 +1102,30 @@ std::unique_ptr<Struct> Parser::parseStruct() {
     m_Module->symbol_table.lookupDecl(ret->ident).scope = scope_pointer;
 
     if (m_RecursionDepth == 1) {
-        NodeJmpTable.insert({ret->getIdentInfo(), ret.get()});
+        NodeJmpTable.insert({ret->getIdentInfo(), ret});
     }
 
     return ret;
 }
 
 
-std::unique_ptr<WhileLoop> Parser::parseWhile() {
-    auto loop = std::make_unique<WhileLoop>();
-    SET_NODE_ATTRS(loop.get());
+Node* Parser::parseWhile() {
+    auto ret = m_Module->makeNode<WhileLoop>();
+    SET_NODE_ATTRS(ret);
 
     forwardStream();
-    loop->condition = parseExpr();
+    ret->condition = parseExpr();
 
     m_Module->symbol_table.newScope();
     forwardStream();
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
-        loop->children.push_back(dispatch());
+        ret->children.push_back(dispatch());
     } forwardStream();
     m_Module->symbol_table.moveToPreviousScope();
 
-    return loop;
+    return ret;
 }
+
 
 Expression Parser::parseExpr() {
     auto ret = m_ExpressionParser.parseExpr();

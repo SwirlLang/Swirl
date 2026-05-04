@@ -108,21 +108,21 @@ public:
     explicit Parser(Module* module, ErrorCallback_t error_callback, ModuleManager& mod_man);
 
 
-    std::unique_ptr<Node>            dispatch();
-    std::unique_ptr<Function>        parseFunction();
-    std::unique_ptr<Condition>       parseCondition();
-    std::unique_ptr<WhileLoop>       parseWhile();
-    std::unique_ptr<Struct>          parseStruct();
-    std::unique_ptr<ImportNode>      parseImport();
-    std::unique_ptr<Scope>           parseScope();
-    std::unique_ptr<ReturnStatement> parseRet();
-    std::unique_ptr<Intrinsic>       parseIntrinsic();
-    std::unique_ptr<Protocol>        parseProtocol();
-    std::unique_ptr<Enum>            parseEnum();
+    Node* dispatch();
+    Node* parseFunction();
+    Node* parseCondition();
+    Node* parseWhile();
+    Node* parseStruct();
+    Node* parseImport();
+    Node* parseScope();
+    Node* parseRet();
+    Node* parseIntrinsic();
+    Node* parseProtocol();
+    Node* parseEnum();
 
     Var parseParam(bool&);
-    std::unique_ptr<Var>      parseVar(bool is_volatile = false);
-    std::unique_ptr<FuncCall> parseCall(std::optional<Ident> _ = std::nullopt);
+    Node* parseVar(bool is_volatile = false);
+    Node* parseCall(std::optional<Ident> _ = std::nullopt);
 
     std::vector<Ident>                parseProtocolList();
     std::vector<GenericParam>         parseGenericParamList();

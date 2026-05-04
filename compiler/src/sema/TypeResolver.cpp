@@ -156,7 +156,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, TypeCont
     } else {
         // 2nd operand
         auto analysis_2 = node->value != "as" && node->op_type != Op::DOT && node->op_type != Op::ASSIGNMENT
-            ? inferType(node->operands.at(1).get(), ctx) : TypeInfo{};
+            ? inferType(node->operands.at(1), ctx) : TypeInfo{};
 
         switch (node->op_type) {
             case Op::DIV: {
@@ -272,7 +272,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, TypeCont
                 }
 
                 // now when the LHS isn't an OP:
-                const auto accessed_type = getEvalType(node->getLHS().get())->getWrappedTypeOrInstance();
+                const auto accessed_type = getEvalType(node->getLHS())->getWrappedTypeOrInstance();
                 auto lhs_id_info = accessed_type->getIdent();
 
 
@@ -303,7 +303,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, TypeCont
                     auto computed_namespace = member_tab_entry.scope;
 
                     if (node->getRHS()->getWrappedNodeOrInstance()->getNodeType() == ND_CALL) {
-                        const auto analysis_res = inferType(node->getRHS().get(), {
+                        const auto analysis_res = inferType(node->getRHS(), {
                             .is_method_call = true,
                             .bound_type = ctx.bound_type,
                             .method_id = *id,

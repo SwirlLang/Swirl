@@ -7,7 +7,7 @@
 
 
 struct Node;
-using AST_t = std::vector<std::unique_ptr<Node>>;
+using AST_t = std::vector<Node*>;
 
 
 consteval std::string_view getBonoPackagesDir() {

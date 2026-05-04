@@ -165,7 +165,7 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
 }
 
 
-void LLVMBackend::codegenChildrenUntilRet(const NodesVec& children, const SwContext& context, llvm::Value* condition) {
+void LLVMBackend::codegenChildrenUntilRet(const std::vector<Node*>& children, const SwContext& context, llvm::Value* condition) {
     if (condition) {
         if (llvm::isa<llvm::ConstantInt>(condition)) {
             auto v = llvm::cast<llvm::ConstantInt>(condition);
@@ -180,12 +180,12 @@ void LLVMBackend::codegenChildrenUntilRet(const NodesVec& children, const SwCont
             case ND_BREAK:
             case ND_CONTINUE:
             case ND_RET:
-                codegen(child.get(), context);
+                codegen(child, context);
                 return;
             case ND_INVALID:
                 continue;
             default:
-                codegen(child.get(), context);
+                codegen(child, context);
         }
     }
 }
@@ -242,7 +242,7 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
 
     switch (node->op_type) {
         case Op::UNARY_ADD:
-            return codegen(node->operands.back().get(), context);
+            return codegen(node->operands.back(), context);
 
         case Op::UNARY_SUB:
             return CGValue::rValue(
@@ -371,7 +371,7 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
             context.bound_type = node->operands.at(1)->getSwType();
             return CGValue::rValue(
                 castIfNecessary(
-                    fetchSwType(node->operands.at(0).get()),
+                    fetchSwType(node->operands.at(0)),
                     codegen(node->getLHS(), context).getRValue(*this, context), context));
         }
 
@@ -618,8 +618,8 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
 
     if (node->value.ends_with("=") && ("+-*/%~&^"sv.find(node->value.at(0)) != std::string::npos)) {
         auto op = std::make_unique<Op>(std::string_view{node->value.data(), 1}, 2);
-        op->operands.push_back(std::move(node->operands.at(0)));
-        op->operands.push_back(std::move(node->operands.at(1)));
+        op->operands.push_back(node->operands.at(0));
+        op->operands.push_back(node->operands.at(1));
         op->common_type = node->common_type;
 
         auto new_ctx = context;
@@ -918,7 +918,7 @@ CGValue LLVMBackend::llvmCodegen(Scope* node, const SwContext& context) {
     for (auto& child : node->children) {
         if (child->getNodeType() == ND_INVALID) {
             continue;
-        } codegen(child.get(), context);
+        } codegen(child, context);
     } return {};
 }
 

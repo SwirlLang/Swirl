@@ -35,7 +35,7 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
     }
 
     if (id.full_qualification.size() == 1) {
-        auto glob_id = getIdInfoOfAGlobal(id.full_qualification.front().name);
+        auto glob_id = getIdInfoOfAGlobal(std::string(id.full_qualification.front().name));
         return glob_id;
     }
 
@@ -43,7 +43,7 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
     for (const auto& [counter, str] : llvm::enumerate(id.full_qualification)) {
         if (counter == id.full_qualification.size() - 1) break;
         if (counter == 0) {
-            const auto qual_id = getIdInfoOfAGlobal(str.name);
+            const auto qual_id = getIdInfoOfAGlobal(str.name.c_str());
 
             if (!qual_id)
                 return nullptr;
@@ -57,18 +57,18 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
             report_error(
                 ErrCode::NOT_A_NAMESPACE,
                 {
-                    .str_1 = id.full_qualification.at(counter - 1).name,
+                    .str_1 = id.full_qualification.at(counter - 1).name.c_str(),
                     .location = id.location
                 });
             return nullptr;
         }
 
-        const auto& tmp = lookupDecl(look_at->getIDInfoFor(str.name).value());
+        const auto& tmp = lookupDecl(look_at->getIDInfoFor(str.name.c_str()).value());
         if (!tmp.is_exported) {
             report_error(
                 ErrCode::SYMBOL_NOT_EXPORTED,
                 {
-                    .str_1 = str.name,
+                    .str_1 = str.name.c_str(),
                     .location = id.location
                 });
             return nullptr;
@@ -80,20 +80,20 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
         report_error(
             ErrCode::NOT_A_NAMESPACE,
             {
-                .str_1 = id.full_qualification.at(id.full_qualification.size() - 2).name,
+                .str_1 = id.full_qualification.at(id.full_qualification.size() - 2).name.c_str(),
                 .location = id.location
             });
         return nullptr;
     }
 
-    const auto value = look_at->getIDInfoFor(id.full_qualification.back().name);
+    const auto value = look_at->getIDInfoFor(id.full_qualification.back().name.c_str());
 
     if (!value.has_value()) {
         report_error(
             ErrCode::NO_SYMBOL_IN_NAMESPACE,
             {
-                .str_1 = id.full_qualification.back().name,
-                .str_2 = id.full_qualification.at(id.full_qualification.size() - 2).name,
+                .str_1 = id.full_qualification.back().name.c_str(),
+                .str_2 = id.full_qualification.at(id.full_qualification.size() - 2).name.c_str(),
                 .location = id.location
             }); return nullptr;
     }

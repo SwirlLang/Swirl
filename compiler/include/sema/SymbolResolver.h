@@ -10,8 +10,8 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
     std::unordered_map<IdentInfo*, Node*>& GlobalNodeJmpTable;
 
     struct Data {
-        std::unordered_set<std::string> ignore_symbols{};
-        std::unordered_map<std::string, Ident> generic_args;
+        std::unordered_set<std::string_view> ignore_symbols{};
+        std::unordered_map<std::string_view, Ident> generic_args;
     };
 
 
@@ -67,7 +67,7 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
         } visit(&node->return_type, data);
 
         for (auto& child : node->children) {
-            visit(child.get(), data);
+            visit(child, data);
         }
     }
 
@@ -95,7 +95,8 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             }
 
             if (arg->isType()) {
-                data.generic_args.insert({generic_params->at(i).name, arg->getType().type_id}); // TODO
+                data.generic_args.insert({
+                    generic_params->at(i).name, arg->getType().type_id}); // TODO
             }
         }
 

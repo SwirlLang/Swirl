@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <memory_resource>
 
 #include "ast/Nodes.h"
 
@@ -12,8 +13,8 @@ class TokenStream;
 class ExpressionParser {
     Parser& m_Parser;
 
-    std::unique_ptr<Node> parseComponent();
-    std::unique_ptr<Node> parsePrefix();
+    Node* parseComponent();
+    Node* parsePrefix();
 
 public:
     explicit ExpressionParser(Parser& parser);

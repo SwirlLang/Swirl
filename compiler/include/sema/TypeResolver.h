@@ -90,12 +90,7 @@ public:
         }
         #undef SW_NODE
     }
-
-
-    TypeInfo inferType(const SwNode& node, const TypeContext& ctx) {
-        return inferType(node.get(), ctx);
-    }
-
+    
 
     TypeInfo evaluateType(Node*, const TypeContext&) {
         return {};
@@ -164,7 +159,7 @@ public:
 
         // is an array
         else if (node->array_size) {
-            auto arr_of_type = evaluateType(node->of_type.get(), ctx);
+            auto arr_of_type = evaluateType(node->of_type, ctx);
             if (arr_of_type.deduced_type != nullptr) {
                 ret = SymMan.getArrayType(arr_of_type.deduced_type, node->array_size);
             }
@@ -172,7 +167,7 @@ public:
 
         // is a slice
         else if (node->is_slice) {
-            auto slice_of_type = evaluateType(node->of_type.get(), ctx);
+            auto slice_of_type = evaluateType(node->of_type, ctx);
             if (slice_of_type.deduced_type != nullptr) {
                 ret = SymMan.getSliceType(slice_of_type.deduced_type, node->is_mutable);
             }
@@ -338,7 +333,7 @@ public:
 
         // visit children
         for (auto& child : node->children) {
-            visit(child.get());
+            visit(child);
         }
     }
 
@@ -350,7 +345,7 @@ public:
         Ident tmp;
 
         for (auto qualifier : node->full_qualification) {
-            tmp.full_qualification.push_back({.name = qualifier.name});
+            tmp.full_qualification.emplace_back(qualifier.name);
 
             // iterate over the generic args and activate the generic type
             for (const auto& [i, arg] : std::views::enumerate(qualifier.generic_args)) {
@@ -461,7 +456,7 @@ public:
 
 
     void handle(Expression* node) {
-        const auto ty = inferType(node->expr.get(), {}).deduced_type;
+        const auto ty = inferType(node->expr, {}).deduced_type;
         node->setType(ty);
     }
 
@@ -474,7 +469,7 @@ public:
         }
 
         for (auto& child : node->if_children) {
-            visit(child.get());
+            visit(child);
         }
 
         for (auto& [condition, children] : node->elif_children) {
@@ -484,12 +479,12 @@ public:
             }
 
             for (auto& child : children) {
-                visit(child.get());
+                visit(child);
             }
         }
 
         for (auto& child : node->else_children) {
-            visit(child.get());
+            visit(child);
         }
     }
 
@@ -500,7 +495,7 @@ public:
         }
 
         for (auto& child : node->children) {
-            visit(child.get());
+            visit(child);
         }
     }
 

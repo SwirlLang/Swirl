@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 #include "parser/Parser.h"
+#include "utils/BumpAllocator.h"
 #include "utils/FileSystem.h"
 
 
@@ -64,6 +65,15 @@ struct Module {
         }
     }
 
+    template <typename T, typename... Args>
+    requires std::derived_from<T, Node>
+    T* makeNode(Args&&... args) {
+        T* ret = m_Allocator.allocate<T>(std::forward<Args>(args)...);
+        m_Destructors.push_back([ret] {
+            ret->~T();
+        }); return ret;
+    }
+
     std::string_view getLineAt(const std::size_t line) const {
         auto [from, line_size] = m_LineOffsets[line - 1];
         return file_handle->readAll().substr(from, line_size);
@@ -71,13 +81,24 @@ struct Module {
 
     ModuleManager& getModuleManager() const { return m_ModuleManager; }
 
+    // NOTE: the manual destructor calls is a temporary workaround until all Nodes become
+    //       trivially destructible
+    ~Module() {
+        for (auto& destructor : m_Destructors) {
+            destructor();
+        }
+    }
+
 private:
     bool m_IsMainModule = false;
     bool m_IsSemaComplete = false;
 
-    ModuleManager& m_ModuleManager;
+    ModuleManager&    m_ModuleManager;
+    sw::BumpAllocator m_Allocator{64 * 1024};
 
     std::vector<std::array<std::size_t, 2>> m_LineOffsets{};
+    std::vector<std::unique_ptr<Node*>> m_Nodes{};
+    std::vector<std::function<void()>>  m_Destructors{};
 
     friend class CompilerInst;
     friend class SourceManager;
@@ -106,7 +127,7 @@ public:
         return *m_ModuleMap.at(m);
     }
 
-    /// pops and returns a Parser instance which has no dependency
+    /// pops and returns a Module which has no dependency
     Module* popZeroDepVec() {
         if (m_ZeroDepVec.empty())
             return nullptr;

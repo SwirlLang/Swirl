@@ -86,7 +86,7 @@ public:
     /// calls `codegen` on all top AST nodes
     void dispatch(const AST_t& ast) {
         for (auto& node : ast) {
-            codegen(node.get(), {});
+            codegen(node, {});
         }
     }
 
@@ -97,11 +97,6 @@ public:
             SW_NODE_LIST // NOLINT(*-pro-type-static-cast-downcast)
         } throw std::runtime_error("LLVMBackend::dispatch: unexpected node kind");
     #undef SW_NODE
-    }
-
-
-    CGValue codegen(const SwNode& node, const SwContext& ctx) {
-        return codegen(node.get(), ctx);
     }
 
 
@@ -129,7 +124,8 @@ public:
     /// Codegens the vector of nodes while respecting statements like `return`. If `condition` is not
     /// nullptr, checks whether it is a `ConstantInt`, and if so, whether it is 0 (in which case no
     /// code generation takes place).
-    void codegenChildrenUntilRet(const NodesVec& children, const SwContext& context, llvm::Value* condition = nullptr);
+    void codegenChildrenUntilRet(
+        const std::vector<Node*>& children, const SwContext& context, llvm::Value* condition = nullptr);
 
     /// Triggers the generation of an instantiated generic function and returns its `llvm::Function*`.
     llvm::Function* instantiateGenericFunction(Ident& id, Function* function);
@@ -183,11 +179,6 @@ public:
             default:
                 throw std::runtime_error("LLVMBackend::fetchSwType: failed to fetch type");
         }
-    }
-
-
-    Type* fetchSwType(const SwNode& node) const {
-        return fetchSwType(node.get());
     }
 
 

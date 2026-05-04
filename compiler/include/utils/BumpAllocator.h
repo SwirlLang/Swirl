@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include <cstddef>
 #include <cassert>
-#include <type_traits>
 
 
 namespace sw {
@@ -26,7 +25,7 @@ public:
 
     template <typename T, typename... Args>
     T* allocate(Args&&... args) {
-        static_assert(std::is_trivially_destructible_v<T>);
+        // static_assert(std::is_trivially_destructible_v<T>);
         assert(sizeof(T) <= m_ChunkSize);
 
         std::byte* cur_address  = m_CurrentChunk->data + m_CurrentChunk->offset;

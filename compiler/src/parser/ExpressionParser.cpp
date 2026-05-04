@@ -1,34 +1,37 @@
 #include "parser/Parser.h"
 #include "parser/ExpressionParser.h"
+#include "managers/ModuleManager.h"
 
-#define m_Stream m_Parser.m_Stream
+
+#define m_Stream  m_Parser.m_Stream
+#define make_node m_Parser.m_Module->makeNode
 #define SET_NODE_ATTRS(x) Parser::NodeAttrHelper GET_UNIQUE_NAME(attr_setter_){x, m_Parser}
 
-using SwNode = std::unique_ptr<Node>;
 
-ExpressionParser::ExpressionParser(Parser& parser): m_Parser(parser) {}
+ExpressionParser::ExpressionParser(Parser& parser):
+    m_Parser(parser) {}
 
 
-std::unique_ptr<Node> ExpressionParser::parseComponent() {
+Node* ExpressionParser::parseComponent() {
     // this helper returns a packaged element-access operator if it detects its presence
     switch (m_Stream.CurTok.type) {
         case NUMBER: {
             if (m_Stream.CurTok.meta == CT_FLOAT) {
-                auto ret = std::make_unique<FloatLit>(m_Stream.CurTok.value);
-                SET_NODE_ATTRS(ret.get());
+                auto ret = make_node<FloatLit>(m_Stream.CurTok.value);
+                SET_NODE_ATTRS(ret);
                 m_Parser.forwardStream();
                 return ret;
             }
 
-            auto ret = std::make_unique<IntLit>(m_Stream.CurTok.value);
-            SET_NODE_ATTRS(ret.get());
+            auto ret = make_node<IntLit>(m_Stream.CurTok.value);
+            SET_NODE_ATTRS(ret);
             m_Parser.forwardStream();
             return ret;
         }
 
         case STRING: {
-            auto str = std::make_unique<StrLit>(m_Stream.CurTok.value);
-            SET_NODE_ATTRS(str.get());
+            auto str = make_node<StrLit>(m_Stream.CurTok.value);
+            SET_NODE_ATTRS(str);
 
             m_Parser.forwardStream();
             while (m_Stream.CurTok.type == STRING) {  // concatenation of adjacent string literals
@@ -39,8 +42,8 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
         }
 
         case IDENT: {
-            auto id = std::make_unique<Ident>(m_Parser.parseIdent());
-            SET_NODE_ATTRS(id.get());
+            auto id = make_node<Ident>(m_Parser.parseIdent());
+            SET_NODE_ATTRS(id);
             assert(!id->full_qualification.empty());
 
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
@@ -52,15 +55,15 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
 
         case KEYWORD: {
             if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false") {
-                auto ret = std::make_unique<BoolLit>(m_Stream.CurTok.value == "true");
-                SET_NODE_ATTRS(ret.get());
+                auto ret = make_node<BoolLit>(m_Stream.CurTok.value == "true");
+                SET_NODE_ATTRS(ret);
                 m_Parser.forwardStream();
                 return ret;
             }
 
             if (m_Stream.CurTok.value == "undefined") {
-                auto ret = std::make_unique<UndefinedValue>();
-                SET_NODE_ATTRS(ret.get());
+                auto ret = make_node<UndefinedValue>();
+                SET_NODE_ATTRS(ret);
                 m_Parser.forwardStream();
                 return ret;
             }
@@ -71,8 +74,8 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
                 return m_Parser.parseIntrinsic();
 
             if (m_Stream.CurTok.value == "[") {
-                auto arr_node = std::make_unique<ArrayLit>();
-                SET_NODE_ATTRS(arr_node.get());
+                auto arr_node = make_node<ArrayLit>();
+                SET_NODE_ATTRS(arr_node);
                 m_Parser.forwardStream();  // skip the '['
 
                 while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "]")) {
@@ -93,8 +96,8 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
 
             if (m_Stream.CurTok.value == "(") {
                 m_Parser.forwardStream();
-                auto ret = std::make_unique<Expression>(parseExpr());
-                SET_NODE_ATTRS(ret.get());
+                auto ret = make_node<Expression>(parseExpr());
+                SET_NODE_ATTRS(ret);
                 m_Parser.forwardStream();
                 return ret;
             }
@@ -113,11 +116,11 @@ std::unique_ptr<Node> ExpressionParser::parseComponent() {
 }
 
 
-std::unique_ptr<Node> ExpressionParser::parsePrefix() {
+Node* ExpressionParser::parsePrefix() {
     // assumption: current token is an OP
     if (m_Stream.CurTok.type == OP) {
-        auto op = std::make_unique<Op>(m_Stream.CurTok.value, 1);
-        SET_NODE_ATTRS(op.get());
+        auto op = make_node<Op>(m_Stream.CurTok.value, 1);
+        SET_NODE_ATTRS(op);
         m_Parser.forwardStream();
 
         if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "mut") {
@@ -130,7 +133,7 @@ std::unique_ptr<Node> ExpressionParser::parsePrefix() {
         }
 
         auto rhs = parseExpr(Op::getPBPFor(Op::getTagFor(op->value, 1)));
-        op->operands.push_back(std::make_unique<Expression>(std::move(rhs)));
+        op->operands.push_back(make_node<Expression>(std::move(rhs)));
         return op;
     }
     return parseComponent();
@@ -140,10 +143,10 @@ std::unique_ptr<Node> ExpressionParser::parsePrefix() {
 /// This method utilizes `Pratt-Parsing`.
 Expression ExpressionParser::parseExpr(const int rbp) {
     // left-denotation, used to parse an operator when there's something to it's left
-    auto led = [this](SwNode left) -> SwNode {
+    auto led = [this](Node* left) -> Node* {
         auto op_str = m_Parser.forwardStream().value;
-        auto op = std::make_unique<Op>(op_str, 2);
-        SET_NODE_ATTRS(op.get());
+        auto op = make_node<Op>(op_str, 2);
+        SET_NODE_ATTRS(op);
 
         Expression right;
 
@@ -161,8 +164,8 @@ Expression ExpressionParser::parseExpr(const int rbp) {
                 right = parseExpr(Op::getRBPFor(op->op_type));
         }
 
-        op->operands.push_back(std::move(left));
-        op->operands.push_back(std::move(right.expr));
+        op->operands.push_back(left);
+        op->operands.push_back(right.expr);
 
         return op;
     };

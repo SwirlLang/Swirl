@@ -98,9 +98,10 @@ std::unordered_map<std::pair<std::string_view, int>, Op::OpTag_t, PairHash> OpTa
 };
 
 
-Op::Op(const std::string_view str, const int8_t adicity)
-    : Node(ND_OP), value(std::string(str)), arity(adicity)
+Op::Op(const std::string_view str, const int8_t adicity): Op()
 {
+    arity = adicity;
+    value = std::string(str);
     op_type = getTagFor(str, adicity);  // compute and set the tag of the operator node
 }
 
@@ -131,24 +132,17 @@ Op::OpTag_t Op::getTagFor(const std::string_view str, int arity) {
 }
 
 
-GenericArgList::~GenericArgList() {
-    // for (const auto ptr : generic_args) {
-    //     delete ptr;
-    // }
-}
-
-
 void Op::setType(Type* to) const {
     if (op_type == DOT)
         return;
 
     if (operands.front()->getNodeType() == ND_EXPR) {
-        dynamic_cast<Expression*>(operands.front().get())->setType(to);
+        dynamic_cast<Expression*>(operands.front())->setType(to);
     }
 
     if (arity == 1) return;
     if (operands.back()->getNodeType() == ND_EXPR) {
-        auto expr = dynamic_cast<Expression*>(operands.back().get());
+        auto expr = dynamic_cast<Expression*>(operands.back());
         expr->setType(to);
         return;
     }
@@ -157,10 +151,10 @@ void Op::setType(Type* to) const {
 void Expression::setType(Type* to) {
     expr_type = to;
     if (expr->getNodeType() == ND_EXPR) {
-        dynamic_cast<Expression*>(expr.get())->setType(to);
+        dynamic_cast<Expression*>(expr)->setType(to);
     }
     else if (expr->getNodeType() == ND_OP) {
-        dynamic_cast<Op*>(expr.get())->setType(to);
+        dynamic_cast<Op*>(expr)->setType(to);
     }
 }
 
@@ -184,19 +178,23 @@ EvalResult Node::evaluate(Parser& ctx) {
 }
 
 EvalResult IntLit::evaluate(Parser&) {
-    return toInteger(value);
+    // return toInteger(value);
+    return {};
 }
 
 EvalResult FloatLit::evaluate(Parser&) {
-    return std::stod(value);
+    // return std::stod(value);
+    return {};
 }
 
 EvalResult BoolLit::evaluate(Parser&) {
-    return value;
+   // return value;
+    return {};
 }
 
 EvalResult StrLit::evaluate(Parser&) {
-    return value;
+   // return value;
+    return {};
 }
 
 
@@ -248,7 +246,7 @@ EvalResult Op::evaluate(Parser& ctx) {
         case Op::LOGICAL_NOTEQUAL:
             return !(operands.at(0)->evaluate(ctx) == operands.at(1)->evaluate(ctx)).toBool();
         default:
-            ctx.reportError(ErrCode::OP_NOT_ALLOWED_HERE, {.str_1 = value});
+            // ctx.reportError(ErrCode::OP_NOT_ALLOWED_HERE, {.str_1 = value});
             return {};
     }
 }
