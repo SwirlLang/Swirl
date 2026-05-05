@@ -9,7 +9,7 @@
 
 namespace sw {
 
-/// A BumpAllocator with stable-addressing.
+/// A BumpAllocator with stable-addressing. Not thread-safe.
 class BumpAllocator {
 public:
     /// `chunk_size`: the size of each individual memory chunk in bytes
@@ -51,6 +51,34 @@ public:
 
         m_CurrentChunk->offset += padding_size + sizeof(T);
         return std::construct_at(reinterpret_cast<T*>(aligned_addr), std::forward<Args>(args)...);
+    }
+
+
+    /// Returns a pointer to a storage of `n` bytes
+    std::byte* allocate_raw(const std::size_t n) {
+        if (n > m_ChunkSize) {
+            throw std::runtime_error(std::format
+                ("BumpAllocator::allocate_raw: n >= m_ChunkSize ({} >= {}).",
+                    n, m_ChunkSize));
+        }
+
+        if (m_CurrentChunk->capacity - m_CurrentChunk->offset < n) {
+            // create a new chunk
+            const auto memory = malloc(sizeof(Chunk) + m_ChunkSize);
+            if (!memory) {
+                throw std::runtime_error("BumpAllocator::allocate_raw: malloc returned null!");
+            }
+
+            auto* new_chunk = static_cast<Chunk*>(memory);
+            new_chunk->offset = 0;
+            new_chunk->capacity = m_ChunkSize;
+            new_chunk->prev_chunk = m_CurrentChunk;
+            m_CurrentChunk = new_chunk;
+        }
+
+        std::byte* ptr = m_CurrentChunk->data + m_CurrentChunk->offset;
+        m_CurrentChunk->offset += n;
+        return ptr;
     }
 
 
