@@ -1,7 +1,7 @@
 #pragma once
 #include <print>
 
-#include "managers/ModuleManager.h"
+#include "modules/ModuleManager.h"
 #include "types/definitions.h"
 #include "sema/SemaVisitor.h"
 

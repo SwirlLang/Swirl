@@ -1,5 +1,5 @@
 #include "parser/Parser.h"
-#include "managers/ModuleManager.h"
+#include "modules/ModuleManager.h"
 
 
 TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {

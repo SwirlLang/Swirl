@@ -1,6 +1,6 @@
 #include "backend/LLVMBackend.h"
 #include "CompilerInst.h"
-#include "managers/ModuleManager.h"
+#include "modules/ModuleManager.h"
 #include "parser/Parser.h"
 #include "types/SwTypes.h"
 

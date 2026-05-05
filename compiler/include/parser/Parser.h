@@ -20,8 +20,14 @@ class Parser;
 class ModuleManager;
 struct Module;
 
-namespace sw   { class FileSystem; }
-namespace sema { template <typename T> class SemaVisitor; }
+namespace sw   {
+    class StringPool;
+    class FileSystem;
+}
+
+namespace sema {
+    template <typename T> class SemaVisitor;
+}
 
 /// A type which can represent either a `Type*` or a `Node*`.
 struct SwObject : std::variant<Type*, Node*> {
@@ -44,6 +50,14 @@ struct SwObject : std::variant<Type*, Node*> {
     [[nodiscard]] bool isNode() const {
         return std::holds_alternative<Node*>(*this);
     }
+};
+
+
+struct ParserContext {
+    Module* module;
+    ErrorCallback_t error_callback;
+    ModuleManager&  module_manager;
+    sw::StringPool& string_pool;
 };
 
 
@@ -105,7 +119,7 @@ public:
     ModuleManager& ModuleMap;
     std::unordered_map<IdentInfo*, Node*>& NodeJmpTable;  // maps global symbols to their nodes
 
-    explicit Parser(Module* module, ErrorCallback_t error_callback, ModuleManager& mod_man);
+    explicit Parser(const ParserContext& context);
 
 
     Node* dispatch();

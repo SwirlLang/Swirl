@@ -8,7 +8,7 @@
 #include "parser/Parser.h"
 #include "ast/Visitor.h"
 #include "errors/ErrorManager.h"
-#include "managers/ModuleManager.h"
+#include "modules/ModuleManager.h"
 
 
 #define SEMA_DISABLE_ERROR_CODE(code) \

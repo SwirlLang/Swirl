@@ -5,7 +5,7 @@
 
 #include "CompilerInst.h"
 #include "managers/SourceManager.h"
-#include "managers/ModuleManager.h"
+#include "modules/ModuleManager.h"
 #include "utils/FileSystem.h"
 
 

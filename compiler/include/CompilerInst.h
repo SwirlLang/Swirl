@@ -8,10 +8,12 @@
 #include "utils/logging.h"
 #include "backend/LLVMBackend.h"
 #include "errors/ErrorPipeline.h"
-#include "managers/ModuleManager.h"
+#include "modules/ModuleManager.h"
 #include "utils/FileSystem.h"
+#include "utils/StringPool.h"
 
 #include <llvm/TargetParser/Host.h>
+
 
 
 namespace fs = std::filesystem;
@@ -30,9 +32,9 @@ class CompilerInst {
     unsigned       m_BaseThreadCount = std::thread::hardware_concurrency() / 2;
 
     sw::FileSystem m_Filesystem;
+    sw::StringPool m_StringPool;
 
-    Parser* m_MainModParser = nullptr;
-    ErrorCallback_t         m_ErrorCallback = nullptr;
+    ErrorCallback_t m_ErrorCallback = nullptr;
 
     using Backends_t = std::vector<std::unique_ptr<LLVMBackend>>;
 
@@ -46,6 +48,7 @@ class CompilerInst {
     void generateObjectFiles(Backends_t&);
 
     struct PackageInfo;
+    friend struct Module;
 
 public:
     inline static int RecursionDepth = 1024;
@@ -56,7 +59,10 @@ public:
     inline static bool RunExe = false;
     inline static bool DebugMode = true;
 
-    explicit CompilerInst(fs::path path) : m_SrcPath(std::move(path)) {
+    explicit CompilerInst(fs::path path)
+        : m_SrcPath(std::move(path))
+        , m_StringPool(16 * 1024)
+    {
         m_ErrorCallback = [this](const ErrCode code, const ErrorContext& ctx) {
             m_ErrorManager.newErrorLocked(code, ctx);
         };
@@ -102,7 +108,7 @@ public:
 
         // create a module for the main source file
         const auto file_handle = m_Filesystem.open(m_SrcPath);
-        const auto main_module = new Module{file_handle, m_ModuleManager};
+        const auto main_module = new Module{{file_handle, m_ModuleManager, m_StringPool}};
         main_module->m_IsMainModule = true;
 
         // add an entry to the module manager

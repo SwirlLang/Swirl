@@ -1,6 +1,6 @@
 #include "parser/Parser.h"
 #include "parser/ExpressionParser.h"
-#include "managers/ModuleManager.h"
+#include "modules/ModuleManager.h"
 
 
 #define m_Stream  m_Parser.m_Stream

@@ -15,7 +15,7 @@
 #include "lexer/Tokens.h"
 #include "errors/ErrorManager.h"
 #include "symbols/SymbolManager.h"
-#include "managers/ModuleManager.h"
+#include "modules/ModuleManager.h"
 
 #include "CompilerInst.h"
 
@@ -24,18 +24,20 @@
 #define SET_NODE_ATTRS(x) NodeAttrHelper GET_UNIQUE_NAME(attr_setter_){x, *this}
 
 
-Parser::Parser(Module* module, ErrorCallback_t error_callback, ModuleManager& mod_man)
+Parser::Parser(const ParserContext& context)
     : m_Stream(m_SrcMan)
-    , m_SrcMan(module)
-    , m_Module(module)
-    , m_ErrorCallback(std::move(error_callback))
-    , m_FileHandle(module->file_handle)
-    , m_FileSystem(*module->file_handle->getFileSystemHandle())
-    , ModuleMap(mod_man)
-    , NodeJmpTable(module->node_jmp_table)
-    { m_Module->symbol_table.setErrorCallback([this](auto code, const auto& ctx) {
-        reportError(code, ctx);
-    });
+    , m_SrcMan(context.module)
+    , m_Module(context.module)
+    , m_ErrorCallback(context.error_callback)
+    , m_FileHandle(context.module->file_handle)
+    , m_FileSystem(*context.module->file_handle->getFileSystemHandle())
+    , ModuleMap(context.module_manager)
+    , NodeJmpTable(context.module->node_jmp_table) {
+      // set the error callback of the symbol manager to the Parser's error reporter
+      m_Module->symbol_table.setErrorCallback(
+          [this](auto code, const auto& ctx) {
+              reportError(code, ctx);
+          });
     }
 
 
@@ -108,6 +110,10 @@ Token Parser::forwardStream(const uint8_t n) {
 
 /// If `tok` is the current token in the stream, forward it, report a syntax error otherwise.
 void Parser::ignoreButExpect(const Token& tok) {
+    if (m_Stream.eof()) {
+        reportError(ErrCode::UNEXPECTED_EOF);
+    }
+
     if (m_Stream.CurTok != tok) {
         reportError(ErrCode::SYNTAX_ERROR, {.msg = std::format("Expected '{}'.", tok.value)});
     } else forwardStream();
@@ -303,7 +309,7 @@ Node* Parser::parseImport() {
     ret.mod_handle = handle;
 
     if (!ModuleMap.contains(handle)) {
-        ModuleMap.insert(handle);
+        ModuleMap.insert(handle, m_Module->getModuleContext());
         ModuleMap.get(handle).parse(m_ErrorCallback);
     }
 
@@ -378,8 +384,10 @@ void Parser::parse() {
 
         // TODO: remove duplicate import-registration logic
         if (!ModuleMap.contains(builtin_handle)) {
-            ModuleMap.insert(builtin_handle);
-            ModuleMap.get(builtin_handle).parseAndRunSema(m_ErrorCallback);
+            ModuleMap.insert(builtin_handle, m_Module->getModuleContext());
+
+            ModuleMap.get(builtin_handle).parse(m_ErrorCallback);
+            ModuleMap.get(builtin_handle).performSema(m_ErrorCallback);
         }
 
         ModuleMap.get(builtin_handle).insertExportedSymbolsInto([&builtin_import](std::string name) {

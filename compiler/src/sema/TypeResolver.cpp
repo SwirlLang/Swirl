@@ -348,21 +348,3 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, TypeCont
     else node->common_type = analysis_1.deduced_type;
     return ret;
 }
-
-
-// TODO: to be removed once Sema gets decoupled from the module
-void Module::performSema(const ErrorCallback_t& error_callback) {
-    if (m_IsSemaComplete) {
-        return;
-    }
-
-    sema::SymbolResolver resolver{this, error_callback};
-    resolver.dispatch(ast, sema::SymbolResolver::Data{});
-
-    if (!resolver.errorsOccurred()) {
-        sema::TypeResolver type_resolver{this, error_callback};
-        type_resolver.dispatch(ast);
-    }
-
-    m_IsSemaComplete = true;
-}

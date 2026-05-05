@@ -4,7 +4,7 @@
 #include <string_view>
 
 #include "errors/ErrorManager.h"
-#include "managers/ModuleManager.h"
+#include "modules/ModuleManager.h"
 
 
 /// This class allows the decoupling of the ErrorManager from error-formatting and output details.
