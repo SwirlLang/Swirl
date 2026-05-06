@@ -31,6 +31,7 @@ Parser::Parser(const ParserContext& context)
     , m_ErrorCallback(context.error_callback)
     , m_FileHandle(context.module->file_handle)
     , m_FileSystem(*context.module->file_handle->getFileSystemHandle())
+    , m_StringPool(context.string_pool)
     , ModuleMap(context.module_manager)
     , NodeJmpTable(context.module->node_jmp_table) {
       // set the error callback of the symbol manager to the Parser's error reporter
@@ -138,12 +139,12 @@ TypeWrapper Parser::parseType() {
         }
     }
 
-    if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "[") {
+    if (m_Stream.CurTok.tokenid == Token::PUNC_LBRACKET) {
         forwardStream();
         wrapper.of_type = m_Module->makeNode<TypeWrapper>(parseType());
 
         // array declaration
-        if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "|") {
+        if (m_Stream.CurTok.tokenid == Token::OP_BITWISE_OR) {
             forwardStream();
 
             if (m_Stream.CurTok.type == NUMBER && m_Stream.CurTok.tokenid == Token::NUM_INT) {
@@ -159,7 +160,7 @@ TypeWrapper Parser::parseType() {
 
     } else if (m_Stream.CurTok.type == IDENT) {
         wrapper.type_id = parseIdent();
-    } else if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "mut") {
+    } else if (m_Stream.CurTok.tokenid == Token::KW_MUT) {
         wrapper.is_mutable = true;
         forwardStream();
     } else {
@@ -305,7 +306,7 @@ Node* Parser::parseImport() {
         return {};
     }
 
-    auto handle = m_FileSystem.open(mod_path);
+    const auto handle = m_FileSystem.open(mod_path);
     ret.mod_handle = handle;
 
     if (!ModuleMap.contains(handle)) {
@@ -325,11 +326,11 @@ Node* Parser::parseImport() {
         forwardStream();  // skip '{'
 
         while (m_Stream.CurTok.type != PUNC || m_Stream.CurTok.value != "}") {
-            ret.imported_symbols.emplace_back(forwardStream().value);
+            ret.imported_symbols.emplace_back(m_StringPool.intern(forwardStream().value));
 
             if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {
                 forwardStream();  // skip "as"
-                ret.imported_symbols.back().assigned_alias = forwardStream().value;
+                ret.imported_symbols.back().assigned_alias = m_StringPool.intern(forwardStream().value);
             }
 
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ",") {
@@ -339,13 +340,13 @@ Node* Parser::parseImport() {
     } else { // otherwise, if non-specific but aliased or wildcard
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {  // non-specific but aliased
             forwardStream();
-            ret.alias = forwardStream().value;
+            ret.alias = m_StringPool.intern(forwardStream().value);
         }
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {  // wildcard
             forwardStream();
             ret.is_wildcard = true;
-            ModuleMap.get(handle).insertExportedSymbolsInto([&ret](std::string name) {
-                ret.imported_symbols.push_back({.actual_name = std::move(name)});
+            ModuleMap.get(handle).insertExportedSymbolsInto([this, &ret](const std::string& name) {
+                ret.imported_symbols.push_back({.actual_name = m_StringPool.intern(name)});
             });
         }
         else forwardStream();
@@ -356,13 +357,13 @@ Node* Parser::parseImport() {
 
         // register the module-prefix in the symbol manager
         m_Module->symbol_table.registerDecl(
-            ret.alias.empty() ? name : ret.alias,
+            (ret.alias.empty()) ? std::string(name) : std::string(ret.alias),
             {
                 .is_exported = ret.is_exported,
                 .is_mod_namespace = true,
                 .scope = m_Module->symbol_table.getGlobalScopeFromModule(ret.mod_handle)
             }) ? void() : reportError(ErrCode::SYMBOL_ALREADY_EXISTS, {
-                .str_1 = ret.alias.empty() ? name : ret.alias
+                .str_1 = ret.alias.empty() ? std::string(name) : std::string(ret.alias)
             });
     }
 
@@ -390,8 +391,8 @@ void Parser::parse() {
             ModuleMap.get(builtin_handle).performSema(m_ErrorCallback);
         }
 
-        ModuleMap.get(builtin_handle).insertExportedSymbolsInto([&builtin_import](std::string name) {
-            builtin_import->imported_symbols.push_back({.actual_name = std::move(name)});
+        ModuleMap.get(builtin_handle).insertExportedSymbolsInto([this, &builtin_import](const std::string& name) {
+            builtin_import->imported_symbols.push_back({.actual_name = m_StringPool.intern(name)});
         });
 
         m_Module->dependencies.insert(&ModuleMap.get(builtin_handle));
@@ -443,7 +444,7 @@ Node* Parser::parseFunction() {
 
     // register the generic parameters
     for (auto& g_param : func_nd->generic_params) {
-        const auto generic_id = fn_scope->getNewIDInfo(g_param.name);
+        const auto generic_id = fn_scope->getNewIDInfo(std::string(g_param.name));
         const auto generic_ty = new GenericType{};
 
         generic_ty->id = generic_id;
@@ -584,7 +585,7 @@ std::vector<GenericParam> Parser::parseGenericParamList() {
         }
 
         GenericParam param;
-        param.name = forwardStream().value;
+        param.name = m_StringPool.intern(forwardStream().value);
         params.push_back(std::move(param));
     } return params;
 }
@@ -733,7 +734,7 @@ Node* Parser::parseIntrinsic() {
         ignoreButExpect({PUNC, "("});
 
         Expression arg;
-        call_node->ident.full_qualification.push_back({.name = "sizeof"});
+        call_node->ident.full_qualification.push_back({.name = m_StringPool.intern("sizeof")});
         call_node->intrinsic_type = Intrinsic::SIZEOF;
 
         if (m_Stream.CurTok.value == "@" && m_Stream.CurTok.type == PUNC)
@@ -838,7 +839,7 @@ Ident Parser::parseIdent() {
     Ident ret;
     SET_NODE_ATTRS(&ret);
 
-    ret.full_qualification.emplace_back(forwardStream().value);
+    ret.full_qualification.emplace_back(m_StringPool.intern(forwardStream().value));
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "!") {
         forwardStream();
         ret.full_qualification.back().generic_args = parseGenericArgList();
@@ -846,7 +847,7 @@ Ident Parser::parseIdent() {
 
     while (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "::") {
         forwardStream();
-        ret.full_qualification.emplace_back(forwardStream().value);
+        ret.full_qualification.emplace_back(m_StringPool.intern(forwardStream().value));
 
         // check for generics
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "!") {
@@ -856,7 +857,8 @@ Ident Parser::parseIdent() {
     }
 
     if (ret.full_qualification.size() == 1 && ret.full_qualification.at(0).generic_args.empty()) {
-        ret.value = m_Module->symbol_table.getIDInfoFor(ret.full_qualification.front().name);
+        ret.value = m_Module->symbol_table.getIDInfoFor(
+            std::string(ret.full_qualification.front().name));
     }
 
     assert(!ret.full_qualification.empty());
@@ -901,7 +903,7 @@ Node* Parser::parseEnum() {
         }
 
         if (m_Stream.CurTok.type == IDENT) {
-            auto name = forwardStream().value;
+            auto name = m_StringPool.intern(forwardStream().value);
             ret->addEntry(name);
 
             const auto id_info = scope->getNewIDInfo(name, true);
@@ -928,7 +930,7 @@ Node* Parser::parseProtocol() {
     SET_NODE_ATTRS(ret);
 
     forwardStream(); // skip 'protocol'
-    ret->protocol_name = forwardStream().value;
+    ret->protocol_name = m_StringPool.intern(forwardStream().value);
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
         ret->generic_params = parseGenericParamList();
@@ -951,12 +953,12 @@ Node* Parser::parseProtocol() {
             break;
         }
 
-        auto child = dispatch();
+        const auto child = dispatch();
         switch (child->getNodeType()) {
             case ND_VAR: {
                 const auto var = child->to<Var>();
                 ret->members.push_back(Protocol::MemberSignature{
-                    .name = var->var_ident->toString(),
+                    .name = m_StringPool.intern(var->var_ident->toString()),
                     .type = std::move(var->var_type.value()),
                 });
                 break;
@@ -974,7 +976,7 @@ Node* Parser::parseProtocol() {
                 }
 
                 ret->methods.push_back(Protocol::MethodSignature{
-                    .name = func->ident->toString(),
+                    .name = m_StringPool.intern(func->ident->toString()),
                     .return_type = std::move(func->return_type),
                     .params = std::move(func_params),
                 });
@@ -993,7 +995,7 @@ Node* Parser::parseProtocol() {
     }
 
     const TableEntry entry{.is_protocol = true, .node_ptr = ret};
-    ret->protocol_id = m_Module->symbol_table.registerDecl(ret->protocol_name, entry);
+    ret->protocol_id = m_Module->symbol_table.registerDecl(std::string(ret->protocol_name), entry);
 
     if (m_RecursionDepth == 1) {
         NodeJmpTable.insert({ret->protocol_id, ret});
@@ -1068,7 +1070,7 @@ Node* Parser::parseStruct() {
 
     // register the generic parameters in the scope
     for (auto& param : ret->generic_params) {
-        param.id = scope_pointer->getNewIDInfo(param.name);
+        param.id = scope_pointer->getNewIDInfo(std::string(param.name));
         m_Module->symbol_table.registerType(param.id, new GenericType());
     }
 
@@ -1078,7 +1080,8 @@ Node* Parser::parseStruct() {
         m_LastSymWasExported = true;
         auto member = dispatch();
         if (member->getNodeType() == ND_VAR) {
-            struct_ty->field_offsets.insert({member->getIdentInfo()->toString(), i++});
+            struct_ty->field_offsets.insert(
+                {m_StringPool.intern(member->getIdentInfo()->toString()).data(), i++});
         }
         ret->members.emplace_back(member);
     } ignoreButExpect({PUNC, "}"});  // skip '}'

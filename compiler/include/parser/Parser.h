@@ -1,5 +1,4 @@
 #pragma once
-#include <memory>
 #include <mutex>
 #include <utility>
 #include <filesystem>
@@ -14,6 +13,7 @@
 
 #include "ExpressionParser.h"
 #include "utils/FileSystem.h"
+#include "utils/StringPool.h"
 
 
 class Parser;
@@ -101,6 +101,7 @@ class Parser {
     std::unordered_map<IdentInfo*, std::array<StreamState, 2>> m_GlobalOffsets;
 
     sw::FileSystem& m_FileSystem;
+    sw::StringPool& m_StringPool;
 
     struct Bracket_t { char val{}; StreamState location; };
     std::vector<Bracket_t> m_BracketTracker;
@@ -181,7 +182,7 @@ struct Parser::NodeAttrHelper {
         if (node->isGlobal()) {
             const auto glob = dynamic_cast<GlobalNode*>(node);
             glob->is_extern = instance.m_LastSymIsExtern;
-            glob->extern_attributes = instance.m_ExternAttributes;
+            glob->extern_attributes = instance.m_StringPool.intern(instance.m_ExternAttributes);
 
             begins_from = instance.m_Stream.getStreamState();
         }

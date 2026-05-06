@@ -101,7 +101,7 @@ std::unordered_map<std::pair<std::string_view, int>, Op::OpTag_t, PairHash> OpTa
 Op::Op(const std::string_view str, const int8_t adicity): Op()
 {
     arity = adicity;
-    value = std::string(str);
+    value = str;
     op_type = getTagFor(str, adicity);  // compute and set the tag of the operator node
 }
 
@@ -160,13 +160,14 @@ void Expression::setType(Type* to) {
 
 
 /// Constructs and returns an expression out of the `EvalResult` variant
+[[deprecated]]
 Expression Expression::makeExpression(const EvalResult& e) {
     return std::visit(
     VisitorHelper{
         [](std::monostate) { return makeExpression(nullptr); },
         [](const bool v) { return makeExpression(new BoolLit{v}); },
-        [](const double v) { return makeExpression(new FloatLit{v}); },
-        [](const std::size_t v) { return makeExpression(new IntLit{v}); },
+        [](const double v) { return makeExpression(new FloatLit{"888"}); },
+        [](const std::size_t v) { return makeExpression(new IntLit("888")); },
         [](const std::string& v) { return makeExpression(new StrLit{v}); },
     }, e);
 }

@@ -233,7 +233,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, TypeCont
                     return {};
                 }
 
-                const std::string accessed_member = accessed_id->full_qualification.front().name;
+                const std::string_view accessed_member = accessed_id->full_qualification.front().name;
 
                 // check whether the LHS is an operator (DOT is left-associative)
                 if (node->getLHS()->getWrappedNodeOrInstance()->getNodeType() == ND_OP) {

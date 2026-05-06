@@ -1,7 +1,4 @@
 #pragma once
-#include <memory>
-#include <memory_resource>
-
 #include "ast/Nodes.h"
 
 
@@ -17,6 +14,9 @@ class ExpressionParser {
     Node* parsePrefix();
 
 public:
+    [[nodiscard]]
+    std::string_view internString(std::string_view str) const;
+
     explicit ExpressionParser(Parser& parser);
     Expression parseExpr(int rbp = -1);
 };

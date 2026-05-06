@@ -24,8 +24,8 @@ struct ErrorContext {
     std::filesystem::path path_2{};
 
     std::string msg{};    // optional error-message, used to convey various syntax errors
-    std::string str_1{};
-    std::string str_2{};
+    std::string_view str_1{};
+    std::string_view str_2{};
     std::optional<SourceLocation> location = std::nullopt;
 
     Module* module = nullptr;

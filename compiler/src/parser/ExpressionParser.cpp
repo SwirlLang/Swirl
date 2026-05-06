@@ -12,32 +12,43 @@ ExpressionParser::ExpressionParser(Parser& parser):
     m_Parser(parser) {}
 
 
+std::string_view ExpressionParser::internString(const std::string_view str) const {
+    return m_Parser.m_StringPool.intern(str);
+}
+
+
 Node* ExpressionParser::parseComponent() {
     // this helper returns a packaged element-access operator if it detects its presence
     switch (m_Stream.CurTok.type) {
         case NUMBER: {
             if (m_Stream.CurTok.tokenid == Token::NUM_FLOAT) {
-                auto ret = make_node<FloatLit>(m_Stream.CurTok.value);
+                auto ret = make_node<FloatLit>(internString(m_Stream.CurTok.value));
                 SET_NODE_ATTRS(ret);
                 m_Parser.forwardStream();
                 return ret;
             }
 
-            auto ret = make_node<IntLit>(m_Stream.CurTok.value);
+            auto ret = make_node<IntLit>(internString(m_Stream.CurTok.value));
             SET_NODE_ATTRS(ret);
             m_Parser.forwardStream();
             return ret;
         }
 
         case STRING: {
-            auto str = make_node<StrLit>(m_Stream.CurTok.value);
-            SET_NODE_ATTRS(str);
+            std::string content = m_Stream.CurTok.value;
+
+            auto cur_location = m_Stream.CurTok.location;
+            cur_location.Col -= m_Stream.CurTok.value.size();
 
             m_Parser.forwardStream();
-            while (m_Stream.CurTok.type == STRING) {  // concatenation of adjacent string literals
-                str->value += m_Stream.CurTok.value;
+            while (m_Stream.CurTok.type == STRING) {  // concatenate adjacent string literals
+                content += m_Stream.CurTok.value;
                 m_Parser.forwardStream();
             }
+
+            auto str = make_node<StrLit>(internString(content));
+            str->location.from = cur_location;
+            str->location.to = m_Stream.CurTok.location;
             return str;
         }
 
@@ -119,7 +130,7 @@ Node* ExpressionParser::parseComponent() {
 Node* ExpressionParser::parsePrefix() {
     // assumption: current token is an OP
     if (m_Stream.CurTok.type == OP) {
-        auto op = make_node<Op>(m_Stream.CurTok.value, 1);
+        auto op = make_node<Op>(internString(m_Stream.CurTok.value), 1);
         SET_NODE_ATTRS(op);
         m_Parser.forwardStream();
 
@@ -145,7 +156,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
     // left-denotation, used to parse an operator when there's something to it's left
     auto led = [this](Node* left) -> Node* {
         auto op_str = m_Parser.forwardStream().value;
-        auto op = make_node<Op>(op_str, 2);
+        auto op = make_node<Op>(internString(op_str), 2);
         SET_NODE_ATTRS(op);
 
         Expression right;
@@ -186,7 +197,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
         if (const int lbp = Op::getLBPFor(Op::getTagFor(m_Stream.CurTok.value, 2)); rbp >= lbp)
             break;
 
-        ret = Expression::makeExpression(led(std::move(ret.expr)));
+        ret = Expression::makeExpression(led(ret.expr));
     }
 
     return ret;

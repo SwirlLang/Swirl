@@ -219,7 +219,8 @@ CGValue LLVMBackend::llvmCodegen(const IntLit* node, const SwContext& context) {
     else if (context.bound_type->isFloatingPoint()) {
         ret = llvm::ConstantFP::get(codegen(context.bound_type, context), node->value);
     } else if (context.bound_type->isBoolean()) {
-        ret = llvm::ConstantInt::get(llvm::Type::getInt32Ty(LLVMContext), std::to_string(toInteger(node->value)), 10);
+        ret = llvm::ConstantInt::get(
+            llvm::Type::getInt32Ty(LLVMContext), std::to_string(toInteger(std::string(node->value))), 10);
     }
 
     else {
@@ -548,7 +549,7 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
                     codegen(StructFieldType, context),
                     inst_ptr,
                     static_cast<unsigned int>
-                    (struct_ty->field_offsets.at(field_node->full_qualification.front().name))
+                    (struct_ty->field_offsets.at(field_node->full_qualification.front().name.data()))
                 );
 
                 auto field_ty = SymMan.lookupDecl(field_node->value).swirl_type;
@@ -598,7 +599,7 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
                 codegen(struct_ty, context),
                 inst_ptr,
                 static_cast<unsigned int>
-                (struct_ty->field_offsets.at(field_node->full_qualification.front().name))
+                (struct_ty->field_offsets.at(field_node->full_qualification.front().name.data()))
             );
 
             // in the case of this operator, the node->common_type is supposed to be the type of the field

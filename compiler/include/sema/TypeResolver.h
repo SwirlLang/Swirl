@@ -82,7 +82,7 @@ public:
     }
 
 
-    TypeInfo inferType(Node* node, TypeContext ctx) {
+    TypeInfo inferType(Node* node, const TypeContext& ctx) {
         #define SW_NODE(x, y) case x: return evaluateType(static_cast<y*>(node), ctx);
         switch (node->kind) {
             SW_NODE_LIST // NOLINT(*-pro-type-static-cast-downcast)

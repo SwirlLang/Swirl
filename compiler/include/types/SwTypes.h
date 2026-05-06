@@ -178,7 +178,7 @@ struct StructType final : Type {
     IdentInfo* ident = nullptr;
 
     std::vector<Type*> field_types;
-    std::unordered_map<std::string, std::size_t> field_offsets;
+    std::unordered_map<const char*, std::size_t> field_offsets;
 
     StructType(): Type(STRUCT) {}
 

@@ -1,5 +1,4 @@
 #pragma once
-#include <memory_resource>
 #include <string_view>
 #include <filesystem>
 #include <stdexcept>
@@ -131,8 +130,8 @@ struct Node {
 
 
 struct GenericParam final : Node {
-    std::string name;
-    IdentInfo*  id;
+    std::string_view name;
+    IdentInfo*       id;
 
     explicit
     GenericParam() : Node(ND_INVALID), id(nullptr) {}
@@ -141,7 +140,7 @@ struct GenericParam final : Node {
 
 struct GlobalNode : Node {
     bool is_extern   = false;
-    std::string extern_attributes;
+    std::string_view extern_attributes;
     std::vector<GenericParam> generic_params;
 
     explicit GlobalNode(const NodeType ty)
@@ -205,7 +204,8 @@ struct Expression final : Node {
 
 struct Op final : Node {
     int8_t arity = 2;  // the no. of operands the operator requires
-    std::string value;
+
+    std::string_view value;
     std::vector<Node*> operands;  // the operands
 
     // for the special case of the `&` operator, where a `mut` can appear right after it
@@ -303,13 +303,10 @@ struct UndefinedValue final : Node {
 
 
 struct IntLit final : Node {
-    std::string value;
+    std::string_view value;
 
     explicit IntLit(const std::string_view val)
-        : Node(ND_INT) { value = val; }
-
-    explicit IntLit(const std::size_t val)
-        : Node(ND_INT) { value = std::to_string(val); }
+        : Node(ND_INT), value(val) {}
 
 
     [[nodiscard]] NodeType getNodeType() const override {
@@ -324,13 +321,10 @@ struct IntLit final : Node {
 };
 
 struct FloatLit final : Node {
-    std::string value;
+    std::string_view value;
 
     explicit FloatLit(const std::string_view val)
         : Node(ND_FLOAT), value(val) {}
-
-    explicit FloatLit(const double val)
-        : Node(ND_FLOAT), value(std::to_string(val)) {}
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_FLOAT;
@@ -363,10 +357,10 @@ struct BoolLit final : Node {
 
 
 struct StrLit final : Node {
-    std::string value;
+    std::string_view value;
 
-    explicit StrLit(const std::string& val)
-        : Node(ND_STR) { value = val;}
+    explicit StrLit(const std::string_view val)
+        : Node(ND_STR), value(val) {}
 
     [[nodiscard]]
     NodeType getNodeType() const override {
@@ -401,7 +395,7 @@ struct GenericArgList final : Node {
 struct Ident final : Node {
 private:
     struct Qualifier {
-        std::string name;
+        std::string_view name;
         GenericArgList generic_args;
     };
 
@@ -413,9 +407,7 @@ public:
     std::unordered_map<Type*, Type*> type_instantiation_map;
 
     explicit Ident()
-        : Node(ND_IDENT)
-        {}
-
+        : Node(ND_IDENT) {}
 
     explicit Ident(IdentInfo* val)
         : Ident() { value = val; }
@@ -436,8 +428,8 @@ public:
     [[nodiscard]]
     std::string toString() const {
         std::string ret;
-        for (auto& id : full_qualification) {
-            ret += id.name + "::";
+        for (const auto& [name, generic_args] : full_qualification) {
+            ret += std::string(name) + "::";
         } ret.pop_back();
         ret.pop_back();
         return ret;
@@ -462,8 +454,7 @@ struct TypeWrapper final : Node {
     TypeWrapper* of_type{};  // set in the case of wrapper types (refs, ptr, arrays, slices)
 
     explicit TypeWrapper()
-        : Node(ND_TYPE)
-        {}
+        : Node(ND_TYPE) {}
 
     explicit TypeWrapper(Type* ty)
         : Node(ND_TYPE), type(ty) {}
@@ -547,8 +538,7 @@ struct Scope final : Node {
     std::vector<Node*> children;
 
     explicit Scope()
-        : Node(ND_SCOPE)
-        {}
+        : Node(ND_SCOPE) {}
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_SCOPE;
@@ -565,9 +555,7 @@ struct Function final : GlobalNode {
     TypeWrapper return_type;
 
     explicit Function()
-        : GlobalNode(ND_FUNC)
-        {}
-
+        : GlobalNode(ND_FUNC) {}
 
     IdentInfo* getIdentInfo() override {
         return ident;
@@ -587,8 +575,7 @@ struct FuncCall final : Node {
     GenericArgList          generic_args;
 
     explicit FuncCall()
-        : Node(ND_CALL)
-         {}
+        : Node(ND_CALL) {}
 
     IdentInfo* getIdentInfo() override {
         return ident.getIdentInfo();
@@ -614,8 +601,7 @@ struct Intrinsic final : Node {
     Ident ident;
 
     explicit Intrinsic()
-        : Node(ND_INTRINSIC)
-        {}
+        : Node(ND_INTRINSIC) {}
 
     void operator=(FuncCall* call) {
         args  = std::move(call->args);
@@ -636,20 +622,18 @@ struct Intrinsic final : Node {
 
 struct ImportNode final : Node {
     struct ImportedSymbol_t {
-        std::string actual_name;
-        std::string assigned_alias{};
+        std::string_view actual_name;
+        std::string_view assigned_alias;
     };
 
     bool is_wildcard = false;
 
     sw::FileHandle*  mod_handle = nullptr;
-    std::string      alias;
-    std::vector<ImportedSymbol_t> imported_symbols;
+    std::string_view alias;
+    std::vector<ImportedSymbol_t> imported_symbols{};
 
     explicit ImportNode()
-        : Node(ND_IMPORT)
-        {}
-
+        : Node(ND_IMPORT) {}
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_IMPORT;
@@ -662,8 +646,7 @@ struct ArrayLit final : Node {
     std::vector<Expression> elements;
 
     explicit ArrayLit()
-        : Node(ND_ARRAY)
-        {}
+        : Node(ND_ARRAY) {}
 
     Type* getSwType() override {
         return type;
@@ -681,8 +664,7 @@ struct WhileLoop final : Node {
     std::vector<Node*> children;
 
     explicit WhileLoop()
-        : Node(ND_WHILE)
-        {}
+        : Node(ND_WHILE) {}
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_WHILE;
@@ -696,6 +678,7 @@ struct BreakStmt final : Node {
     [[nodiscard]] NodeType getNodeType() const override { return ND_BREAK;}
 };
 
+
 struct ContinueStmt final : Node {
     explicit ContinueStmt(): Node(ND_CONTINUE) {}
 
@@ -706,12 +689,11 @@ struct ContinueStmt final : Node {
 struct Enum final : Node {
     IdentInfo* ident;
     std::optional<TypeWrapper> enum_type;
-    std::unordered_map<std::string, int> entries;
+    std::unordered_map<std::string_view, int> entries;
 
     explicit Enum()
         : Node(ND_ENUM)
-        , ident(nullptr)
-        {}
+        , ident(nullptr) {}
 
     int counter = 0;
     void addEntry(const std::string_view name) {
@@ -719,9 +701,10 @@ struct Enum final : Node {
     }
 };
 
+
 struct Protocol final : GlobalNode {
     struct MethodSignature {
-        std::string name;
+        std::string_view name;
         TypeWrapper return_type;
         std::vector<TypeWrapper> params;
 
@@ -737,7 +720,7 @@ struct Protocol final : GlobalNode {
     };
 
     struct MemberSignature {
-        std::string name;
+        std::string_view name;
         TypeWrapper  type;
 
         bool operator==(const MemberSignature& other) const {
@@ -745,8 +728,8 @@ struct Protocol final : GlobalNode {
         }
     };
 
-    std::string protocol_name;
-    IdentInfo*  protocol_id = nullptr;
+    std::string_view  protocol_name;
+    IdentInfo*        protocol_id = nullptr;
 
     std::vector<Ident> depended_protocols;
     std::vector<MemberSignature> members;
@@ -757,8 +740,7 @@ struct Protocol final : GlobalNode {
     }
 
     explicit Protocol()
-        : GlobalNode(ND_PROTOCOL)
-        {}
+        : GlobalNode(ND_PROTOCOL) {}
 
     [[nodiscard]]
     NodeType getNodeType() const override { return ND_PROTOCOL; }
@@ -775,7 +757,7 @@ struct std::hash<TypeWrapper> {
 template <>
 struct std::hash<Protocol::MemberSignature> {
     std::size_t operator()(const Protocol::MemberSignature& m) const noexcept {
-        return combineHashes(std::hash<std::string>{}(m.name), std::hash<TypeWrapper>{}(m.type));
+        return combineHashes(std::hash<const char*>{}(m.name.data()), std::hash<TypeWrapper>{}(m.type));
     }
 };
 
@@ -788,7 +770,7 @@ struct std::hash<Protocol::MethodSignature> {
         }
 
         return combineHashes(
-            std::hash<std::string>{}(m.name),
+            std::hash<const char*>{}(m.name.data()),
             std::hash<TypeWrapper>{}(m.return_type),
             arg_hash
             );
@@ -825,8 +807,7 @@ struct Condition final : Node {
     std::vector<Node*> else_children{};
 
     explicit Condition()
-        : Node(ND_COND)
-        {}
+        : Node(ND_COND) {}
 
 
     [[nodiscard]] Node* getExprValue() override {

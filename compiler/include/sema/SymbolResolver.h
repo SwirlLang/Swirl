@@ -25,7 +25,8 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
     void handle(ImportNode* node, const Data&) {
         if (!node->imported_symbols.empty()) {
             for (auto& symbol : node->imported_symbols) {
-                IdentInfo* id = SymMan.getIdInfoFromModule(node->mod_handle, symbol.actual_name);
+                IdentInfo* id = SymMan.getIdInfoFromModule(
+                    node->mod_handle, std::string(symbol.actual_name));
 
                 if (!id) {
                     reportError(
@@ -44,7 +45,9 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
 
                 // make the symbol manager aware of the foreign symbol's `IdentInfo*`
                 SymMan.registerForeignID(
-                    symbol.assigned_alias.empty() ? symbol.actual_name : symbol.assigned_alias,
+                    symbol.assigned_alias.empty() ?
+                          std::string(symbol.actual_name)
+                        : std::string(symbol.assigned_alias),
                     id, node->is_exported
                     );
 

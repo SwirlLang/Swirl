@@ -28,7 +28,7 @@ struct Module {
     SymbolManager symbol_table;
     sw::FileHandle* file_handle = nullptr;
 
-    Module(const ModuleContext& context);
+    explicit Module(const ModuleContext& context);
 
     /// the modules which directly depend on this module
     std::unordered_set<Module*> dependents{};

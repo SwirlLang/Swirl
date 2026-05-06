@@ -29,6 +29,12 @@ public:
         return m_IDMan.createNew(name, is_fictitious);
     }
 
+    // NOTE: to be removed
+    IdentInfo* getNewIDInfo(const std::string_view name, const bool is_fictitious = false) {
+        return getNewIDInfo(std::string(name), is_fictitious);
+    }
+
+
     auto begin() const {
         return m_IDMan.begin();
     }
@@ -43,6 +49,11 @@ public:
 
     constexpr std::optional<IdentInfo*> getIDInfoFor(const std::string& name) const {
         return m_IDMan.contains(name) ? std::optional{m_IDMan.fetch(name)} : std::nullopt;
+    }
+
+    // NOTE: to be removed
+    constexpr std::optional<IdentInfo*> getIDInfoFor(const std::string_view name) const {
+        return getIDInfoFor(std::string(name));
     }
 };
 
