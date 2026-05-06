@@ -16,7 +16,7 @@ class TokenStream {
         bool  is_active = false;
         bool  only_type = false;
         std::vector<Token> expected_tokens;
-        std::vector<TokenType> expected_types;
+        std::vector<TokenCategory> expected_types;
     }                           m_Filter;
 
     static bool isKeyword(const std::string& _str);
@@ -67,7 +67,7 @@ public:
     void restoreCache() const;
 
     /// what token *types* are expected next
-    [[deprecated]] void expectTypes(std::initializer_list<TokenType>&& types);
+    [[deprecated]] void expectTypes(std::initializer_list<TokenCategory>&& types);
 
     /// when particular tokens are expected next
     [[deprecated]] void expectTokens(std::initializer_list<Token>&& tokens);

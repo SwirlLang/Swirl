@@ -327,7 +327,7 @@ void TokenStream::restoreCache() const {
     m_Stream.setStreamState(m_Cache);
 }
 
-void TokenStream::expectTypes(std::initializer_list<TokenType>&& types) {
+void TokenStream::expectTypes(std::initializer_list<TokenCategory>&& types) {
     m_Filter.is_active = true;
     m_Filter.only_type = true;
     m_Filter.expected_types.assign(types.begin(), types.end());
