@@ -6,7 +6,7 @@
 #include <mutex>
 
 #include "parser/Parser.h"
-#include "ast/Visitor.h"
+#include "ast/RecursiveVisitor.h"
 #include "errors/ErrorManager.h"
 #include "modules/ModuleManager.h"
 
