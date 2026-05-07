@@ -53,13 +53,13 @@ Node* ExpressionParser::parseComponent() {
         }
 
         case IDENT: {
-            auto id = make_node<Ident>(m_Parser.parseIdent());
+            auto id = m_Parser.parseIdent();
             SET_NODE_ATTRS(id);
             assert(!id->full_qualification.empty());
 
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
                 // `id` HAS BEEN MOVED!
-                auto call_node = m_Parser.parseCall(std::move(*id));
+                auto call_node = m_Parser.parseCall(id);
                 return call_node;
             } return id;
         }
@@ -90,7 +90,7 @@ Node* ExpressionParser::parseComponent() {
                 m_Parser.forwardStream();  // skip the '['
 
                 while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "]")) {
-                    arr_node->elements.push_back(parseExpr());
+                    arr_node->elements.push_back(make_node<Expression>(parseExpr()));
 
                     if (m_Stream.CurTok.type == PUNC) {
                         if (m_Stream.CurTok.value == ",") {
@@ -167,7 +167,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
                 m_Parser.ignoreButExpect({PUNC, "]"});
                 break;
             case Op::CAST_OP: {
-                const auto dummy_node = new TypeWrapper(m_Parser.parseType());
+                const auto dummy_node = m_Parser.parseType();
                 right = Expression::makeExpression(dummy_node);
                 break;
             }

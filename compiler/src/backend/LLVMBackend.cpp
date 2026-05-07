@@ -656,7 +656,7 @@ CGValue LLVMBackend::llvmCodegen(Ident* node, const SwContext& context) {
     if (node->value->isFictitious()) {
         const auto enum_node = SymMan.getFictitiousIDValue(node->value);
         return {nullptr, llvm::ConstantInt::get(
-            codegen(enum_node->enum_type->type, context),
+            codegen(enum_node->enum_type.value()->type, context),
             enum_node->entries.at(node->full_qualification.back().name))};
     }
 
@@ -704,7 +704,7 @@ CGValue LLVMBackend::llvmCodegen(Function* node, const SwContext& context) {
     Builder.SetInsertPoint(entry_bb);
 
     for (unsigned int i = 0; i < node->params.size(); i++) {
-        const auto p_name = node->params[i].var_ident;
+        const auto p_name = node->params[i]->var_ident;
         [[maybe_unused]] const auto param = func->getArg(i);
         // param->setName(p_name->toString());
 
@@ -726,7 +726,7 @@ CGValue LLVMBackend::llvmCodegen(Condition* node, const SwContext& context) {
     const auto else_block  = llvm::BasicBlock::Create(LLVMContext, "else", parent);
     const auto merge_block = llvm::BasicBlock::Create(LLVMContext, "merge", parent);
 
-    const auto if_cond = codegen(&node->bool_expr, context).getRValue(*this, context);
+    const auto if_cond = codegen(node->bool_expr, context).getRValue(*this, context);
     Builder.CreateCondBr(if_cond, if_block, else_block);
 
     {
@@ -744,7 +744,7 @@ CGValue LLVMBackend::llvmCodegen(Condition* node, const SwContext& context) {
         Builder.SetInsertPoint(else_block);
 
         for (auto& [condition, children] : node->elif_children) {
-            const auto cnd = codegen(&condition, context).getRValue(*this, context);
+            const auto cnd = codegen(condition, context).getRValue(*this, context);
 
             auto elif_block = llvm::BasicBlock::Create(LLVMContext, "elif", parent);
             auto next_elif  = llvm::BasicBlock::Create(LLVMContext, "next_elif", parent);
@@ -789,7 +789,7 @@ CGValue LLVMBackend::llvmCodegen(WhileLoop* node, SwContext context) {
         Builder.CreateBr(cond_block);
 
     Builder.SetInsertPoint(cond_block);
-    const auto expr  = codegen(&node->condition, context).getRValue(*this, context);
+    const auto expr  = codegen(node->condition, context).getRValue(*this, context);
     Builder.CreateCondBr(expr, body_block, merge_block);
 
 
@@ -814,7 +814,7 @@ CGValue LLVMBackend::llvmCodegen(WhileLoop* node, SwContext context) {
 /// returns a load of it.
 CGValue LLVMBackend::llvmCodegen(ArrayLit* node, const SwContext& context) {
     assert(!node->elements.empty());
-    Type* element_type = node->elements.at(0).expr_type;
+    Type* element_type = node->elements.at(0)->expr_type;
     Type* sw_arr_type  = SymMan.getArrayType(element_type, node->elements.size());
 
     if (!isLocalScope()) {
@@ -827,7 +827,7 @@ CGValue LLVMBackend::llvmCodegen(ArrayLit* node, const SwContext& context) {
                 auto new_ctx = context;
                 new_ctx.bound_type = element_type;
                 val_array.push_back(llvm::dyn_cast<llvm::Constant>(
-                    codegen(&elem, new_ctx).getRValue(*this, new_ctx)));
+                    codegen(elem, new_ctx).getRValue(*this, new_ctx)));
             }
 
             auto array_init = llvm::ConstantArray::get(arr_type, val_array);
@@ -854,13 +854,13 @@ CGValue LLVMBackend::llvmCodegen(ArrayLit* node, const SwContext& context) {
 
         for (auto [i, element] : llvm::enumerate(node->elements)) {
             ptr = Builder.CreateGEP(arr_type, base_ptr, {toLLVMInt(0), toLLVMInt(i)});
-            if (element.expr_type->isArrayType()) {
+            if (element->expr_type->isArrayType()) {
                 auto new_ctx = context;
                 new_ctx.bound_memory = ptr;
                 new_ctx.bound_type = element_type;
-                codegen(&element, new_ctx);
+                codegen(element, new_ctx);
                 continue;
-            } Builder.CreateStore(codegen(&element, context).getRValue(*this, context), ptr);
+            } Builder.CreateStore(codegen(element, context).getRValue(*this, context), ptr);
         }
 
         return {};
@@ -871,13 +871,13 @@ CGValue LLVMBackend::llvmCodegen(ArrayLit* node, const SwContext& context) {
 
     for (auto [i, element] : llvm::enumerate(node->elements)) {
         ptr = Builder.CreateGEP(arr_type, base_ptr, {toLLVMInt(0), toLLVMInt(i)});
-        if (element.expr_type->isArrayType()) {
+        if (element->expr_type->isArrayType()) {
             auto new_ctx = context;
             new_ctx.bound_memory = ptr;
             new_ctx.bound_type = element_type;
-            codegen(&element, new_ctx);
+            codegen(element, new_ctx);
             continue;
-        } Builder.CreateStore(codegen(&element, context).getRValue(*this, context), ptr);
+        } Builder.CreateStore(codegen(element, context).getRValue(*this, context), ptr);
     }
 
     auto tmp_load = Builder.CreateLoad(codegen(context.bound_type, context), tmp);
@@ -941,7 +941,7 @@ CGValue LLVMBackend::llvmCodegen(ContinueStmt* node, const SwContext& context) {
 CGValue LLVMBackend::llvmCodegen(Intrinsic* node, const SwContext& context) {
     switch (node->intrinsic_type) {
         case Intrinsic::SIZEOF: {
-            llvm::Type* val_type = codegen(&node->args.at(0), context).getRValue(*this, context)->getType();
+            llvm::Type* val_type = codegen(node->args.at(0), context).getRValue(*this, context)->getType();
             if (val_type->isPointerTy()) {
                 return CGValue::rValue(toLLVMInt(getDataLayout().getPointerSize(0)));
             } if (val_type->isVoidTy()) {
@@ -949,17 +949,17 @@ CGValue LLVMBackend::llvmCodegen(Intrinsic* node, const SwContext& context) {
             } return CGValue::rValue(toLLVMInt(getDataLayout().getTypeSizeInBits(val_type) / 8));
         }
         case Intrinsic::TYPEOF:
-            return codegen(&node->args.at(0), context);
+            return codegen(node->args.at(0), context);
         case Intrinsic::ADV_PTR: {
             assert(node->args.size() == 2);
-            assert(node->args.at(0).expr_type->isPointerType());
-            assert(node->args.at(1).expr_type->isIntegral());
+            assert(node->args.at(0)->expr_type->isPointerType());
+            assert(node->args.at(1)->expr_type->isIntegral());
 
-            llvm::Value* ptr = codegen(&node->args.at(0), context).getRValue(*this, context);
-            std::array operands{codegen(&node->args.at(1), context).getRValue(*this, context)};
+            llvm::Value* ptr = codegen(node->args.at(0), context).getRValue(*this, context);
+            std::array operands{codegen(node->args.at(1), context).getRValue(*this, context)};
 
             return CGValue::rValue(Builder.CreateGEP(
-                codegen(node->args.at(0).expr_type->getWrappedType(), context),
+                codegen(node->args.at(0)->expr_type->getWrappedType(), context),
                 ptr, operands
             ));
         }
@@ -971,11 +971,11 @@ CGValue LLVMBackend::llvmCodegen(Intrinsic* node, const SwContext& context) {
 
 
 CGValue LLVMBackend::llvmCodegen(ReturnStatement* node, const SwContext& context) {
-    if (node->value.expr) {
+    if (node->value->expr) {
         assert(node->parent_fn_type->ret_type != nullptr);
         auto new_ctx = context;
         new_ctx.bound_type = node->parent_fn_type->ret_type;
-        llvm::Value* ret = codegen(&node->value, new_ctx).getRValue(*this, new_ctx);
+        llvm::Value* ret = codegen(node->value, new_ctx).getRValue(*this, new_ctx);
         Builder.CreateRet(ret);
         return {};
     }
@@ -1013,7 +1013,7 @@ llvm::Function* LLVMBackend::instantiateGenericFunction(Ident& id, Function* fun
     SwContext ctx{.is_generic_inst = true};
     for (const auto& arg : id.full_qualification.back().generic_args) {
         if (arg->isType()) {
-            ctx.generic_args.push_back(arg->getType().type);
+            ctx.generic_args.push_back(arg->getType()->type);
         }
     }
 
@@ -1030,20 +1030,20 @@ llvm::Function* LLVMBackend::instantiateGenericFunction(Ident& id, Function* fun
 CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
     std::vector<llvm::Type*> paramTypes;
 
-    assert(node->ident.getIdentInfo());
-    const auto fn_name = node->ident.getIdentInfo();
+    assert(node->ident->getIdentInfo());
+    const auto fn_name = node->ident->getIdentInfo();
 
     llvm::Function* func;
-    if (node->ident.type_instantiation_map.empty()) {
+    if (node->ident->type_instantiation_map.empty()) {
         func = LModule->getFunction(mangleString(fn_name));
     } else {
-        const auto fn_ptr = SymMan.lookupDecl(node->ident.value).node_ptr->to<Function>();
-        func = instantiateGenericFunction(node->ident, fn_ptr);
+        const auto fn_ptr = SymMan.lookupDecl(node->ident->value).node_ptr->to<Function>();
+        func = instantiateGenericFunction(*node->ident, fn_ptr);
     }
 
     if (!func) {
         [[maybe_unused]] auto fn = llvm::Function::Create(
-            llvm::dyn_cast<llvm::FunctionType>(codegen(SymMan.lookupType(node->ident.getIdentInfo()), context)),
+            llvm::dyn_cast<llvm::FunctionType>(codegen(SymMan.lookupType(node->ident->getIdentInfo()), context)),
             llvm::GlobalValue::ExternalLinkage,
             mangleString(fn_name),
             LModule.get()
@@ -1054,8 +1054,8 @@ CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
     std::vector<llvm::Value*> arguments{};
     arguments.reserve(node->args.size() + 1);
 
-    assert(node->ident.value);
-    const auto& entry = SymMan.lookupDecl(node->ident.value);
+    assert(node->ident->value);
+    const auto& entry = SymMan.lookupDecl(node->ident->value);
 
     int8_t bias = 0;
     if (entry.method_of && !entry.is_static) {
@@ -1072,11 +1072,11 @@ CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
             SymMan.lookupType(node->getIdentInfo())
                 ->to<FunctionType>()->param_types.at(index + bias);
 
-        arguments.push_back(codegen(&item, new_ctx).getRValue(*this, new_ctx));
+        arguments.push_back(codegen(item, new_ctx).getRValue(*this, new_ctx));
     }
 
     if (!func->getReturnType()->isVoidTy()) {
-        auto call = Builder.CreateCall(func, arguments, node->ident.value->toString());
+        auto call = Builder.CreateCall(func, arguments, node->ident->value->toString());
         return {call, call};
     }
 
@@ -1108,11 +1108,11 @@ CGValue LLVMBackend::llvmCodegen(Var* node, const SwContext& context) {
         if (node->initialized) {
             auto new_ctx = context;
             new_ctx.bound_memory = var;
-            init = codegen(&node->value, new_ctx).getRValue(*this, new_ctx);
+            init = codegen(node->value, new_ctx).getRValue(*this, new_ctx);
             const auto val = llvm::dyn_cast<llvm::Constant>(init);
             assert(val != nullptr);
             var->setInitializer(val);
-        } else if (node->value.expr == nullptr) {
+        } else if (node->value->expr == nullptr) {
             // when the `undefined` keyword isn't used, initialize with 0's
             var->setInitializer(llvm::Constant::getNullValue(type));
         }
@@ -1132,12 +1132,12 @@ CGValue LLVMBackend::llvmCodegen(Var* node, const SwContext& context) {
             // instance.BoundMemory = var_alloca;
             auto new_ctx = context;
             new_ctx.bound_type = node->var_type->type;
-            init = codegen(&node->value, new_ctx).getRValue(*this, new_ctx);
+            init = codegen(node->value, new_ctx).getRValue(*this, new_ctx);
 
             assert(init != nullptr);
             Builder.CreateStore(init, var_alloca, node->is_volatile);
 
-        } else if (node->value.expr == nullptr) {
+        } else if (node->value && node->value->expr == nullptr) {
             // when the `undefined` keyword isn't used, initialize with 0's
             Builder.CreateMemSet(
                 var_alloca,

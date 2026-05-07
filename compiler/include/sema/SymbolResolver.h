@@ -11,7 +11,7 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
 
     struct Data {
         std::unordered_set<std::string_view> ignore_symbols{};
-        std::unordered_map<std::string_view, Ident> generic_args;
+        std::unordered_map<std::string_view, Ident*> generic_args;
     };
 
 
@@ -60,14 +60,14 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
     void handle(Function* node, Data data) {
         // when not being instantiated, do not attempt to resolve symbols which use generics
         if (!node->generic_params.empty() && data.generic_args.empty()) {
-            for (auto& param : node->generic_params) {
-                data.ignore_symbols.insert(param.name);
+            for (const GenericParam* param : node->generic_params) {
+                data.ignore_symbols.insert(param->name);
             }
         }
 
-        for (auto& param : node->params) {
-            visit(&param, data);
-        } visit(&node->return_type, data);
+        for (Var* param : node->params) {
+            visit(param, data);
+        } visit(node->return_type, data);
 
         for (auto& child : node->children) {
             visit(child, data);
@@ -76,19 +76,19 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
 
 
     void handle(FuncCall* node, Data data) {
-        std::vector<GenericParam>* generic_params = nullptr;
-        if (node->ident.value) {
-            auto fn_node = SymMan.lookupDecl(node->ident.value).node_ptr->to<Function>();
+        std::vector<GenericParam*>* generic_params = nullptr;
+        if (node->ident->value) {
+            auto fn_node = SymMan.lookupDecl(node->ident->value).node_ptr->to<Function>();
             generic_params = &fn_node->generic_params;
         }
 
-        visit(&node->ident, data);
+        visit(node->ident, data);
 
         for (const auto& [i, arg] : std::views::enumerate(node->generic_args)) {
             // Id to node table required
             if (!generic_params) {
                 reportError(ErrCode::NOT_A_GENERIC, {
-                    .str_1 = node->ident.full_qualification.back().name});
+                    .str_1 = node->ident->full_qualification.back().name});
                 break;
             }
 
@@ -98,13 +98,12 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             }
 
             if (arg->isType()) {
-                data.generic_args.insert({
-                    generic_params->at(i).name, arg->getType().type_id}); // TODO
+                data.generic_args.insert({generic_params->at(i)->name, arg->getType()->type_id}); // TODO
             }
         }
 
         for (auto& arg : node->args) {
-            visit(&arg, data);
+            visit(arg, data);
         }
     }
 
@@ -137,8 +136,8 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             if (node->full_qualification.size() > 1) {
                 for (auto& [name, _] : node->full_qualification) {
                     if (data.generic_args.contains(name)) {
-                        assert(data.generic_args.at(name).full_qualification.size() == 1);
-                        name = data.generic_args.at(name).full_qualification.front().name;
+                        assert(data.generic_args.at(name)->full_qualification.size() == 1);
+                        name = data.generic_args.at(name)->full_qualification.front().name;
                     }
                 }
             }

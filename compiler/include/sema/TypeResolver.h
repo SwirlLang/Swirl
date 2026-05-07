@@ -69,8 +69,8 @@ public:
         }
 
         if (fn_type->ret_type == nullptr && ReturnStmtCounter == 0) {
-            fn_type->ret_type      = &GlobalTypeVoid;
-            node->return_type.type = &GlobalTypeVoid;
+            fn_type->ret_type       = &GlobalTypeVoid;
+            node->return_type->type = &GlobalTypeVoid;
         }
 
         if (CurrentParentFunction.back() == node) {
@@ -126,8 +126,8 @@ public:
 
         for (auto& element : node->elements) {
             if (common_type) {
-                common_type = unify(inferType(&element, ctx).deduced_type, common_type);
-            } else common_type = inferType(&element, ctx).deduced_type;
+                common_type = unify(inferType(element, ctx).deduced_type, common_type);
+            } else common_type = inferType(element, ctx).deduced_type;
         }
 
         if (common_type) {
@@ -144,16 +144,16 @@ public:
         Type* ret = nullptr;
 
         // has id
-        if (!node->type_id.full_qualification.empty()) {
-            if (node->type_id.value == nullptr) {
-                node->type_id.value = SymMan.getIDInfoFor(
-                   node->type_id, [this](auto a, auto b) {
+        if (node->type_id && !node->type_id->full_qualification.empty()) {
+            if (node->type_id->value == nullptr) {
+                node->type_id->value = SymMan.getIDInfoFor(
+                   *node->type_id, [this](auto a, auto b) {
                        reportError(a, std::move(b));
                    });
             }
 
-            if (node->type_id.value != nullptr) {
-                ret = SymMan.lookupType(node->type_id.value);
+            if (node->type_id->value != nullptr) {
+                ret = SymMan.lookupType(node->type_id->value);
             }
         }
 
@@ -200,8 +200,8 @@ public:
         if (node->intrinsic_type != Intrinsic::ADV_PTR) {
             for (auto& arg : node->args) {
                 if (deduced_type == nullptr) {
-                    deduced_type = inferType(&arg, ctx).deduced_type;
-                } else deduced_type = unify(deduced_type, inferType(&arg, ctx).deduced_type);
+                    deduced_type = inferType(arg, ctx).deduced_type;
+                } else deduced_type = unify(deduced_type, inferType(arg, ctx).deduced_type);
             }
         }
 
@@ -211,13 +211,13 @@ public:
                 case Intrinsic::ADV_PTR: {
                     assert(node->args.size() == 2);
 
-                    inferType(&node->args.at(0), ctx);
-                    inferType(&node->args.at(1), ctx);
+                    inferType(node->args.at(0), ctx);
+                    inferType(node->args.at(1), ctx);
 
                     if (node->args.size() < 2) {
                         reportError(ErrCode::TOO_FEW_ARGS, {});
                         return {};
-                    } res = node->args.at(0).expr_type;
+                    } res = node->args.at(0)->expr_type;
                     break;
                 }
                 default: res = deduced_type;
@@ -231,8 +231,8 @@ public:
         Type* ret = nullptr;
         if (node->value->isFictitious()) {
             const auto enum_node = SymMan.getFictitiousIDValue(node->value);
-            inferType(&*enum_node->enum_type, ctx);
-            ret = enum_node->enum_type->type;
+            inferType(*enum_node->enum_type, ctx);
+            ret = enum_node->enum_type.value()->type;
         } else {
             const auto decl = SymMan.lookupDecl(node->value);
             ret = decl.swirl_type;
@@ -252,12 +252,12 @@ public:
     TypeInfo evaluateType(FuncCall* node, const TypeContext& ctx) {
         if (ctx.is_method_call) {
             assert(ctx.method_id);
-            node->ident.value = ctx.method_id;
-        } handle(&node->ident);
+            node->ident->value = ctx.method_id;
+        } handle(node->ident);
         // assuming `SymbolResolver` has resolved the ID otherwise
 
-        assert(node->ident.getIdentInfo());
-        auto* id = node->ident.getIdentInfo();
+        assert(node->ident->getIdentInfo());
+        auto* id = node->ident->getIdentInfo();
 
         // if not a recursive-case, ensure the function is handled first
         if (getCurrentParentFunc()->getIdentInfo() != id) {
@@ -274,7 +274,7 @@ public:
             if (!ctx.is_method_call) {
                 reportError(ErrCode::NOT_ENOUGH_ARGS, {
                     .type_1 = fn_type,
-                    .str_1  = node->ident.toString(),
+                    .str_1  = node->ident->toString(),
                     .str_2  = std::to_string(node->args.size())
                 }); return {};
             }
@@ -299,12 +299,12 @@ public:
         // check the type compatibility between the function signature and the arguments
         for (std::size_t i = 0; i < node->args.size(); i++) {
             const std::size_t index = i + (ctx.is_method_call ? 1 : 0);
-            auto arg_type = inferType(&node->args.at(i), {
+            auto arg_type = inferType(node->args.at(i), {
                 .bound_type = fn_type->param_types.at(index)
             });
 
             checkTypeCompatibility(arg_type.deduced_type, fn_type->param_types.at(index));
-            node->args.at(i).setType(fn_type->param_types.at(index));
+            node->args.at(i)->setType(fn_type->param_types.at(index));
         }
 
         return {.deduced_type = fn_type->ret_type};
@@ -313,26 +313,28 @@ public:
     TypeInfo evaluateType(Op* node, TypeContext ctx);
 
     void handle(Function* node) {
-        inferType(&node->return_type, {});
+        if (node->return_type) {
+            inferType(node->return_type, {});
+        } else node->return_type = makeNode<TypeWrapper>();
 
         auto* fn_type = SymMan.lookupType(node->ident)->to<FunctionType>();
-        fn_type->ret_type = node->return_type.type;
+        fn_type->ret_type = node->return_type->type;
 
         CommonFunctionType = fn_type->ret_type;
 
         assert(fn_type->param_types.size() <= 1 || IsGenericInst);
-        for (auto& param : node->params) {
-            visit(&param);
+        for (Var* param : node->params) {
+            handle(param);
 
             if (!IsGenericInst) {
-                auto param_type = param.var_type.value().type;
+                auto param_type = param->var_type->type;
                 fn_type->param_types.push_back(param_type);
-                SymMan.lookupDecl(param.var_ident).swirl_type = param_type;
+                SymMan.lookupDecl(param->var_ident).swirl_type = param_type;
             }
         }
 
         // visit children
-        for (auto& child : node->children) {
+        for (Node* child : node->children) {
             visit(child);
         }
     }
@@ -350,11 +352,11 @@ public:
             // iterate over the generic args and activate the generic type
             for (const auto& [i, arg] : std::views::enumerate(qualifier.generic_args)) {
                 if (i < target_node->generic_params.size()) {
-                    auto generic_ty = SymMan.lookupType(target_node->generic_params.at(i).id);
+                    auto generic_ty = SymMan.lookupType(target_node->generic_params.at(i)->id);
                     assert(generic_ty != nullptr);
 
                     if (arg->isType()) {
-                        const auto arg_ty = inferType(&arg->getType(), {}).deduced_type;
+                        const auto arg_ty = inferType(arg->getType(), {}).deduced_type;
                         generic_ty->to<GenericType>()->contained_type = arg_ty;
 
                         node->type_instantiation_map.insert({generic_ty, arg_ty});
@@ -382,13 +384,13 @@ public:
             ? CommonFunctionType->to<ArrayType>()->of_type
             : CommonFunctionType);
 
-        const auto type = node->value.expr
-            ? inferType(&node->value, {.bound_type = bound_type}).deduced_type
+        const auto type = node->value->expr
+            ? inferType(node->value, {.bound_type = bound_type}).deduced_type
             : &GlobalTypeVoid;
 
         if (CommonFunctionType) {
             if (checkTypeCompatibility(type, CommonFunctionType)) {
-                node->value.setType(CommonFunctionType);
+                node->value->setType(CommonFunctionType);
             }
         } else {
             CommonFunctionType = type;
@@ -402,23 +404,23 @@ public:
 
     void handle(Enum* node) {
         if (node->enum_type.has_value()) {
-            const auto ty = inferType(&node->enum_type.value(), {}).deduced_type;
+            const auto ty = inferType(node->enum_type.value(), {}).deduced_type;
             if (ty && !ty->isIntegral()) {
                 reportError(ErrCode::ENUM_TYPE_NOT_INTEGRAL, {});
             } else {
-                node->enum_type = TypeWrapper{};
-                node->enum_type->type = &GlobalTypeI32;
+                node->enum_type = makeNode<TypeWrapper>();
+                node->enum_type.value()->type = &GlobalTypeI32;
             }
         }
 
         const auto ty = SymMan.lookupType(node->ident)->to<EnumType>();
-        ty->of_type = node->enum_type->type;
+        ty->of_type = node->enum_type.value()->type;
     }
 
 
     void handle(Var* node) {
-        if (node->var_type.has_value()) {
-            inferType(&node->var_type.value(), {});
+        if (node->var_type) {
+            inferType(node->var_type, {});
         }
 
         if (!node->initialized && (!node->is_param && node->is_const)) {
@@ -428,7 +430,7 @@ public:
             ); return;
         }
 
-        Type* bound_type = node->var_type.has_value()
+        Type* bound_type = node->var_type
             ? (node->var_type->type->isArrayType()
               ? node->var_type->type->to<ArrayType>()->of_type
               : node->var_type->type)
@@ -436,15 +438,15 @@ public:
 
 
         if (node->initialized) {
-            const auto val_ty = inferType(&node->value, {.bound_type = bound_type}).deduced_type;
+            const auto val_ty = inferType(node->value, {.bound_type = bound_type}).deduced_type;
 
-            if (!node->var_type.has_value()) {
-                node->var_type = TypeWrapper{};
+            if (!node->var_type) {
+                node->var_type = makeNode<TypeWrapper>();
                 node->var_type->type = val_ty;
-                node->value.setType(val_ty);
+                node->value->setType(val_ty);
             } else {
                 checkTypeCompatibility(val_ty, node->var_type->type);
-                node->value.setType(val_ty);
+                node->value->setType(val_ty);
             }
         }
 
@@ -462,7 +464,7 @@ public:
 
 
     void handle(Condition* node) {
-        const auto if_condition_ty = inferType(&node->bool_expr, {}).deduced_type;
+        const auto if_condition_ty = inferType(node->bool_expr, {}).deduced_type;
 
         if (!checkTypeCompatibility(if_condition_ty, &GlobalTypeBool, false)) {
             reportError(ErrCode::CONDITION_NOT_BOOL, {});
@@ -473,7 +475,7 @@ public:
         }
 
         for (auto& [condition, children] : node->elif_children) {
-            const auto cond_ty = inferType(&condition, {}).deduced_type;
+            const auto cond_ty = inferType(condition, {}).deduced_type;
             if (!checkTypeCompatibility(cond_ty, &GlobalTypeBool, false)) {
                 reportError(ErrCode::CONDITION_NOT_BOOL, {});
             }
@@ -489,7 +491,7 @@ public:
     }
 
     void handle(WhileLoop* node) {
-        const auto condition_ty = inferType(&node->condition, {}).deduced_type;
+        const auto condition_ty = inferType(node->condition, {}).deduced_type;
         if (!checkTypeCompatibility(condition_ty, &GlobalTypeBool, false)) {
             reportError(ErrCode::CONDITION_NOT_BOOL, {});
         }
@@ -513,32 +515,32 @@ public:
                 ty->field_types.push_back(var_node->var_type->type);
                 member_lookup.insert({
                     .name = var_node->var_ident->toString(),
-                    .type = std::move(var_node->var_type.value())});
+                    .type = var_node->var_type});
             }
 
             else if (member->getNodeType() == ND_FUNC) {
                 const auto fn_node = member->to<Function>();
 
-                std::vector<TypeWrapper> param_types;
+                std::vector<TypeWrapper*> param_types;
                 param_types.reserve(fn_node->params.size());
-                for (auto& param : fn_node->params) {
-                    param_types.push_back(std::move(param.var_type.value()));
+                for (const Var* param : fn_node->params) {
+                    param_types.push_back(param->var_type);
                 }
 
                 method_lookup.insert({
                     .name = fn_node->ident->toString(),
-                    .return_type = std::move(fn_node->return_type),
-                    .params = std::move(param_types)
+                    .return_type = fn_node->return_type,
+                    .params = param_types
                 });
             }
         }
 
         // enforce protocols
-        for (auto& proto_id : node->protocols) {
-            if (proto_id.value) {
-                const auto protocol = SymMan.lookupDecl(proto_id.value).node_ptr->to<Protocol>();
+        for (Ident* proto_id : node->protocols) {
+            if (proto_id->value) {
+                const auto protocol = SymMan.lookupDecl(proto_id->value).node_ptr->to<Protocol>();
                 if (!protocol) {
-                    reportError(ErrCode::NO_SUCH_PROTOCOL, {.location = proto_id.location});
+                    reportError(ErrCode::NO_SUCH_PROTOCOL, {.location = proto_id->location});
                     continue;
                 }
 
@@ -554,7 +556,7 @@ public:
                 for (auto& method : protocol->methods) {
                     if (!method_lookup.contains(method)) {
                         reportError(ErrCode::PROTOCOL_VIOLATED, {
-                            .str_1 = proto_id.toString(),
+                            .str_1 = proto_id->toString(),
                             .str_2 = "<placeholder>"  // TODO
                         });
                     }

@@ -86,6 +86,13 @@ public:
         ErrCode      m_ErrorCode;
     };
 
+
+protected:
+    template <typename Nd, typename... Args>
+    Nd* makeNode(Args&&... args) {
+        return m_Module->makeNode<Nd>(std::forward<Args>(args)...);
+    }
+
 private:
     std::vector<Node*> m_NodeStack;
     ErrorCallback_t    m_Callback;

@@ -95,10 +95,10 @@ public:
 
     static std::unordered_map<Type*, std::function<void(Namespace*, SymbolManager&)>> DefaultTypeMethods;
 
-     explicit SymbolManager(sw::FileHandle* mod_handle, ModuleManager& module_man)
-        : m_ModuleMap(module_man)
-        , m_ModulePath(mod_handle->getPath())
-        , m_ModuleHandle(mod_handle)
+    explicit SymbolManager(sw::FileHandle* mod_handle, ModuleManager& module_man)
+       : m_ModuleMap(module_man)
+       , m_ModulePath(mod_handle->getPath())
+       , m_ModuleHandle(mod_handle)
     {
         // Create the global scope
         m_ScopeTrack.push_back(&m_Scopes.emplace_back(mod_handle));

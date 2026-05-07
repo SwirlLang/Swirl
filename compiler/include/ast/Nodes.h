@@ -141,7 +141,7 @@ struct GenericParam final : Node {
 struct GlobalNode : Node {
     bool is_extern   = false;
     std::string_view extern_attributes;
-    std::vector<GenericParam> generic_params;
+    std::vector<GenericParam*> generic_params;
 
     explicit GlobalNode(const NodeType ty)
         : Node(ty)
@@ -284,7 +284,7 @@ struct Op final : Node {
 
 
 struct ReturnStatement final : Node {
-    Expression value;
+    Expression* value = nullptr;
     FunctionType* parent_fn_type = nullptr;  // holds the function-signature of the parent
 
     explicit
@@ -444,14 +444,14 @@ struct TypeWrapper final : Node {
     enum Modifiers { Reference, Pointer };
     Type* type = nullptr;
 
-    bool   is_mutable    = false;
-    bool   is_slice      = false;
+    bool    is_mutable    = false;
+    bool    is_slice      = false;
 
-    Ident  type_id;
+    Ident*  type_id  = nullptr;
 
     std::vector<Modifiers> modifiers{};
-    std::size_t array_size = 0;            // 0 indicates that the type isn't an array
-    TypeWrapper* of_type{};  // set in the case of wrapper types (refs, ptr, arrays, slices)
+    std::size_t array_size = 0;       // 0 indicates that the type isn't an array
+    TypeWrapper* of_type{};           // set in the case of wrapper types (refs, ptr, arrays, slices)
 
     explicit TypeWrapper()
         : Node(ND_TYPE) {}
@@ -474,16 +474,16 @@ struct TypeWrapper final : Node {
 struct GenericArg final : Node {
     explicit GenericArg(): Node(ND_GEN_ARG) {}
 
-    explicit GenericArg(Expression expr)
-        : GenericArg() { value = std::move(expr); }
+    explicit GenericArg(Expression* expr)
+        : GenericArg() { value = expr; }
 
-    explicit GenericArg(TypeWrapper  ty)
-        : GenericArg() { value = std::move(ty); }
+    explicit GenericArg(TypeWrapper* ty)
+        : GenericArg() { value = ty; }
 
 
     [[nodiscard]]
     bool isType() const {
-        return std::holds_alternative<TypeWrapper>(value);
+        return std::holds_alternative<TypeWrapper*>(value);
     }
 
     [[nodiscard]]
@@ -493,28 +493,28 @@ struct GenericArg final : Node {
 
     [[nodiscard]]
     bool isExpression() const {
-        return std::holds_alternative<Expression>(value);
+        return std::holds_alternative<Expression*>(value);
     }
 
-    Expression& getExpr() {
-        return std::get<Expression>(value);
+    Expression* getExpr() {
+        return std::get<Expression*>(value);
     }
 
-    TypeWrapper& getType() {
-        return std::get<TypeWrapper>(value);
+    TypeWrapper* getType() {
+        return std::get<TypeWrapper*>(value);
     }
 
 
 private:
-    std::variant<std::monostate, Expression, TypeWrapper> value;
+    std::variant<std::monostate, Expression*, TypeWrapper*> value;
 };
 
 
 struct Var final : GlobalNode {
     IdentInfo* var_ident = nullptr;
-    std::optional<TypeWrapper> var_type = std::nullopt;
+    TypeWrapper* var_type = nullptr;
 
-    Expression value;
+    Expression* value = nullptr;
 
     bool initialized = false;
     bool is_const    = false;
@@ -531,7 +531,7 @@ struct Var final : GlobalNode {
         return var_ident;
     }
 
-    [[nodiscard]] Node* getExprValue() override { return value.expr; }
+    [[nodiscard]] Node* getExprValue() override { return value->expr; }
 };
 
 struct Scope final : Node {
@@ -549,10 +549,10 @@ struct Scope final : Node {
 struct Function final : GlobalNode {
     IdentInfo* ident = nullptr;
 
-    std::vector<Var> params;
+    std::vector<Var*>  params;
     std::vector<Node*> children;
 
-    TypeWrapper return_type;
+    TypeWrapper* return_type = nullptr;
 
     explicit Function()
         : GlobalNode(ND_FUNC) {}
@@ -568,17 +568,17 @@ struct Function final : GlobalNode {
 
 
 struct FuncCall final : Node {
-    Ident ident;
-    Type* signature = nullptr;  // supposed to hold the signature of the callee
+    Ident* ident     = nullptr;
+    Type*  signature = nullptr;  // supposed to hold the signature of the callee
 
-    std::vector<Expression> args;
-    GenericArgList          generic_args;
+    std::vector<Expression*> args;
+    GenericArgList           generic_args;
 
     explicit FuncCall()
         : Node(ND_CALL) {}
 
     IdentInfo* getIdentInfo() override {
-        return ident.getIdentInfo();
+        return ident->getIdentInfo();
     }
 
     Type* getSwType() override {
@@ -586,7 +586,7 @@ struct FuncCall final : Node {
     }
 
     [[nodiscard]] Ident* getIdent() override {
-        return &ident;
+        return ident;
     }
 
     [[nodiscard]] NodeType getNodeType() const override { return ND_CALL; }
@@ -597,15 +597,15 @@ struct Intrinsic final : Node {
     enum Kind { INVALID, SIZEOF, TYPEOF, MEMCPY, MEMSET, ADV_PTR };
     Kind intrinsic_type = INVALID;
 
-    std::vector<Expression> args;
-    Ident ident;
+    std::vector<Expression*> args;
+    Ident* ident = nullptr;
 
     explicit Intrinsic()
         : Node(ND_INTRINSIC) {}
 
     void operator=(FuncCall* call) {
-        args  = std::move(call->args);
-        ident = std::move(call->ident);
+        args  = call->args;
+        ident = call->ident;
 
         static const std::unordered_map<std::string_view, Kind> tag_map = {
             {"sizeof", SIZEOF},
@@ -613,7 +613,7 @@ struct Intrinsic final : Node {
             {"memset", MEMSET},
             {"memcpy", MEMCPY},
             {"advance_pointer", ADV_PTR}
-        }; intrinsic_type = tag_map.at(ident.full_qualification.at(0).name);
+        }; intrinsic_type = tag_map.at(ident->full_qualification.at(0).name);
     }
 
     [[nodiscard]] NodeType getNodeType() const override { return ND_INTRINSIC; }
@@ -643,7 +643,7 @@ struct ImportNode final : Node {
 
 struct ArrayLit final : Node {
     Type* type = nullptr;
-    std::vector<Expression> elements;
+    std::vector<Expression*> elements;
 
     explicit ArrayLit()
         : Node(ND_ARRAY) {}
@@ -660,7 +660,7 @@ struct ArrayLit final : Node {
 
 
 struct WhileLoop final : Node {
-    Expression condition;
+    Expression* condition = nullptr;
     std::vector<Node*> children;
 
     explicit WhileLoop()
@@ -688,7 +688,7 @@ struct ContinueStmt final : Node {
 
 struct Enum final : Node {
     IdentInfo* ident;
-    std::optional<TypeWrapper> enum_type;
+    std::optional<TypeWrapper*> enum_type;
     std::unordered_map<std::string_view, int> entries;
 
     explicit Enum()
@@ -705,33 +705,33 @@ struct Enum final : Node {
 struct Protocol final : GlobalNode {
     struct MethodSignature {
         std::string_view name;
-        TypeWrapper return_type;
-        std::vector<TypeWrapper> params;
+        TypeWrapper*     return_type;
+        std::vector<TypeWrapper*> params;
 
 
         bool operator==(const MethodSignature& other) const {
-            return name == other.name && other.return_type.type == return_type.type &&
+            return name == other.name && other.return_type->type == return_type->type &&
                 std::equal(params.begin(), params.end(),
                     other.params.begin(), other.params.end(),
-                    [](const TypeWrapper& a, const TypeWrapper& b) {
-                        return a.type == b.type;
+                    [](const TypeWrapper* a, const TypeWrapper* b) {
+                        return a->type == b->type;
                     });
         }
     };
 
     struct MemberSignature {
         std::string_view name;
-        TypeWrapper  type;
+        TypeWrapper*     type;
 
         bool operator==(const MemberSignature& other) const {
-            return name == other.name && other.type.type == type.type;
+            return name == other.name && other.type->type == type->type;
         }
     };
 
     std::string_view  protocol_name;
     IdentInfo*        protocol_id = nullptr;
 
-    std::vector<Ident> depended_protocols;
+    std::vector<Ident*> depended_protocols;
     std::vector<MemberSignature> members;
     std::vector<MethodSignature> methods;
 
@@ -757,7 +757,7 @@ struct std::hash<TypeWrapper> {
 template <>
 struct std::hash<Protocol::MemberSignature> {
     std::size_t operator()(const Protocol::MemberSignature& m) const noexcept {
-        return combineHashes(std::hash<const char*>{}(m.name.data()), std::hash<TypeWrapper>{}(m.type));
+        return combineHashes(std::hash<const char*>{}(m.name.data()), std::hash<TypeWrapper*>{}(m.type));
     }
 };
 
@@ -766,12 +766,12 @@ struct std::hash<Protocol::MethodSignature> {
     std::size_t operator()(const Protocol::MethodSignature& m) const noexcept {
         std::size_t arg_hash = 0;
         for (auto& arg : m.params) {
-            arg_hash = combineHashes(arg_hash, std::hash<TypeWrapper>{}(arg));
+            arg_hash = combineHashes(arg_hash, std::hash<TypeWrapper*>{}(arg));
         }
 
         return combineHashes(
             std::hash<const char*>{}(m.name.data()),
-            std::hash<TypeWrapper>{}(m.return_type),
+            std::hash<TypeWrapper*>{}(m.return_type),
             arg_hash
             );
     }
@@ -781,7 +781,7 @@ struct std::hash<Protocol::MethodSignature> {
 struct Struct final : GlobalNode {
     IdentInfo* ident = nullptr;
     std::vector<Node*> members;
-    std::vector<Ident> protocols;
+    std::vector<Ident*> protocols;
 
     explicit
     Struct()
@@ -800,10 +800,10 @@ struct Struct final : GlobalNode {
 
 struct Condition final : Node {
     bool       is_comptime = false;
-    Expression bool_expr;
+    Expression* bool_expr = nullptr;
 
     std::vector<Node*> if_children{};
-    std::vector<std::tuple<Expression, std::vector<Node*>>> elif_children;
+    std::vector<std::tuple<Expression*, std::vector<Node*>>> elif_children;
     std::vector<Node*> else_children{};
 
     explicit Condition()
@@ -811,7 +811,7 @@ struct Condition final : Node {
 
 
     [[nodiscard]] Node* getExprValue() override {
-        return bool_expr.expr;
+        return bool_expr->expr;
     }
 
     [[nodiscard]] NodeType getNodeType() const override {

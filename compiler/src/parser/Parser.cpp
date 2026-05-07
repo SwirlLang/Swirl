@@ -121,54 +121,55 @@ void Parser::ignoreButExpect(const Token& tok) {
 }
 
 
-TypeWrapper Parser::parseType() {
-    TypeWrapper wrapper;
-    SET_NODE_ATTRS(&wrapper);
+TypeWrapper* Parser::parseType() {
+    auto wrapper = m_Module->makeNode<TypeWrapper>();
+    SET_NODE_ATTRS(wrapper);
 
     // handle references and pointers (*&T...)
     bool is_reference_present = false;
 
     while (m_Stream.CurTok.type == OP && (m_Stream.CurTok.value == "&" || m_Stream.CurTok.value == "*")) {
         if (m_Stream.CurTok.value == "&") {
-            wrapper.modifiers.push_back(TypeWrapper::Reference);  // do not push the slice-associated `&`
+            wrapper->modifiers.push_back(TypeWrapper::Reference);  // do not push the slice-associated `&`
             is_reference_present = true;
             forwardStream();
         } else if (m_Stream.CurTok.value == "*") {
-            wrapper.modifiers.push_back(TypeWrapper::Pointer);
+            wrapper->modifiers.push_back(TypeWrapper::Pointer);
             forwardStream();
         }
     }
 
     if (m_Stream.CurTok.tokenid == Token::PUNC_LBRACKET) {
         forwardStream();
-        wrapper.of_type = m_Module->makeNode<TypeWrapper>(parseType());
+        wrapper->of_type = parseType();
 
         // array declaration
         if (m_Stream.CurTok.tokenid == Token::OP_BITWISE_OR) {
             forwardStream();
 
             if (m_Stream.CurTok.type == NUMBER && m_Stream.CurTok.tokenid == Token::NUM_INT) {
-                wrapper.array_size = toInteger(forwardStream().value);
+                wrapper->array_size = toInteger(forwardStream().value);
             } else reportError(ErrCode::NON_INT_ARRAY_SIZE);
             ignoreButExpect({PUNC, "]"});
         } else {
-            if (wrapper.modifiers.back() == TypeWrapper::Reference)
-                wrapper.modifiers.pop_back();
-            wrapper.is_slice = true;  // only slices are allowed to not have a size
+            if (wrapper->modifiers.back() == TypeWrapper::Reference)
+                wrapper->modifiers.pop_back();
+            wrapper->is_slice = true;  // only slices are allowed to not have a size
             ignoreButExpect({PUNC, "]"});
         }
 
     } else if (m_Stream.CurTok.type == IDENT) {
-        wrapper.type_id = parseIdent();
+        wrapper->type_id = parseIdent();
+        assert(wrapper->type_id != nullptr);
     } else if (m_Stream.CurTok.tokenid == Token::KW_MUT) {
-        wrapper.is_mutable = true;
+        wrapper->is_mutable = true;
         forwardStream();
     } else {
         reportError(ErrCode::SYNTAX_ERROR, {.msg = "Expected a type"});
         forwardStream();
     }
 
-    if (!is_reference_present && wrapper.is_slice) {
+    if (!is_reference_present && wrapper->is_slice) {
         reportError(ErrCode::SYNTAX_ERROR, {
             .msg = "Only slices are allowed to not have an explicit size. "
             "Did you forgot to place an `&`?"
@@ -204,7 +205,7 @@ Node* Parser::dispatch() {
                 return parseEnum();
             case Token::KW_TRUE:
             case Token::KW_FALSE:
-                return m_Module->makeNode<Expression>(parseExpr());
+                return parseExpr();
             case Token::KW_VOLATILE:
                 forwardStream();
                 return parseVar(true);
@@ -230,7 +231,7 @@ Node* Parser::dispatch() {
 
             case Token::PUNC_LBRACKET:
             case Token::PUNC_LPAREN:
-                return m_Module->makeNode<Expression>(parseExpr());
+                return parseExpr();
 
             case Token::PUNC_LBRACE:
                 return parseScope();
@@ -260,7 +261,7 @@ Node* Parser::dispatch() {
                     case STRING:
                     case IDENT:
                     case OP:
-                        return m_Module->makeNode<Expression>(parseExpr());
+                        return parseExpr();
                     default:
                         reportError(ErrCode::SYNTAX_ERROR);
                         forwardStream();
@@ -445,11 +446,11 @@ Node* Parser::parseFunction() {
 
     // register the generic parameters
     for (auto& g_param : func_nd->generic_params) {
-        const auto generic_id = fn_scope->getNewIDInfo(g_param.name);
+        const auto generic_id = fn_scope->getNewIDInfo(g_param->name);
         const auto generic_ty = new GenericType{};
 
         generic_ty->id = generic_id;
-        g_param.id = generic_id;
+        g_param->id = generic_id;
 
         m_Module->symbol_table.registerType(generic_id, generic_ty);
     }
@@ -516,13 +517,13 @@ Node* Parser::parseFunction() {
 }
 
 
-Var Parser::parseParam(bool& method_is_static) {
-    Var param;
-    param.is_param = true;
+Var* Parser::parseParam(bool& method_is_static) {
+    Var* param = m_Module->makeNode<Var>();
+    param->is_param = true;
 
-    SET_NODE_ATTRS(&param);
+    SET_NODE_ATTRS(param);
 
-    param.is_const = true;  // all parameters are immutable
+    param->is_const = true;  // all parameters are immutable
 
     // special case of `&self`
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
@@ -535,10 +536,11 @@ Var Parser::parseParam(bool& method_is_static) {
         }
 
         assert(m_CurrentStructTy.back() != nullptr);
-        param.var_type  = TypeWrapper(m_Module->symbol_table.getReferenceType(m_CurrentStructTy.back(), is_mutable));
-        param.var_ident = m_Module->symbol_table.registerDecl("self", {
+        auto ty = TypeWrapper(m_Module->symbol_table.getReferenceType(m_CurrentStructTy.back(), is_mutable));
+        param->var_type  = m_Module->makeNode<TypeWrapper>(ty);
+        param->var_ident = m_Module->symbol_table.registerDecl("self", {
             .is_param = true,
-            .swirl_type = param.var_type->type,
+            .swirl_type = param->var_type->type,
         });
 
         method_is_static = false;
@@ -549,24 +551,24 @@ Var Parser::parseParam(bool& method_is_static) {
     const std::string var_name = m_Stream.CurTok.value;
 
     forwardStream(2);
-    param.var_type = parseType();
+    param->var_type = parseType();
 
-    param.initialized = m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "=";
-    if (param.initialized)
-        param.value = parseExpr();
+    param->initialized = m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "=";
+    if (param->initialized)
+        param->value = parseExpr();
 
 
     TableEntry param_entry;
     // param_entry.swirl_type = param.var_type;
     param_entry.is_param = true;
-    param.var_ident = m_Module->symbol_table.registerDecl(var_name, param_entry);
+    param->var_ident = m_Module->symbol_table.registerDecl(var_name, param_entry);
 
     return param;
 }
 
 
-std::vector<GenericParam> Parser::parseGenericParamList() {
-    std::vector<GenericParam> params;
+std::vector<GenericParam*> Parser::parseGenericParamList() {
+    std::vector<GenericParam*> params;
 
     forwardStream();  // skip '<'
     while (true) {
@@ -585,9 +587,9 @@ std::vector<GenericParam> Parser::parseGenericParamList() {
             continue;
         }
 
-        GenericParam param;
-        param.name = m_StringPool.intern(forwardStream().value);
-        params.push_back(std::move(param));
+        auto* param = m_Module->makeNode<GenericParam>();
+        param->name = m_StringPool.intern(forwardStream().value);
+        params.push_back(param);
     } return params;
 }
 
@@ -657,7 +659,7 @@ Node* Parser::parseVar(const bool is_volatile) {
     if (ret->is_comptime && !ret->initialized) {
         reportError(ErrCode::INITIALIZER_REQUIRED);
     } else if (ret->is_comptime && ret->initialized) {
-        ret->value = Expression::makeExpression(ret->value.evaluate(*this));
+        ret->value = m_Module->makeNode<Expression>(Expression::makeExpression(ret->value->evaluate(*this)));
     }
 
     TableEntry entry;
@@ -678,10 +680,10 @@ Node* Parser::parseVar(const bool is_volatile) {
 }
 
 
-Node* Parser::parseCall(std::optional<Ident> ident) {
+Node* Parser::parseCall(std::optional<Ident*> ident) {
     auto call_node = m_Module->makeNode<FuncCall>();
     SET_NODE_ATTRS(call_node);
-    call_node->ident = std::move(ident.value());
+    call_node->ident = ident.value();
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
         call_node->generic_args = parseGenericArgList();
@@ -734,15 +736,15 @@ Node* Parser::parseIntrinsic() {
         forwardStream();
         ignoreButExpect({PUNC, "("});
 
-        Expression arg;
-        call_node->ident.full_qualification.push_back({.name = m_StringPool.intern("sizeof")});
+        Expression* arg;
+        call_node->ident->full_qualification.push_back({.name = m_StringPool.intern("sizeof")});
         call_node->intrinsic_type = Intrinsic::SIZEOF;
 
         if (m_Stream.CurTok.value == "@" && m_Stream.CurTok.type == PUNC)
-             arg = Expression::makeExpression(parseIntrinsic());
-        else arg = Expression::makeExpression(new TypeWrapper(parseType()));
+             arg = m_Module->makeNode<Expression>(Expression::makeExpression(parseIntrinsic()));
+        else arg = m_Module->makeNode<Expression>(Expression::makeExpression(parseType()));
 
-        call_node->args.push_back(std::move(arg));
+        call_node->args.push_back(arg);
         ignoreButExpect({PUNC, ")"});
 
     } else *call_node = dynamic_cast<FuncCall*>(parseCall(parseIdent()));
@@ -784,7 +786,8 @@ Node* Parser::parseCondition() {
 
     cnd->bool_expr = parseExpr();
     if (cnd->is_comptime) {
-        cnd->bool_expr = Expression::makeExpression(cnd->bool_expr.evaluate(*this));
+        cnd->bool_expr =
+            m_Module->makeNode<Expression>(Expression::makeExpression(cnd->bool_expr->evaluate(*this)));
     }
 
     forwardStream();  // skip the opening brace
@@ -804,13 +807,12 @@ Node* Parser::parseCondition() {
             m_Module->symbol_table.newScope();
             forwardStream();
 
-            std::tuple<Expression, std::vector<Node*>> children;
+            std::tuple<Expression*, std::vector<Node*>> children;
             std::get<0>(children) = parseExpr();
 
             if (cnd->is_comptime) {
-                std::get<0>(children) = Expression::makeExpression(
-                    std::get<0>(children).evaluate(*this)
-                    );
+                std::get<0>(children) = m_Module->makeNode<Expression>(Expression::makeExpression(
+                    std::get<0>(children)->evaluate(*this)));
             }
 
             forwardStream();
@@ -836,33 +838,33 @@ Node* Parser::parseCondition() {
 }
 
 
-Ident Parser::parseIdent() {
-    Ident ret;
-    SET_NODE_ATTRS(&ret);
+Ident* Parser::parseIdent() {
+    auto* ret = m_Module->makeNode<Ident>();
+    SET_NODE_ATTRS(ret);
 
-    ret.full_qualification.emplace_back(m_StringPool.intern(forwardStream().value));
+    ret->full_qualification.emplace_back(m_StringPool.intern(forwardStream().value));
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "!") {
         forwardStream();
-        ret.full_qualification.back().generic_args = parseGenericArgList();
+        ret->full_qualification.back().generic_args = parseGenericArgList();
     }
 
     while (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "::") {
         forwardStream();
-        ret.full_qualification.emplace_back(m_StringPool.intern(forwardStream().value));
+        ret->full_qualification.emplace_back(m_StringPool.intern(forwardStream().value));
 
         // check for generics
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "!") {
             forwardStream();
-            ret.full_qualification.back().generic_args = parseGenericArgList();
+            ret->full_qualification.back().generic_args = parseGenericArgList();
         }
     }
 
-    if (ret.full_qualification.size() == 1 && ret.full_qualification.at(0).generic_args.empty()) {
-        ret.value = m_Module->symbol_table.getIDInfoFor(
-            std::string(ret.full_qualification.front().name));
+    if (ret->full_qualification.size() == 1 && ret->full_qualification.at(0).generic_args.empty()) {
+        ret->value = m_Module->symbol_table.getIDInfoFor(
+            std::string(ret->full_qualification.front().name));
     }
 
-    assert(!ret.full_qualification.empty());
+    assert(!ret->full_qualification.empty());
     return ret;
 }
 
@@ -960,25 +962,25 @@ Node* Parser::parseProtocol() {
                 const auto var = child->to<Var>();
                 ret->members.push_back(Protocol::MemberSignature{
                     .name = m_StringPool.intern(var->var_ident->toString()),
-                    .type = std::move(var->var_type.value()),
+                    .type = var->var_type,
                 });
                 break;
             }
 
             case ND_FUNC: {
                 const auto func  = child->to<Function>();
-                std::vector<TypeWrapper> func_params;
+                std::vector<TypeWrapper*> func_params;
 
                 // TODO: allow protocols to be used as "types" in the methods' params within the protocol
 
                 func_params.reserve(func->params.size());
                 for (auto& var : func->params) {
-                    func_params.push_back(std::move(var.var_type.value()));
+                    func_params.push_back(var->var_type);
                 }
 
                 ret->methods.push_back(Protocol::MethodSignature{
                     .name = m_StringPool.intern(func->ident->toString()),
-                    .return_type = std::move(func->return_type),
+                    .return_type = func->return_type,
                     .params = std::move(func_params),
                 });
                 break;
@@ -1006,8 +1008,8 @@ Node* Parser::parseProtocol() {
 }
 
 
-std::vector<Ident> Parser::parseProtocolList() {
-    std::vector<Ident> ret;
+std::vector<Ident*> Parser::parseProtocolList() {
+    std::vector<Ident*> ret;
     forwardStream();  // skip ':'
 
     while (true) {
@@ -1071,8 +1073,8 @@ Node* Parser::parseStruct() {
 
     // register the generic parameters in the scope
     for (auto& param : ret->generic_params) {
-        param.id = scope_pointer->getNewIDInfo(param.name);
-        m_Module->symbol_table.registerType(param.id, new GenericType());
+        param->id = scope_pointer->getNewIDInfo(param->name);
+        m_Module->symbol_table.registerType(param->id, new GenericType());
     }
 
     // handle the children
@@ -1121,8 +1123,8 @@ Node* Parser::parseWhile() {
 }
 
 
-Expression Parser::parseExpr() {
-    auto ret = m_ExpressionParser.parseExpr();
-    SET_NODE_ATTRS(&ret);
+Expression* Parser::parseExpr() {
+    const auto ret = m_Module->makeNode<Expression>(m_ExpressionParser.parseExpr());
+    SET_NODE_ATTRS(ret);
     return ret;
 }
