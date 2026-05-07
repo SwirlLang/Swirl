@@ -1,10 +1,12 @@
 #pragma once
 #include <memory>
+#include <format>
 #include <utility>
 #include <cstdint>
 #include <cstdlib>
 #include <cstddef>
 #include <cassert>
+#include <stdexcept>
 
 
 namespace sw {
@@ -17,68 +19,55 @@ public:
         : m_ChunkSize(chunk_size)
         , m_CurrentChunk(static_cast<Chunk*>(malloc(sizeof(Chunk) + chunk_size)))
     {
-        m_CurrentChunk->offset = 0;
-        m_CurrentChunk->capacity = m_ChunkSize;
-        m_CurrentChunk->prev_chunk = nullptr;
+        if (m_CurrentChunk == nullptr)
+            throw std::bad_alloc();
+        std::construct_at(m_CurrentChunk, m_ChunkSize, nullptr);
     }
 
 
+    /// Allocates memory for `T` and constructs it in-place, returns the pointer to the memory.
     template <typename T, typename... Args>
-    T* allocate(Args&&... args) {
+    T* construct(Args&&... args) {
         // static_assert(std::is_trivially_destructible_v<T>);
         assert(sizeof(T) <= m_ChunkSize);
 
-        std::byte* cur_address  = m_CurrentChunk->data + m_CurrentChunk->offset;
-
-        // calculate the next aligned address
-        auto ptr_to_int   = reinterpret_cast<std::uintptr_t>(cur_address + alignof(T) - 1);
-        auto aligned_addr = reinterpret_cast<std::byte*>(ptr_to_int & ~(alignof(T) - 1));
-
-        const auto padding_size = aligned_addr - cur_address;
-
-        // when the current chunk cannot satisfy the memory requirement
-        if (cur_address + padding_size + sizeof(T) >= m_CurrentChunk->data + m_CurrentChunk->capacity) {
-            // create a new chunk
-            auto* new_chunk = static_cast<Chunk*>(malloc(sizeof(Chunk) + m_ChunkSize));
-            new_chunk->offset = 0;
-            new_chunk->capacity = m_ChunkSize;
-
-            new_chunk->prev_chunk = m_CurrentChunk;
-            m_CurrentChunk = new_chunk;
-
-            return allocate<T>(std::forward<Args>(args)...);
-        }
-
-        m_CurrentChunk->offset += padding_size + sizeof(T);
-        return std::construct_at(reinterpret_cast<T*>(aligned_addr), std::forward<Args>(args)...);
+        std::byte* memory = allocate(sizeof(T), alignof(T));
+        return std::construct_at(reinterpret_cast<T*>(memory), std::forward<Args>(args)...);
     }
 
 
-    /// Returns a pointer to a storage of `n` bytes
-    std::byte* allocate_raw(const std::size_t n) {
+    /// Returns a pointer to an aligned storage of `n` bytes
+    std::byte* allocate(const std::size_t n, const std::size_t alignment = alignof(std::max_align_t)) {
         if (n > m_ChunkSize) {
             throw std::runtime_error(std::format
-                ("BumpAllocator::allocate_raw: n >= m_ChunkSize ({} >= {}).",
+                ("BumpAllocator::allocate: n >= m_ChunkSize ({} >= {}).",
                     n, m_ChunkSize));
         }
 
-        if (m_CurrentChunk->capacity - m_CurrentChunk->offset < n) {
+        std::byte* addr = getAlignedAddress(n, alignment);
+
+        if (!addr) {
             // create a new chunk
             const auto memory = malloc(sizeof(Chunk) + m_ChunkSize);
             if (!memory) {
-                throw std::runtime_error("BumpAllocator::allocate_raw: malloc returned null!");
+                throw std::runtime_error("BumpAllocator::allocate: malloc returned null!");
             }
 
             auto* new_chunk = static_cast<Chunk*>(memory);
-            new_chunk->offset = 0;
-            new_chunk->capacity = m_ChunkSize;
-            new_chunk->prev_chunk = m_CurrentChunk;
+            std::construct_at(new_chunk, m_ChunkSize, m_CurrentChunk);
+
             m_CurrentChunk = new_chunk;
+            addr = getAlignedAddress(n, alignment);
+
+            if (!addr) {
+                throw std::runtime_error(
+                    "BumpAllocator::allocate: aligned address calculation failed.");
+            }
         }
 
-        std::byte* ptr = m_CurrentChunk->data + m_CurrentChunk->offset;
-        m_CurrentChunk->offset += n;
-        return ptr;
+        // increment offset by n + padding size
+        m_CurrentChunk->offset += n + (addr - (m_CurrentChunk->data() + m_CurrentChunk->offset));
+        return addr;
     }
 
 
@@ -102,10 +91,29 @@ private:
         std::size_t capacity;
 
         Chunk* prev_chunk;
-        std::byte data[];
+
+        Chunk(const std::size_t size, Chunk* prev_chunk)
+            : offset(0)
+            , capacity(size)
+            , prev_chunk(prev_chunk) {}
+
+        [[nodiscard]]
+        std::byte* data() {
+            return reinterpret_cast<std::byte*>(this) + sizeof(Chunk);
+        }
     };
 
     const std::size_t m_ChunkSize;
     Chunk* m_CurrentChunk;
+
+
+    /// Returns `nullptr` if a new chunk is required to fit the data
+    [[nodiscard]]
+    std::byte* getAlignedAddress(const std::size_t n, const std::size_t alignment) const {
+        std::size_t size_left = m_CurrentChunk->capacity - m_CurrentChunk->offset;
+        void* pointer = m_CurrentChunk->data() + m_CurrentChunk->offset;
+
+        return static_cast<std::byte*>(std::align(alignment, n, pointer, size_left));
+    }
 };
 }

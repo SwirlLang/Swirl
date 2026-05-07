@@ -17,7 +17,7 @@ public:
         if (const auto a = m_Strings.find(str); a != m_Strings.end())
             return *a;
 
-        const auto memory = reinterpret_cast<char*>(m_BumpAllocator.allocate_raw(str.size()));
+        const auto memory = reinterpret_cast<char*>(m_BumpAllocator.allocate(str.size()));
         memcpy(memory, str.data(), str.size());
 
         const auto ret = std::string_view{memory, str.size()};

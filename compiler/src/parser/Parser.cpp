@@ -283,7 +283,8 @@ Node* Parser::parseImport() {
 
     if (CompilerInst::PackageTable.contains(m_Stream.CurTok.value)) {
         mod_path = CompilerInst::PackageTable[m_Stream.CurTok.value].package_root;
-    } else reportError(ErrCode::PACKAGE_NOT_FOUND, {.str_1 = m_Stream.CurTok.value});
+    } else reportError(ErrCode::PACKAGE_NOT_FOUND,
+        {.str_1 = m_StringPool.intern(m_Stream.CurTok.value)});
 
     forwardStream();  // skip the current IDENT
     ignoreButExpect({OP, "::"});
@@ -444,7 +445,7 @@ Node* Parser::parseFunction() {
 
     // register the generic parameters
     for (auto& g_param : func_nd->generic_params) {
-        const auto generic_id = fn_scope->getNewIDInfo(std::string(g_param.name));
+        const auto generic_id = fn_scope->getNewIDInfo(g_param.name);
         const auto generic_ty = new GenericType{};
 
         generic_ty->id = generic_id;
@@ -1070,7 +1071,7 @@ Node* Parser::parseStruct() {
 
     // register the generic parameters in the scope
     for (auto& param : ret->generic_params) {
-        param.id = scope_pointer->getNewIDInfo(std::string(param.name));
+        param.id = scope_pointer->getNewIDInfo(param.name);
         m_Module->symbol_table.registerType(param.id, new GenericType());
     }
 

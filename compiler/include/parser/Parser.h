@@ -159,6 +159,10 @@ public:
         ctx.module = m_Module;
         m_ErrorQueue.at(m_ParseStack.back()).emplace_back(code, ctx);
     }
+
+    std::string_view internString(const std::string_view str) const {
+        return m_StringPool.intern(str);
+    }
 };
 
 

@@ -73,10 +73,16 @@ struct Module {
     template <typename T, typename... Args>
     requires std::derived_from<T, Node>
     T* makeNode(Args&&... args) {
-        T* ret = m_Allocator.allocate<T>(std::forward<Args>(args)...);
-        m_Destructors.push_back([ret] {
-            ret->~T();
-        }); return ret;
+        T* ret = m_Allocator.construct<T>(std::forward<Args>(args)...);
+        if constexpr (!std::is_trivially_destructible_v<T>) {
+            m_Destructors.push_back([ret] {
+               ret->~T();
+           });
+        } return ret;
+    }
+
+    sw::BumpAllocator& getAllocator() {
+        return m_Allocator;
     }
 
     std::string_view getLineAt(const std::size_t line) const {
