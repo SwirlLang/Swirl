@@ -345,9 +345,10 @@ public:
         const auto target_node = SymMan.lookupDecl(node->value).node_ptr->to<GlobalNode>();
 
         Ident tmp;
+        std::vector<Ident::Qualifier> full_qualification;
 
         for (auto qualifier : node->full_qualification) {
-            tmp.full_qualification.emplace_back(qualifier.name);
+            full_qualification.emplace_back(qualifier.name);
 
             // iterate over the generic args and activate the generic type
             for (const auto& [i, arg] : std::views::enumerate(qualifier.generic_args)) {
@@ -366,6 +367,7 @@ public:
 
             // if generic arguments exist, analyze the instantiated node
             if (!qualifier.generic_args.empty()) {
+                tmp.full_qualification = internArray<Ident::Qualifier>(full_qualification);
                 if (const auto id = SymMan.getIDInfoFor(tmp)) {
                     if (const auto node_ptr = SymMan.lookupDecl(id).node_ptr) {
                         evaluateGenericInst(node_ptr);
@@ -530,7 +532,7 @@ public:
                 method_lookup.insert({
                     .name = fn_node->ident->toString(),
                     .return_type = fn_node->return_type,
-                    .params = param_types
+                    .params = internArray<TypeWrapper*>(param_types)
                 });
             }
         }

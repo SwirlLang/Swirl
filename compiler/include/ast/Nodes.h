@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <utility>
 #include <variant>
-#include <vector>
+#include <span>
 
 #include "utils/utils.h"
 #include "lexer/Tokens.h"
@@ -76,7 +76,7 @@ struct Node {
 
     bool is_exported = false;
 
-    Node(): kind(ND_INVALID) {}
+    Node() = default;
     explicit Node(const NodeType ty)
         : kind(ty) {}
 
@@ -141,7 +141,7 @@ struct GenericParam final : Node {
 struct GlobalNode : Node {
     bool is_extern   = false;
     std::string_view extern_attributes;
-    std::vector<GenericParam*> generic_params;
+    std::span<GenericParam*> generic_params;
 
     explicit GlobalNode(const NodeType ty)
         : Node(ty)
@@ -206,7 +206,7 @@ struct Op final : Node {
     int8_t arity = 2;  // the no. of operands the operator requires
 
     std::string_view value;
-    std::vector<Node*> operands;  // the operands
+    std::span<Node*> operands;  // the operands
 
     // for the special case of the `&` operator, where a `mut` can appear right after it
     bool is_mutable = false;
@@ -265,12 +265,12 @@ struct Op final : Node {
     NodeType getNodeType() const override { return ND_OP; }
     Type* getSwType() override { return common_type; }
 
-    [[nodiscard]] Node* getLHS() {
+    [[nodiscard]] Node* getLHS() const {
         assert(!operands.empty());
         return operands.at(0);
     }
 
-    [[nodiscard]] Node* getRHS() {
+    [[nodiscard]] Node* getRHS() const {
         assert(operands.size() >= 2);
         return operands.at(1);
     }
@@ -378,12 +378,12 @@ struct StrLit final : Node {
 
 struct GenericArg;
 struct GenericArgList final : Node {
-    std::vector<GenericArg*> generic_args;
+    std::span<GenericArg*> generic_args;
     GenericArgList()
         : Node(ND_GEN_ARG_LIST) {}
 
-    auto begin() { return generic_args.begin(); }
-    auto end()   { return generic_args.end(); }
+    [[nodiscard]] auto begin() const { return generic_args.begin(); }
+    [[nodiscard]] auto end()   const   { return generic_args.end(); }
 
     [[nodiscard]] auto size()    const { return generic_args.size(); }
     [[nodiscard]] bool empty()   const { return generic_args.empty(); }
@@ -393,15 +393,13 @@ struct GenericArgList final : Node {
 
 
 struct Ident final : Node {
-private:
     struct Qualifier {
         std::string_view name;
         GenericArgList generic_args;
     };
 
-public:
     IdentInfo* value = nullptr;
-    std::vector<Qualifier> full_qualification;
+    std::span<Qualifier> full_qualification;
 
     // to keep pre-computed generic instantiation steps to avoid repetitive looping
     std::unordered_map<Type*, Type*> type_instantiation_map;
@@ -449,7 +447,7 @@ struct TypeWrapper final : Node {
 
     Ident*  type_id  = nullptr;
 
-    std::vector<Modifiers> modifiers{};
+    std::span<Modifiers> modifiers{};
     std::size_t array_size = 0;       // 0 indicates that the type isn't an array
     TypeWrapper* of_type{};           // set in the case of wrapper types (refs, ptr, arrays, slices)
 
@@ -496,11 +494,11 @@ struct GenericArg final : Node {
         return std::holds_alternative<Expression*>(value);
     }
 
-    Expression* getExpr() {
+    Expression* getExpr() const {
         return std::get<Expression*>(value);
     }
 
-    TypeWrapper* getType() {
+    TypeWrapper* getType() const {
         return std::get<TypeWrapper*>(value);
     }
 
@@ -534,8 +532,9 @@ struct Var final : GlobalNode {
     [[nodiscard]] Node* getExprValue() override { return value->expr; }
 };
 
+
 struct Scope final : Node {
-    std::vector<Node*> children;
+    std::span<Node*> children;
 
     explicit Scope()
         : Node(ND_SCOPE) {}
@@ -549,8 +548,8 @@ struct Scope final : Node {
 struct Function final : GlobalNode {
     IdentInfo* ident = nullptr;
 
-    std::vector<Var*>  params;
-    std::vector<Node*> children;
+    std::span<Var*>  params;
+    std::span<Node*> children;
 
     TypeWrapper* return_type = nullptr;
 
@@ -571,8 +570,8 @@ struct FuncCall final : Node {
     Ident* ident     = nullptr;
     Type*  signature = nullptr;  // supposed to hold the signature of the callee
 
-    std::vector<Expression*> args;
-    GenericArgList           generic_args;
+    std::span<Expression*> args;
+    GenericArgList         generic_args;
 
     explicit FuncCall()
         : Node(ND_CALL) {}
@@ -597,7 +596,7 @@ struct Intrinsic final : Node {
     enum Kind { INVALID, SIZEOF, TYPEOF, MEMCPY, MEMSET, ADV_PTR };
     Kind intrinsic_type = INVALID;
 
-    std::vector<Expression*> args;
+    std::span<Expression*> args;
     Ident* ident = nullptr;
 
     explicit Intrinsic()
@@ -630,7 +629,7 @@ struct ImportNode final : Node {
 
     sw::FileHandle*  mod_handle = nullptr;
     std::string_view alias;
-    std::vector<ImportedSymbol_t> imported_symbols{};
+    std::span<ImportedSymbol_t> imported_symbols{};
 
     explicit ImportNode()
         : Node(ND_IMPORT) {}
@@ -643,7 +642,7 @@ struct ImportNode final : Node {
 
 struct ArrayLit final : Node {
     Type* type = nullptr;
-    std::vector<Expression*> elements;
+    std::span<Expression*> elements;
 
     explicit ArrayLit()
         : Node(ND_ARRAY) {}
@@ -661,7 +660,7 @@ struct ArrayLit final : Node {
 
 struct WhileLoop final : Node {
     Expression* condition = nullptr;
-    std::vector<Node*> children;
+    std::span<Node*> children;
 
     explicit WhileLoop()
         : Node(ND_WHILE) {}
@@ -706,7 +705,7 @@ struct Protocol final : GlobalNode {
     struct MethodSignature {
         std::string_view name;
         TypeWrapper*     return_type;
-        std::vector<TypeWrapper*> params;
+        std::span<TypeWrapper*> params;
 
 
         bool operator==(const MethodSignature& other) const {
@@ -731,9 +730,9 @@ struct Protocol final : GlobalNode {
     std::string_view  protocol_name;
     IdentInfo*        protocol_id = nullptr;
 
-    std::vector<Ident*> depended_protocols;
-    std::vector<MemberSignature> members;
-    std::vector<MethodSignature> methods;
+    std::span<Ident*> depended_protocols;
+    std::span<MemberSignature> members;
+    std::span<MethodSignature> methods;
 
     IdentInfo* getIdentInfo() override {
         return protocol_id;
@@ -780,8 +779,8 @@ struct std::hash<Protocol::MethodSignature> {
 
 struct Struct final : GlobalNode {
     IdentInfo* ident = nullptr;
-    std::vector<Node*> members;
-    std::vector<Ident*> protocols;
+    std::span<Node*>   members;
+    std::span<Ident*>  protocols;
 
     explicit
     Struct()
@@ -802,9 +801,11 @@ struct Condition final : Node {
     bool       is_comptime = false;
     Expression* bool_expr = nullptr;
 
-    std::vector<Node*> if_children{};
-    std::vector<std::tuple<Expression*, std::vector<Node*>>> elif_children;
-    std::vector<Node*> else_children{};
+    using elif_t = std::tuple<Expression*, std::span<Node*>>;
+
+    std::span<Node*>  if_children;
+    std::span<elif_t> elif_children;
+    std::span<Node*>  else_children;
 
     explicit Condition()
         : Node(ND_COND) {}

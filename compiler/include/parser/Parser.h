@@ -85,7 +85,7 @@ class Parser {
     std::vector<Type*>   m_CurrentStructTy{nullptr};  // the type of the struct being parsed
 
     std::string          m_ExternAttributes;
-    Expression*          m_AttributeList;
+    Expression*          m_AttributeList = nullptr;
     // ---*--- ---*--- ---*---
 
     int                   m_RecursionDepth = 0;
@@ -139,8 +139,8 @@ public:
     Node* parseVar(bool is_volatile = false);
     Node* parseCall(std::optional<Ident*> _ = std::nullopt);
 
-    std::vector<Ident*>               parseProtocolList();
-    std::vector<GenericParam*>        parseGenericParamList();
+    std::span<Ident*>         parseProtocolList();
+    std::span<GenericParam*>  parseGenericParamList();
 
     Token forwardStream(uint8_t n = 1);
 

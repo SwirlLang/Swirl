@@ -81,6 +81,23 @@ struct Module {
         } return ret;
     }
 
+
+    template <typename T>
+    std::span<T> internArray(std::span<T> arr) {
+        if (arr.empty()) return {};
+
+        auto* memory = m_Allocator.allocate(sizeof(T) * arr.size(), alignof(T));
+
+        auto* offset = memory;
+        for (const T& element : arr) {
+            std::construct_at(reinterpret_cast<T*>(offset), element);
+            offset += sizeof(T);
+        }
+
+        return std::span<T>{reinterpret_cast<T*>(memory), arr.size()};
+    }
+
+
     sw::BumpAllocator& getAllocator() {
         return m_Allocator;
     }

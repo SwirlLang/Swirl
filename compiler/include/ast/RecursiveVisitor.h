@@ -149,7 +149,7 @@ private:
 
         for (auto& item : node->elif_children) {
             auto* condition = std::get<Expression*>(item);
-            auto& children  = std::get<std::vector<Node*>>(item);
+            auto& children  = std::get<std::span<Node*>>(item);
 
             this->dispatch(condition, std::forward<Args>(args)...);
             for (auto& child : children) {

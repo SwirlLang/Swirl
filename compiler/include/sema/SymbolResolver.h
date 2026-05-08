@@ -76,7 +76,7 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
 
 
     void handle(FuncCall* node, Data data) {
-        std::vector<GenericParam*>* generic_params = nullptr;
+        std::span<GenericParam*>* generic_params = nullptr;
         if (node->ident->value) {
             auto fn_node = SymMan.lookupDecl(node->ident->value).node_ptr->to<Function>();
             generic_params = &fn_node->generic_params;

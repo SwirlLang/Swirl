@@ -33,9 +33,9 @@ private:
 };
 
 
-template <typename T>
-class SemaVisitor : public RecursiveVisitor<T> {
-public:
+template <typename Derived>
+class SemaVisitor : public RecursiveVisitor<Derived> {
+protected:
     explicit
     SemaVisitor(Module* module, ErrorCallback_t error_callback)
         : m_Callback(std::move(error_callback))
@@ -60,11 +60,7 @@ public:
         } m_Callback(code, std::move(context));
     }
 
-    bool errorsOccurred() const {
-        return m_ErrorOccurred;
-    }
-
-    friend class RecursiveVisitor<T>;
+    friend class RecursiveVisitor<Derived>;
 
     struct DisableErrorCode {
         DisableErrorCode(SemaVisitor& instance,  ErrCode code)
@@ -87,11 +83,16 @@ public:
     };
 
 
-protected:
     template <typename Nd, typename... Args>
     Nd* makeNode(Args&&... args) {
         return m_Module->makeNode<Nd>(std::forward<Args>(args)...);
     }
+
+    template <typename T>
+    std::span<T> internArray(std::span<T> arr) {
+        return m_Module->internArray<T>(arr);
+    }
+
 
 private:
     std::vector<Node*> m_NodeStack;
@@ -109,5 +110,11 @@ private:
 
     void popNodeFromStack(Node*) {
         m_NodeStack.pop_back();
+    }
+
+
+public:
+    bool errorsOccurred() const {
+        return m_ErrorOccurred;
     }
 };}

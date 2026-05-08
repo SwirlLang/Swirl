@@ -58,8 +58,10 @@ public:
     ::ModuleManager& ModuleManager;
     SymbolManager& SymMan;
 
+    Module* SwModule;
     std::unique_ptr<llvm::Module> LModule;
     std::unordered_map<Type*, llvm::Type*> LLVMTypeCache;
+
 
     inline static llvm::TargetMachine* TargetMachine = nullptr;
 
@@ -125,7 +127,7 @@ public:
     /// nullptr, checks whether it is a `ConstantInt`, and if so, whether it is 0 (in which case no
     /// code generation takes place).
     void codegenChildrenUntilRet(
-        const std::vector<Node*>& children, const SwContext& context, llvm::Value* condition = nullptr);
+        std::span<Node*> children, const SwContext& context, llvm::Value* condition = nullptr);
 
     /// Triggers the generation of an instantiated generic function and returns its `llvm::Function*`.
     llvm::Function* instantiateGenericFunction(Ident& id, Function* function);

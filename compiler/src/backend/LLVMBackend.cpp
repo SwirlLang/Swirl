@@ -49,13 +49,15 @@ llvm::Value* CGValue::getRValue(LLVMBackend& instance, const SwContext& context)
     } return m_RValue;
 }
 
+
 LLVMBackend::LLVMBackend(Module* module)
     : ModuleManager(module->getModuleManager())
-      , SymMan(module->symbol_table)
-      , LModule{
-          std::make_unique<llvm::Module>(
-              ModuleManager.getModuleUID(module->file_handle->getPath()),
-              LLVMContext)
+    , SymMan(module->symbol_table)
+    , SwModule(module)
+    , LModule{
+        std::make_unique<llvm::Module>(
+        ModuleManager.getModuleUID(module->file_handle->getPath()),
+        LLVMContext)
       }
 {
     static std::once_flag once_flag;
@@ -165,7 +167,7 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
 }
 
 
-void LLVMBackend::codegenChildrenUntilRet(const std::vector<Node*>& children, const SwContext& context, llvm::Value* condition) {
+void LLVMBackend::codegenChildrenUntilRet(const std::span<Node*> children, const SwContext& context, llvm::Value* condition) {
     if (condition) {
         if (llvm::isa<llvm::ConstantInt>(condition)) {
             auto v = llvm::cast<llvm::ConstantInt>(condition);
@@ -619,8 +621,8 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
 
     if (node->value.ends_with("=") && ("+-*/%~&^"sv.find(node->value.at(0)) != std::string::npos)) {
         auto op = std::make_unique<Op>(std::string_view{node->value.data(), 1}, 2);
-        op->operands.push_back(node->operands.at(0));
-        op->operands.push_back(node->operands.at(1));
+        std::array operands = {node->operands.at(0), node->operands.at(1)};
+        op->operands = SwModule->internArray<Node*>(operands);
         op->common_type = node->common_type;
 
         auto new_ctx = context;
@@ -1112,7 +1114,7 @@ CGValue LLVMBackend::llvmCodegen(Var* node, const SwContext& context) {
             const auto val = llvm::dyn_cast<llvm::Constant>(init);
             assert(val != nullptr);
             var->setInitializer(val);
-        } else if (node->value->expr == nullptr) {
+        } else if (node->value && node->value->expr == nullptr) {
             // when the `undefined` keyword isn't used, initialize with 0's
             var->setInitializer(llvm::Constant::getNullValue(type));
         }

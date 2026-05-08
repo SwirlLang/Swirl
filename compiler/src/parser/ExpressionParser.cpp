@@ -5,6 +5,7 @@
 
 #define m_Stream  m_Parser.m_Stream
 #define make_node m_Parser.m_Module->makeNode
+#define intern_arr m_Parser.m_Module->internArray
 #define SET_NODE_ATTRS(x) Parser::NodeAttrHelper GET_UNIQUE_NAME(attr_setter_){x, m_Parser}
 
 
@@ -88,9 +89,10 @@ Node* ExpressionParser::parseComponent() {
                 auto arr_node = make_node<ArrayLit>();
                 SET_NODE_ATTRS(arr_node);
                 m_Parser.forwardStream();  // skip the '['
+                std::vector<Expression*> elements;
 
                 while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "]")) {
-                    arr_node->elements.push_back(make_node<Expression>(parseExpr()));
+                    elements.push_back(make_node<Expression>(parseExpr()));
 
                     if (m_Stream.CurTok.type == PUNC) {
                         if (m_Stream.CurTok.value == ",") {
@@ -102,6 +104,7 @@ Node* ExpressionParser::parseComponent() {
                         m_Parser.reportError(ErrCode::COMMA_SEP_REQUIRED);
                 } m_Parser.forwardStream();
 
+                arr_node->elements = intern_arr<Expression*>(elements);
                 return arr_node;
             }
 
@@ -134,6 +137,8 @@ Node* ExpressionParser::parsePrefix() {
         SET_NODE_ATTRS(op);
         m_Parser.forwardStream();
 
+        std::vector<Node*> operands;
+
         if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "mut") {
             if (op->op_type != Op::ADDRESS_TAKING) {
                 m_Parser.reportError(ErrCode::SYNTAX_ERROR, {
@@ -144,7 +149,9 @@ Node* ExpressionParser::parsePrefix() {
         }
 
         auto rhs = parseExpr(Op::getPBPFor(Op::getTagFor(op->value, 1)));
-        op->operands.push_back(make_node<Expression>(std::move(rhs)));
+
+        operands.push_back(make_node<Expression>(std::move(rhs)));
+        op->operands = intern_arr<Node*>(operands);
         return op;
     }
     return parseComponent();
@@ -160,6 +167,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
         SET_NODE_ATTRS(op);
 
         Expression right;
+        std::vector<Node*> operands;
 
         switch (op->op_type) {
             case Op::INDEXING_OP:
@@ -175,9 +183,9 @@ Expression ExpressionParser::parseExpr(const int rbp) {
                 right = parseExpr(Op::getRBPFor(op->op_type));
         }
 
-        op->operands.push_back(left);
-        op->operands.push_back(right.expr);
-
+        operands.push_back(left);
+        operands.push_back(right.expr);
+        op->operands = intern_arr<Node*>(operands);
         return op;
     };
 

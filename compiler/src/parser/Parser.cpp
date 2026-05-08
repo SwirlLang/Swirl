@@ -127,14 +127,15 @@ TypeWrapper* Parser::parseType() {
 
     // handle references and pointers (*&T...)
     bool is_reference_present = false;
+    std::vector<TypeWrapper::Modifiers> modifiers;
 
     while (m_Stream.CurTok.type == OP && (m_Stream.CurTok.value == "&" || m_Stream.CurTok.value == "*")) {
         if (m_Stream.CurTok.value == "&") {
-            wrapper->modifiers.push_back(TypeWrapper::Reference);  // do not push the slice-associated `&`
+            modifiers.push_back(TypeWrapper::Reference);  // do not push the slice-associated `&`
             is_reference_present = true;
             forwardStream();
         } else if (m_Stream.CurTok.value == "*") {
-            wrapper->modifiers.push_back(TypeWrapper::Pointer);
+            modifiers.push_back(TypeWrapper::Pointer);
             forwardStream();
         }
     }
@@ -153,7 +154,7 @@ TypeWrapper* Parser::parseType() {
             ignoreButExpect({PUNC, "]"});
         } else {
             if (wrapper->modifiers.back() == TypeWrapper::Reference)
-                wrapper->modifiers.pop_back();
+                modifiers.pop_back();
             wrapper->is_slice = true;  // only slices are allowed to not have a size
             ignoreButExpect({PUNC, "]"});
         }
@@ -176,6 +177,7 @@ TypeWrapper* Parser::parseType() {
         });
     }
 
+    wrapper->modifiers = m_Module->internArray<TypeWrapper::Modifiers>(modifiers);
     return wrapper;
 }
 
@@ -281,6 +283,7 @@ Node* Parser::parseImport() {
     forwardStream();  // skip 'import'
 
     fs::path mod_path;
+    std::vector<ImportNode::ImportedSymbol_t> imported_symbols;
 
     if (CompilerInst::PackageTable.contains(m_Stream.CurTok.value)) {
         mod_path = CompilerInst::PackageTable[m_Stream.CurTok.value].package_root;
@@ -328,11 +331,11 @@ Node* Parser::parseImport() {
         forwardStream();  // skip '{'
 
         while (m_Stream.CurTok.type != PUNC || m_Stream.CurTok.value != "}") {
-            ret.imported_symbols.emplace_back(m_StringPool.intern(forwardStream().value));
+            imported_symbols.emplace_back(m_StringPool.intern(forwardStream().value));
 
             if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {
                 forwardStream();  // skip "as"
-                ret.imported_symbols.back().assigned_alias = m_StringPool.intern(forwardStream().value);
+                imported_symbols.back().assigned_alias = m_StringPool.intern(forwardStream().value);
             }
 
             if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ",") {
@@ -347,14 +350,14 @@ Node* Parser::parseImport() {
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {  // wildcard
             forwardStream();
             ret.is_wildcard = true;
-            ModuleMap.get(handle).insertExportedSymbolsInto([this, &ret](const std::string& name) {
-                ret.imported_symbols.push_back({.actual_name = m_StringPool.intern(name)});
+            ModuleMap.get(handle).insertExportedSymbolsInto([&, this](const std::string& name) {
+                imported_symbols.push_back({.actual_name = m_StringPool.intern(name)});
             });
         }
         else forwardStream();
     }
 
-    if (ret.imported_symbols.empty() && !ret.is_wildcard) {
+    if (imported_symbols.empty() && !ret.is_wildcard) {
         const auto name = ret.mod_handle->getPath().filename().replace_extension().string();
 
         // register the module-prefix in the symbol manager
@@ -369,6 +372,7 @@ Node* Parser::parseImport() {
             });
     }
 
+    ret.imported_symbols = m_Module->internArray<ImportNode::ImportedSymbol_t>(imported_symbols);
     return m_Module->makeNode<ImportNode>(std::move(ret));
 }
 
@@ -384,6 +388,7 @@ void Parser::parse() {
         builtin_import->is_wildcard = true;
         builtin_import->is_exported = false;
         builtin_import->mod_handle  = builtin_handle;
+        std::vector<ImportNode::ImportedSymbol_t> imported_symbols;
 
         // TODO: remove duplicate import-registration logic
         if (!ModuleMap.contains(builtin_handle)) {
@@ -393,10 +398,11 @@ void Parser::parse() {
             ModuleMap.get(builtin_handle).performSema(m_ErrorCallback);
         }
 
-        ModuleMap.get(builtin_handle).insertExportedSymbolsInto([this, &builtin_import](const std::string& name) {
-            builtin_import->imported_symbols.push_back({.actual_name = m_StringPool.intern(name)});
+        ModuleMap.get(builtin_handle).insertExportedSymbolsInto([&, this](const std::string& name) {
+            imported_symbols.push_back({.actual_name = m_StringPool.intern(name)});
         });
 
+        builtin_import->imported_symbols = m_Module->internArray<ImportNode::ImportedSymbol_t>(imported_symbols);
         m_Module->dependencies.insert(&ModuleMap.get(builtin_handle));
         ModuleMap.get(builtin_handle).dependents.insert(m_Module);
 
@@ -456,13 +462,15 @@ Node* Parser::parseFunction() {
     }
 
     // parse the parameters...
+    std::vector<Var*> params;
+
     if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != ")") {
         while (m_Stream.CurTok.value != ")" && m_Stream.CurTok.type != PUNC) {
-            func_nd->params.emplace_back(parseParam(method_is_static));
+            params.emplace_back(parseParam(method_is_static));
             if (m_Stream.CurTok.value == ",")
                 forwardStream();
         }
-    }
+    }  func_nd->params = m_Module->internArray<Var*>(params);
 
     // current token == ')'
     forwardStream();  // skip ')'
@@ -507,9 +515,13 @@ Node* Parser::parseFunction() {
 
     // parse the children
     forwardStream();  // skip '{'
+
+    std::vector<Node*> children;
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}") && !m_Stream.eof()) {
-        func_nd->children.push_back(dispatch());
+        children.push_back(dispatch());
     } forwardStream();
+    func_nd->children = m_Module->internArray<Node*>(children);
+
     m_Module->symbol_table.moveToPreviousScope();  // back to the global scope
 
     m_LatestFuncNode = nullptr;
@@ -567,7 +579,7 @@ Var* Parser::parseParam(bool& method_is_static) {
 }
 
 
-std::vector<GenericParam*> Parser::parseGenericParamList() {
+std::span<GenericParam*> Parser::parseGenericParamList() {
     std::vector<GenericParam*> params;
 
     forwardStream();  // skip '<'
@@ -590,13 +602,15 @@ std::vector<GenericParam*> Parser::parseGenericParamList() {
         auto* param = m_Module->makeNode<GenericParam>();
         param->name = m_StringPool.intern(forwardStream().value);
         params.push_back(param);
-    } return params;
+    }
+
+    return m_Module->internArray<GenericParam*>(params);
 }
 
 
 GenericArgList Parser::parseGenericArgList() {
     GenericArgList ret;
-    auto& args = ret.generic_args;
+    std::vector<GenericArg*> args;
 
     forwardStream();  // skip '<'
 
@@ -623,6 +637,7 @@ GenericArgList Parser::parseGenericArgList() {
         } else args.emplace_back(new GenericArg(parseType()));
     }
 
+    ret.generic_args = m_Module->internArray<GenericArg*>(args);
     return ret;
 }
 
@@ -647,6 +662,7 @@ Node* Parser::parseVar(const bool is_volatile) {
         ret->var_type = parseType();
         ret->var_type->is_mutable = !ret->is_const;
     }
+
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "=") {
         forwardStream();
@@ -689,7 +705,10 @@ Node* Parser::parseCall(std::optional<Ident*> ident) {
         call_node->generic_args = parseGenericArgList();
     }
 
+    // parse arguments
     forwardStream();  // skip '('
+
+    std::vector<Expression*> args;
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == ")")) {
         if (m_Stream.eof()) {
             reportError(ErrCode::UNEXPECTED_EOF);
@@ -701,9 +720,10 @@ Node* Parser::parseCall(std::optional<Ident*> ident) {
             continue;
         }
 
-        call_node->args.emplace_back(parseExpr());
+        args.emplace_back(parseExpr());
     } forwardStream();
 
+    call_node->args = m_Module->internArray<Expression*>(args);
     return call_node;
 }
 
@@ -736,15 +756,17 @@ Node* Parser::parseIntrinsic() {
         forwardStream();
         ignoreButExpect({PUNC, "("});
 
-        Expression* arg;
-        call_node->ident->full_qualification.push_back({.name = m_StringPool.intern("sizeof")});
+        std::array<Expression*, 1> arg = {nullptr};
+        std::array qualifier = {Ident::Qualifier{.name = m_StringPool.intern("sizeof")}};
+
+        call_node->ident->full_qualification = m_Module->internArray<Ident::Qualifier>(qualifier);
         call_node->intrinsic_type = Intrinsic::SIZEOF;
 
         if (m_Stream.CurTok.value == "@" && m_Stream.CurTok.type == PUNC)
-             arg = m_Module->makeNode<Expression>(Expression::makeExpression(parseIntrinsic()));
-        else arg = m_Module->makeNode<Expression>(Expression::makeExpression(parseType()));
+             arg[0] = m_Module->makeNode<Expression>(Expression::makeExpression(parseIntrinsic()));
+        else arg[0] = m_Module->makeNode<Expression>(Expression::makeExpression(parseType()));
 
-        call_node->args.push_back(arg);
+        call_node->args = m_Module->internArray<Expression*>(arg);
         ignoreButExpect({PUNC, ")"});
 
     } else *call_node = dynamic_cast<FuncCall*>(parseCall(parseIdent()));
@@ -756,6 +778,8 @@ Node* Parser::parseIntrinsic() {
 Node* Parser::parseScope() {
     auto scope = m_Module->makeNode<Scope>();
     SET_NODE_ATTRS(scope);
+
+    std::vector<Node*> children;
 
     forwardStream(); // skip '{'
     while (true) {
@@ -769,8 +793,11 @@ Node* Parser::parseScope() {
             break;
         }
 
-        scope->children.emplace_back(dispatch());
-    } return scope;
+        children.emplace_back(dispatch());
+    }
+
+    scope->children = m_Module->internArray<Node*>(children);
+    return scope;
 }
 
 
@@ -792,15 +819,21 @@ Node* Parser::parseCondition() {
 
     forwardStream();  // skip the opening brace
 
+    std::vector<Node*> if_children;
+
     m_Module->symbol_table.newScope();
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}"))
-        cnd->if_children.push_back(dispatch());
+        if_children.push_back(dispatch());
     forwardStream();
+
     m_Module->symbol_table.moveToPreviousScope();
+    cnd->if_children = m_Module->internArray<Node*>(if_children);
 
     // handle `else(s)`
     if (!(m_Stream.CurTok.type == KEYWORD && (m_Stream.CurTok.value == "else" || m_Stream.CurTok.value == "elif")))
         return cnd;
+
+    std::vector<Condition::elif_t> elif_children;
 
     if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "elif") {
         while (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "elif") {
@@ -820,18 +853,25 @@ Node* Parser::parseCondition() {
                 std::get<1>(children).push_back(dispatch());
             } forwardStream();
 
-            cnd->elif_children.emplace_back(std::move(children));
+            elif_children.emplace_back(
+                std::get<0>(children),
+                m_Module->internArray<Node*>(std::get<1>(children)));
+
             m_Module->symbol_table.moveToPreviousScope();
         }
-    }
+    } cnd->elif_children = m_Module->internArray<Condition::elif_t>(elif_children);
 
+
+    std::vector<Node*> else_children;
     if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "else") {
         m_Module->symbol_table.newScope();
         forwardStream(2);
         while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
-            cnd->else_children.push_back(dispatch());
+            else_children.push_back(dispatch());
         } forwardStream();
+
         m_Module->symbol_table.moveToPreviousScope();
+        cnd->else_children = m_Module->internArray<Node*>(else_children);
     }
 
     return cnd;
@@ -842,28 +882,31 @@ Ident* Parser::parseIdent() {
     auto* ret = m_Module->makeNode<Ident>();
     SET_NODE_ATTRS(ret);
 
-    ret->full_qualification.emplace_back(m_StringPool.intern(forwardStream().value));
+    std::vector<Ident::Qualifier> full_qualification;
+
+    full_qualification.emplace_back(m_StringPool.intern(forwardStream().value));
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "!") {
         forwardStream();
-        ret->full_qualification.back().generic_args = parseGenericArgList();
+        full_qualification.back().generic_args = parseGenericArgList();
     }
 
     while (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "::") {
         forwardStream();
-        ret->full_qualification.emplace_back(m_StringPool.intern(forwardStream().value));
+        full_qualification.emplace_back(m_StringPool.intern(forwardStream().value));
 
         // check for generics
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "!") {
             forwardStream();
-            ret->full_qualification.back().generic_args = parseGenericArgList();
+            full_qualification.back().generic_args = parseGenericArgList();
         }
     }
 
-    if (ret->full_qualification.size() == 1 && ret->full_qualification.at(0).generic_args.empty()) {
+    if (full_qualification.size() == 1 && full_qualification.at(0).generic_args.empty()) {
         ret->value = m_Module->symbol_table.getIDInfoFor(
-            std::string(ret->full_qualification.front().name));
+            std::string(full_qualification.front().name));
     }
 
+    ret->full_qualification = m_Module->internArray<Ident::Qualifier>(full_qualification);
     assert(!ret->full_qualification.empty());
     return ret;
 }
@@ -932,6 +975,9 @@ Node* Parser::parseProtocol() {
     auto ret = m_Module->makeNode<Protocol>();
     SET_NODE_ATTRS(ret);
 
+    std::vector<Protocol::MemberSignature> members;
+    std::vector<Protocol::MethodSignature> methods;
+
     forwardStream(); // skip 'protocol'
     ret->protocol_name = m_StringPool.intern(forwardStream().value);
 
@@ -960,7 +1006,7 @@ Node* Parser::parseProtocol() {
         switch (child->getNodeType()) {
             case ND_VAR: {
                 const auto var = child->to<Var>();
-                ret->members.push_back(Protocol::MemberSignature{
+                members.push_back(Protocol::MemberSignature{
                     .name = m_StringPool.intern(var->var_ident->toString()),
                     .type = var->var_type,
                 });
@@ -978,10 +1024,10 @@ Node* Parser::parseProtocol() {
                     func_params.push_back(var->var_type);
                 }
 
-                ret->methods.push_back(Protocol::MethodSignature{
+                methods.push_back(Protocol::MethodSignature{
                     .name = m_StringPool.intern(func->ident->toString()),
                     .return_type = func->return_type,
-                    .params = std::move(func_params),
+                    .params = func_params,
                 });
                 break;
             }
@@ -999,6 +1045,8 @@ Node* Parser::parseProtocol() {
 
     const TableEntry entry{.is_protocol = true, .node_ptr = ret};
     ret->protocol_id = m_Module->symbol_table.registerDecl(std::string(ret->protocol_name), entry);
+    ret->members = m_Module->internArray<Protocol::MemberSignature>(members);
+    ret->methods = m_Module->internArray<Protocol::MethodSignature>(methods);
 
     if (m_RecursionDepth == 1) {
         NodeJmpTable.insert({ret->protocol_id, ret});
@@ -1008,14 +1056,14 @@ Node* Parser::parseProtocol() {
 }
 
 
-std::vector<Ident*> Parser::parseProtocolList() {
+std::span<Ident*> Parser::parseProtocolList() {
     std::vector<Ident*> ret;
     forwardStream();  // skip ':'
 
     while (true) {
         if (m_Stream.eof()) {
             reportError(ErrCode::UNEXPECTED_EOF);
-            return ret;
+            return {};
         }
 
         if (m_Stream.CurTok.type == PUNC) {
@@ -1034,7 +1082,7 @@ std::vector<Ident*> Parser::parseProtocolList() {
         }
     }
 
-    return ret;
+    return m_Module->internArray<Ident*>(ret);
 }
 
 
@@ -1046,6 +1094,8 @@ Node* Parser::parseStruct() {
     const auto struct_ty = new StructType{};
     const auto struct_name = forwardStream().value;
     m_CurrentStructTy.push_back(struct_ty);
+
+    std::vector<Node*> members;
 
     // ask for a decl registry from the symbol manager
     ret->ident = m_Module->symbol_table.registerDecl(struct_name, {
@@ -1086,7 +1136,7 @@ Node* Parser::parseStruct() {
             struct_ty->field_offsets.insert(
                 {m_StringPool.intern(member->getIdentInfo()->toString()).data(), i++});
         }
-        ret->members.emplace_back(member);
+        members.emplace_back(member);
     } ignoreButExpect({PUNC, "}"});  // skip '}'
 
     m_CurrentStructTy.pop_back();
@@ -1101,6 +1151,7 @@ Node* Parser::parseStruct() {
         NodeJmpTable.insert({ret->getIdentInfo(), ret});
     }
 
+    ret->members = m_Module->internArray<Node*>(members);
     return ret;
 }
 
@@ -1111,14 +1162,16 @@ Node* Parser::parseWhile() {
 
     forwardStream();
     ret->condition = parseExpr();
+    std::vector<Node*> children;
 
     m_Module->symbol_table.newScope();
     forwardStream();
     while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
-        ret->children.push_back(dispatch());
+        children.push_back(dispatch());
     } forwardStream();
     m_Module->symbol_table.moveToPreviousScope();
 
+    ret->children = m_Module->internArray<Node*>(children);
     return ret;
 }
 
