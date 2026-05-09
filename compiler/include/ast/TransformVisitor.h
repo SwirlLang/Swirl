@@ -1,6 +1,4 @@
 #pragma once
-#include "definitions.h"
-#include "Visitor.h"
 #include "modules/Module.h"
 
 
@@ -8,8 +6,9 @@ struct Module;
 
 namespace detail {
 template <typename D, typename N, typename... Args>
-concept HasTransform = requires (D& derived, const N* node, Args&&... args) {
-    { derived.transform(node, std::forward<Args>(args)...) } -> std::convertible_to<N*>;
+concept HasTransform = requires (D& derived, N* node, Args&&... args) {
+    { derived.transform(node, std::forward<Args>(args)...) }
+        -> std::convertible_to<const Node*>;
 };
 }
 
@@ -24,9 +23,16 @@ public:
     template <typename... Args>
     Node* run(const Node* node, Args&&... args) {
     #define SW_NODE(x, y) case x: \
-        if constexpr (detail::HasTransform<Derived, y, Args...>) \
-            return transform(static_cast<const y*>(node), std::forward<Args>(args)...); \
-        return transformDefault(static_cast<const y*>(node), std::forward<Args>(args)...);
+    if constexpr (detail::HasTransform<Derived, y, Args...>) \
+        return const_cast<Node*> \
+            (derived()->transform(static_cast<y*>(const_cast<Node*>(node)), std::forward<Args>(args)...)); \
+        return const_cast<Node*> \
+            (transformDefault(static_cast<const y*>(node), std::forward<Args>(args)...));
+
+        if (node == nullptr) {
+            SW_LOG_WARN("TransformVisitor::run: node == nullptr");
+            return nullptr;
+        }
 
         switch (node->kind) {
             SW_NODE_LIST
@@ -128,8 +134,9 @@ protected:
             new_params.push_back(static_cast<Var*>(new_param));
         }
 
+        Node* ret = nullptr;
         if (node->return_type) {
-            auto ret = run(node->return_type, std::forward<Args>(args)...);
+            ret = run(node->return_type, std::forward<Args>(args)...);
             if (ret != node->return_type) changed = true;
         }
 
@@ -144,6 +151,7 @@ protected:
             auto new_node = makeNode<Function>(*node);
             new_node->generic_params = m_Module->internArray<GenericParam*>(new_gen_params);
             new_node->params = m_Module->internArray<Var*>(new_params);
+            new_node->return_type = static_cast<TypeWrapper*>(ret);
             new_node->children = m_Module->internArray<Node*>(new_children);
             return new_node;
         }
@@ -267,8 +275,9 @@ protected:
         auto type_id = run(node->type_id, std::forward<Args>(args)...);
         if (type_id != node->type_id) changed = true;
 
+        Node* of_type = nullptr;
         if (node->of_type) {
-            auto of_type = run(node->of_type, std::forward<Args>(args)...);
+            of_type = run(node->of_type, std::forward<Args>(args)...);
             if (of_type != node->of_type) changed = true;
         }
 
@@ -276,6 +285,8 @@ protected:
             auto new_node = makeNode<TypeWrapper>(*node);
             if (type_id != node->type_id)
                 new_node->type_id = static_cast<Ident*>(type_id);
+            if (of_type)
+                new_node->of_type = static_cast<TypeWrapper*>(of_type);
             return new_node;
         }
         return node;
@@ -286,18 +297,16 @@ protected:
     const Node* transformDefault(const Var* node, Args&&... args) {
         bool changed = false;
 
-        if (node->var_type) {
-            auto var_type = run(node->var_type, std::forward<Args>(args)...);
-            if (var_type != node->var_type) changed = true;
-        }
+        auto var_type = run(node->var_type, std::forward<Args>(args)...);
+        if (var_type != node->var_type) changed = true;
 
-        if (node->initialized) {
-            auto value = run(node->value, std::forward<Args>(args)...);
-            if (value != node->value) changed = true;
-        }
+        auto value = node->initialized ? run(node->value, std::forward<Args>(args)...) : node->value;
+        if (value != node->value) changed = true;
 
         if (changed) {
             auto new_node = makeNode<Var>(*node);
+            new_node->var_type = static_cast<TypeWrapper*>(var_type);
+            new_node->value = static_cast<Expression*>(value);
             return new_node;
         }
         return node;
@@ -350,9 +359,11 @@ protected:
     const Node* transformDefault(const Protocol* node, Args&&... args) {
         bool changed = false;
 
+        std::vector<Ident*> new_depended;
         for (auto dep : node->depended_protocols) {
             auto new_dep = run(dep, std::forward<Args>(args)...);
             if (new_dep != dep) changed = true;
+            new_depended.push_back(static_cast<Ident*>(new_dep));
         }
 
         std::vector<Protocol::MemberSignature> new_members;
@@ -395,6 +406,7 @@ protected:
 
         if (changed) {
             auto new_node = makeNode<Protocol>(*node);
+            new_node->depended_protocols = m_Module->internArray<Ident*>(new_depended);
             new_node->members = m_Module->internArray<Protocol::MemberSignature>(new_members);
             new_node->methods = m_Module->internArray<Protocol::MethodSignature>(new_methods);
             return new_node;
@@ -518,6 +530,16 @@ protected:
     }
 
 
+    template <typename T>
+    std::span<T> internArray(std::span<T> arr) {
+        return m_Module->internArray<T>(arr);
+    }
+
+
 private:
     Module* m_Module;
+
+    constexpr Derived* derived() {
+        return static_cast<Derived*>(this);
+    }
 };
