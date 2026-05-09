@@ -633,8 +633,8 @@ GenericArgList Parser::parseGenericArgList() {
         // parsing logic: if comptime - parseExpr, otherwise parseType
         if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "comptime") {
             forwardStream();
-            args.emplace_back(new GenericArg(parseExpr()));
-        } else args.emplace_back(new GenericArg(parseType()));
+            args.emplace_back(m_Module->makeNode<GenericArg>(parseExpr()));
+        } else args.emplace_back(m_Module->makeNode<GenericArg>(parseType()));
     }
 
     ret.generic_args = m_Module->internArray<GenericArg*>(args);
