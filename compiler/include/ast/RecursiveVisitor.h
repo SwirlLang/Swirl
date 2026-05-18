@@ -102,6 +102,7 @@ private:
     }
 
 
+protected:
     template <typename... Args>
     void traverse(Scope* node, Args&&... args) {
         for (auto& child : node->children) {
@@ -134,32 +135,21 @@ private:
         }
 
         this->dispatch(node->return_type, std::forward<Args>(args)...);
-        for (auto& child : node->children) {
-            this->dispatch(child, std::forward<Args>(args)...);
-        }
+        visit(node->children, std::forward<Args>(args)...);
     }
 
 
     template <typename... Args>
     void traverse(Condition* node, Args&&... args) {
         this->dispatch(node->bool_expr, std::forward<Args>(args)...);
-        for (auto& child : node->if_children) {
-            this->dispatch(child, std::forward<Args>(args)...);
+        visit(node->if_children, std::forward<Args>(args)...);
+
+        for (auto& [expr, body] : node->elif_children) {
+            visit(expr, std::forward<Args>(args)...);
+            visit(body, std::forward<Args>(args)...);
         }
 
-        for (auto& item : node->elif_children) {
-            auto* condition = std::get<Expression*>(item);
-            auto& children  = std::get<std::span<Node*>>(item);
-
-            this->dispatch(condition, std::forward<Args>(args)...);
-            for (auto& child : children) {
-                this->dispatch(child, std::forward<Args>(args)...);
-            }
-        }
-
-        for (auto& child : node->else_children) {
-            this->dispatch(child, std::forward<Args>(args)...);
-        }
+        visit(node->else_children, std::forward<Args>(args)...);
     }
 
 
@@ -173,9 +163,7 @@ private:
             this->dispatch(proto, std::forward<Args>(args)...);
         }
 
-        for (Node* member : node->members) {
-            this->dispatch(member, std::forward<Args>(args)...);
-        }
+        visit(node->members, std::forward<Args>(args)...);
     }
 
 
@@ -244,9 +232,7 @@ private:
     template <typename... Args>
     void traverse(WhileLoop* node, Args&&... args) {
         this->dispatch(node->condition, std::forward<Args>(args)...);
-        for (auto& child : node->children) {
-            this->dispatch(child, std::forward<Args>(args)...);
-        }
+        visit(node->children, std::forward<Args>(args)...);
     }
 
 

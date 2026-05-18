@@ -17,7 +17,8 @@ template <typename Derived>
 class TransformVisitor {
 public:
     explicit TransformVisitor(Module* module)
-        : m_Module(module) {}
+        : SymMan(module->symbol_table)
+        , m_Module(module) {}
 
 
     template <typename... Args>
@@ -42,6 +43,8 @@ public:
 
 
 protected:
+    SymbolManager& SymMan;
+
     template <typename T, typename... Args>
     T* makeNode(Args&&... args) {
         return m_Module->makeNode<T>(std::forward<Args>(args)...);
@@ -140,19 +143,18 @@ protected:
             if (ret != node->return_type) changed = true;
         }
 
-        std::vector<Node*> new_children;
-        for (auto child : node->children) {
-            auto new_child = run(child, std::forward<Args>(args)...);
-            if (new_child != child) changed = true;
-            new_children.push_back(new_child);
+        Node* children = node->children;
+        if (children) {
+            children = run(children, std::forward<Args>(args)...);
+            if (children != node->children) changed = true;
         }
 
         if (changed) {
-            auto new_node = makeNode<Function>(*node);
+            const auto new_node = makeNode<Function>(*node);
             new_node->generic_params = m_Module->internArray<GenericParam*>(new_gen_params);
             new_node->params = m_Module->internArray<Var*>(new_params);
             new_node->return_type = static_cast<TypeWrapper*>(ret);
-            new_node->children = m_Module->internArray<Node*>(new_children);
+            new_node->children = static_cast<Scope*>(children);
             return new_node;
         }
         return node;
@@ -166,11 +168,10 @@ protected:
         auto bool_expr = run(node->bool_expr, std::forward<Args>(args)...);
         if (bool_expr != node->bool_expr) changed = true;
 
-        std::vector<Node*> new_if_children;
-        for (auto child : node->if_children) {
-            auto new_child = run(child, std::forward<Args>(args)...);
-            if (new_child != child) changed = true;
-            new_if_children.push_back(new_child);
+        Node* if_scope = node->if_children;
+        if (if_scope) {
+            if_scope = run(if_scope, std::forward<Args>(args)...);
+            if (if_scope != node->if_children) changed = true;
         }
 
         std::vector<Condition::elif_t> new_elif;
@@ -179,35 +180,33 @@ protected:
             bool expr_changed = (new_expr != expr);
 
             bool body_changed = false;
-            std::vector<Node*> new_body;
-            for (auto child : body) {
-                auto new_child = run(child, std::forward<Args>(args)...);
-                if (new_child != child) body_changed = true;
-                new_body.push_back(new_child);
+
+            Node* elif_body = body;
+            if (elif_body) {
+                elif_body = run(elif_body, std::forward<Args>(args)...);
+                if (elif_body != body) body_changed = true;
             }
 
             if (expr_changed || body_changed) {
                 changed = true;
-                auto interned_body = m_Module->internArray<Node*>(new_body);
-                new_elif.emplace_back(static_cast<Expression*>(new_expr), interned_body);
+                new_elif.emplace_back(static_cast<Expression*>(new_expr), static_cast<Scope*>(body));
             } else {
-                new_elif.emplace_back(static_cast<Expression*>(new_expr), body);
+                new_elif.emplace_back(static_cast<Expression*>(new_expr), static_cast<Scope*>(body));
             }
         }
 
-        std::vector<Node*> new_else_children;
-        for (auto child : node->else_children) {
-            auto new_child = run(child, std::forward<Args>(args)...);
-            if (new_child != child) changed = true;
-            new_else_children.push_back(new_child);
+        Scope* else_children = node->else_children;
+        if (else_children) {
+            else_children = static_cast<Scope*>(run(else_children, std::forward<Args>(args)...));
+            if (else_children != node->else_children) changed = true;
         }
 
         if (changed) {
-            auto new_node = makeNode<Condition>(*node);
+            const auto new_node = makeNode<Condition>(*node);
             new_node->bool_expr = static_cast<Expression*>(bool_expr);
-            new_node->if_children = m_Module->internArray<Node*>(new_if_children);
-            new_node->elif_children = m_Module->internArray<Condition::elif_t>(new_elif);
-            new_node->else_children = m_Module->internArray<Node*>(new_else_children);
+            new_node->if_children   = static_cast<Scope*>(if_scope);
+            new_node->elif_children = internArray<Condition::elif_t>(new_elif);
+            new_node->else_children = else_children;
             return new_node;
         }
         return node;
@@ -232,18 +231,17 @@ protected:
             new_protocols.push_back(static_cast<Ident*>(new_proto));
         }
 
-        std::vector<Node*> new_members;
-        for (auto member : node->members) {
-            auto new_member = run(member, std::forward<Args>(args)...);
-            if (new_member != member) changed = true;
-            new_members.push_back(new_member);
+        Scope* members = node->members;
+        if (members) {
+            members = static_cast<Scope*>(run(members, std::forward<Args>(args)...));
+            if (members != node->members) changed = true;
         }
 
         if (changed) {
             auto new_node = makeNode<Struct>(*node);
             new_node->generic_params = m_Module->internArray<GenericParam*>(new_gen_params);
             new_node->protocols = m_Module->internArray<Ident*>(new_protocols);
-            new_node->members = m_Module->internArray<Node*>(new_members);
+            new_node->members = members;
             return new_node;
         }
         return node;
@@ -422,17 +420,16 @@ protected:
         auto condition = run(node->condition, std::forward<Args>(args)...);
         if (condition != node->condition) changed = true;
 
-        std::vector<Node*> new_children;
-        for (auto child : node->children) {
-            auto new_child = run(child, std::forward<Args>(args)...);
-            if (new_child != child) changed = true;
-            new_children.push_back(new_child);
+        Scope* children = node->children;
+        if (children) {
+            children = static_cast<Scope*>(run(children, std::forward<Args>(args)...));
+            if (children != node->children) changed = true;
         }
 
         if (changed) {
-            auto new_node = makeNode<WhileLoop>(*node);
+            const auto new_node = makeNode<WhileLoop>(*node);
             new_node->condition = static_cast<Expression*>(condition);
-            new_node->children = m_Module->internArray<Node*>(new_children);
+            new_node->children = children;
             return new_node;
         }
         return node;

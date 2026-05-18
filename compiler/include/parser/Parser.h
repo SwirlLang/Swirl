@@ -20,7 +20,7 @@ class Parser;
 class ModuleManager;
 struct Module;
 
-namespace sw   {
+namespace sw {
     class StringPool;
     class FileSystem;
 }
@@ -129,11 +129,11 @@ public:
     Node* parseWhile();
     Node* parseStruct();
     Node* parseImport();
-    Node* parseScope();
     Node* parseRet();
     Node* parseIntrinsic();
     Node* parseProtocol();
     Node* parseEnum();
+    Scope* parseScope();
 
     Var*  parseParam(bool&);
     Node* parseVar(bool is_volatile = false);

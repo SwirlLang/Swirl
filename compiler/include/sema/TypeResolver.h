@@ -334,9 +334,7 @@ public:
         }
 
         // visit children
-        for (Node* child : node->children) {
-            visit(child);
-        }
+        visit(node->children);
     }
 
 
@@ -472,9 +470,7 @@ public:
             reportError(ErrCode::CONDITION_NOT_BOOL, {});
         }
 
-        for (auto& child : node->if_children) {
-            visit(child);
-        }
+        visit(node->if_children);
 
         for (auto& [condition, children] : node->elif_children) {
             const auto cond_ty = inferType(condition, {}).deduced_type;
@@ -482,14 +478,10 @@ public:
                 reportError(ErrCode::CONDITION_NOT_BOOL, {});
             }
 
-            for (auto& child : children) {
-                visit(child);
-            }
+            visit(children);
         }
 
-        for (auto& child : node->else_children) {
-            visit(child);
-        }
+        visit(node->else_children);
     }
 
     void handle(WhileLoop* node) {
@@ -498,9 +490,7 @@ public:
             reportError(ErrCode::CONDITION_NOT_BOOL, {});
         }
 
-        for (auto& child : node->children) {
-            visit(child);
-        }
+        visit(node->children);
     }
 
 
@@ -510,7 +500,7 @@ public:
         std::unordered_set<Protocol::MemberSignature> member_lookup;
         std::unordered_set<Protocol::MethodSignature> method_lookup;
 
-        for (const auto& member : node->members) {
+        for (const auto& member : node->members->children) {
             if (member->getNodeType() == ND_VAR) {
                 const auto var_node = member->to<Var>();
 

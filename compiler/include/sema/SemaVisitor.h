@@ -40,6 +40,7 @@ protected:
     SemaVisitor(Module* module, ErrorCallback_t error_callback)
         : m_Callback(std::move(error_callback))
         , m_Module(module)
+        , m_StringPool(module->getStringPool())
     {
         module->symbol_table.setErrorCallback([this](const ErrCode code, ErrorContext ctx) {
             reportError(code, std::move(ctx));
@@ -93,11 +94,16 @@ protected:
         return m_Module->internArray<T>(arr);
     }
 
+    std::string_view internString(const std::string_view str) const {
+        return m_StringPool.internLocked(str);
+    }
+
 
 private:
     std::vector<Node*> m_NodeStack;
     ErrorCallback_t    m_Callback;
     Module*            m_Module;
+    sw::StringPool&    m_StringPool;
 
     std::unordered_set<ErrCode> m_DisabledErrorCodes;
 

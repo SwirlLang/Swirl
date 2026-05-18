@@ -1,4 +1,6 @@
 #pragma once
+#include <ranges>
+
 #include "modules/ModuleManager.h"
 #include "SemaVisitor.h"
 
@@ -69,9 +71,7 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             visit(param, data);
         } visit(node->return_type, data);
 
-        for (auto& child : node->children) {
-            visit(child, data);
-        }
+        visit(node->children, data);
     }
 
 
@@ -121,31 +121,19 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
         } return true;
     }
 
+
     void handle(Ident* node, const Data& data) {
         assert(!node->full_qualification.empty());
 
         // do not attempt resolution if the symbol is ignored
-        for (auto& symbol : node->full_qualification) {
-            if (data.ignore_symbols.contains(symbol.name)) {
-                return;
-            }
-        }
-
-        // if generic arguments are involved, perform appropriate substitutions in the identifier
-        if (!data.generic_args.empty()) {
-            if (node->full_qualification.size() > 1) {
-                for (auto& [name, _] : node->full_qualification) {
-                    if (data.generic_args.contains(name)) {
-                        assert(data.generic_args.at(name)->full_qualification.size() == 1);
-                        name = data.generic_args.at(name)->full_qualification.front().name;
-                    }
-                }
-            }
+        if (data.ignore_symbols.contains(node->full_qualification.front().name)) {
+            return;
         }
 
         if (!node->value) {
-            node->value = SymMan.getIDInfoFor(*node, [this](const ErrCode code, ErrorContext ctx) {
-               reportError(code, std::move(ctx));
+            node->value = SymMan.getIDInfoFor(*node,
+                [this](const ErrCode code, ErrorContext ctx) {
+                    reportError(code, std::move(ctx));
            });
         }
 

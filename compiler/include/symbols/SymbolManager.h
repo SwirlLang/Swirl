@@ -113,8 +113,8 @@ public:
 
     Type* lookupType(IdentInfo* id);
 
-    /// returns the `IdentInfo*` of a global symbol
-    IdentInfo* getIdInfoOfAGlobal(const std::string& name, const bool enforce_export = false) {
+    /// returns the `IdentInfo*` of a global symbol.
+    IdentInfo* getIdInfoOfAGlobal(const std::string& name, bool enforce_export = false, bool report_error = true) {
         if (const auto id = m_Scopes.front().getIDInfoFor(name))
             return *id;
 
@@ -125,8 +125,9 @@ public:
         } else if (m_ExportedSymbolTable.contains(name))
             return m_ExportedSymbolTable[name].id;
 
-        m_ErrorCallback(ErrCode::QUALIFIER_UNDEFINED, {.str_1 = name});
-        return nullptr;
+        if (report_error) {
+            m_ErrorCallback(ErrCode::QUALIFIER_UNDEFINED, {.str_1 = name});
+        } return nullptr;
     }
 
     /// returns the IdentInfo* of a global name from the module `mod_handle`

@@ -518,6 +518,7 @@ struct TypeF64 final : FloatingPointType {
     unsigned int getBitWidth() override { return 64; }
 };
 
+
 struct TypeBool final : Type {
     TypeBool(): Type(BOOL) {}
 

@@ -193,6 +193,11 @@ void LLVMBackend::codegenChildrenUntilRet(const std::span<Node*> children, const
 }
 
 
+void LLVMBackend::codegenChildrenUntilRet(const Scope* children, const SwContext& context, llvm::Value* condition) {
+    codegenChildrenUntilRet(children->children, context, condition);
+}
+
+
 CGValue LLVMBackend::llvmCodegen(Expression* node, SwContext context) {
     assert(node->expr_type != nullptr);
     context.bound_type = node->expr_type;
@@ -995,11 +1000,12 @@ CGValue LLVMBackend::llvmCodegen(Struct* node, const SwContext& context) {
     const auto struct_sw_ty = SymMan.lookupType(node->ident);
     assert(struct_sw_ty);
 
-    for (auto& member : node->members) {
+    for (auto& member : node->members->children) {
         if (member->getNodeType() == ND_FUNC) {
             codegen(member, context);
         }
     }
+
     return {};
 }
 

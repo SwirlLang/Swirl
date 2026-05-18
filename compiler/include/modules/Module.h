@@ -97,6 +97,9 @@ struct Module {
         return std::span<T>{reinterpret_cast<T*>(memory), arr.size()};
     }
 
+    sw::StringPool& getStringPool() const {
+        return m_StringPool;
+    }
 
     sw::BumpAllocator& getAllocator() {
         return m_Allocator;

@@ -420,10 +420,11 @@ void Parser::parse() {
 
 
 Node* Parser::parseFunction() {
-    auto func_nd = m_Module->makeNode<Function>();
+    const auto func_nd = m_Module->makeNode<Function>();
     SET_NODE_ATTRS(func_nd);
 
     const std::string func_ident = m_Stream.next().value;
+    func_nd->name = m_StringPool.intern(func_ident);
 
     // handle the special case of `main`
     if (func_ident == "main" && !m_Module->isMainModule()) {
@@ -436,7 +437,6 @@ Node* Parser::parseFunction() {
         func_nd->ident = struct_scope->getNewIDInfo(func_ident);
     }
 
-    bool method_is_static = true;
     forwardStream(); // skip the ID
 
     // check for generics
@@ -466,7 +466,7 @@ Node* Parser::parseFunction() {
 
     if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.value != ")") {
         while (m_Stream.CurTok.value != ")" && m_Stream.CurTok.type != PUNC) {
-            params.emplace_back(parseParam(method_is_static));
+            params.emplace_back(parseParam(func_nd->is_static_method));
             if (m_Stream.CurTok.value == ",")
                 forwardStream();
         }
@@ -484,7 +484,7 @@ Node* Parser::parseFunction() {
     entry.swirl_type  = function_t.get();
     entry.is_exported = func_nd->is_exported;
     entry.method_of   = m_CurrentStructTy.back();
-    entry.is_static   = method_is_static;
+    entry.is_static   = func_nd->is_static_method;
     entry.node_ptr    = func_nd;
 
     if (!m_CurrentStructTy.back()) {  // when the function is not a method
@@ -514,13 +514,7 @@ Node* Parser::parseFunction() {
     }
 
     // parse the children
-    forwardStream();  // skip '{'
-
-    std::vector<Node*> children;
-    while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}") && !m_Stream.eof()) {
-        children.push_back(dispatch());
-    } forwardStream();
-    func_nd->children = m_Module->internArray<Node*>(children);
+    func_nd->children = parseScope();
 
     m_Module->symbol_table.moveToPreviousScope();  // back to the global scope
 
@@ -685,6 +679,7 @@ Node* Parser::parseVar(const bool is_volatile) {
     entry.node_ptr    = ret;
     // entry.swirl_type  = var_node->var_type;
 
+    ret->name = m_StringPool.intern(var_ident);
     ret->var_ident = m_Module->symbol_table.registerDecl(var_ident, entry);
 
     // is a global variable
@@ -775,7 +770,7 @@ Node* Parser::parseIntrinsic() {
 }
 
 
-Node* Parser::parseScope() {
+Scope* Parser::parseScope() {
     auto scope = m_Module->makeNode<Scope>();
     SET_NODE_ATTRS(scope);
 
@@ -788,7 +783,7 @@ Node* Parser::parseScope() {
             break;
         }
 
-        if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}") {
+        if (m_Stream.CurTok.tokenid == Token::PUNC_RBRACE) {
             forwardStream();
             break;
         }
@@ -817,17 +812,12 @@ Node* Parser::parseCondition() {
             m_Module->makeNode<Expression>(Expression::makeExpression(cnd->bool_expr->evaluate(*this)));
     }
 
-    forwardStream();  // skip the opening brace
 
     std::vector<Node*> if_children;
 
     m_Module->symbol_table.newScope();
-    while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}"))
-        if_children.push_back(dispatch());
-    forwardStream();
-
+    cnd->if_children = parseScope();
     m_Module->symbol_table.moveToPreviousScope();
-    cnd->if_children = m_Module->internArray<Node*>(if_children);
 
     // handle `else(s)`
     if (!(m_Stream.CurTok.type == KEYWORD && (m_Stream.CurTok.value == "else" || m_Stream.CurTok.value == "elif")))
@@ -840,7 +830,7 @@ Node* Parser::parseCondition() {
             m_Module->symbol_table.newScope();
             forwardStream();
 
-            std::tuple<Expression*, std::vector<Node*>> children;
+            Condition::elif_t children;
             std::get<0>(children) = parseExpr();
 
             if (cnd->is_comptime) {
@@ -848,14 +838,11 @@ Node* Parser::parseCondition() {
                     std::get<0>(children)->evaluate(*this)));
             }
 
-            forwardStream();
-            while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
-                std::get<1>(children).push_back(dispatch());
-            } forwardStream();
+            std::get<1>(children) = parseScope();
 
             elif_children.emplace_back(
                 std::get<0>(children),
-                m_Module->internArray<Node*>(std::get<1>(children)));
+                std::get<1>(children));
 
             m_Module->symbol_table.moveToPreviousScope();
         }
@@ -865,13 +852,10 @@ Node* Parser::parseCondition() {
     std::vector<Node*> else_children;
     if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "else") {
         m_Module->symbol_table.newScope();
-        forwardStream(2);
-        while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
-            else_children.push_back(dispatch());
-        } forwardStream();
+        forwardStream();  // skip 'else'
 
+        cnd->else_children = parseScope();
         m_Module->symbol_table.moveToPreviousScope();
-        cnd->else_children = m_Module->internArray<Node*>(else_children);
     }
 
     return cnd;
@@ -887,6 +871,7 @@ Ident* Parser::parseIdent() {
     full_qualification.emplace_back(m_StringPool.intern(forwardStream().value));
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "!") {
         forwardStream();
+        ret->has_generic_args = true;
         full_qualification.back().generic_args = parseGenericArgList();
     }
 
@@ -897,6 +882,7 @@ Ident* Parser::parseIdent() {
         // check for generics
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "!") {
             forwardStream();
+            ret->has_generic_args = true;
             full_qualification.back().generic_args = parseGenericArgList();
         }
     }
@@ -917,10 +903,14 @@ Node* Parser::parseEnum() {
     SET_NODE_ATTRS(ret);
 
     forwardStream();  // skip 'enum'
+
+    const std::string enum_name = forwardStream().value;
+    ret->name = m_StringPool.intern(enum_name);
+
     TableEntry entry;
     entry.is_enum  = true;
     entry.node_ptr = ret;
-    ret->ident  = m_Module->symbol_table.registerDecl(forwardStream().value, entry);
+    ret->ident  = m_Module->symbol_table.registerDecl(enum_name, entry);
 
     auto scope = m_Module->symbol_table.newScope();
     m_Module->symbol_table.lookupDecl(ret->ident).scope = scope;
@@ -1093,6 +1083,9 @@ Node* Parser::parseStruct() {
 
     const auto struct_ty = new StructType{};
     const auto struct_name = forwardStream().value;
+
+    ret->name = m_StringPool.intern(struct_name);
+
     m_CurrentStructTy.push_back(struct_ty);
 
     std::vector<Node*> members;
@@ -1114,8 +1107,6 @@ Node* Parser::parseStruct() {
         ret->protocols = parseProtocolList();
     }
 
-    // create the struct's scope
-    ignoreButExpect({PUNC, "{"});  // skip '{'
     const auto scope_pointer = m_Module->symbol_table.newScope();
     struct_ty->scope = scope_pointer;
 
@@ -1127,22 +1118,22 @@ Node* Parser::parseStruct() {
         m_Module->symbol_table.registerType(param->id, new GenericType());
     }
 
-    // handle the children
-    std::size_t i = 0;
-    while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
-        m_LastSymWasExported = true;
-        auto member = dispatch();
-        if (member->getNodeType() == ND_VAR) {
-            struct_ty->field_offsets.insert(
-                {m_StringPool.intern(member->getIdentInfo()->toString()).data(), i++});
-        }
-        members.emplace_back(member);
-    } ignoreButExpect({PUNC, "}"});  // skip '}'
+    m_LastSymWasExported = true;
+    ret->members = parseScope();
 
     m_CurrentStructTy.pop_back();
 
     // exit the struct's scope
     m_Module->symbol_table.moveToPreviousScope();
+
+    // build the struct's field offsets
+    std::size_t i = 0;
+    for (Node* node : ret->members->children) {
+        if (node->kind == ND_VAR) {
+            const auto field = static_cast<Var*>(node);
+            struct_ty->field_offsets.insert({field->name.data(), i++});
+        }
+    }
 
     struct_ty->ident = ret->ident;
     m_Module->symbol_table.lookupDecl(ret->ident).scope = scope_pointer;
@@ -1151,7 +1142,6 @@ Node* Parser::parseStruct() {
         NodeJmpTable.insert({ret->getIdentInfo(), ret});
     }
 
-    ret->members = m_Module->internArray<Node*>(members);
     return ret;
 }
 
@@ -1165,13 +1155,9 @@ Node* Parser::parseWhile() {
     std::vector<Node*> children;
 
     m_Module->symbol_table.newScope();
-    forwardStream();
-    while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "}")) {
-        children.push_back(dispatch());
-    } forwardStream();
+    ret->children = parseScope();
     m_Module->symbol_table.moveToPreviousScope();
 
-    ret->children = m_Module->internArray<Node*>(children);
     return ret;
 }
 

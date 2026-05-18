@@ -1,4 +1,5 @@
 #pragma once
+#include <ranges>
 #include <string_view>
 #include <filesystem>
 #include <stdexcept>
@@ -382,7 +383,8 @@ struct GenericArgList final : Node {
     GenericArgList()
         : Node(ND_GEN_ARG_LIST) {}
 
-    [[nodiscard]] auto begin() const { return generic_args.begin(); }
+    [[nodiscard]] auto front() const   { return generic_args.front(); }
+    [[nodiscard]] auto begin() const   { return generic_args.begin(); }
     [[nodiscard]] auto end()   const   { return generic_args.end(); }
 
     [[nodiscard]] auto size()    const { return generic_args.size(); }
@@ -398,6 +400,7 @@ struct Ident final : Node {
         GenericArgList generic_args;
     };
 
+    bool has_generic_args = false;
     IdentInfo* value = nullptr;
     std::span<Qualifier> full_qualification;
 
@@ -409,6 +412,11 @@ struct Ident final : Node {
 
     explicit Ident(IdentInfo* val)
         : Ident() { value = val; }
+
+    /// Convenience constructor for the creation of temporary objects, not to be used for
+    /// the construction of AST nodes
+    explicit Ident(const std::span<Qualifier> full_qualification)
+        : full_qualification(full_qualification) {}
 
 
     IdentInfo* getIdentInfo() override {
@@ -466,8 +474,36 @@ struct TypeWrapper final : Node {
     NodeType getNodeType() const override {
         return ND_TYPE;
     }
-};
 
+
+    [[nodiscard]]
+    std::string getIDStr() const {
+        std::string result;
+
+        if (is_slice) {
+            result = "&[" + (of_type ? of_type->getIDStr() : "void") + "]";
+        } else if (array_size > 0) {
+            result = "[" + (of_type ? of_type->getIDStr() : "void") + " | " + std::to_string(array_size) + "]";
+        } else if (type_id) {
+            result = type_id->toString();
+        } else {
+            result = "void";
+        }
+
+        for (auto& modifier : std::ranges::reverse_view(modifiers)) {
+            switch (modifier) {
+                case Reference:
+                    result = std::string("&") + (is_mutable ? "mut " : "") + result;
+                    break;
+                case Pointer:
+                    result = std::string("*") + (is_mutable ? "mut " : "") + result;
+                    break;
+            }
+        }
+
+        return result;
+    }
+};
 
 struct GenericArg final : Node {
     explicit GenericArg(): Node(ND_GEN_ARG) {}
@@ -511,6 +547,7 @@ private:
 struct Var final : GlobalNode {
     IdentInfo* var_ident = nullptr;
     TypeWrapper* var_type = nullptr;
+    std::string_view name;
 
     Expression* value = nullptr;
 
@@ -534,6 +571,9 @@ struct Var final : GlobalNode {
 
 
 struct Scope final : Node {
+    Scope*     parent_scope = nullptr;
+    Namespace* symbols = nullptr;
+
     std::span<Node*> children;
 
     explicit Scope()
@@ -546,10 +586,13 @@ struct Scope final : Node {
 
 
 struct Function final : GlobalNode {
+    bool is_static_method = true;
     IdentInfo* ident = nullptr;
 
+    std::string_view name;
+
     std::span<Var*>  params;
-    std::span<Node*> children;
+    Scope*           children = nullptr;
 
     TypeWrapper* return_type = nullptr;
 
@@ -660,7 +703,7 @@ struct ArrayLit final : Node {
 
 struct WhileLoop final : Node {
     Expression* condition = nullptr;
-    std::span<Node*> children;
+    Scope* children = nullptr;
 
     explicit WhileLoop()
         : Node(ND_WHILE) {}
@@ -687,6 +730,8 @@ struct ContinueStmt final : Node {
 
 struct Enum final : Node {
     IdentInfo* ident;
+    std::string_view name;
+
     std::optional<TypeWrapper*> enum_type;
     std::unordered_map<std::string_view, int> entries;
 
@@ -778,9 +823,11 @@ struct std::hash<Protocol::MethodSignature> {
 
 
 struct Struct final : GlobalNode {
-    IdentInfo* ident = nullptr;
-    std::span<Node*>   members;
+    IdentInfo* ident   = nullptr;
+    Scope*     members = nullptr;
+
     std::span<Ident*>  protocols;
+    std::string_view   name;
 
     explicit
     Struct()
@@ -801,11 +848,11 @@ struct Condition final : Node {
     bool       is_comptime = false;
     Expression* bool_expr = nullptr;
 
-    using elif_t = std::tuple<Expression*, std::span<Node*>>;
+    using elif_t = std::tuple<Expression*, Scope*>;
 
-    std::span<Node*>  if_children;
+    Scope*  if_children;
     std::span<elif_t> elif_children;
-    std::span<Node*>  else_children;
+    Scope*  else_children;
 
     explicit Condition()
         : Node(ND_COND) {}
