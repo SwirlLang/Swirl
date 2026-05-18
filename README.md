@@ -14,24 +14,18 @@ An LLVM-based systems programming language for learning and experimentation.
 <!--[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/SwirlLang/Swirl/cmake.yml?style=flat-square)](https://github.com/SwirlLang/Swirl/actions/workflows/cmake.yml)-->
 
 </div>
-<div align="center">
 
-To get a general idea, take a look at the [docs](https://swirl-lang.netlify.app/docs).
-</div>
+## Overview
+Swirl is a statically and strongly typed systems programming language, leveraging   
+the LLVM Infrastructure for optimal native code generation.
 
+The following text is a brief on the compilation pipeline of the Compiler (details are skipped):
+- [`CompilerInst`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/CompilerInst.h): the entry point, this class represents a single contained instantiation of the Compiler, owning resources which are shared across all aspects of a project's compilation.
+- [`Module`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/modules/Module.h): The compiler implements a general module system, each Swirl file is treated as a "module" which can control the visibility of the symbols it owns (or imports) to other modules (via the `export` keyword). All modules are owned and managed by an instance of [`ModuleManager`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/modules/ModuleManager.h) which in turn is owned by `CompilerInst`.
+- [`Parser`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/parser/Parser.h): responsible for building the Abstract Syntax Tree for modules, a Parser is created for each module and invoked to build its AST, then destroyed. The Parser owns the lexer (tokenizer).
+- The compiler has a multi-pass Sema (Semantic Analysis) pipeline which runs on each Module after parsing finishes. Unlike parsing, Sema is done in parallel for each batch, where a batch consists of all modules which do not depend on each other, possible due to the topological sorting of the modules done in the previous stage.
+- [`LLVMBackend`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/backend/LLVMBackend.h): this class owns the codegen logic for generating the LLVM IR, since all needed information to codegen a Module is already built in previous stages, each Module is codegen'ed in parallel.
 
-<!-- ## Getting Started
-You can find installation instructions in the [docs](https://swirl-lang.vercel.app/docs/getting-started/installation).
-
-Once you have Swirl installed, create a file named hello.sw with a simple hello world program:  
-```c
-print("Hello World")
-```
-
-To run the program, use the swirl compiler to compile and run the program.
-```shell
-swirl hello.sw && ./hello
-``` -->
 
 ## Contributing to Swirl
 We welcome contributions to Swirl! To start contributing to Swirl, fork the repository, create a new branch, make the changes, and submit a pull request. Read the [Docs](https://swirl-lang.netlify.app/docs) for more info.
