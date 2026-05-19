@@ -346,7 +346,7 @@ Token TokenStream::next(const bool modify_cur_tk) {
     do {
         cur_tk = readNextTok();
         if (!cur_tk.value.empty()) {
-            c = static_cast<unsigned char>(cur_tk.value.at(0));
+            c = static_cast<unsigned char>(cur_tk.value[0]);
         }
     } while ((cur_tk.type == PUNC && (c <= ' ' || c == 0x7F)) || cur_tk.type == COMMENT);
 

@@ -6,12 +6,12 @@ find_package(LLD REQUIRED CONFIG)
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 option(LLVM_LINK_SHARED "Link against shared LLVM libraries" ON)
+option(BUILD_TESTS "Build unit tests" OFF)
 
 include_directories("include")
 include_directories("${PROJECT_BINARY_DIR}")
@@ -19,6 +19,10 @@ include_directories("${PROJECT_BINARY_DIR}")
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 add_executable(swirl src/swirl.cpp "${SOURCES}")
+
+# address sanitizer
+#target_compile_options(swirl PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+#target_link_options(swirl PRIVATE -fsanitize=address)
 
 install(TARGETS swirl 
         RUNTIME DESTINATION bin)
@@ -74,3 +78,15 @@ Supported llvm linking options are:
  - LLVM_LINK_STATIC (default off)
  - LLVM_LINK_SHARED (default on)
 You can set the linking option with -DLLVM_LINK_<type>=ON/OFF")
+
+# Testing
+if(BUILD_TESTS)
+    include(FetchContent)
+    FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG v3.7.0
+    )
+    FetchContent_MakeAvailable(Catch2)
+    add_subdirectory(tests)
+endif()
