@@ -78,37 +78,37 @@ std::string TokenStream::readEscaped(const char _end) const {
         const char chr = m_Stream.next();
         if (is_escaped) {
             switch (chr) {
-            case 'n':
-                ret += '\n';
-                break;
-            case 't':
-                ret += '\t';
-                break;
-            case 'r':
-                ret += '\r';
-                break;
-            case 'b':
-                ret += '\b';
-                break;
-            case 'f':
-                ret += '\f';
-                break;
-            case '\\':
-                ret += '\\';
-                break;
-            case '\"':
-                ret += '\"';
-                break;
-            case '\'':
-                ret += '\'';
-                break;
-            case '0':
-                ret += '\0';
-                break;
-            default:
-                ret += '\\';
-                ret += chr;
-                break;
+                case 'n':
+                    ret += '\n';
+                    break;
+                case 't':
+                    ret += '\t';
+                    break;
+                case 'r':
+                    ret += '\r';
+                    break;
+                case 'b':
+                    ret += '\b';
+                    break;
+                case 'f':
+                    ret += '\f';
+                    break;
+                case '\\':
+                    ret += '\\';
+                    break;
+                case '\"':
+                    ret += '\"';
+                    break;
+                case '\'':
+                    ret += '\'';
+                    break;
+                case '0':
+                    ret += '\0';
+                    break;
+                default:
+                    ret += '\\';
+                    ret += chr;
+                    break;
             }
             is_escaped = false;
         } else if (chr == '\\')
@@ -132,103 +132,102 @@ Token TokenStream::readOperator() const {
     const char curr = m_Stream.getCurrentChar();
     const char next = m_Stream.eof() ? '\0' : m_Stream.peek();
 
-    // Trie-based switch for efficient operator matching
     switch (curr) {
-    case '=':
-        if (next == '=') {
-            m_Stream.next();
-            return {OP, "==", getStreamState(), Token::OP_EQ};
-        }
-        return {OP, "=", getStreamState(), Token::OP_ASSIGN};
-
-    case '+':
-        if (next == '=') {
-            m_Stream.next();
-            return {OP, "+=", getStreamState(), Token::OP_PLUS_ASSIGN};
-        }
-        return {OP, "+", getStreamState(), Token::OP_PLUS};
-
-    case '-':
-        if (next == '=') {
-            m_Stream.next();
-            return {OP, "-=", getStreamState(), Token::OP_MINUS_ASSIGN};
-        }
-        return {OP, "-", getStreamState(), Token::OP_MINUS};
-
-    case '*':
-        if (next == '=') {
-            m_Stream.next();
-            return {OP, "*=", getStreamState(), Token::OP_MUL_ASSIGN};
-        }
-        return {OP, "*", getStreamState(), Token::OP_MUL};
-
-    case '/':
-        if (next == '=') {
-            m_Stream.next();
-            return {OP, "/=", getStreamState(), Token::OP_DIV_ASSIGN};
-        }
-        if (next == '/') {
-            if (!m_Stream.eof())
+        case '=':
+            if (next == '=') {
                 m_Stream.next();
-            return {OP, "//", getStreamState(), Token::OP_COMMENT};
-        }
-        return {OP, "/", getStreamState(), Token::OP_DIV};
+                return {OP, "==", getStreamState(), Token::OP_EQ};
+            }
+            return {OP, "=", getStreamState(), Token::OP_ASSIGN};
 
-    case '%':
-        if (next == '=') {
-            m_Stream.next();
-            return {OP, "%=", getStreamState(), Token::OP_MOD_ASSIGN};
-        }
-        return {OP, "%", getStreamState(), Token::OP_MOD};
+        case '+':
+            if (next == '=') {
+                m_Stream.next();
+                return {OP, "+=", getStreamState(), Token::OP_PLUS_ASSIGN};
+            }
+            return {OP, "+", getStreamState(), Token::OP_PLUS};
 
-    case ':':
-        if (next == ':') {
-            m_Stream.next();
-            return {OP, "::", getStreamState(), Token::OP_SCOPE_RES};
-        }
-        return {OP, ":", getStreamState(), Token::PUNC_COLON};
+        case '-':
+            if (next == '=') {
+                m_Stream.next();
+                return {OP, "-=", getStreamState(), Token::OP_MINUS_ASSIGN};
+            }
+            return {OP, "-", getStreamState(), Token::OP_MINUS};
 
-    case '|':
-        if (next == '|') {
-            m_Stream.next();
-            return {OP, "||", getStreamState(), Token::OP_LOGICAL_OR};
-        }
-        return {OP, "|", getStreamState(), Token::OP_BITWISE_OR};
+        case '*':
+            if (next == '=') {
+                m_Stream.next();
+                return {OP, "*=", getStreamState(), Token::OP_MUL_ASSIGN};
+            }
+            return {OP, "*", getStreamState(), Token::OP_MUL};
 
-    case '&':
-        if (next == '&') {
-            m_Stream.next();
-            return {OP, "&&", getStreamState(), Token::OP_LOGICAL_AND};
-        }
-        return {OP, "&", getStreamState(), Token::OP_BITWISE_AND};
+        case '/':
+            if (next == '=') {
+                m_Stream.next();
+                return {OP, "/=", getStreamState(), Token::OP_DIV_ASSIGN};
+            }
+            if (next == '/') {
+                if (!m_Stream.eof())
+                    m_Stream.next();
+                return {OP, "//", getStreamState(), Token::OP_COMMENT};
+            }
+            return {OP, "/", getStreamState(), Token::OP_DIV};
 
-    case '!':
-        if (next == '=') {
-            m_Stream.next();
-            return {OP, "!=", getStreamState(), Token::OP_NOT_EQ};
-        }
-        return {OP, "!", getStreamState(), Token::OP_NOT};
+        case '%':
+            if (next == '=') {
+                m_Stream.next();
+                return {OP, "%=", getStreamState(), Token::OP_MOD_ASSIGN};
+            }
+            return {OP, "%", getStreamState(), Token::OP_MOD};
 
-    case '>':
-        if (next == '=') {
-            m_Stream.next();
-            return {OP, ">=", getStreamState(), Token::OP_GT_EQ};
-        }
-        return {OP, ">", getStreamState(), Token::OP_GT};
+        case ':':
+            if (next == ':') {
+                m_Stream.next();
+                return {OP, "::", getStreamState(), Token::OP_SCOPE_RES};
+            }
+            return {OP, ":", getStreamState(), Token::PUNC_COLON};
 
-    case '<':
-        if (next == '=') {
-            m_Stream.next();
-            return {OP, "<=", getStreamState(), Token::OP_LT_EQ};
-        }
-        return {OP, "<", getStreamState(), Token::OP_LT};
+        case '|':
+            if (next == '|') {
+                m_Stream.next();
+                return {OP, "||", getStreamState(), Token::OP_LOGICAL_OR};
+            }
+            return {OP, "|", getStreamState(), Token::OP_BITWISE_OR};
 
-    case '.':
-        return {OP, ".", getStreamState(), Token::OP_DOT};
+        case '&':
+            if (next == '&') {
+                m_Stream.next();
+                return {OP, "&&", getStreamState(), Token::OP_LOGICAL_AND};
+            }
+            return {OP, "&", getStreamState(), Token::OP_BITWISE_AND};
 
-    default:
-        // TODO: use swirl error manager instead of throwing rawdog exceptions
-        throw std::runtime_error(std::format("Invalid operator character: {}", curr));
+        case '!':
+            if (next == '=') {
+                m_Stream.next();
+                return {OP, "!=", getStreamState(), Token::OP_NOT_EQ};
+            }
+            return {OP, "!", getStreamState(), Token::OP_NOT};
+
+        case '>':
+            if (next == '=') {
+                m_Stream.next();
+                return {OP, ">=", getStreamState(), Token::OP_GT_EQ};
+            }
+            return {OP, ">", getStreamState(), Token::OP_GT};
+
+        case '<':
+            if (next == '=') {
+                m_Stream.next();
+                return {OP, "<=", getStreamState(), Token::OP_LT_EQ};
+            }
+            return {OP, "<", getStreamState(), Token::OP_LT};
+
+        case '.':
+            return {OP, ".", getStreamState(), Token::OP_DOT};
+
+        default:
+            // TODO: use swirl error manager instead of throwing rawdog exceptions
+            throw std::runtime_error(std::format("Invalid operator character: {}", curr));
     }
 }
 
@@ -284,18 +283,18 @@ Token TokenStream::readNextTok() {
                 return {NUMBER, std::string(1, ch), getStreamState(), Token::NUM_INT};
             if (ch == '0') {
                 switch (m_Stream.peek()) {
-                case 'b':
-                    m_Stream.next();
-                    return {NUMBER, "0" + readWhile(isBinaryDigit, [](const char c) { return c == '_'; }),
-                            getStreamState(), Token::NUM_INT};
-                case 'o':
-                    m_Stream.next();
-                    return {NUMBER, "0" + readWhile(isOctalDigit, [](const char c) { return c == '_'; }),
-                            getStreamState(), Token::NUM_INT};
-                case 'x':
-                    m_Stream.next();
-                    return {NUMBER, "0" + readWhile(isHexDigit, [](const char c) { return c == '_'; }),
-                            getStreamState(), Token::NUM_INT};
+                    case 'b':
+                        m_Stream.next();
+                        return {NUMBER, "0" + readWhile(isBinaryDigit, [](const char c) { return c == '_'; }),
+                                getStreamState(), Token::NUM_INT};
+                    case 'o':
+                        m_Stream.next();
+                        return {NUMBER, "0" + readWhile(isOctalDigit, [](const char c) { return c == '_'; }),
+                                getStreamState(), Token::NUM_INT};
+                    case 'x':
+                        m_Stream.next();
+                        return {NUMBER, "0" + readWhile(isHexDigit, [](const char c) { return c == '_'; }),
+                                getStreamState(), Token::NUM_INT};
                 }
             }
             auto val = readWhile(isDigit, [](char c) { return c == '_'; });
@@ -341,12 +340,14 @@ void TokenStream::expectTokens(std::initializer_list<Token>&& tokens) {
 
 Token TokenStream::next(const bool modify_cur_tk) {
     Token cur_tk;
-    unsigned char c;
+    unsigned char c{};
 
     // Discard junk tokens
     do {
         cur_tk = readNextTok();
-        c = static_cast<unsigned char>(cur_tk.value.at(0));
+        if (!cur_tk.value.empty()) {
+            c = static_cast<unsigned char>(cur_tk.value.at(0));
+        }
     } while ((cur_tk.type == PUNC && (c <= ' ' || c == 0x7F)) || cur_tk.type == COMMENT);
 
     if (modify_cur_tk)

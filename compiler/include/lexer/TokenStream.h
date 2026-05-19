@@ -7,8 +7,8 @@
 
 
 class TokenStream {
-    StreamState                 m_Cache;    // For caching stream state
-    SourceManager&              m_Stream;
+    StreamState     m_Cache;    // For caching stream state
+    SourceManager&  m_Stream;
 
     bool m_isPreviousTokIdent = false;
 
