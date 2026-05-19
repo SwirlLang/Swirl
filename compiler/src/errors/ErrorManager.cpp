@@ -166,6 +166,10 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return "Incompatible slice.";  // TODO
         case ErrCode::CONDITION_NOT_BOOL:
             return "Conditions must be boolean expressions.";
+        case ErrCode::EXTERN_CANNOT_HAVE_BODY:
+            return "External constructs cannot have a body.";
+        case ErrCode::NO_INSTANCE_PARAM_HERE:
+            return "An instance parameter cannot appear here.";
 
         case ErrCode::NOT_ALLOWED_CT_CTX:
             return "This construct is not allowed in compile-time evaluated context.";

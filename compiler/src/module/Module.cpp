@@ -3,6 +3,7 @@
 #include "sema/SymbolResolver.h"
 #include "sema/TypeResolver.h"
 #include "modules/ModuleManager.h"
+#include "sema/SymbolRegistrationPass.h"
 
 
 Module::Module(const ModuleContext& context)
@@ -14,18 +15,22 @@ Module::Module(const ModuleContext& context)
 {}
 
 
-// TODO: to be removed once Sema gets decoupled from the module
 void Module::performSema(const ErrorCallback_t& error_callback) {
     if (m_IsSemaComplete) {
         return;
     }
 
-    sema::SymbolResolver resolver{this, error_callback};
-    resolver.dispatch(ast, sema::SymbolResolver::Data{});
+    sema::SymbolRegistrationPass symbol_registration_pass{this, error_callback};
+    symbol_registration_pass.dispatch(ast);
 
-    if (!resolver.errorsOccurred()) {
-        sema::TypeResolver type_resolver{this, error_callback};
-        type_resolver.dispatch(ast);
+    if (!symbol_registration_pass.errorsOccurred()) {
+        sema::SymbolResolver symbol_resolver{this, error_callback};
+        symbol_resolver.dispatch(ast, sema::SymbolResolver::Data{});
+
+        if (!symbol_resolver.errorsOccurred()) {
+            sema::TypeResolver type_resolver{this, error_callback};
+            type_resolver.dispatch(ast);
+        }
     }
 
     m_IsSemaComplete = true;

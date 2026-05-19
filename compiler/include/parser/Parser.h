@@ -82,8 +82,6 @@ class Parser {
     bool         m_LastSymWasExported = false;
     bool         m_LastSymIsExtern    = false;
 
-    std::vector<Type*>   m_CurrentStructTy{nullptr};  // the type of the struct being parsed
-
     std::string          m_ExternAttributes;
     Expression*          m_AttributeList = nullptr;
     // ---*--- ---*--- ---*---
@@ -95,10 +93,6 @@ class Parser {
 
     // used for buffering error reports until the nodes/types have been completed
     std::unordered_map<SwObject, std::vector<std::tuple<ErrCode, ErrorContext>>> m_ErrorQueue;
-
-    // maps the IdentInfo* of global nodes (nodes inheriting from `GlobalNode`) to where they begin and
-    // where they end
-    std::unordered_map<IdentInfo*, std::array<StreamState, 2>> m_GlobalOffsets;
 
     sw::FileSystem& m_FileSystem;
     sw::StringPool& m_StringPool;
@@ -118,7 +112,6 @@ class Parser {
 
 public:
     ModuleManager& ModuleMap;
-    std::unordered_map<IdentInfo*, Node*>& NodeJmpTable;  // maps global symbols to their nodes
 
     explicit Parser(const ParserContext& context);
 
@@ -169,7 +162,10 @@ public:
 struct Parser::NodeAttrHelper {
     /// Chief Node constructor
     NodeAttrHelper(Node* node, Parser& instance): node(node), instance(instance) {
-        node->is_exported = instance.m_LastSymWasExported;
+        if (node->isGlobal()) {
+            node->to<GlobalNode>()->is_exported = instance.m_LastSymWasExported;
+        }
+
         node->location.from = instance.m_Stream.getStreamState();
         node->location.from.Pos -= instance.m_Stream.CurTok.value.size();
 
@@ -203,16 +199,6 @@ struct Parser::NodeAttrHelper {
         if (node) {
             node->location.to = instance.m_Stream.getStreamState();
             node->location.to.Pos -= instance.m_Stream.CurTok.value.size();
-
-            if (node->isGlobal()) {
-                auto node_id = node->getIdentInfo();
-
-                assert(node_id != nullptr);
-                assert(begins_from.has_value());
-
-                instance.m_GlobalOffsets.insert({node_id, {
-                    begins_from.value(), instance.m_Stream.getStreamState()}});
-            }
         }
 
         // flush all the errors

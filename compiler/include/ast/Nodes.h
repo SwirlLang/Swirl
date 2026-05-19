@@ -75,8 +75,6 @@ struct Node {
     SourceLocation location;
     NodeType kind = ND_INVALID;
 
-    bool is_exported = false;
-
     Node() = default;
     explicit Node(const NodeType ty)
         : kind(ty) {}
@@ -139,14 +137,18 @@ struct GenericParam final : Node {
 };
 
 
+/// Nodes which can appear in the Global Scope inherit from `GlobalNode`.
 struct GlobalNode : Node {
     bool is_extern   = false;
+    bool is_exported = false;
+
+    std::string_view name;
+
     std::string_view extern_attributes;
     std::span<GenericParam*> generic_params;
 
     explicit GlobalNode(const NodeType ty)
-        : Node(ty)
-        {}
+        : Node(ty) {}
 
     [[nodiscard]]
     bool isGlobal() const override {
@@ -320,6 +322,7 @@ struct IntLit final : Node {
 
     EvalResult evaluate(Parser &) override;
 };
+
 
 struct FloatLit final : Node {
     std::string_view value;
@@ -547,7 +550,6 @@ private:
 struct Var final : GlobalNode {
     IdentInfo* var_ident = nullptr;
     TypeWrapper* var_type = nullptr;
-    std::string_view name;
 
     Expression* value = nullptr;
 
@@ -588,8 +590,6 @@ struct Scope final : Node {
 struct Function final : GlobalNode {
     bool is_static_method = true;
     IdentInfo* ident = nullptr;
-
-    std::string_view name;
 
     std::span<Var*>  params;
     Scope*           children = nullptr;
@@ -662,7 +662,7 @@ struct Intrinsic final : Node {
 };
 
 
-struct ImportNode final : Node {
+struct ImportNode final : GlobalNode {
     struct ImportedSymbol_t {
         std::string_view actual_name;
         std::string_view assigned_alias;
@@ -675,7 +675,7 @@ struct ImportNode final : Node {
     std::span<ImportedSymbol_t> imported_symbols{};
 
     explicit ImportNode()
-        : Node(ND_IMPORT) {}
+        : GlobalNode(ND_IMPORT) {}
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_IMPORT;
@@ -728,20 +728,19 @@ struct ContinueStmt final : Node {
 };
 
 
-struct Enum final : Node {
+struct Enum final : GlobalNode {
     IdentInfo* ident;
-    std::string_view name;
 
     std::optional<TypeWrapper*> enum_type;
     std::unordered_map<std::string_view, int> entries;
 
     explicit Enum()
-        : Node(ND_ENUM)
+        : GlobalNode(ND_ENUM)
         , ident(nullptr) {}
 
     int counter = 0;
-    void addEntry(const std::string_view name) {
-        entries.emplace(name, counter++);
+    void addEntry(const std::string_view id) {
+        entries.emplace(id, counter++);
     }
 };
 
@@ -772,8 +771,7 @@ struct Protocol final : GlobalNode {
         }
     };
 
-    std::string_view  protocol_name;
-    IdentInfo*        protocol_id = nullptr;
+    IdentInfo*  protocol_id = nullptr;
 
     std::span<Ident*> depended_protocols;
     std::span<MemberSignature> members;
@@ -827,12 +825,8 @@ struct Struct final : GlobalNode {
     Scope*     members = nullptr;
 
     std::span<Ident*>  protocols;
-    std::string_view   name;
 
-    explicit
-    Struct()
-        : GlobalNode(ND_STRUCT)
-        {}
+    explicit Struct() : GlobalNode(ND_STRUCT) {}
 
     [[nodiscard]] NodeType getNodeType() const override {
         return ND_STRUCT;

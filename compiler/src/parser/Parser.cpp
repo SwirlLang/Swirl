@@ -33,7 +33,7 @@ Parser::Parser(const ParserContext& context)
     , m_FileSystem(*context.module->file_handle->getFileSystemHandle())
     , m_StringPool(context.string_pool)
     , ModuleMap(context.module_manager)
-    , NodeJmpTable(context.module->node_jmp_table) {
+    {
       // set the error callback of the symbol manager to the Parser's error reporter
       m_Module->symbol_table.setErrorCallback(
           [this](auto code, const auto& ctx) {
@@ -342,7 +342,10 @@ Node* Parser::parseImport() {
                 forwardStream();
             }
         } ignoreButExpect({PUNC, "}"});
-    } else { // otherwise, if non-specific but aliased or wildcard
+    }
+
+    // otherwise, if non-specific but aliased or wildcard
+    else {
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "as") {  // non-specific but aliased
             forwardStream();
             ret.alias = m_StringPool.intern(forwardStream().value);
@@ -350,8 +353,8 @@ Node* Parser::parseImport() {
         if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "*") {  // wildcard
             forwardStream();
             ret.is_wildcard = true;
-            ModuleMap.get(handle).insertExportedSymbolsInto([&, this](const std::string& name) {
-                imported_symbols.push_back({.actual_name = m_StringPool.intern(name)});
+            ModuleMap.get(handle).insertExportedSymbolsInto([&imported_symbols](const std::string_view name) {
+                imported_symbols.push_back({.actual_name = name});
             });
         }
         else forwardStream();
@@ -398,8 +401,8 @@ void Parser::parse() {
             ModuleMap.get(builtin_handle).performSema(m_ErrorCallback);
         }
 
-        ModuleMap.get(builtin_handle).insertExportedSymbolsInto([&, this](const std::string& name) {
-            imported_symbols.push_back({.actual_name = m_StringPool.intern(name)});
+        ModuleMap.get(builtin_handle).insertExportedSymbolsInto([&imported_symbols](const std::string_view name) {
+            imported_symbols.push_back({.actual_name = name});
         });
 
         builtin_import->imported_symbols = m_Module->internArray<ImportNode::ImportedSymbol_t>(imported_symbols);
@@ -431,12 +434,6 @@ Node* Parser::parseFunction() {
         reportError(ErrCode::MAIN_REDEFINED);
     }
 
-    if (m_CurrentStructTy.back()) {
-        const auto struct_scope = m_CurrentStructTy.back()->to<StructType>()->scope;
-        assert(struct_scope);
-        func_nd->ident = struct_scope->getNewIDInfo(func_ident);
-    }
-
     forwardStream(); // skip the ID
 
     // check for generics
@@ -445,21 +442,6 @@ Node* Parser::parseFunction() {
     }
 
     ignoreButExpect({PUNC, "("});
-    auto function_t = std::make_unique<FunctionType>();
-
-
-    const auto fn_scope = m_Module->symbol_table.newScope();  // create the function body scope
-
-    // register the generic parameters
-    for (auto& g_param : func_nd->generic_params) {
-        const auto generic_id = fn_scope->getNewIDInfo(g_param->name);
-        const auto generic_ty = new GenericType{};
-
-        generic_ty->id = generic_id;
-        g_param->id = generic_id;
-
-        m_Module->symbol_table.registerType(generic_id, generic_ty);
-    }
 
     // parse the parameters...
     std::vector<Var*> params;
@@ -472,7 +454,6 @@ Node* Parser::parseFunction() {
         }
     }  func_nd->params = m_Module->internArray<Var*>(params);
 
-    // current token == ')'
     forwardStream();  // skip ')'
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
@@ -480,43 +461,19 @@ Node* Parser::parseFunction() {
         func_nd->return_type = parseType();
     }
 
-    TableEntry entry;
-    entry.swirl_type  = function_t.get();
-    entry.is_exported = func_nd->is_exported;
-    entry.method_of   = m_CurrentStructTy.back();
-    entry.is_static   = func_nd->is_static_method;
-    entry.node_ptr    = func_nd;
-
-    if (!m_CurrentStructTy.back()) {  // when the function is not a method
-        // register the function in the global scope
-        func_nd->ident = m_Module->symbol_table.registerDecl(func_ident, entry, 0);
-    } else {
-        // not a method, func_nd.ident has been set before
-        assert(func_nd->ident);
-        auto _ = m_Module->symbol_table.registerDecl(func_nd->ident, entry);
-        assert(_);
-    }
-
-    function_t->ident = func_nd->ident;
-
-
-    // register the function's signature as a type in the symbol manager
-    m_Module->symbol_table.registerType(func_nd->ident, function_t.release());
-
-    // ReSharper disable once CppDFALocalValueEscapesFunction
     m_LatestFuncNode = func_nd;
-    NodeJmpTable[func_nd->ident] = func_nd;
 
     if (func_nd->is_extern) {
-        // TODO: report an error if a body is provided
-        m_Module->symbol_table.moveToPreviousScope();
+        if (m_Stream.CurTok.tokenid == Token::PUNC_LBRACE) {
+            reportError(ErrCode::EXTERN_CANNOT_HAVE_BODY);
+            parseScope();
+        }
+
         return func_nd;
     }
 
     // parse the children
     func_nd->children = parseScope();
-
-    m_Module->symbol_table.moveToPreviousScope();  // back to the global scope
 
     m_LatestFuncNode = nullptr;
     return func_nd;
@@ -529,8 +486,6 @@ Var* Parser::parseParam(bool& method_is_static) {
 
     SET_NODE_ATTRS(param);
 
-    param->is_const = true;  // all parameters are immutable
-
     // special case of `&self`
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "&") {
         forwardStream();
@@ -541,20 +496,16 @@ Var* Parser::parseParam(bool& method_is_static) {
             forwardStream();
         }
 
-        assert(m_CurrentStructTy.back() != nullptr);
-        auto ty = TypeWrapper(m_Module->symbol_table.getReferenceType(m_CurrentStructTy.back(), is_mutable));
-        param->var_type  = m_Module->makeNode<TypeWrapper>(ty);
-        param->var_ident = m_Module->symbol_table.registerDecl("self", {
-            .is_param = true,
-            .swirl_type = param->var_type->type,
-        });
+        param->is_instance_param = true;
+        param->is_const = !is_mutable;
 
         method_is_static = false;
         ignoreButExpect({IDENT, "self"});
+        param->name = internString("self");
         return param;
     }
 
-    const std::string var_name = m_Stream.CurTok.value;
+    param->name = internString(m_Stream.CurTok.value);
 
     forwardStream(2);
     param->var_type = parseType();
@@ -562,12 +513,6 @@ Var* Parser::parseParam(bool& method_is_static) {
     param->initialized = m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "=";
     if (param->initialized)
         param->value = parseExpr();
-
-
-    TableEntry param_entry;
-    // param_entry.swirl_type = param.var_type;
-    param_entry.is_param = true;
-    param->var_ident = m_Module->symbol_table.registerDecl(var_name, param_entry);
 
     return param;
 }
@@ -672,20 +617,7 @@ Node* Parser::parseVar(const bool is_volatile) {
         ret->value = m_Module->makeNode<Expression>(Expression::makeExpression(ret->value->evaluate(*this)));
     }
 
-    TableEntry entry;
-    entry.is_const    = ret->is_const;
-    entry.is_volatile = ret->is_volatile;
-    entry.is_exported = ret->is_exported;
-    entry.node_ptr    = ret;
-    // entry.swirl_type  = var_node->var_type;
-
     ret->name = m_StringPool.intern(var_ident);
-    ret->var_ident = m_Module->symbol_table.registerDecl(var_ident, entry);
-
-    // is a global variable
-    if (m_RecursionDepth == 1) {
-        NodeJmpTable.insert({ret->getIdentInfo(), ret});
-    }
 
     return ret;
 }
@@ -815,9 +747,7 @@ Node* Parser::parseCondition() {
 
     std::vector<Node*> if_children;
 
-    m_Module->symbol_table.newScope();
     cnd->if_children = parseScope();
-    m_Module->symbol_table.moveToPreviousScope();
 
     // handle `else(s)`
     if (!(m_Stream.CurTok.type == KEYWORD && (m_Stream.CurTok.value == "else" || m_Stream.CurTok.value == "elif")))
@@ -827,7 +757,6 @@ Node* Parser::parseCondition() {
 
     if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "elif") {
         while (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "elif") {
-            m_Module->symbol_table.newScope();
             forwardStream();
 
             Condition::elif_t children;
@@ -843,19 +772,15 @@ Node* Parser::parseCondition() {
             elif_children.emplace_back(
                 std::get<0>(children),
                 std::get<1>(children));
-
-            m_Module->symbol_table.moveToPreviousScope();
         }
     } cnd->elif_children = m_Module->internArray<Condition::elif_t>(elif_children);
 
 
     std::vector<Node*> else_children;
     if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "else") {
-        m_Module->symbol_table.newScope();
         forwardStream();  // skip 'else'
 
         cnd->else_children = parseScope();
-        m_Module->symbol_table.moveToPreviousScope();
     }
 
     return cnd;
@@ -887,11 +812,6 @@ Ident* Parser::parseIdent() {
         }
     }
 
-    if (full_qualification.size() == 1 && full_qualification.at(0).generic_args.empty()) {
-        ret->value = m_Module->symbol_table.getIDInfoFor(
-            std::string(full_qualification.front().name));
-    }
-
     ret->full_qualification = m_Module->internArray<Ident::Qualifier>(full_qualification);
     assert(!ret->full_qualification.empty());
     return ret;
@@ -906,20 +826,6 @@ Node* Parser::parseEnum() {
 
     const std::string enum_name = forwardStream().value;
     ret->name = m_StringPool.intern(enum_name);
-
-    TableEntry entry;
-    entry.is_enum  = true;
-    entry.node_ptr = ret;
-    ret->ident  = m_Module->symbol_table.registerDecl(enum_name, entry);
-
-    auto scope = m_Module->symbol_table.newScope();
-    m_Module->symbol_table.lookupDecl(ret->ident).scope = scope;
-
-    auto ty = new EnumType();
-    ty->scope = entry.scope;
-    ty->id = ret->ident;
-
-    m_Module->symbol_table.registerType(ret->ident, ty);
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         forwardStream();  // skip ':'
@@ -939,23 +845,14 @@ Node* Parser::parseEnum() {
         }
 
         if (m_Stream.CurTok.type == IDENT) {
-            auto name = m_StringPool.intern(forwardStream().value);
+            const auto name = m_StringPool.intern(forwardStream().value);
             ret->addEntry(name);
-
-            const auto id_info = scope->getNewIDInfo(name, true);
-            m_Module->symbol_table.registerFictitiousID(id_info, ret);
             continue;
         }
 
         reportError(ErrCode::SYNTAX_ERROR, {.msg = "Expected identifier."});
         forwardStream();
     } forwardStream();  // skip '}'
-
-    m_Module->symbol_table.moveToPreviousScope();
-
-    if (m_RecursionDepth == 1) {
-        NodeJmpTable[ret->ident] = ret;
-    }
 
     return ret;
 }
@@ -969,7 +866,7 @@ Node* Parser::parseProtocol() {
     std::vector<Protocol::MethodSignature> methods;
 
     forwardStream(); // skip 'protocol'
-    ret->protocol_name = m_StringPool.intern(forwardStream().value);
+    ret->name = m_StringPool.intern(forwardStream().value);
 
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
         ret->generic_params = parseGenericParamList();
@@ -1033,14 +930,8 @@ Node* Parser::parseProtocol() {
         }
     }
 
-    const TableEntry entry{.is_protocol = true, .node_ptr = ret};
-    ret->protocol_id = m_Module->symbol_table.registerDecl(std::string(ret->protocol_name), entry);
     ret->members = m_Module->internArray<Protocol::MemberSignature>(members);
     ret->methods = m_Module->internArray<Protocol::MethodSignature>(methods);
-
-    if (m_RecursionDepth == 1) {
-        NodeJmpTable.insert({ret->protocol_id, ret});
-    }
 
     return ret;
 }
@@ -1081,66 +972,21 @@ Node* Parser::parseStruct() {
     auto ret = m_Module->makeNode<Struct>();
     SET_NODE_ATTRS(ret);
 
-    const auto struct_ty = new StructType{};
-    const auto struct_name = forwardStream().value;
-
-    ret->name = m_StringPool.intern(struct_name);
-
-    m_CurrentStructTy.push_back(struct_ty);
+    ret->name = m_StringPool.intern(forwardStream().value);
 
     std::vector<Node*> members;
-
-    // ask for a decl registry from the symbol manager
-    ret->ident = m_Module->symbol_table.registerDecl(struct_name, {
-        .is_exported = ret->is_exported,
-    });
 
     // parse generic parameters
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == "<") {
         ret->generic_params = parseGenericParamList();
     }
 
-    // register the type and the scope of the struct as a qualifier
-    m_Module->symbol_table.registerType(ret->ident, struct_ty);
-
     if (m_Stream.CurTok.type == OP && m_Stream.CurTok.value == ":") {
         ret->protocols = parseProtocolList();
     }
 
-    const auto scope_pointer = m_Module->symbol_table.newScope();
-    struct_ty->scope = scope_pointer;
-
-    m_Module->symbol_table.lookupDecl(ret->ident).scope = scope_pointer;
-
-    // register the generic parameters in the scope
-    for (auto& param : ret->generic_params) {
-        param->id = scope_pointer->getNewIDInfo(param->name);
-        m_Module->symbol_table.registerType(param->id, new GenericType());
-    }
-
     m_LastSymWasExported = true;
     ret->members = parseScope();
-
-    m_CurrentStructTy.pop_back();
-
-    // exit the struct's scope
-    m_Module->symbol_table.moveToPreviousScope();
-
-    // build the struct's field offsets
-    std::size_t i = 0;
-    for (Node* node : ret->members->children) {
-        if (node->kind == ND_VAR) {
-            const auto field = static_cast<Var*>(node);
-            struct_ty->field_offsets.insert({field->name.data(), i++});
-        }
-    }
-
-    struct_ty->ident = ret->ident;
-    m_Module->symbol_table.lookupDecl(ret->ident).scope = scope_pointer;
-
-    if (m_RecursionDepth == 1) {
-        NodeJmpTable.insert({ret->getIdentInfo(), ret});
-    }
 
     return ret;
 }
@@ -1154,9 +1000,7 @@ Node* Parser::parseWhile() {
     ret->condition = parseExpr();
     std::vector<Node*> children;
 
-    m_Module->symbol_table.newScope();
     ret->children = parseScope();
-    m_Module->symbol_table.moveToPreviousScope();
 
     return ret;
 }

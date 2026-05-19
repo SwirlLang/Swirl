@@ -88,10 +88,12 @@ enum class ErrCode {
     NON_INTEGRAL_INDICES,
     INDEX_OUT_OF_BOUNDS,
     NON_INT_ARRAY_SIZE,
+    EXTERN_CANNOT_HAVE_BODY,   // when a body is provided for external constructs
     INITIALIZER_REQUIRED,      // when initialization is required but not given
     RET_TYPE_REQUIRED,         // when explicitly specifying a return-type is required (e.g. recursive calls)
     QUALIFIER_UNDEFINED,
     NO_SUCH_MEMBER,
+    NO_INSTANCE_PARAM_HERE,    // when an instance parameter appears in the wrong context
     MAIN_REDEFINED,            // when the main function is redefined
     CONFIG_VAR_UNINITIALIZED,  // a config-variable is left uninitialized
     CONFIG_INIT_NOT_LITERAL,   // a config variable is initialized with a non-literal
