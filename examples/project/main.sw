@@ -12,8 +12,5 @@ fn instance_taker(ref: &T) {
 enum ENUM : i64 { A, B, C, D }
 
 fn main() {
-    var instance: T;
-    var my_stuff = instance.method();
-    var i = instance_taker(&instance);
-    return ENUM::A;
+    let e = "";
 }
