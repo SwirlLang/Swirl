@@ -42,7 +42,7 @@ Node* ExpressionParser::parseComponent() {
             cur_location.Col -= m_Stream.CurTok.value.size();
 
             m_Parser.forwardStream();
-            while (m_Stream.CurTok.type == STRING) {  // concatenate adjacent string literals
+            while (m_Stream.CurTok.tokenid == Token::STRING) {  // concatenate adjacent string literals
                 content += m_Stream.CurTok.value;
                 m_Parser.forwardStream();
             }
@@ -58,7 +58,7 @@ Node* ExpressionParser::parseComponent() {
             SET_NODE_ATTRS(id);
             assert(!id->full_qualification.empty());
 
-            if (m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "(") {
+            if (m_Stream.CurTok.tokenid == Token::PUNC_LPAREN) {
                 // `id` HAS BEEN MOVED!
                 auto call_node = m_Parser.parseCall(id);
                 return call_node;
@@ -66,14 +66,14 @@ Node* ExpressionParser::parseComponent() {
         }
 
         case KEYWORD: {
-            if (m_Stream.CurTok.value == "true" || m_Stream.CurTok.value == "false") {
-                auto ret = make_node<BoolLit>(m_Stream.CurTok.value == "true");
+            if (m_Stream.CurTok.tokenid == Token::KW_TRUE || m_Stream.CurTok.tokenid == Token::KW_FALSE) {
+                auto ret = make_node<BoolLit>(m_Stream.CurTok.tokenid == Token::KW_TRUE);
                 SET_NODE_ATTRS(ret);
                 m_Parser.forwardStream();
                 return ret;
             }
 
-            if (m_Stream.CurTok.value == "undefined") {
+            if (m_Stream.CurTok.tokenid == Token::KW_UNDEFINED) {
                 auto ret = make_node<UndefinedValue>();
                 SET_NODE_ATTRS(ret);
                 m_Parser.forwardStream();
@@ -85,22 +85,20 @@ Node* ExpressionParser::parseComponent() {
             if (m_Stream.CurTok.value == "@")
                 return m_Parser.parseIntrinsic();
 
-            if (m_Stream.CurTok.value == "[") {
+            if (m_Stream.CurTok.tokenid == Token::PUNC_LBRACKET) {
                 auto arr_node = make_node<ArrayLit>();
                 SET_NODE_ATTRS(arr_node);
                 m_Parser.forwardStream();  // skip the '['
                 std::vector<Expression*> elements;
 
-                while (!(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "]")) {
+                while (m_Stream.CurTok.tokenid != Token::PUNC_RBRACKET) {
                     elements.push_back(make_node<Expression>(parseExpr()));
 
-                    if (m_Stream.CurTok.type == PUNC) {
-                        if (m_Stream.CurTok.value == ",") {
-                            m_Parser.forwardStream();
-                            continue;
-                        }
+                    if (m_Stream.CurTok.tokenid == Token::PUNC_COMMA) {
+                        m_Parser.forwardStream();
+                        continue;
                     }
-                    if (m_Stream.peek().type != PUNC && m_Stream.peek().value != "]")
+                    if (m_Stream.peek().tokenid != Token::PUNC_RBRACKET)
                         m_Parser.reportError(ErrCode::COMMA_SEP_REQUIRED);
                 } m_Parser.forwardStream();
 
@@ -108,7 +106,7 @@ Node* ExpressionParser::parseComponent() {
                 return arr_node;
             }
 
-            if (m_Stream.CurTok.value == "(") {
+            if (m_Stream.CurTok.tokenid == Token::PUNC_LPAREN) {
                 m_Parser.forwardStream();
                 auto ret = make_node<Expression>(parseExpr());
                 SET_NODE_ATTRS(ret);
@@ -139,7 +137,7 @@ Node* ExpressionParser::parsePrefix() {
 
         std::vector<Node*> operands;
 
-        if (m_Stream.CurTok.type == KEYWORD && m_Stream.CurTok.value == "mut") {
+        if (m_Stream.CurTok.tokenid == Token::KW_MUT) {
             if (op->op_type != Op::ADDRESS_TAKING) {
                 m_Parser.reportError(ErrCode::SYNTAX_ERROR, {
                     .msg = "`mut` can only appear after the `&` operator."
@@ -193,7 +191,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
 
     while (true) {
         // whether to continue with the expression
-        if (m_Stream.CurTok.type != OP && !(m_Stream.CurTok.type == PUNC && m_Stream.CurTok.value == "["))
+        if (m_Stream.CurTok.type != OP && m_Stream.CurTok.tokenid != Token::PUNC_LBRACKET)
             break;
 
         if (m_Stream.eof()) {
@@ -210,17 +208,3 @@ Expression ExpressionParser::parseExpr(const int rbp) {
 
     return ret;
 }
-
-
-struct SaveStreamState {
-    explicit SaveStreamState(TokenStream& stream): stream(stream) {
-        stream.setReturnPoint();
-    }
-
-    ~SaveStreamState() {
-        stream.restoreCache();
-    }
-
-private:
-    TokenStream& stream;
-};
