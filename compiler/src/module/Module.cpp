@@ -1,9 +1,7 @@
 #include "CompilerInst.h"
 #include "modules/Module.h"
-#include "sema/SymbolResolver.h"
-#include "sema/TypeResolver.h"
 #include "modules/ModuleManager.h"
-#include "sema/SymbolRegistrationPass.h"
+#include "sema/Sema.h"
 
 
 Module::Module(const ModuleContext& context)
@@ -20,18 +18,8 @@ void Module::performSema(const ErrorCallback_t& error_callback) {
         return;
     }
 
-    sema::SymbolRegistrationPass symbol_registration_pass{this, error_callback};
-    symbol_registration_pass.dispatch(ast);
-
-    if (!symbol_registration_pass.errorsOccurred()) {
-        sema::SymbolResolver symbol_resolver{this, error_callback};
-        symbol_resolver.dispatch(ast, sema::SymbolResolver::Data{});
-
-        if (!symbol_resolver.errorsOccurred()) {
-            sema::TypeResolver type_resolver{this, error_callback};
-            type_resolver.dispatch(ast);
-        }
-    }
+    const sema::Sema sema{this, error_callback};
+    sema.start();
 
     m_IsSemaComplete = true;
 }
