@@ -13,4 +13,8 @@ enum ENUM : i64 { A, B, C, D }
 
 fn main() {
     let e = "";
+    var instance: T;
+    var my_stuff = instance.method();
+    var i = instance_taker(&instance);
+    return ENUM::A;
 }
