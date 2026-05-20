@@ -8,7 +8,7 @@
 
 #define SW_SEMA_PIPELINE \
     SW_SEMA_PASS(SymbolRegistrationPass) \
-    SW_SEMA_PASS(SymbolResolver) \
+    SW_SEMA_PASS(SymbolResolver, SymbolResolver::Data{}) \
     SW_SEMA_PASS(TypeResolver)
 
 
@@ -21,9 +21,9 @@ public:
 
     /// Performs sema on the entire module.
     void start() const {
-    #define SW_SEMA_PASS(x) \
+    #define SW_SEMA_PASS(x, ...) \
         x x ## _inst{m_Module, m_ErrorCallback}; \
-        x ## _inst.dispatch(m_Module->ast); \
+        x ## _inst.dispatch(m_Module->ast __VA_OPT__(,) __VA_ARGS__); \
         if (x ## _inst.errorsOccurred()) return;
         SW_SEMA_PIPELINE
     #undef SW_SEMA_PASS
@@ -32,9 +32,9 @@ public:
 
     /// Performs sema on the particular node.
     void start(Node* node) const {
-    #define SW_SEMA_PASS(x) \
+    #define SW_SEMA_PASS(x, ...) \
         x x ## _inst{m_Module, m_ErrorCallback}; \
-        x ## _inst.dispatch(node); \
+        x ## _inst.dispatch(node __VA_OPT__(,) __VA_ARGS__); \
         if (x ## _inst.errorsOccurred()) return;
         SW_SEMA_PIPELINE
     #undef SW_SEMA_PASS
