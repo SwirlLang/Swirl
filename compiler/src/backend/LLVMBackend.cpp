@@ -567,6 +567,49 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
             return CGValue::rValue(Builder.CreateNot(lhs));
         }
 
+        case Op::EXP: {
+            auto* base = codegen(node->getLHS(), context).getRValue(*this, context);
+
+            context.bound_type = fetchSwType(node->operands.at(1));
+            auto* exp = codegen(node->getRHS(), context).getRValue(*this, context);
+            auto* parent = Builder.GetInsertBlock()->getParent();
+            auto* llvm_ty = base->getType();
+            auto* entry = Builder.GetInsertBlock();
+
+            auto is_fp = llvm_ty->isFloatingPointTy();
+            auto* one = is_fp
+                ? llvm::ConstantFP::get(llvm_ty, 1.0)
+                : llvm::ConstantInt::get(llvm_ty, 1);
+            auto* zero = llvm::ConstantInt::get(exp->getType(), 0);
+
+            auto* cond_bb = llvm::BasicBlock::Create(LLVMContext, "exp_cond", parent);
+            auto* body_bb = llvm::BasicBlock::Create(LLVMContext, "exp_body", parent);
+            auto* done_bb = llvm::BasicBlock::Create(LLVMContext, "exp_done", parent);
+
+            Builder.CreateBr(cond_bb);
+
+            Builder.SetInsertPoint(cond_bb);
+            auto* res_phi = Builder.CreatePHI(llvm_ty, 2);
+            auto* exp_phi = Builder.CreatePHI(exp->getType(), 2);
+            res_phi->addIncoming(one, entry);
+            exp_phi->addIncoming(exp, entry);
+
+            auto* gt = Builder.CreateICmpSGT(exp_phi, zero);
+            Builder.CreateCondBr(gt, body_bb, done_bb);
+
+            Builder.SetInsertPoint(body_bb);
+            auto* new_res = is_fp
+                ? Builder.CreateFMul(res_phi, base)
+                : Builder.CreateMul(res_phi, base);
+            auto* dec = Builder.CreateSub(exp_phi, llvm::ConstantInt::get(exp->getType(), 1));
+            res_phi->addIncoming(new_res, body_bb);
+            exp_phi->addIncoming(dec, body_bb);
+            Builder.CreateBr(cond_bb);
+
+            Builder.SetInsertPoint(done_bb);
+            return CGValue::rValue(res_phi);
+        }
+
         case Op::BITWISE_LSHIFT: {
             llvm::Value* lhs = codegen(node->getLHS(), context).getRValue(*this, context);
             llvm::Value* rhs = codegen(node->getRHS(), context).getRValue(*this, context);
@@ -724,10 +767,52 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
                     else
                         result = Builder.CreateAShr(lhs, rhs);
                     break;
+
                 default: std::unreachable();
             }
 
             Builder.CreateStore(result, lhs_ptr);
+            return {};
+        }
+
+        case Op::EXP_ASSIGN: {
+            auto lhs_ptr = codegen(node->getLHS(), context).getLValue();
+            context.bound_type = node->common_type;
+            auto lhs = Builder.CreateLoad(codegen(context.bound_type, context), lhs_ptr);
+
+            context.bound_type = fetchSwType(node->operands.at(1));
+            auto rhs = codegen(node->getRHS(), context).getRValue(*this, context);
+            auto* parent = Builder.GetInsertBlock()->getParent();
+            auto* entry = Builder.GetInsertBlock();
+            auto* llvm_ty = lhs->getType();
+            auto is_fp = llvm_ty->isFloatingPointTy();
+
+            auto* one = is_fp ? llvm::ConstantFP::get(llvm_ty, 1.0) : llvm::ConstantInt::get(llvm_ty, 1);
+            auto* zero = llvm::ConstantInt::get(rhs->getType(), 0);
+
+            auto* cond_bb = llvm::BasicBlock::Create(LLVMContext, "exp_cond", parent);
+            auto* body_bb = llvm::BasicBlock::Create(LLVMContext, "exp_body", parent);
+            auto* done_bb = llvm::BasicBlock::Create(LLVMContext, "exp_done", parent);
+
+            Builder.CreateBr(cond_bb);
+            Builder.SetInsertPoint(cond_bb);
+            auto* res_phi = Builder.CreatePHI(llvm_ty, 2);
+            auto* exp_phi = Builder.CreatePHI(rhs->getType(), 2);
+            res_phi->addIncoming(one, entry);
+            exp_phi->addIncoming(rhs, entry);
+
+            auto* gt = Builder.CreateICmpSGT(exp_phi, zero);
+            Builder.CreateCondBr(gt, body_bb, done_bb);
+
+            Builder.SetInsertPoint(body_bb);
+            auto* new_res = is_fp ? Builder.CreateFMul(res_phi, lhs) : Builder.CreateMul(res_phi, lhs);
+            auto* dec = Builder.CreateSub(exp_phi, llvm::ConstantInt::get(rhs->getType(), 1));
+            res_phi->addIncoming(new_res, body_bb);
+            exp_phi->addIncoming(dec, body_bb);
+            Builder.CreateBr(cond_bb);
+
+            Builder.SetInsertPoint(done_bb);
+            Builder.CreateStore(res_phi, lhs_ptr);
             return {};
         }
 

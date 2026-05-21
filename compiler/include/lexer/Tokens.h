@@ -96,6 +96,8 @@ struct Token {
         OP_MUL,
         OP_DIV,
         OP_MOD,
+        OP_EXP,
+        OP_EXP_ASSIGN,
         OP_PLUS_ASSIGN,
         OP_MINUS_ASSIGN,
         OP_MUL_ASSIGN,

@@ -46,6 +46,8 @@ std::unordered_map<Op::OpTag_t, OpInfo> OpInfoTable = {
     {Op::MUL, {60, OpInfo::LEFT}},
     {Op::DIV, {60, OpInfo::LEFT}},
     {Op::MOD, {60, OpInfo::LEFT}},
+    {Op::EXP, {70, OpInfo::RIGHT}},
+    {Op::EXP_ASSIGN, {0, OpInfo::RIGHT}},
 
     {Op::CAST_OP, {100, OpInfo::LEFT}},
 
@@ -84,6 +86,9 @@ std::unordered_map<std::pair<Token::TokenValue, int>, Op::OpTag_t, PairHash> OpT
     {{Token::OP_MUL, 2}, Op::MUL},
     {{Token::OP_DIV, 2}, Op::DIV},
     {{Token::OP_MOD, 2}, Op::MOD},
+
+    {{Token::OP_EXP, 2}, Op::EXP},
+    {{Token::OP_EXP_ASSIGN, 2}, Op::EXP_ASSIGN},
 
     {{Token::OP_NOT, 1},  Op::LOGICAL_NOT},
     {{Token::OP_EQ, 2}, Op::LOGICAL_EQUAL},

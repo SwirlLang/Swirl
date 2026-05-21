@@ -333,6 +333,17 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                 return {};
             }
 
+
+            case Op::EXP:
+            case Op::EXP_ASSIGN:
+                if (analysis_2.deduced_type && !analysis_2.deduced_type->isIntegral()) {
+                    reportError(ErrCode::EXPONENTIAL_RHS_INTEGRAL, {});
+                    return {};
+                }
+
+                ret.deduced_type = analysis_1.deduced_type;
+                break;
+
             case Op::LOGICAL_AND:
             case Op::LOGICAL_OR:
             case Op::LOGICAL_EQUAL:

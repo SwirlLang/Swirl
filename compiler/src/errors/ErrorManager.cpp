@@ -60,6 +60,8 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
 
         case ErrCode::ONLY_INTEGRAL_BITWISE:
             return "Only integral operands are allowed for bitwise operators.";
+        case ErrCode::EXPONENTIAL_RHS_INTEGRAL:
+            return "The RHS of an exponential operator must be of an integral type.";
 
         case ErrCode::NO_IMPLICIT_CONVERSION:
             return "No implicit conversion is defined for the involved types.";

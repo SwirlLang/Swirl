@@ -59,6 +59,7 @@ enum class ErrCode {
     PROTOCOL_VIOLATED,        // the protocol hasn't been satisfied
     ENUM_TYPE_NOT_INTEGRAL,   // enum types should be integral
     ONLY_INTEGRAL_BITWISE,    // only integral bitwise operands are allowed in bitwise operators
+    EXPONENTIAL_RHS_INTEGRAL, // exponential operator's rhs must be of an integral type
     // ----------*----------- //
 
 

@@ -157,6 +157,14 @@ Token TokenStream::readOperator() const {
             return {OP, "-", getStreamState(), Token::OP_MINUS};
 
         case '*':
+            if (next == '*') {
+                m_Stream.next();
+                if (m_Stream.peek() == '=') {
+                    m_Stream.next();
+                    return {OP, "**=", getStreamState(), Token::OP_EXP_ASSIGN};
+                }
+                return {OP, "**", getStreamState(), Token::OP_EXP};
+            }
             if (next == '=') {
                 m_Stream.next();
                 return {OP, "*=", getStreamState(), Token::OP_MUL_ASSIGN};

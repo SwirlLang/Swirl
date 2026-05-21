@@ -221,6 +221,8 @@ struct Op final : Node {
         MUL,
         DIV,
         MOD,
+        EXP,
+        EXP_ASSIGN,
 
         UNARY_ADD,
         UNARY_SUB,
