@@ -119,7 +119,7 @@ Type* sema::TypeResolver::unify(Type* type1, Type* type2) {
 }
 
 
-sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, TypeContext ctx) {
+sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const TypeContext& ctx) {
     TypeInfo ret{};
 
     // 1st operand
@@ -129,33 +129,40 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, TypeCont
         return {};
 
     if (node->arity == 1) {
-        if (node->op_type == Op::ADDRESS_TAKING) {
-            // take a reference
-            if (ctx.bound_type && ctx.bound_type->getTypeTag() == Type::REFERENCE) {
-                node->is_mutable = ctx.bound_type->is_mutable;
-            }
-
-            if (analysis_1.deduced_type->getTypeTag() == Type::REFERENCE) {
-                if (!analysis_1.deduced_type->is_mutable && node->is_mutable) {
-                    reportError(ErrCode::IMMUTABILITY_VIOLATION, {});
+        switch (node->op_type) {
+            case Op::ADDRESS_TAKING: {
+                // take a reference
+                if (ctx.bound_type && ctx.bound_type->getTypeTag() == Type::REFERENCE) {
+                    node->is_mutable = ctx.bound_type->is_mutable;
                 }
-            } ret.deduced_type = SymMan.getReferenceType(analysis_1.deduced_type, node->is_mutable);
-        }
 
-        else if (node->op_type == Op::DEREFERENCE) {
-            if (!analysis_1.deduced_type->isPointerType()) {
-                reportError(ErrCode::NOT_DEREFERENCE_ABLE, {
-                    .type_1 = analysis_1.deduced_type});
-            } else {
-                ret.deduced_type = analysis_1.deduced_type->to<PointerType>()->of_type;
+                if (analysis_1.deduced_type->getTypeTag() == Type::REFERENCE) {
+                    if (!analysis_1.deduced_type->is_mutable && node->is_mutable) {
+                        reportError(ErrCode::IMMUTABILITY_VIOLATION, {});
+                    }
+                } ret.deduced_type = SymMan.getReferenceType(analysis_1.deduced_type, node->is_mutable);
+                break;
             }
-        } else {
-            ret = analysis_1;
-        }
 
+            case Op::DEREFERENCE:
+                if (!analysis_1.deduced_type->isPointerType()) {
+                    reportError(ErrCode::NOT_DEREFERENCE_ABLE, {
+                        .type_1 = analysis_1.deduced_type});
+                } else ret.deduced_type = analysis_1.deduced_type->to<PointerType>()->of_type;
+                break;
+
+            case Op::BITWISE_NOT:
+                if (analysis_1.deduced_type && !analysis_1.deduced_type->isIntegral()) {
+                    reportError(ErrCode::ONLY_INTEGRAL_BITWISE, {});
+                    return {};
+                }
+            default:
+                ret = analysis_1;
+                break;
+        }
     } else {
         // 2nd operand
-        auto analysis_2 = node->value != "as" && node->op_type != Op::DOT && node->op_type != Op::ASSIGNMENT
+        auto analysis_2 = node->op_type != Op::CAST_OP && node->op_type != Op::DOT && node->op_type != Op::ASSIGNMENT
             ? inferType(node->operands.at(1), ctx) : TypeInfo{};
 
         switch (node->op_type) {
@@ -337,6 +344,25 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, TypeCont
             case Op::LESS_THAN_OR_EQUAL:
                 ret.deduced_type = &GlobalTypeBool;
                 break;
+
+            case Op::BITWISE_AND_ASSIGN:
+            case Op::BITWISE_OR_ASSIGN:
+            case Op::BITWISE_XOR_ASSIGN:
+            case Op::BITWISE_LSHIFT_ASSIGN:
+            case Op::BITWISE_RSHIFT_ASSIGN:
+
+            case Op::BITWISE_XOR:
+            case Op::BITWISE_AND:
+            case Op::BITWISE_OR:
+            case Op::BITWISE_LSHIFT:
+            case Op::BITWISE_RSHIFT:
+                if (analysis_1.deduced_type && analysis_2.deduced_type) {
+                    if (!analysis_1.deduced_type->isIntegral() || !analysis_2.deduced_type->isIntegral()) {
+                        reportError(ErrCode::ONLY_INTEGRAL_BITWISE, {});
+                        return {};
+                    }
+                }
+
             default: {
                 ret.deduced_type = unify(analysis_1.deduced_type, analysis_2.deduced_type);
             }

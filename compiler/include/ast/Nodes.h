@@ -208,7 +208,7 @@ struct Expression final : Node {
 struct Op final : Node {
     int8_t arity = 2;  // the no. of operands the operator requires
 
-    std::string_view value;
+    Token::TokenValue tokenid{};
     std::span<Node*> operands;  // the operands
 
     // for the special case of the `&` operator, where a `mut` can appear right after it
@@ -249,6 +249,19 @@ struct Op final : Node {
         DIV_ASSIGN,
         MOD_ASSIGN,
 
+        BITWISE_OR,
+        BITWISE_AND,
+        BITWISE_XOR,
+        BITWISE_NOT,
+        BITWISE_LSHIFT,
+        BITWISE_RSHIFT,
+
+        BITWISE_OR_ASSIGN,
+        BITWISE_AND_ASSIGN,
+        BITWISE_XOR_ASSIGN,
+        BITWISE_LSHIFT_ASSIGN,
+        BITWISE_RSHIFT_ASSIGN,
+
         INVALID
     };
 
@@ -258,8 +271,8 @@ struct Op final : Node {
     explicit Op()
         : Node(ND_OP) {}
 
-    explicit Op(std::string_view str, int8_t arity);
-    static OpTag_t getTagFor(std::string_view str, int arity);
+    explicit Op(Token::TokenValue tokenid, int8_t arity);
+    static OpTag_t getTagFor(Token::TokenValue tokenid, int arity);
 
     // set the type of sub-expression instances to `to`
     void setType(Type* to) const;

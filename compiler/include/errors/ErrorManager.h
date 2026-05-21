@@ -58,6 +58,7 @@ enum class ErrCode {
     NO_SUCH_PROTOCOL,         // the protocol does not exist
     PROTOCOL_VIOLATED,        // the protocol hasn't been satisfied
     ENUM_TYPE_NOT_INTEGRAL,   // enum types should be integral
+    ONLY_INTEGRAL_BITWISE,    // only integral bitwise operands are allowed in bitwise operators
     // ----------*----------- //
 
 

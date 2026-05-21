@@ -21,8 +21,18 @@ std::string getWorkingDirectory(const std::string& _path);
 
 
 template <typename... Args>
-constexpr std::size_t combineHashes(Args... hashes) {
+constexpr std::size_t combineHashes(Args&&... hashes) {
     return (hashes ^ ...);
+}
+
+
+template <typename T> requires requires(const T& item)
+{{std::hash<T>{}(item)} -> std::convertible_to<std::size_t>; }
+constexpr std::size_t hashSequence(const std::span<T> seq) {
+    std::size_t ret{};
+    for (const T& item : seq) {
+        ret = combineHashes(ret, std::hash<T>{}(item));
+    } return ret;
 }
 
 

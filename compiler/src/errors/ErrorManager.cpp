@@ -58,6 +58,9 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
                 ctx.type_2->toString()
                 );
 
+        case ErrCode::ONLY_INTEGRAL_BITWISE:
+            return "Only integral operands are allowed for bitwise operators.";
+
         case ErrCode::NO_IMPLICIT_CONVERSION:
             return "No implicit conversion is defined for the involved types.";
         case ErrCode::INT_AND_FLOAT_CONV:

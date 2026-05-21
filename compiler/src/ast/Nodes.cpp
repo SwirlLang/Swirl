@@ -13,8 +13,8 @@ struct OpInfo {
 
 
 struct PairHash {
-    std::size_t operator()(const std::pair<std::string_view, int>& pair) const noexcept {
-        return combineHashes(std::hash<std::string_view>()(pair.first), std::hash<int>()(pair.second));
+    std::size_t operator()(const std::pair<Token::TokenValue, int>& pair) const noexcept {
+        return combineHashes(std::hash<int>()(pair.first), std::hash<int>()(pair.second));
     }
 };
 
@@ -56,53 +56,79 @@ std::unordered_map<Op::OpTag_t, OpInfo> OpInfoTable = {
 
     {Op::INDEXING_OP, {200, OpInfo::LEFT}},
     {Op::DOT, {800, OpInfo::LEFT}},
+
+    {Op::BITWISE_LSHIFT, {45, OpInfo::LEFT}},
+    {Op::BITWISE_RSHIFT, {45, OpInfo::LEFT}},
+    {Op::BITWISE_AND, {28, OpInfo::LEFT}},
+    {Op::BITWISE_XOR, {26, OpInfo::LEFT}},
+    {Op::BITWISE_OR, {24, OpInfo::LEFT}},
+
+    {Op::BITWISE_NOT, {150, OpInfo::LEFT}},
+
+    {Op::BITWISE_OR_ASSIGN, {0, OpInfo::RIGHT}},
+    {Op::BITWISE_AND_ASSIGN, {0, OpInfo::RIGHT}},
+    {Op::BITWISE_XOR_ASSIGN, {0, OpInfo::RIGHT}},
+    {Op::BITWISE_LSHIFT_ASSIGN, {0, OpInfo::RIGHT}},
+    {Op::BITWISE_RSHIFT_ASSIGN, {0, OpInfo::RIGHT}},
 };
 
 
 const static
-std::unordered_map<std::pair<std::string_view, int>, Op::OpTag_t, PairHash> OpTagMap = {
-    {{"+", 2}, Op::BINARY_ADD},
-    {{"-", 2}, Op::BINARY_SUB},
+std::unordered_map<std::pair<Token::TokenValue, int>, Op::OpTag_t, PairHash> OpTagMap = {
+    {{Token::OP_PLUS, 2}, Op::BINARY_ADD},
+    {{Token::OP_MINUS, 2}, Op::BINARY_SUB},
 
-    {{"+", 1}, Op::UNARY_ADD},
-    {{"-", 1}, Op::UNARY_SUB},
+    {{Token::OP_PLUS, 1}, Op::UNARY_ADD},
+    {{Token::OP_MINUS, 1}, Op::UNARY_SUB},
 
-    {{"*", 2}, Op::MUL},
-    {{"/", 2}, Op::DIV},
-    {{"%", 2}, Op::MOD},
+    {{Token::OP_MUL, 2}, Op::MUL},
+    {{Token::OP_DIV, 2}, Op::DIV},
+    {{Token::OP_MOD, 2}, Op::MOD},
 
-    {{"!", 1},  Op::LOGICAL_NOT},
-    {{"==", 2}, Op::LOGICAL_EQUAL},
-    {{"!=", 2}, Op::LOGICAL_NOTEQUAL},
-    {{"||", 2}, Op::LOGICAL_OR},
-    {{"&&", 2}, Op::LOGICAL_AND},
+    {{Token::OP_NOT, 1},  Op::LOGICAL_NOT},
+    {{Token::OP_EQ, 2}, Op::LOGICAL_EQUAL},
+    {{Token::OP_NOT_EQ, 2}, Op::LOGICAL_NOTEQUAL},
+    {{Token::OP_LOGICAL_OR, 2}, Op::LOGICAL_OR},
+    {{Token::OP_LOGICAL_AND, 2}, Op::LOGICAL_AND},
 
-    {{">", 2},  Op::GREATER_THAN},
-    {{">=", 2}, Op::GREATER_THAN_OR_EQUAL},
-    {{"<", 2},  Op::LESS_THAN},
-    {{"<=", 2}, Op::LESS_THAN_OR_EQUAL},
+    {{Token::OP_GT, 2},  Op::GREATER_THAN},
+    {{Token::OP_GT_EQ, 2}, Op::GREATER_THAN_OR_EQUAL},
+    {{Token::OP_LT, 2},  Op::LESS_THAN},
+    {{Token::OP_LT_EQ, 2}, Op::LESS_THAN_OR_EQUAL},
 
-    {{"[", 2},  Op::INDEXING_OP},
-    {{"[]", 2}, Op::INDEXING_OP},
-    {{"*", 1},  Op::DEREFERENCE},
-    {{"&", 1},  Op::ADDRESS_TAKING},
-    {{"as", 2}, Op::CAST_OP},
+    {{Token::PUNC_LBRACKET, 2},  Op::INDEXING_OP},
+    {{Token::OP_MUL, 1},  Op::DEREFERENCE},
+    {{Token::OP_BITWISE_AND, 1},  Op::ADDRESS_TAKING},
+    {{Token::OP_AS, 2}, Op::CAST_OP},
 
-    {{".", 2},  Op::DOT},
-    {{"=", 2},  Op::ASSIGNMENT},
-    {{"+=", 2}, Op::ADD_ASSIGN},
-    {{"-=", 2}, Op::SUB_ASSIGN},
-    {{"*=", 2}, Op::MUL_ASSIGN},
-    {{"/=", 2}, Op::DIV_ASSIGN},
-    {{"%=", 2}, Op::MOD_ASSIGN}
+    {{Token::OP_DOT, 2},  Op::DOT},
+    {{Token::OP_ASSIGN, 2},  Op::ASSIGNMENT},
+    {{Token::OP_PLUS_ASSIGN, 2}, Op::ADD_ASSIGN},
+    {{Token::OP_MINUS_ASSIGN, 2}, Op::SUB_ASSIGN},
+    {{Token::OP_MUL_ASSIGN, 2}, Op::MUL_ASSIGN},
+    {{Token::OP_DIV_ASSIGN, 2}, Op::DIV_ASSIGN},
+    {{Token::OP_MOD_ASSIGN, 2}, Op::MOD_ASSIGN},
+
+    {{Token::OP_BITWISE_OR, 2}, Op::BITWISE_OR},
+    {{Token::OP_BITWISE_AND, 2}, Op::BITWISE_AND},
+    {{Token::OP_XOR, 2}, Op::BITWISE_XOR},
+    {{Token::OP_BITWISE_NOT, 1}, Op::BITWISE_NOT},
+    {{Token::OP_LBITSHIFT, 2}, Op::BITWISE_LSHIFT},
+    {{Token::OP_RBITSHIFT, 2}, Op::BITWISE_RSHIFT},
+
+    {{Token::OP_BITWISE_OR_ASSIGN, 2}, Op::BITWISE_OR_ASSIGN},
+    {{Token::OP_BITWISE_AND_ASSIGN, 2}, Op::BITWISE_AND_ASSIGN},
+    {{Token::OP_XOR_ASSIGN, 2}, Op::BITWISE_XOR_ASSIGN},
+    {{Token::OP_LBITSHIFT_ASSIGN, 2}, Op::BITWISE_LSHIFT_ASSIGN},
+    {{Token::OP_RBITSHIFT_ASSIGN, 2}, Op::BITWISE_RSHIFT_ASSIGN}
 };
 
 
-Op::Op(const std::string_view str, const int8_t adicity): Op()
+Op::Op(const Token::TokenValue id, const int8_t adicity): Op()
 {
     arity = adicity;
-    value = str;
-    op_type = getTagFor(str, adicity);  // compute and set the tag of the operator node
+    tokenid = id;
+    op_type = getTagFor(id, adicity);  // compute and set the tag of the operator node
 }
 
 
@@ -127,8 +153,8 @@ int Op::getPBPFor(const OpTag_t op) {
 
 
 /// Returns a tag which uniquely identifies the operator, given its string-representation and arity.
-Op::OpTag_t Op::getTagFor(const std::string_view str, int arity) {
-    return OpTagMap.at({str, arity});
+Op::OpTag_t Op::getTagFor(const Token::TokenValue tok, int arity) {
+    return OpTagMap.at({tok, arity});
 }
 
 

@@ -103,8 +103,20 @@ struct Token {
         OP_MOD_ASSIGN,
         OP_ELLIPSIS,
         OP_COMMENT,
+
         OP_BITWISE_OR,
         OP_BITWISE_AND,
+        OP_BITWISE_NOT,
+        OP_LBITSHIFT,
+        OP_RBITSHIFT,
+        OP_XOR,
+
+        OP_BITWISE_OR_ASSIGN,
+        OP_BITWISE_AND_ASSIGN,
+        OP_BITWISE_NOT_ASSIGN,
+        OP_LBITSHIFT_ASSIGN,
+        OP_RBITSHIFT_ASSIGN,
+        OP_XOR_ASSIGN,
 
         PUNC_SEMI,
         PUNC_COMMA,

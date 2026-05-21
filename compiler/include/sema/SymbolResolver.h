@@ -217,7 +217,5 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
         // node->value = nullptr;
         // handle(node, data);
     }
-
-    void handle(TypeWrapper*, const Data&) {}
 };
 }

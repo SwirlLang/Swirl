@@ -310,7 +310,7 @@ public:
         return {.deduced_type = fn_type->ret_type};
     }
 
-    TypeInfo evaluateType(Op* node, TypeContext ctx);
+    TypeInfo evaluateType(Op* node, const TypeContext& ctx);
 
     void handle(Function* node) {
         if (node->return_type) {

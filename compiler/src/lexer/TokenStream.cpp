@@ -48,7 +48,7 @@ static constexpr auto PuncTable = [] {
     return table;
 }();
 
-static constexpr auto OpCharTable = []() {
+static constexpr auto OpCharTable = [] {
     std::array<bool, 256> table{};
     table['='] = true;
     table['+'] = true;
@@ -63,6 +63,8 @@ static constexpr auto OpCharTable = []() {
     table['!'] = true;
     table['>'] = true;
     table['<'] = true;
+    table['^'] = true;
+    table['~'] = true;
     return table;
 }();
 
@@ -192,6 +194,12 @@ Token TokenStream::readOperator() const {
                 m_Stream.next();
                 return {OP, "||", getStreamState(), Token::OP_LOGICAL_OR};
             }
+
+            if (m_Stream.peek() == '=') {
+                m_Stream.next();
+                return {OP, "|=", getStreamState(), Token::OP_BITWISE_OR_ASSIGN};
+            }
+
             return {OP, "|", getStreamState(), Token::OP_BITWISE_OR};
 
         case '&':
@@ -199,6 +207,12 @@ Token TokenStream::readOperator() const {
                 m_Stream.next();
                 return {OP, "&&", getStreamState(), Token::OP_LOGICAL_AND};
             }
+
+            if (m_Stream.peek() == '=') {
+                m_Stream.next();
+                return {OP, "&=", getStreamState(), Token::OP_BITWISE_AND};
+            }
+
             return {OP, "&", getStreamState(), Token::OP_BITWISE_AND};
 
         case '!':
@@ -213,6 +227,20 @@ Token TokenStream::readOperator() const {
                 m_Stream.next();
                 return {OP, ">=", getStreamState(), Token::OP_GT_EQ};
             }
+
+            // >>
+            if (next == '>') {
+                m_Stream.next();
+
+                // >>=
+                if (m_Stream.peek() == '=') {
+                    m_Stream.next();
+                    return {OP, ">>=", getStreamState(), Token::OP_RBITSHIFT_ASSIGN};
+                }
+
+                return {OP, ">>", getStreamState(), Token::OP_RBITSHIFT};
+            }
+
             return {OP, ">", getStreamState(), Token::OP_GT};
 
         case '<':
@@ -220,8 +248,29 @@ Token TokenStream::readOperator() const {
                 m_Stream.next();
                 return {OP, "<=", getStreamState(), Token::OP_LT_EQ};
             }
+
+            // <<
+            if (next == '<') {
+                m_Stream.next();
+
+                // <<=
+                if (m_Stream.peek() == '=') {
+                    m_Stream.next();
+                    return {OP, "<<=", getStreamState(), Token::OP_LBITSHIFT_ASSIGN};
+                }
+
+                return {OP, "<<", getStreamState(), Token::OP_LBITSHIFT};
+            }
+
             return {OP, "<", getStreamState(), Token::OP_LT};
 
+        case '^':
+            if (next == '=') {
+                m_Stream.next();
+                return {OP, "^=", getStreamState(), Token::OP_XOR_ASSIGN};
+            } return {OP, "^", getStreamState(), Token::OP_XOR};
+        case '~':
+            return {OP, "~", getStreamState(), Token::OP_BITWISE_NOT};
         case '.':
             return {OP, ".", getStreamState(), Token::OP_DOT};
 

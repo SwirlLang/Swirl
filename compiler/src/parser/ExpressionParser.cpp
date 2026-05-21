@@ -131,7 +131,7 @@ Node* ExpressionParser::parseComponent() {
 Node* ExpressionParser::parsePrefix() {
     // assumption: current token is an OP
     if (m_Stream.CurTok.type == OP) {
-        auto op = make_node<Op>(internString(m_Stream.CurTok.value), 1);
+        auto op = make_node<Op>(m_Stream.CurTok.tokenid, 1);
         SET_NODE_ATTRS(op);
         m_Parser.forwardStream();
 
@@ -146,7 +146,7 @@ Node* ExpressionParser::parsePrefix() {
             m_Parser.forwardStream();
         }
 
-        auto rhs = parseExpr(Op::getPBPFor(Op::getTagFor(op->value, 1)));
+        auto rhs = parseExpr(Op::getPBPFor(op->op_type));
 
         operands.push_back(make_node<Expression>(std::move(rhs)));
         op->operands = intern_arr<Node*>(operands);
@@ -160,8 +160,8 @@ Node* ExpressionParser::parsePrefix() {
 Expression ExpressionParser::parseExpr(const int rbp) {
     // left-denotation, used to parse an operator when there's something to it's left
     auto led = [this](Node* left) -> Node* {
-        auto op_str = m_Parser.forwardStream().value;
-        auto op = make_node<Op>(internString(op_str), 2);
+        auto op_tok = m_Parser.forwardStream();
+        auto op = make_node<Op>(op_tok.tokenid, 2);
         SET_NODE_ATTRS(op);
 
         Expression right;
@@ -200,7 +200,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
         }
 
         // fetch the left binding power (LBP) and compare it against the right binding power (RBP)
-        if (const int lbp = Op::getLBPFor(Op::getTagFor(m_Stream.CurTok.value, 2)); rbp >= lbp)
+        if (const int lbp = Op::getLBPFor(Op::getTagFor(m_Stream.CurTok.tokenid, 2)); rbp >= lbp)
             break;
 
         ret = Expression::makeExpression(led(ret.expr));

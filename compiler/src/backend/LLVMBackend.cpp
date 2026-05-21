@@ -544,6 +544,43 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
             return CGValue::lValue(element_ptr);
         }
 
+        case Op::BITWISE_OR: {
+            llvm::Value* lhs = codegen(node->getLHS(), context).getRValue(*this, context);
+            llvm::Value* rhs = codegen(node->getRHS(), context).getRValue(*this, context);
+            return CGValue::rValue(Builder.CreateOr(lhs, rhs));
+        }
+
+        case Op::BITWISE_AND: {
+            llvm::Value* lhs = codegen(node->getLHS(), context).getRValue(*this, context);
+            llvm::Value* rhs = codegen(node->getRHS(), context).getRValue(*this, context);
+            return CGValue::rValue(Builder.CreateAnd(lhs, rhs));
+        }
+
+        case Op::BITWISE_XOR: {
+            llvm::Value* lhs = codegen(node->getLHS(), context).getRValue(*this, context);
+            llvm::Value* rhs = codegen(node->getRHS(), context).getRValue(*this, context);
+            return CGValue::rValue(Builder.CreateXor(lhs, rhs));
+        }
+
+        case Op::BITWISE_NOT: {
+            llvm::Value* lhs = codegen(node->getLHS(), context).getRValue(*this, context);
+            return CGValue::rValue(Builder.CreateNot(lhs));
+        }
+
+        case Op::BITWISE_LSHIFT: {
+            llvm::Value* lhs = codegen(node->getLHS(), context).getRValue(*this, context);
+            llvm::Value* rhs = codegen(node->getRHS(), context).getRValue(*this, context);
+            return CGValue::rValue(Builder.CreateShl(lhs, rhs));
+        }
+
+        case Op::BITWISE_RSHIFT: {
+            llvm::Value* lhs = codegen(node->getLHS(), context).getRValue(*this, context);
+            llvm::Value* rhs = codegen(node->getRHS(), context).getRValue(*this, context);
+            if (context.bound_type->isUnsigned())
+                return CGValue::rValue(Builder.CreateLShr(lhs, rhs));
+            return CGValue::rValue(Builder.CreateAShr(lhs, rhs));
+        }
+
         case Op::DOT: {
             // when nested
             if (node->operands.at(0)->getNodeType() == ND_OP) {
@@ -619,28 +656,84 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
 
             return CGValue::lValue(field_ptr);
         }
-        default: break;
+        case Op::ADD_ASSIGN:
+        case Op::SUB_ASSIGN:
+        case Op::MUL_ASSIGN:
+        case Op::DIV_ASSIGN:
+        case Op::MOD_ASSIGN:
+        case Op::BITWISE_OR_ASSIGN:
+        case Op::BITWISE_AND_ASSIGN:
+        case Op::BITWISE_XOR_ASSIGN:
+        case Op::BITWISE_LSHIFT_ASSIGN:
+        case Op::BITWISE_RSHIFT_ASSIGN: {
+            auto lhs_ptr = codegen(node->getLHS(), context).getLValue();
+            context.bound_type = node->common_type;
+            auto lhs = Builder.CreateLoad(codegen(context.bound_type, context), lhs_ptr);
+            auto rhs = codegen(node->getRHS(), context).getRValue(*this, context);
+            llvm::Value* result;
+
+            switch (node->op_type) {
+                case Op::ADD_ASSIGN:
+                    if (context.bound_type->isIntegral())
+                        result = Builder.CreateAdd(lhs, rhs);
+                    else
+                        result = Builder.CreateFAdd(lhs, rhs);
+                    break;
+                case Op::SUB_ASSIGN:
+                    if (context.bound_type->isIntegral())
+                        result = Builder.CreateSub(lhs, rhs);
+                    else
+                        result = Builder.CreateFSub(lhs, rhs);
+                    break;
+                case Op::MUL_ASSIGN:
+                    if (context.bound_type->isIntegral())
+                        result = Builder.CreateMul(lhs, rhs);
+                    else
+                        result = Builder.CreateFMul(lhs, rhs);
+                    break;
+                case Op::DIV_ASSIGN:
+                    if (context.bound_type->isFloatingPoint())
+                        result = Builder.CreateFDiv(lhs, rhs);
+                    else if (context.bound_type->isUnsigned())
+                        result = Builder.CreateUDiv(lhs, rhs);
+                    else
+                        result = Builder.CreateSDiv(lhs, rhs);
+                    break;
+                case Op::MOD_ASSIGN:
+                    if (context.bound_type->isUnsigned())
+                        result = Builder.CreateURem(lhs, rhs);
+                    else
+                        result = Builder.CreateSRem(lhs, rhs);
+                    break;
+
+                case Op::BITWISE_OR_ASSIGN:
+                    result = Builder.CreateOr(lhs, rhs);
+                    break;
+                case Op::BITWISE_AND_ASSIGN:
+                    result = Builder.CreateAnd(lhs, rhs);
+                    break;
+                case Op::BITWISE_XOR_ASSIGN:
+                    result = Builder.CreateXor(lhs, rhs);
+                    break;
+                case Op::BITWISE_LSHIFT_ASSIGN:
+                    result = Builder.CreateShl(lhs, rhs);
+                    break;
+                case Op::BITWISE_RSHIFT_ASSIGN:
+                    if (context.bound_type->isUnsigned())
+                        result = Builder.CreateLShr(lhs, rhs);
+                    else
+                        result = Builder.CreateAShr(lhs, rhs);
+                    break;
+                default: std::unreachable();
+            }
+
+            Builder.CreateStore(result, lhs_ptr);
+            return {};
+        }
+
+        default:
+            throw std::runtime_error("LLVMBackend: unknown operator");
     }
-
-    using namespace std::string_view_literals;
-
-    if (node->value.ends_with("=") && ("+-*/%~&^"sv.find(node->value.at(0)) != std::string::npos)) {
-        auto op = std::make_unique<Op>(std::string_view{node->value.data(), 1}, 2);
-        std::array operands = {node->operands.at(0), node->operands.at(1)};
-        op->operands = SwModule->internArray<Node*>(operands);
-        op->common_type = node->common_type;
-
-        auto new_ctx = context;
-        new_ctx.bound_type = fetchSwType(op->operands.at(1));
-
-        auto rhs = codegen(op.get(), new_ctx).getRValue(*this, new_ctx);
-        auto lhs = codegen(op->operands.at(0), context).getLValue();
-
-        Builder.CreateStore(rhs, lhs);
-        return {};
-    }
-
-    throw;
 }
 
 
