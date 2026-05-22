@@ -1,6 +1,4 @@
 #pragma once
-#define SW_PRE_VISIT_IMPL_HOOK(x)  self->pushNodeToStack(x)
-#define SW_POST_VISIT_IMPL_HOOK(x) self->popNodeFromStack(x)
 
 #include <utility>
 #include <mutex>
@@ -13,6 +11,7 @@
 
 #define SEMA_DISABLE_ERROR_CODE(code) \
     auto GET_UNIQUE_NAME(err_code_disabler) = SemaVisitor<decltype(*this)>::DisableErrorCode(*this, code)
+
 
 namespace sema {
 class GlobalCache {
@@ -109,18 +108,19 @@ private:
 
     bool m_ErrorOccurred = false;
 
-    void pushNodeToStack(Node* node) {
+    void preVisitImplHook(Node* node) {
         m_NodeStack.push_back(node);
     }
 
 
-    void popNodeFromStack(Node*) {
+    void postVisitImplHook(Node*) {
         m_NodeStack.pop_back();
     }
-
 
 public:
     bool errorsOccurred() const {
         return m_ErrorOccurred;
     }
+
+    friend class RecursiveVisitor<Derived>;
 };}

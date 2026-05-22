@@ -27,18 +27,24 @@ template <typename D, typename T, typename... Args>
 concept HasShouldTraverse = requires (D& d, T* node, Args&&... args) {
     { d.shouldTraverse(node, std::forward<Args>(args)...) } -> std::same_as<bool>;
 };
+
+
+template <typename D, typename T, typename... Args>
+concept HasPreVisitImplHook = requires (D& d, T* node, Args&&... args) {
+    { d.preVisitImplHook(node) } -> std::same_as<void>;
+};
+
+
+template <typename D, typename T, typename... Args>
+concept HasPostVisitImplHook = requires (D& d, T* node, Args&&... args) {
+    { d.postVisitImplHook(node) } -> std::same_as<void>;
+};
 }
 
 
 #define SW_NODE(x, y) case x: \
     visitImpl(static_cast<y*>(node), std::forward<Args>(args)...); \
     break;
-
-
-#if !defined(SW_PRE_VISIT_IMPL_HOOK) && !defined(SW_POST_VISIT_IMPL_HOOK)
-#define SW_PRE_VISIT_IMPL_HOOK(x)
-#define SW_POST_VISIT_IMPL_HOOK(x)
-#endif
 
 
 /*
@@ -72,7 +78,10 @@ private:
         using namespace detail;
         auto self = static_cast<Derived*>(this);
 
-        SW_PRE_VISIT_IMPL_HOOK(node);
+        if constexpr (HasPreVisitImplHook<Derived, T, Args...>) {
+            self->preVisitImplHook(node);
+        }
+
         bool handle_node = true;
 
         if constexpr (HasPreVisit<Derived, T, Args...>) {
@@ -98,7 +107,9 @@ private:
             self->postVisit(node, std::forward<Args>(args)...);
         }
 
-        SW_POST_VISIT_IMPL_HOOK(node);
+        if constexpr (HasPostVisitImplHook<Derived, T, Args...>) {
+            self->postVisitImplHook(node);
+        }
     }
 
 
