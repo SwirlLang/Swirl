@@ -1272,6 +1272,10 @@ CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
 
 
 CGValue LLVMBackend::llvmCodegen(Var* node, const SwContext& context) {
+    if (node->is_comptime) {
+        return {};
+    }
+
     assert(node->var_type->type != nullptr);
 
     llvm::Type* type = codegen(node->var_type->type, context);

@@ -118,7 +118,6 @@ public:
 
     Node* dispatch();
     Node* parseFunction();
-    Node* parseCondition();
     Node* parseWhile();
     Node* parseStruct();
     Node* parseImport();
@@ -126,10 +125,12 @@ public:
     Node* parseIntrinsic();
     Node* parseProtocol();
     Node* parseEnum();
-    Scope* parseScope();
+
+    Scope*     parseScope();
+    Condition* parseCondition(bool is_comptime = false);
 
     Var*  parseParam(bool&);
-    Node* parseVar(bool is_volatile = false);
+    Var*  parseVar(bool is_comptime = false);
     Node* parseCall(std::optional<Ident*> _ = std::nullopt);
 
     std::span<Ident*>         parseProtocolList();

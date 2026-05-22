@@ -1,5 +1,7 @@
 #include "CompilerInst.h"
 #include "modules/Module.h"
+
+#include "comptime/ComptimeEvaluator.h"
 #include "modules/ModuleManager.h"
 #include "sema/Sema.h"
 
@@ -18,10 +20,20 @@ void Module::performSema(const ErrorCallback_t& error_callback) {
         return;
     }
 
-    const sema::Sema sema{this, error_callback};
+    sema::Sema sema{this, error_callback};
     sema.start();
 
+    if (!sema.errorsOccurred()) {
+        performComptimeEval(error_callback);
+    }
+
     m_IsSemaComplete = true;
+}
+
+
+void Module::performComptimeEval(const ErrorCallback_t& error_callback) {
+    sw::ComptimeEvaluator evaluator{this, error_callback};
+    ast = evaluator.run(ast);
 }
 
 

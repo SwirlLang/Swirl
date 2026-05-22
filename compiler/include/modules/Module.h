@@ -60,6 +60,8 @@ struct Module {
 
     void performSema(const ErrorCallback_t& error_callback);
 
+    void performComptimeEval(const ErrorCallback_t& error_callback);
+
     /// Calls `inserter` with the symbol name for each exported-symbol in the AST
     template <typename Inserter_t> requires std::invocable<Inserter_t, std::string_view>
     void insertExportedSymbolsInto(Inserter_t inserter) {

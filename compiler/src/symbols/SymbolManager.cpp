@@ -10,6 +10,15 @@ TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {
     } return m_IdToTableEntry.at(id);
 }
 
+TableEntry* SymbolManager::searchDecl(IdentInfo* id) {
+    static TableEntry fictitious_table_entry{.is_exported = true};
+    if (id->isFictitious()) { return &fictitious_table_entry; }
+    if (sw::FileHandle* mod_path = id->getModuleFileHandle(); mod_path != m_ModuleHandle) {
+        auto& table = m_ModuleMap.get(mod_path).symbol_table.m_IdToTableEntry;
+        return table.contains(id) ? &table[id] : nullptr;
+    } return m_IdToTableEntry.contains(id) ? &m_IdToTableEntry[id] : nullptr;
+}
+
 
 Type* SymbolManager::lookupType(IdentInfo* id) {
     if (!id) return nullptr;

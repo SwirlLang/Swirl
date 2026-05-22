@@ -158,6 +158,8 @@ struct GlobalNode : Node {
 
 
 struct Expression final : Node {
+    bool is_comptime = false;
+
     Node* expr = nullptr;
     Type* expr_type = nullptr;
 
@@ -854,14 +856,14 @@ struct Struct final : GlobalNode {
 
 
 struct Condition final : Node {
-    bool       is_comptime = false;
+    bool        is_comptime = false;
     Expression* bool_expr = nullptr;
 
     using elif_t = std::tuple<Expression*, Scope*>;
 
-    Scope*  if_children;
-    std::span<elif_t> elif_children;
-    Scope*  else_children;
+    Scope*  if_children{};
+    std::span<elif_t> elif_children{};
+    Scope*  else_children{};
 
     explicit Condition()
         : Node(ND_COND) {}

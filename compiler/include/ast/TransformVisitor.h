@@ -1,5 +1,6 @@
 #pragma once
 #include "modules/Module.h"
+#include "utils/logging.h"
 
 
 struct Module;
@@ -39,6 +40,15 @@ public:
             SW_NODE_LIST
         } throw std::runtime_error("TransformVisitor::run: unexpected node kind");
     #undef SW_NODE
+    }
+
+
+    template <typename... Args>
+    AST_t run(const AST_t& ast, Args&&... args) {
+        std::vector<Node*> ret;
+        for (Node* node : ast) {
+            ret.push_back(run(node, std::forward<Args>(args)...));
+        } return ret;
     }
 
 

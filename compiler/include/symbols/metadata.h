@@ -17,6 +17,7 @@ struct TableEntry {
     bool is_volatile      = false;
     bool is_static        = false;
     bool is_protocol      = false;
+    bool is_comptime      = false;
     bool is_mod_namespace = false;
 
     Namespace*  scope      = nullptr;  // set when the entry also encodes a namespace

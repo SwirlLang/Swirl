@@ -139,6 +139,7 @@ public:
         entry.is_exported = node->is_exported;
         entry.is_param    = node->is_param;
         entry.node_ptr    = node;
+        entry.is_comptime = node->is_comptime;
 
         SymMan.registerDecl(node->var_ident, entry);
 

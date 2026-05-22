@@ -33,13 +33,13 @@ inline std::unordered_set<std::string> OperatorSet = {
 #define SW_BUILTIN_FILE_PATH "/__Sw__9117778/builtins.sw"
 
 #define SW_BUILTIN_SOURCE std::format(R"(
-export struct str {{
-    var __Sw_buffer: *char;
-    var __Sw_length: i64;
-
-    fn size(&self):  i64  {{ return self.__Sw_length; }}
-    fn ptr (&self): *char {{ return self.__Sw_buffer; }}
-}}
+// export struct str {{
+//     var __Sw_buffer: *char;
+//     var __Sw_length: i64;
+//
+//     fn size(&self):  i64  {{ return self.__Sw_length; }}
+//     fn ptr (&self): *char {{ return self.__Sw_buffer; }}
+// }}
 
 // export comptime platform = "{}";
 // export comptime arch     = "{}";

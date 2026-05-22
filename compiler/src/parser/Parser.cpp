@@ -181,7 +181,6 @@ Node* Parser::dispatch() {
         switch (m_Stream.CurTok.tokenid) {
             case Token::KW_LET:
             case Token::KW_VAR:
-            case Token::KW_COMPTIME:
                 return parseVar(false);
             case Token::KW_IMPORT:
                 return parseImport();
@@ -231,6 +230,23 @@ Node* Parser::dispatch() {
 
             case Token::PUNC_LBRACE:
                 return parseScope();
+
+            case Token::KW_COMPTIME: {
+                switch (m_Stream.peek().tokenid) {
+                    case Token::KW_VAR:
+                        reportError(ErrCode::SYNTAX_ERROR, {
+                            .msg = "`comptime` variables must be declared with `let`."});
+                    case Token::KW_LET:
+                        forwardStream();
+                        return parseVar(true);
+                    case Token::KW_IF:
+                        forwardStream();
+                        return parseCondition(true);
+                    default:
+                        reportError(ErrCode::NOT_ALLOWED_CT_CTX);
+                        break;
+                } break;
+            }
             case Token::PUNC_HASH: {
                 forwardStream();
                 m_AttributeList = parseExpr();
@@ -563,10 +579,12 @@ GenericArgList Parser::parseGenericArgList() {
             continue;
         }
 
-        // parsing logic: if comptime - parseExpr, otherwise parseType
+        // if comptime - parseExpr, otherwise parseType
         if (m_Stream.CurTok.tokenid == Token::KW_COMPTIME) {
             forwardStream();
-            args.emplace_back(m_Module->makeNode<GenericArg>(parseExpr()));
+            auto expr = parseExpr();
+            expr->is_comptime = true;
+            args.emplace_back(m_Module->makeNode<GenericArg>(expr));
         } else args.emplace_back(m_Module->makeNode<GenericArg>(parseType()));
     }
 
@@ -575,16 +593,17 @@ GenericArgList Parser::parseGenericArgList() {
 }
 
 
-Node* Parser::parseVar(const bool is_volatile) {
+Var* Parser::parseVar(const bool is_comptime) {
     auto ret = m_Module->makeNode<Var>();
     SET_NODE_ATTRS(ret);
+
+    ret->is_comptime = is_comptime;
 
     if (m_Stream.CurTok.tokenid == Token::KW_COMPTIME) {
         ret->is_comptime = true;
     }
 
     ret->is_const = m_Stream.CurTok.value[0] == 'l';
-    ret->is_volatile = is_volatile;
 
     const std::string var_ident = m_Stream.next().value;
     forwardStream();  // [:, =]
@@ -603,12 +622,14 @@ Node* Parser::parseVar(const bool is_volatile) {
                ret->initialized = false;
         } else ret->initialized = true;
         ret->value = parseExpr();
+
+        if (ret->is_comptime) {
+            ret->value->is_comptime = true;
+        }
     }
 
     if (ret->is_comptime && !ret->initialized) {
         reportError(ErrCode::INITIALIZER_REQUIRED);
-    } else if (ret->is_comptime && ret->initialized) {
-        ret->value = m_Module->makeNode<Expression>(Expression::makeExpression(ret->value->evaluate(*this)));
     }
 
     ret->name = m_StringPool.intern(var_ident);
@@ -722,22 +743,18 @@ Scope* Parser::parseScope() {
 }
 
 
-Node* Parser::parseCondition() {
+Condition* Parser::parseCondition(const bool is_comptime) {
     auto cnd = m_Module->makeNode<Condition>();
+    cnd->is_comptime = is_comptime;
+
     SET_NODE_ATTRS(cnd);
 
     forwardStream();  // skip "if"
-    if (m_Stream.CurTok.tokenid == Token::KW_COMPTIME) {
-        cnd->is_comptime = true;
-        forwardStream();  // skip "comptime"
-    }
 
     cnd->bool_expr = parseExpr();
     if (cnd->is_comptime) {
-        cnd->bool_expr =
-            m_Module->makeNode<Expression>(Expression::makeExpression(cnd->bool_expr->evaluate(*this)));
+        cnd->bool_expr->is_comptime = true;
     }
-
 
     std::vector<Node*> if_children;
 
@@ -757,8 +774,7 @@ Node* Parser::parseCondition() {
             std::get<0>(children) = parseExpr();
 
             if (cnd->is_comptime) {
-                std::get<0>(children) = m_Module->makeNode<Expression>(Expression::makeExpression(
-                    std::get<0>(children)->evaluate(*this)));
+                std::get<0>(children)->is_comptime = true;
             }
 
             std::get<1>(children) = parseScope();
@@ -768,7 +784,6 @@ Node* Parser::parseCondition() {
                 std::get<1>(children));
         }
     } cnd->elif_children = m_Module->internArray<Condition::elif_t>(elif_children);
-
 
     std::vector<Node*> else_children;
     if (m_Stream.CurTok.tokenid == Token::KW_ELSE) {

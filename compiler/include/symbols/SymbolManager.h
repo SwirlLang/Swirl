@@ -110,6 +110,7 @@ public:
     }
 
     TableEntry& lookupDecl(IdentInfo* id);
+    TableEntry* searchDecl(IdentInfo* id);
 
     Type* lookupType(IdentInfo* id);
 

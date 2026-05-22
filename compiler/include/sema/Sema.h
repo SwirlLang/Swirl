@@ -20,29 +20,37 @@ public:
 
 
     /// Performs sema on the entire module.
-    void start() const {
+    void start() {
     #define SW_SEMA_PASS(x, ...) \
         x x ## _inst{m_Module, m_ErrorCallback}; \
         x ## _inst.dispatch(m_Module->ast __VA_OPT__(,) __VA_ARGS__); \
-        if (x ## _inst.errorsOccurred()) return;
+        if (x ## _inst.errorsOccurred()) { m_ErrorsOccurred = true; return; }
         SW_SEMA_PIPELINE
     #undef SW_SEMA_PASS
     }
 
 
     /// Performs sema on the particular node.
-    void start(Node* node) const {
+    void start(Node* node) {
     #define SW_SEMA_PASS(x, ...) \
         x x ## _inst{m_Module, m_ErrorCallback}; \
         x ## _inst.dispatch(node __VA_OPT__(,) __VA_ARGS__); \
-        if (x ## _inst.errorsOccurred()) return;
+        if (x ## _inst.errorsOccurred()) { m_ErrorsOccurred = true; return; }
         SW_SEMA_PIPELINE
     #undef SW_SEMA_PASS
+    }
+
+
+    [[nodiscard]]
+    bool errorsOccurred() const {
+        return m_ErrorsOccurred;
     }
 
 
 private:
     Module* m_Module;
     ErrorCallback_t m_ErrorCallback;
+
+    bool m_ErrorsOccurred = false;
 };
 }
