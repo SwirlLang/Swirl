@@ -11,7 +11,6 @@
 #include "types/TypeManager.h"
 #include "symbols/IdentManager.h"
 #include "errors/ErrorManager.h"
-#include "llvm/ADT/STLExtras.h"
 
 
 struct ErrorContext;
@@ -95,6 +94,7 @@ public:
 
     static std::unordered_map<Type*, std::function<void(Namespace*, SymbolManager&)>> DefaultTypeMethods;
 
+
     explicit SymbolManager(sw::FileHandle* mod_handle, ModuleManager& module_man)
        : m_ModuleMap(module_man)
        , m_ModulePath(mod_handle->getPath())
@@ -109,17 +109,24 @@ public:
         }
     }
 
+
     TableEntry& lookupDecl(IdentInfo* id);
     TableEntry* searchDecl(IdentInfo* id);
 
     Type* lookupType(IdentInfo* id);
+
+    /// returns the IdentInfo* of a global name from the module `mod_handle`
+    IdentInfo* getIdInfoFromModule(sw::FileHandle* mod_path, const std::string& name) const;
+
+    IdentInfo* getIDInfoFor(const Ident& id, const std::optional<ErrorCallback_t>& err_callback = std::nullopt);
+
 
     /// returns the `IdentInfo*` of a global symbol.
     IdentInfo* getIdInfoOfAGlobal(const std::string& name, bool enforce_export = false, bool report_error = true) {
         if (const auto id = m_Scopes.front().getIDInfoFor(name))
             return *id;
 
-        // when this flag is true, look only in the exported id's rather than every foreign id
+        // when this flag is true, look only in the exported ids rather than every foreign id
         if (!enforce_export) {
             if (m_ImportedSymIDTable.contains(name))
                 return m_ImportedSymIDTable[name];
@@ -131,8 +138,6 @@ public:
         } return nullptr;
     }
 
-    /// returns the IdentInfo* of a global name from the module `mod_handle`
-    IdentInfo* getIdInfoFromModule(sw::FileHandle* mod_path, const std::string& name) const;
 
     IdentInfo* getIDInfoFor(const std::string& id) {
         for (const Namespace* scope : m_ScopeTrack | std::views::reverse) {
@@ -142,12 +147,12 @@ public:
         } return nullptr;
     }
 
-    IdentInfo* getIDInfoFor(const Ident& id, const std::optional<ErrorCallback_t>& err_callback = std::nullopt);
 
     /// returns the global scope's pointer
     Namespace* getGlobalScope() const {
         return m_ScopeTrack.front();
     }
+
 
     /// fetches the global scope of the module
     Namespace* getGlobalScopeFromModule(sw::FileHandle* path) const;
@@ -157,21 +162,17 @@ public:
         return m_TypeManager.getFor(getIDInfoFor(id));
     }
 
+
     void registerType(IdentInfo* id, Type* type) {
         m_TypeManager.registerType(id, type);
     }
+
 
     /// makes the symbol manager aware of the IDs of foreign (imported) symbols
     void registerForeignID(const std::string& name, IdentInfo* id, const bool is_exported = false) {
         m_ImportedSymIDTable.emplace(name, id);
         if (is_exported)
             registerExportedSymbol(name, {.id = id});
-    }
-
-    std::optional<ExportedSymbolMeta_t> getExportedSymbolMeta(const std::string& name) {
-        if (m_ExportedSymbolTable.contains(name))
-            return { m_ExportedSymbolTable[name] };
-        return std::nullopt;
     }
 
 
@@ -181,14 +182,17 @@ public:
         } return m_TypeManager.getReferenceType(of_type, is_mutable);
     }
 
+
     /// (of_type, is_mutable) -> &[of_type]
     Type* getSliceType(Type* of_type, const bool is_mutable) {
         return m_TypeManager.getSliceType(of_type, is_mutable);
     }
 
+
     Type* getArrayType(Type* of_type, const std::size_t size) {
         return m_TypeManager.getArrayType(of_type, size);
     }
+
 
     Type* getPointerType(Type* of_type, const bool is_mutable) {
         return m_TypeManager.getPointerType(of_type, is_mutable);
@@ -213,12 +217,14 @@ public:
         } return id;
     }
 
+
     IdentInfo* registerDecl(IdentInfo* id, TableEntry& entry) {
         if (m_IdToTableEntry.contains(id)) {
             return nullptr;
         } m_IdToTableEntry.insert({id, entry});
         return id;
     }
+
 
     void registerDecl(IdentInfo* id, const TableEntry& entry) {
         if (m_IdToTableEntry.contains(id))
@@ -254,9 +260,11 @@ public:
         return m_TypeManager.contains(id);
     }
 
+
     bool declExists(IdentInfo* id) const {
         return m_IdToTableEntry.contains(id);
     }
+
 
     Namespace* newScope() {
         Namespace* ret = &m_Scopes.emplace_back(m_ModuleHandle);
@@ -264,17 +272,6 @@ public:
         return ret;
     }
 
-    void lockNewScpEmplace() {
-        m_LockEmplace = true;
-    }
-
-    void unlockNewScpEmplace() {
-        m_LockEmplace = false;
-    }
-
-    void moveToPreviousScope() {
-        m_ScopeTrack.pop_back();
-    }
 
     void setErrorCallback(const ErrorCallback_t& err_callback) {
         m_ErrorCallback = err_callback;

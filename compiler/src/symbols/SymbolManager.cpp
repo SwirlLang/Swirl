@@ -49,7 +49,7 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
     }
 
     const Namespace* look_at = nullptr;
-    for (const auto& [counter, str] : llvm::enumerate(id.full_qualification)) {
+    for (const auto& [counter, str] : std::views::enumerate(id.full_qualification)) {
         if (counter == id.full_qualification.size() - 1) break;
         if (counter == 0) {
             const auto qual_id = getIdInfoOfAGlobal(std::string(str.name));
