@@ -9,7 +9,6 @@
 
 #include "utils/utils.h"
 #include "lexer/Tokens.h"
-#include "parser/evaluation.h"
 #include "symbols/IdentManager.h"
 #include "utils/FileSystem.h"
 
@@ -119,8 +118,6 @@ struct Node {
         throw std::runtime_error("getSwType: unimplemented!");
     }
 
-    virtual EvalResult evaluate(Parser&);
-
     template <typename From>
     std::add_pointer_t<From> to() {
         return dynamic_cast<std::add_pointer_t<From>>(this);
@@ -171,10 +168,6 @@ struct Expression final : Node {
         return expr;
     }
 
-    static Expression makeExpression(const EvalResult& e);
-    // static Expression makeExpression(Node* node) {
-    //     return makeExpression(Node*(node));
-    // }
 
     // set the type of sub-expression instances to `to`
     void setType(Type* to);
@@ -202,8 +195,6 @@ struct Expression final : Node {
     Type* getSwType() override {
         return expr_type;
     }
-
-    EvalResult evaluate(Parser&) override;
 };
 
 
@@ -298,8 +289,6 @@ struct Op final : Node {
     static int getLBPFor(OpTag_t op);
     static int getRBPFor(OpTag_t op);
     static int getPBPFor(OpTag_t op);
-
-    EvalResult evaluate(Parser& instance) override;
 };
 
 
@@ -336,8 +325,6 @@ struct IntLit final : Node {
     [[nodiscard]] bool isLiteral() const override {
         return true;
     }
-
-    EvalResult evaluate(Parser &) override;
 };
 
 
@@ -354,8 +341,6 @@ struct FloatLit final : Node {
     [[nodiscard]] bool isLiteral() const override {
         return true;
     }
-
-    EvalResult   evaluate(Parser &) override;
 };
 
 
@@ -372,8 +357,6 @@ struct BoolLit final : Node {
     [[nodiscard]] bool isLiteral() const override {
         return true;
     }
-
-    EvalResult evaluate(Parser &) override;
 };
 
 
@@ -392,8 +375,6 @@ struct StrLit final : Node {
     bool isLiteral() const override {
         return true;
     }
-
-    EvalResult   evaluate(Parser&) override;
 };
 
 
@@ -460,8 +441,6 @@ struct Ident final : Node {
         ret.pop_back();
         return ret;
     }
-
-    EvalResult evaluate(Parser&) override;
 };
 
 
