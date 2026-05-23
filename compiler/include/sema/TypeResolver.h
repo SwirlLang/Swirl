@@ -407,10 +407,10 @@ public:
             const auto ty = inferType(node->enum_type.value(), {}).deduced_type;
             if (ty && !ty->isIntegral()) {
                 reportError(ErrCode::ENUM_TYPE_NOT_INTEGRAL, {});
-            } else {
-                node->enum_type = makeNode<TypeWrapper>();
-                node->enum_type.value()->type = &GlobalTypeI32;
             }
+        } else {
+            node->enum_type = makeNode<TypeWrapper>();
+            node->enum_type.value()->type = &GlobalTypeI32;
         }
 
         const auto ty = SymMan.lookupType(node->ident)->to<EnumType>();

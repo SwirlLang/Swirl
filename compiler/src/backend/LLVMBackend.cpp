@@ -194,7 +194,9 @@ void LLVMBackend::codegenChildrenUntilRet(const std::span<Node*> children, const
 
 
 void LLVMBackend::codegenChildrenUntilRet(const Scope* children, const SwContext& context, llvm::Value* condition) {
-    codegenChildrenUntilRet(children->children, context, condition);
+    if (children) {
+        codegenChildrenUntilRet(children->children, context, condition);
+    }
 }
 
 

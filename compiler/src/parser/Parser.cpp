@@ -752,9 +752,7 @@ Condition* Parser::parseCondition(const bool is_comptime) {
     forwardStream();  // skip "if"
 
     cnd->bool_expr = parseExpr();
-    if (cnd->is_comptime) {
-        cnd->bool_expr->is_comptime = true;
-    }
+    cnd->bool_expr->is_comptime = cnd->is_comptime;
 
     std::vector<Node*> if_children;
 
@@ -773,9 +771,7 @@ Condition* Parser::parseCondition(const bool is_comptime) {
             Condition::elif_t children;
             std::get<0>(children) = parseExpr();
 
-            if (cnd->is_comptime) {
-                std::get<0>(children)->is_comptime = true;
-            }
+            std::get<0>(children)->is_comptime = cnd->is_comptime;
 
             std::get<1>(children) = parseScope();
 

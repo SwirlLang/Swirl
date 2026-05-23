@@ -1,6 +1,7 @@
 #pragma once
 #include <cmath>
 #include <utility>
+
 #include "Value.h"
 #include "ast/TransformVisitor.h"
 
@@ -112,6 +113,14 @@ private:
 
     Value compute(const Ident* node, const Context ctx) {
         assert(node->value);
+
+        if (node->value->isFictitious()) {
+            const auto enum_node = SymMan.getFictitiousIDValue(node->value);
+            return Value{
+                .type    = Value::INT,
+                .val_int = enum_node->entries.at(node->value->toString())
+            };
+        }
 
         const TableEntry decl = SymMan.lookupDecl(node->value);
 
@@ -249,6 +258,7 @@ private:
     }
 
 
+    [[nodiscard]]
     std::string_view internStr(const std::string& str) const {
         return m_Module->getStringPool().internLocked(str);
     }
@@ -257,7 +267,7 @@ private:
     static std::int64_t toInt64(const std::string_view s) {
         if (s.empty()) return 0;
 
-        size_t i = 0;
+        std::size_t i = 0;
         bool neg = false;
         if (s[i] == '-') { neg = true; ++i; }
         else if (s[i] == '+') { ++i; }
@@ -289,7 +299,7 @@ private:
     static std::uint64_t toUInt64(const std::string_view s) {
         if (s.empty()) return 0;
 
-        size_t i = 0;
+        std::size_t i = 0;
         if (s[i] == '+') ++i;
 
         int base = 10;
