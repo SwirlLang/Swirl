@@ -120,6 +120,8 @@ public:
 
     IdentInfo* getIDInfoFor(const Ident& id, const std::optional<ErrorCallback_t>& err_callback = std::nullopt);
 
+    Enum* getFictitiousIDValue(IdentInfo* id);
+
 
     /// returns the `IdentInfo*` of a global symbol.
     IdentInfo* getIdInfoOfAGlobal(const std::string& name, bool enforce_export = false, bool report_error = true) {
@@ -242,11 +244,6 @@ public:
     }
 
 
-    Enum* getFictitiousIDValue(IdentInfo* id) {
-        if (m_FictitiousIDTable.contains(id)) {
-            return m_FictitiousIDTable[id];
-        } throw std::runtime_error("SymbolTable::getFictitiousIDValue: id not in the table");
-    }
 
 
     bool isForeignID(const IdentInfo* id) const {

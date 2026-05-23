@@ -33,6 +33,20 @@ IdentInfo* SymbolManager::getIdInfoFromModule(sw::FileHandle* mod_path, const st
 }
 
 
+Enum* SymbolManager::getFictitiousIDValue(IdentInfo* id) {
+    auto& fictitious_id_table =
+        id->getModuleFileHandle() == m_ModuleHandle
+            ? m_FictitiousIDTable
+            : m_ModuleMap.get(id->getModuleFileHandle()).symbol_table.m_FictitiousIDTable;
+
+    if (fictitious_id_table.contains(id)) {
+        return fictitious_id_table[id];
+    }
+
+    throw std::runtime_error("SymbolTable::getFictitiousIDValue: id not in the table");
+}
+
+
 IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<ErrorCallback_t>& err_callback) {
     auto report_error = [&err_callback](const ErrCode code, const ErrorContext& ctx) {
         if (err_callback.has_value())
