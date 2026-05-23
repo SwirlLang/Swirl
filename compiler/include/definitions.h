@@ -1,8 +1,5 @@
 #pragma once
-#include <string>
 #include <vector>
-#include <filesystem>
-#include <unordered_set>
 #include <string_view>
 
 
@@ -20,17 +17,9 @@ consteval std::string_view getBonoPackagesDir() {
 #endif
 }
 
-inline std::unordered_set<std::string> OperatorSet = {
-    "=", "+=", "-=", "*=", "/=", "%=",
-    "::",
-    "||", "&&", "!=", "==",
-    ">", "<", "<=", ">=",
-    "+", "-", "*", "/", "%", "//",
-    "as", "!",
-    "[]", "."
-};
 
 #define SW_BUILTIN_FILE_PATH "/__Sw__9117778/builtins.sw"
+
 
 #define SW_BUILTIN_SOURCE std::format(R"(
 export struct str {{
@@ -41,8 +30,22 @@ export struct str {{
     fn ptr (&self): *char {{ return self.__Sw_buffer; }}
 }}
 
-// export comptime platform = "{}";
-// export comptime arch     = "{}";
+
+export enum target {{
+    windows,
+    linux,
+    darwin,
+
+    x86,
+    x64,
+    arm64,
+    unknown
+}}
+
+
+export comptime let arch:     target = target::{};
+export comptime let platform: target = target::{};
+
 )",                                                                      \
 LLVMTargetTriple.getOS() == Triple::Win32 ? "windows"                        \
 : LLVMTargetTriple.getOS() == Triple::Linux ? "linux"                    \
