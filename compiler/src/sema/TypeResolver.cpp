@@ -64,6 +64,10 @@ bool sema::TypeResolver::checkTypeCompatibility(Type* from, Type* to, bool repor
         } return true;
     }
 
+    if (from->isEnumType() && to->isEnumType() && from == to) {
+        return true;
+    }
+
     report_error(ErrCode::INCOMPATIBLE_TYPES, {.type_1 = from, .type_2 = to});
     return false;
 }
@@ -113,6 +117,9 @@ Type* sema::TypeResolver::unify(Type* type1, Type* type2) {
             unify(type1->getWrappedType(), type2->getWrappedType()), type1->getAggregateSize());
     }
 
+    if (type1->isEnumType() && type2->isEnumType() && type1 == type2) {
+        return type1;
+    }
 
     reportError(ErrCode::INCOMPATIBLE_TYPES, {.type_1 = type1, .type_2 = type2});
     return nullptr;

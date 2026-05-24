@@ -451,12 +451,13 @@ struct TypeWrapper final : Node {
 
     bool    is_mutable    = false;
     bool    is_slice      = false;
+    bool    is_pointer    = false;
+    bool    is_reference  = false;
 
     Ident*  type_id  = nullptr;
 
-    std::span<Modifiers> modifiers{};
-    std::size_t array_size = 0;       // 0 indicates that the type isn't an array
-    TypeWrapper* of_type{};           // set in the case of wrapper types (refs, ptr, arrays, slices)
+    std::size_t array_size = 0;        // 0 indicates that the type isn't an array
+    TypeWrapper* of_type{};            // set in the case of wrapper types (refs, ptr, arrays, slices)
 
     explicit TypeWrapper()
         : Node(ND_TYPE) {}
@@ -477,30 +478,7 @@ struct TypeWrapper final : Node {
 
     [[nodiscard]]
     std::string getIDStr() const {
-        std::string result;
-
-        if (is_slice) {
-            result = "&[" + (of_type ? of_type->getIDStr() : "void") + "]";
-        } else if (array_size > 0) {
-            result = "[" + (of_type ? of_type->getIDStr() : "void") + " | " + std::to_string(array_size) + "]";
-        } else if (type_id) {
-            result = type_id->toString();
-        } else {
-            result = "void";
-        }
-
-        for (auto& modifier : std::ranges::reverse_view(modifiers)) {
-            switch (modifier) {
-                case Reference:
-                    result = std::string("&") + (is_mutable ? "mut " : "") + result;
-                    break;
-                case Pointer:
-                    result = std::string("*") + (is_mutable ? "mut " : "") + result;
-                    break;
-            }
-        }
-
-        return result;
+        return {};
     }
 };
 

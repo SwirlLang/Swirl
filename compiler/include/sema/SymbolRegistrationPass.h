@@ -163,7 +163,6 @@ public:
         const auto ty = new EnumType();
         ty->scope = entry.scope;
         ty->id = node->ident;
-        ty->scope = entry.scope;
 
         // register all entries of the enumeration as fictitious ids
         for (const auto id : node->entries | std::views::keys) {

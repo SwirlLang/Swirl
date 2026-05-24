@@ -85,7 +85,7 @@ struct Type {
 
     virtual SwTypes     getTypeTag() = 0;
 
-    virtual bool         isBoolean()       { return false;}
+    virtual bool         isBoolean()       { return false; }
     virtual bool         isIntegral()      { return false; }
     virtual bool         isFloatingPoint() { return false; }
     virtual bool         isUnsigned()      { return false; }
@@ -93,6 +93,7 @@ struct Type {
     virtual bool         isStructType()    { return false; }
     virtual bool         isArrayType()     { return false; }
     virtual bool         isReferenceType() { return false; }
+    virtual bool         isEnumType()      { return false; }
 
     explicit Type(const SwTypes tag): kind(tag) {}
 
@@ -168,6 +169,10 @@ struct EnumType final : Type {
 
     SwTypes getTypeTag() override {
         return ENUM;
+    }
+
+    bool isEnumType() override {
+        return true;
     }
 
     [[nodiscard]] std::string toString() const override;

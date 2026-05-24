@@ -237,7 +237,10 @@ public:
         if (node->value->isFictitious()) {
             const auto enum_node = SymMan.getFictitiousIDValue(node->value);
             inferType(*enum_node->enum_type, ctx);
-            ret = SymMan.lookupType(node->value);
+
+            // fetch the enum type
+            const Enum* en = SymMan.getFictitiousIDValue(node->value);
+            ret = SymMan.lookupType(en->ident);
         } else {
             const auto decl = SymMan.lookupDecl(node->value);
             ret = decl.swirl_type;
