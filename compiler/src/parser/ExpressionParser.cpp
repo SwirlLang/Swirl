@@ -66,7 +66,7 @@ Node* ExpressionParser::parseComponent() {
         }
 
         case KEYWORD: {
-            if (m_Stream.CurTok.tokenid == Token::KW_TRUE || m_Stream.CurTok.tokenid == Token::KW_FALSE) {
+            if (m_Stream.CurTok.is(Token::KW_TRUE, Token::KW_FALSE)) {
                 auto ret = make_node<BoolLit>(m_Stream.CurTok.tokenid == Token::KW_TRUE);
                 SET_NODE_ATTRS(ret);
                 m_Parser.forwardStream();
@@ -170,7 +170,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
         switch (op->op_type) {
             case Op::INDEXING_OP:
                 right = parseExpr(Op::getRBPFor(Op::INDEXING_OP));
-                m_Parser.ignoreButExpect({PUNC, "]"});
+                m_Parser.ignoreButExpect(Token::PUNC_RBRACKET);
                 break;
             case Op::CAST_OP: {
                 const auto dummy_node = m_Parser.parseType();

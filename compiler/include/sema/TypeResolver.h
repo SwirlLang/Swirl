@@ -1,6 +1,7 @@
 #pragma once
 #include <print>
 
+#include "ast/Visitor.h"
 #include "modules/ModuleManager.h"
 #include "types/definitions.h"
 #include "sema/SemaVisitor.h"

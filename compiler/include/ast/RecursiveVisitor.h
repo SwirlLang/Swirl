@@ -1,6 +1,7 @@
 #pragma once
 #include "Nodes.h"
 #include "utils/logging.h"
+#include "Visitor.h"
 
 
 namespace detail {
@@ -54,7 +55,7 @@ concept HasPostVisitImplHook = requires (D& d, T* node, Args&&... args) {
  * - `bool shouldTraverse`: if this returns `true`, then further traversal of the node continues.
  * - `void postVisit`     : always called for symmetry with `preVisit`. */
 template <typename Derived>
-class RecursiveVisitor {
+class RecursiveVisitor : public Visitor<RecursiveVisitor<Derived>, void> {
 public:
     template <typename... Args>
     void visit(Node* node, Args&&... args) {

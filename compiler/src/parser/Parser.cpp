@@ -78,14 +78,10 @@ Token Parser::forwardStream(const uint8_t n) {
     };
 
     for (uint8_t _ = 0; _ < n; _++) {
-        if (m_Stream.CurTok.tokenid == Token::PUNC_LBRACE ||
-            m_Stream.CurTok.tokenid == Token::PUNC_LPAREN ||
-            m_Stream.CurTok.tokenid == Token::PUNC_LBRACKET)
+        if (m_Stream.CurTok.is(Token::PUNC_LBRACE, Token::PUNC_LPAREN, Token::PUNC_LBRACKET))
             m_BracketTracker.emplace_back(m_Stream.CurTok.value[0], m_Stream.getStreamState());
 
-        else if (m_Stream.CurTok.tokenid == Token::PUNC_RBRACE ||
-                 m_Stream.CurTok.tokenid == Token::PUNC_RBRACKET ||
-                 m_Stream.CurTok.tokenid == Token::PUNC_RPAREN) {
+        else if (m_Stream.CurTok.is(Token::PUNC_RBRACE, Token::PUNC_RBRACKET, Token::PUNC_RPAREN)) {
                 if (m_BracketTracker.empty()
                     || m_BracketTracker.back().val != get_opposite_brack(m_Stream.CurTok.value[0]))
                 {
@@ -116,13 +112,14 @@ void Parser::ignoreButExpect(const Token& tok) {
 }
 
 
-void Parser::ignoreButExpect(const Token::TokenValue val) {
+/// If `tok` is the current token in the stream, forward it, report a syntax error otherwise.
+void Parser::ignoreButExpect(const Token::TokenValue tok) {
     if (m_Stream.eof()) {
         reportError(ErrCode::UNEXPECTED_EOF);
     }
 
-    if (m_Stream.CurTok.tokenid != val) {
-        reportError(ErrCode::SYNTAX_ERROR, {.msg = std::format("Expected '{}'.", Token::toString(val))});
+    if (m_Stream.CurTok.tokenid != tok) {
+        reportError(ErrCode::SYNTAX_ERROR, {.msg = std::format("Expected '{}'.", Token::toString(tok))});
     } else forwardStream();
 }
 
@@ -311,7 +308,7 @@ Node* Parser::parseImport() {
         {.str_1 = m_StringPool.intern(m_Stream.CurTok.value)});
 
     forwardStream();  // skip the current IDENT
-    ignoreButExpect({OP, "::"});
+    ignoreButExpect(Token::OP_SCOPE_RES);
 
     while (m_Stream.CurTok.tokenid == Token::IDENT) {
         mod_path /= forwardStream().value;
@@ -361,7 +358,7 @@ Node* Parser::parseImport() {
             if (m_Stream.CurTok.tokenid == Token::PUNC_COMMA) {
                 forwardStream();
             }
-        } ignoreButExpect({PUNC, "}"});
+        } ignoreButExpect(Token::PUNC_RBRACE);
     }
 
     // otherwise, if non-specific but aliased or wildcard
@@ -461,7 +458,7 @@ Node* Parser::parseFunction() {
         func_nd->generic_params = parseGenericParamList();
     }
 
-    ignoreButExpect({PUNC, "("});
+    ignoreButExpect(Token::PUNC_LPAREN);
 
     // parse the parameters...
     std::vector<Var*> params;
@@ -706,7 +703,7 @@ Node* Parser::parseIntrinsic() {
 
     if (m_Stream.CurTok.value == "sizeof") {
         forwardStream();
-        ignoreButExpect({PUNC, "("});
+        ignoreButExpect(Token::PUNC_LPAREN);
 
         std::array<Expression*, 1> arg = {nullptr};
         std::array qualifier = {Ident::Qualifier{.name = m_StringPool.intern("sizeof")}};
@@ -719,7 +716,7 @@ Node* Parser::parseIntrinsic() {
         else arg[0] = m_Module->makeNode<Expression>(Expression::makeExpression(parseType()));
 
         call_node->args = m_Module->internArray<Expression*>(arg);
-        ignoreButExpect({PUNC, ")"});
+        ignoreButExpect(Token::PUNC_RPAREN);
 
     } else *call_node = dynamic_cast<FuncCall*>(parseCall(parseIdent()));
 
@@ -769,7 +766,7 @@ Condition* Parser::parseCondition(const bool is_comptime) {
     cnd->if_children = parseScope();
 
     // handle `else(s)`
-    if (!(m_Stream.CurTok.tokenid == Token::KW_ELSE || m_Stream.CurTok.tokenid == Token::KW_ELIF))
+    if (!m_Stream.CurTok.is(Token::KW_ELSE, Token::KW_ELIF))
         return cnd;
 
     std::vector<Condition::elif_t> elif_children;
@@ -891,7 +888,7 @@ Node* Parser::parseProtocol() {
         ret->depended_protocols = parseProtocolList();
     }
 
-    ignoreButExpect({PUNC, "{"});
+    ignoreButExpect(Token::PUNC_LBRACE);
 
     while (true) {
         if (m_Stream.eof()) {

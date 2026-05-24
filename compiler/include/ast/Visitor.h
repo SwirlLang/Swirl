@@ -1,6 +1,7 @@
 #pragma once
 #include "Nodes.h"
 #include "utils/utils.h"
+#include "definitions.h"
 
 
 #define CREATE_STATE_RAII_WRAPPER_IMPL(attr_name, name) struct name { \

@@ -125,6 +125,12 @@ struct Token {
         return type == other.type && value == other.value;
     }
 
+    template <typename... Args>
+    bool is(Args... args) {
+        static_assert((std::same_as<Args, TokenValue> && ...));
+        return ((args == tokenid) || ...);
+    }
+
     static std::string_view toString(TokenValue v);
 };
 
