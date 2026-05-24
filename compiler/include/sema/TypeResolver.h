@@ -137,9 +137,7 @@ public:
 
 
     TypeInfo evaluateType(TypeWrapper* node, const TypeContext& ctx) {
-        if (node->type) {
-            return {.deduced_type = node->type};
-        }
+        if (node->type) { return {.deduced_type = node->type}; }
 
         Type* ret = nullptr;
 
@@ -173,20 +171,27 @@ public:
             }
         }
 
+        // is a pointer
+        else if (node->is_pointer) {
+            auto pointer_of_ty = evaluateType(node->of_type, ctx);
+            if (pointer_of_ty.deduced_type != nullptr) {
+                ret = SymMan.getPointerType(pointer_of_ty.deduced_type, node->is_mutable);
+            }
+        }
+
+        // is a reference
+        else if (node->is_reference) {
+            auto ref_of_type = evaluateType(node->of_type, ctx);
+            if (ref_of_type.deduced_type != nullptr) {
+                ret = SymMan.getReferenceType(ref_of_type.deduced_type, node->is_mutable);
+            }
+        }
+
         else return {.deduced_type = &GlobalTypeVoid};
 
         if (!ret) {
             reportError(ErrCode::NO_SUCH_TYPE, {});
             return {};
-        }
-
-        // handle references and pointers
-        for (const auto mod : node->modifiers | std::views::reverse) {
-            if (mod == TypeWrapper::Reference) {
-                ret = SymMan.getReferenceType(ret, node->is_mutable);
-            } else if (mod == TypeWrapper::Pointer) {
-                ret = SymMan.getPointerType(ret, node->is_mutable);
-            }
         }
 
         node->type = ret;

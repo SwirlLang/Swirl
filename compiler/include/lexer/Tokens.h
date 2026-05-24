@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 #include <unordered_map>
+#include <string_view>
+#include <concepts>
 
 
 enum TokenCategory {
@@ -15,32 +17,6 @@ enum TokenCategory {
     NONE, // 7
     UNINIT // 8
 };
-
-
-inline const char*to_string(const TokenCategory e) {
-    switch (e) {
-        case KEYWORD:
-            return "KEYWORD";
-        case IDENT:
-            return "IDENT";
-        case OP:
-            return "OP";
-        case STRING:
-            return "STRING";
-        case PUNC:
-            return "PUNC";
-        case NUMBER:
-            return "NUMBER";
-        case COMMENT:
-            return "COMMENT";
-        case NONE:
-            return "NONE";
-        case UNINIT:
-            return "UNINIT";
-        default:
-            return "unknown";
-    }
-}
 
 
 struct StreamState {
@@ -148,6 +124,8 @@ struct Token {
     bool operator==(const Token& other) const {
         return type == other.type && value == other.value;
     }
+
+    static std::string_view toString(TokenValue v);
 };
 
 
@@ -180,3 +158,90 @@ KeywordMap = {
     {"volatile", Token::KW_VOLATILE},
     {"struct", Token::KW_STRUCT}
 };
+
+
+inline std::string_view Token::toString(TokenValue v) {
+    switch (v) {
+        case KW_RETURN: return "return";
+        case KW_IF: return "if";
+        case KW_ELSE: return "else";
+        case KW_FOR: return "for";
+        case KW_WHILE: return "while";
+        case KW_MUT: return "mut";
+        case KW_TRUE: return "true";
+        case KW_FALSE: return "false";
+        case KW_UNDEFINED: return "undefined";
+        case KW_ENUM: return "enum";
+        case KW_PROTOCOL: return "protocol";
+        case KW_CONST: return "const";
+        case KW_STATIC: return "static";
+        case KW_BREAK: return "break";
+        case KW_CONTINUE: return "continue";
+        case KW_ELIF: return "elif";
+        case KW_EXTERN: return "extern";
+        case KW_COMPTIME: return "comptime";
+        case KW_LET: return "let";
+        case KW_IMPORT: return "import";
+        case KW_EXPORT: return "export";
+        case KW_VAR: return "var";
+        case KW_FN: return "fn";
+        case KW_VOLATILE: return "volatile";
+        case KW_STRUCT: return "struct";
+        case OP_AS: return "as";
+        case OP_NOT: return "not";
+        case OP_DOT: return ".";
+        case OP_RANGE: return "..";
+        case OP_MEMBER_ACCESS: return "->";
+        case OP_SCOPE_RES: return "::";
+        case OP_LOGICAL_OR: return "||";
+        case OP_LOGICAL_AND: return "&&";
+        case OP_NOT_EQ: return "!=";
+        case OP_EQ: return "==";
+        case OP_GT: return ">";
+        case OP_LT: return "<";
+        case OP_GT_EQ: return ">=";
+        case OP_LT_EQ: return "<=";
+        case OP_ASSIGN: return "=";
+        case OP_PLUS: return "+";
+        case OP_MINUS: return "-";
+        case OP_MUL: return "*";
+        case OP_DIV: return "/";
+        case OP_MOD: return "%";
+        case OP_EXP: return "**";
+        case OP_EXP_ASSIGN: return "**=";
+        case OP_PLUS_ASSIGN: return "+=";
+        case OP_MINUS_ASSIGN: return "-=";
+        case OP_MUL_ASSIGN: return "*=";
+        case OP_DIV_ASSIGN: return "/=";
+        case OP_MOD_ASSIGN: return "%=";
+        case OP_ELLIPSIS: return "...";
+        case OP_COMMENT: return "//";
+        case OP_BITWISE_OR: return "|";
+        case OP_BITWISE_AND: return "&";
+        case OP_BITWISE_NOT: return "~";
+        case OP_LBITSHIFT: return "<<";
+        case OP_RBITSHIFT: return ">>";
+        case OP_XOR: return "^";
+        case OP_BITWISE_OR_ASSIGN: return "|=";
+        case OP_BITWISE_AND_ASSIGN: return "&=";
+        case OP_BITWISE_NOT_ASSIGN: return "~=";
+        case OP_LBITSHIFT_ASSIGN: return "<<=";
+        case OP_RBITSHIFT_ASSIGN: return ">>=";
+        case OP_XOR_ASSIGN: return "^=";
+        case PUNC_SEMI: return ";";
+        case PUNC_COMMA: return ",";
+        case PUNC_LPAREN: return "(";
+        case PUNC_RPAREN: return ")";
+        case PUNC_LBRACE: return "{";
+        case PUNC_RBRACE: return "}";
+        case PUNC_LBRACKET: return "[";
+        case PUNC_RBRACKET: return "]";
+        case PUNC_COLON: return ":";
+        case PUNC_HASH: return "#";
+        case NUM_INT: return "INTEGER";
+        case NUM_FLOAT: return "FLOAT";
+        case IDENT: return "IDENT";
+        case STRING: return "STRING";
+        default: return "unknown";
+    }
+}

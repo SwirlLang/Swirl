@@ -145,6 +145,7 @@ public:
 
     void parse();
     void ignoreButExpect(const Token&);
+    void ignoreButExpect(Token::TokenValue val);
     void stackSafeguard() const;
 
 

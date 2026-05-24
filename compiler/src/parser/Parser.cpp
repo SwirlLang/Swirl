@@ -17,6 +17,7 @@
 #include "modules/ModuleManager.h"
 
 #include "CompilerInst.h"
+#include "comptime/ComptimeEvaluator.h"
 
 
 /// Automatically sets certain node attributes
@@ -115,63 +116,72 @@ void Parser::ignoreButExpect(const Token& tok) {
 }
 
 
+void Parser::ignoreButExpect(const Token::TokenValue val) {
+    if (m_Stream.eof()) {
+        reportError(ErrCode::UNEXPECTED_EOF);
+    }
+
+    if (m_Stream.CurTok.tokenid != val) {
+        reportError(ErrCode::SYNTAX_ERROR, {.msg = std::format("Expected '{}'.", Token::toString(val))});
+    } else forwardStream();
+}
+
+
 TypeWrapper* Parser::parseType() {
     auto wrapper = m_Module->makeNode<TypeWrapper>();
     SET_NODE_ATTRS(wrapper);
 
-    // handle references and pointers (*&T...)
-    bool is_reference_present = false;
-    std::vector<TypeWrapper::Modifiers> modifiers;
+    switch (m_Stream.CurTok.tokenid) {
+        case Token::IDENT:
+            wrapper->type_id = parseIdent();
+            assert(wrapper->type_id != nullptr);
+            break;
 
-    while (m_Stream.CurTok.tokenid == Token::OP_BITWISE_AND || m_Stream.CurTok.tokenid == Token::OP_MUL) {
-        if (m_Stream.CurTok.tokenid == Token::OP_BITWISE_AND) {
-            modifiers.push_back(TypeWrapper::Reference);  // do not push the slice-associated `&`
-            is_reference_present = true;
+        case Token::KW_MUT:
+            wrapper->is_mutable = true;
             forwardStream();
-        } else if (m_Stream.CurTok.tokenid == Token::OP_MUL) {
-            modifiers.push_back(TypeWrapper::Pointer);
+            break;
+
+        case Token::OP_MUL:
+            wrapper->is_pointer = true;
             forwardStream();
-        }
+            wrapper->of_type = parseType();
+            break;
+
+        case Token::OP_BITWISE_AND:
+            wrapper->is_reference = true;
+            forwardStream();
+            // parse a slice
+            if (m_Stream.CurTok.tokenid == Token::PUNC_LBRACKET) {
+                wrapper->is_slice = true;
+                forwardStream();
+                wrapper->of_type = parseType();
+                ignoreButExpect(Token::PUNC_RBRACKET);
+            } else wrapper->of_type = parseType();
+            break;
+
+        case Token::PUNC_LBRACKET:
+            forwardStream();  // skip '['
+            wrapper->of_type = parseType();
+
+            if (m_Stream.CurTok.tokenid == Token::OP_BITWISE_OR) {
+                forwardStream();
+                if (m_Stream.CurTok.tokenid == Token::NUM_INT) {
+                    wrapper->array_size =
+                        sw::ComptimeEvaluator::toUInt64(m_Stream.CurTok.value);
+                } else {
+                    reportError(ErrCode::NON_INT_ARRAY_SIZE);
+                }
+            }
+
+            ignoreButExpect(Token::PUNC_LBRACKET);
+            break;
+        default:
+            reportError(ErrCode::SYNTAX_ERROR, {.msg = "Expected a type"});
+            forwardStream();
+            break;
     }
 
-    if (m_Stream.CurTok.tokenid == Token::PUNC_LBRACKET) {
-        forwardStream();
-        wrapper->of_type = parseType();
-
-        // array declaration
-        if (m_Stream.CurTok.tokenid == Token::OP_BITWISE_OR) {
-            forwardStream();
-
-            if (m_Stream.CurTok.tokenid == Token::NUM_INT) {
-                wrapper->array_size = toInteger(forwardStream().value);
-            } else reportError(ErrCode::NON_INT_ARRAY_SIZE);
-            ignoreButExpect({PUNC, "]"});
-        } else {
-            if (wrapper->modifiers.back() == TypeWrapper::Reference)
-                modifiers.pop_back();
-            wrapper->is_slice = true;  // only slices are allowed to not have a size
-            ignoreButExpect({PUNC, "]"});
-        }
-
-    } else if (m_Stream.CurTok.tokenid == Token::IDENT) {
-        wrapper->type_id = parseIdent();
-        assert(wrapper->type_id != nullptr);
-    } else if (m_Stream.CurTok.tokenid == Token::KW_MUT) {
-        wrapper->is_mutable = true;
-        forwardStream();
-    } else {
-        reportError(ErrCode::SYNTAX_ERROR, {.msg = "Expected a type"});
-        forwardStream();
-    }
-
-    if (!is_reference_present && wrapper->is_slice) {
-        reportError(ErrCode::SYNTAX_ERROR, {
-            .msg = "Only slices are allowed to not have an explicit size. "
-            "Did you forgot to place an `&`?"
-        });
-    }
-
-    wrapper->modifiers = m_Module->internArray<TypeWrapper::Modifiers>(modifiers);
     return wrapper;
 }
 
