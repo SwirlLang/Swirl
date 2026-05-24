@@ -1,6 +1,5 @@
 #pragma once
 #include "Nodes.h"
-#include "Visitor.h"
 #include "utils/logging.h"
 
 
@@ -55,7 +54,7 @@ concept HasPostVisitImplHook = requires (D& d, T* node, Args&&... args) {
  * - `bool shouldTraverse`: if this returns `true`, then further traversal of the node continues.
  * - `void postVisit`     : always called for symmetry with `preVisit`. */
 template <typename Derived>
-class RecursiveVisitor : public Visitor<Derived, void> {
+class RecursiveVisitor {
 public:
     template <typename... Args>
     void visit(Node* node, Args&&... args) {
@@ -117,20 +116,20 @@ protected:
     template <typename... Args>
     void traverse(Scope* node, Args&&... args) {
         for (auto& child : node->children) {
-            this->dispatch(child, std::forward<Args>(args)...);
+            visit(child, std::forward<Args>(args)...);
         }
     }
 
     template <typename... Args>
     void traverse(FuncCall* node, Args&&... args) {
-        this->dispatch(node->ident, std::forward<Args>(args)...);
+        visit(node->ident, std::forward<Args>(args)...);
 
         for (Expression* expr : node->args) {
-            this->dispatch(expr, std::forward<Args>(args)...);
+            visit(expr, std::forward<Args>(args)...);
         }
 
         for (auto& arg : node->generic_args) {
-            this->dispatch(arg, std::forward<Args>(args)...);
+            visit(arg, std::forward<Args>(args)...);
         }
     }
 
@@ -138,21 +137,21 @@ protected:
     template <typename... Args>
     void traverse(Function* node, Args&&... args) {
         for (GenericParam* child : node->generic_params) {
-            this->dispatch(child, std::forward<Args>(args)...);
+            visit(child, std::forward<Args>(args)...);
         }
 
         for (Var* child : node->params) {
-            this->dispatch(child, std::forward<Args>(args)...);
+            visit(child, std::forward<Args>(args)...);
         }
 
-        this->dispatch(node->return_type, std::forward<Args>(args)...);
+        visit(node->return_type, std::forward<Args>(args)...);
         visit(node->children, std::forward<Args>(args)...);
     }
 
 
     template <typename... Args>
     void traverse(Condition* node, Args&&... args) {
-        this->dispatch(node->bool_expr, std::forward<Args>(args)...);
+        visit(node->bool_expr, std::forward<Args>(args)...);
         visit(node->if_children, std::forward<Args>(args)...);
 
         for (auto& [expr, body] : node->elif_children) {
@@ -167,11 +166,11 @@ protected:
     template <typename... Args>
     void traverse(Struct* node, Args&&... args) {
         for (GenericParam* param : node->generic_params) {
-            this->dispatch(param, std::forward<Args>(args)...);
+            visit(param, std::forward<Args>(args)...);
         }
 
         for (Ident* proto : node->protocols) {
-            this->dispatch(proto, std::forward<Args>(args)...);
+            visit(proto, std::forward<Args>(args)...);
         }
 
         visit(node->members, std::forward<Args>(args)...);
@@ -181,26 +180,26 @@ protected:
     template <typename... Args>
     void traverse(ArrayLit* node, Args&&... args) {
         for (Expression* element : node->elements) {
-            this->dispatch(element, std::forward<Args>(args)...);
+            visit(element, std::forward<Args>(args)...);
         }
     }
 
 
     template <typename... Args>
     void traverse(TypeWrapper* node, Args&&... args) {
-        this->dispatch(node->type_id, std::forward<Args>(args)...);
-        this->dispatch(node->of_type, std::forward<Args>(args)...);
+        visit(node->type_id, std::forward<Args>(args)...);
+        visit(node->of_type, std::forward<Args>(args)...);
     }
 
 
     template <typename... Args>
     void traverse(Var* node, Args&&... args) {
         if (node->var_type) {
-            this->dispatch(node->var_type, std::forward<Args>(args)...);
+            visit(node->var_type, std::forward<Args>(args)...);
         }
 
         if (node->initialized) {
-            this->dispatch(node->value, std::forward<Args>(args)...);
+            visit(node->value, std::forward<Args>(args)...);
         }
     }
 
@@ -208,16 +207,16 @@ protected:
     template <typename... Args>
     void traverse(Op* node, Args&&... args) {
         for (auto& operand : node->operands) {
-            this->dispatch(operand, std::forward<Args>(args)...);
+            visit(operand, std::forward<Args>(args)...);
         }
     }
 
 
     template <typename... Args>
     void traverse(Intrinsic* node, Args&&... args) {
-        this->dispatch(node->ident, std::forward<Args>(args)...);
+        visit(node->ident, std::forward<Args>(args)...);
         for (Expression* expr : node->args) {
-            this->dispatch(expr, std::forward<Args>(args)...);
+            visit(expr, std::forward<Args>(args)...);
         }
     }
 
@@ -225,24 +224,24 @@ protected:
     template <typename... Args>
     void traverse(Protocol* node, Args&&... args) {
         for (Ident* dep : node->depended_protocols) {
-            this->dispatch(dep, std::forward<Args>(args)...);
+            visit(dep, std::forward<Args>(args)...);
         }
 
         for (auto& member : node->members) {
-            this->dispatch(member.type, std::forward<Args>(args)...);
+            visit(member.type, std::forward<Args>(args)...);
         }
 
         for (auto& member : node->methods) {
             for (auto& param : member.params) {
-                this->dispatch(param, std::forward<Args>(args)...);
-            } this->dispatch(member.return_type, std::forward<Args>(args)...);
+                visit(param, std::forward<Args>(args)...);
+            } visit(member.return_type, std::forward<Args>(args)...);
         }
     }
 
 
     template <typename... Args>
     void traverse(WhileLoop* node, Args&&... args) {
-        this->dispatch(node->condition, std::forward<Args>(args)...);
+        visit(node->condition, std::forward<Args>(args)...);
         visit(node->children, std::forward<Args>(args)...);
     }
 
@@ -250,27 +249,27 @@ protected:
     template <typename... Args>
     void traverse(Enum* node, Args&&... args) {
         if (node->enum_type.has_value()) {
-            this->dispatch(node->enum_type.value(), std::forward<Args>(args)...);
+            visit(node->enum_type.value(), std::forward<Args>(args)...);
         }
     }
 
 
     template <typename... Args>
     void traverse(ReturnStatement* node, Args&&... args) {
-        this->dispatch(node->value, std::forward<Args>(args)...);
+        visit(node->value, std::forward<Args>(args)...);
     }
 
 
     template <typename... Args>
     void traverse(Expression* node, Args&&... args) {
-        this->dispatch(node->expr, std::forward<Args>(args)...);
+        visit(node->expr, std::forward<Args>(args)...);
     }
 
 
     template <typename... Args>
     void traverse(Ident* node, Args&&... args) {
         for (auto& arg : node->full_qualification) {
-            this->dispatch(&arg.generic_args, std::forward<Args>(args)...);
+            visit(&arg.generic_args, std::forward<Args>(args)...);
         }
     }
 
@@ -278,7 +277,7 @@ protected:
     template <typename... Args>
     void traverse(GenericArgList* node, Args&&... args) {
         for (GenericArg* arg : node->generic_args) {
-            this->dispatch(arg, std::forward<Args>(args)...);
+            visit(arg, std::forward<Args>(args)...);
         }
     }
 
@@ -287,8 +286,8 @@ protected:
     void traverse(GenericArg* node, Args&&... args) {
         if (node->isEmpty()) return;
         if (node->isExpression()) {
-            this->dispatch(node->getExpr(), std::forward<Args>(args)...);
-        } else this->dispatch(node->getType(), std::forward<Args>(args)...);
+            visit(node->getExpr(), std::forward<Args>(args)...);
+        } else visit(node->getType(), std::forward<Args>(args)...);
     }
 
 
