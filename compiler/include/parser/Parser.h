@@ -2,7 +2,6 @@
 #include <mutex>
 #include <utility>
 #include <filesystem>
-#include <unordered_set>
 
 #include "definitions.h"
 #include "ast/Nodes.h"
@@ -29,43 +28,12 @@ namespace sema {
     template <typename T> class SemaVisitor;
 }
 
-/// A type which can represent either a `Type*` or a `Node*`.
-struct SwObject : std::variant<Type*, Node*> {
-    using std::variant<Type*, Node*>::variant;
-
-    [[nodiscard]] Type* toType() const {
-        assert(isType());
-        return std::get<Type*>(*this);
-    }
-
-    [[nodiscard]] Node* toNode() const {
-        assert(isNode());
-        return std::get<Node*>(*this);
-    }
-
-    [[nodiscard]] bool isType() const {
-        return std::holds_alternative<Type*>(*this);
-    }
-
-    [[nodiscard]] bool isNode() const {
-        return std::holds_alternative<Node*>(*this);
-    }
-};
-
 
 struct ParserContext {
     Module* module;
     ErrorCallback_t error_callback;
     ModuleManager&  module_manager;
     sw::StringPool& string_pool;
-};
-
-
-template <>
-struct std::hash<SwObject> {
-    std::size_t operator()(const SwObject& obj) const noexcept {
-        return std::hash<std::variant<Type*, Node*>>{}(obj);
-    }
 };
 
 
@@ -87,12 +55,12 @@ class Parser {
     // ---*--- ---*--- ---*---
 
     int                   m_RecursionDepth = 0;
-    std::vector<SwObject> m_ParseStack;        // currently-being-parsed object pointer stays at the top
+    std::vector<Node*>    m_ParseStack;        // currently-being-parsed object pointer stays at the top
 
     sw::FileHandle*       m_FileHandle;
 
     // used for buffering error reports until the nodes/types have been completed
-    std::unordered_map<SwObject, std::vector<std::tuple<ErrCode, ErrorContext>>> m_ErrorQueue;
+    std::unordered_map<Node*, std::vector<std::tuple<ErrCode, ErrorContext>>> m_ErrorQueue;
 
     sw::FileSystem& m_FileSystem;
     sw::StringPool& m_StringPool;
