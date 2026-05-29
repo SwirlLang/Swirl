@@ -262,7 +262,7 @@ public:
         if (ctx.is_method_call) {
             assert(ctx.method_id);
             node->ident->value = ctx.method_id;
-        } handle(node->ident);
+        } visit(node->ident);
         // assuming `SymbolResolver` has resolved the ID otherwise
 
         assert(node->ident->getIdentInfo());
@@ -347,42 +347,19 @@ public:
     }
 
 
-    void handle(Ident* node) {
-        assert(node->value);
-        const auto target_node = SymMan.lookupDecl(node->value).node_ptr->to<GlobalNode>();
-
-        Ident tmp;
-        std::vector<Ident::Qualifier> full_qualification;
-
-        for (auto qualifier : node->full_qualification) {
-            full_qualification.emplace_back(qualifier.name);
-
-            // iterate over the generic args and activate the generic type
-            for (const auto& [i, arg] : std::views::enumerate(qualifier.generic_args)) {
-                if (i < target_node->generic_params.size()) {
-                    auto generic_ty = SymMan.lookupType(target_node->generic_params.at(i)->id);
-                    assert(generic_ty != nullptr);
-
-                    if (arg->isType()) {
-                        const auto arg_ty = inferType(arg->getType(), {}).deduced_type;
-                        generic_ty->to<GenericType>()->contained_type = arg_ty;
-
-                        node->type_instantiation_map.insert({generic_ty, arg_ty});
-                    }
-                }
-            }
-
-            // if generic arguments exist, analyze the instantiated node
-            if (!qualifier.generic_args.empty()) {
-                tmp.full_qualification = internArray<Ident::Qualifier>(full_qualification);
-                if (const auto id = SymMan.getIDInfoFor(tmp)) {
-                    if (const auto node_ptr = SymMan.lookupDecl(id).node_ptr) {
-                        evaluateGenericInst(node_ptr);
-                    }
-                }
-            }
-        }
+    bool preVisit(TypeWrapper* node) {
+        node->type = evaluateType(node, {}).deduced_type;
+        return true;
     }
+
+
+    // void handle(Ident* node) {
+    //     assert(node->value);
+    //     const auto target_node = SymMan.lookupDecl(node->value).node_ptr->to<GlobalNode>();
+    //
+    //     Ident tmp;
+    //     std::vector<Ident::Qualifier> full_qualification;
+    // }
 
 
     void handle(ReturnStatement* node) {
@@ -439,11 +416,11 @@ public:
             ); return;
         }
 
-        Type* bound_type = node->var_type
-            ? (node->var_type->type->isArrayType()
-              ? node->var_type->type->to<ArrayType>()->of_type
-              : node->var_type->type)
-            : nullptr;
+        Type* bound_type = node->var_type ?
+            ( node->var_type->type ? (node->var_type->type->isArrayType()
+            ? node->var_type->type->to<ArrayType>()->of_type
+            : node->var_type->type) : nullptr
+            ) : nullptr;
 
 
         if (node->initialized) {
@@ -455,6 +432,7 @@ public:
                 node->value->setType(val_ty);
             } else {
                 checkTypeCompatibility(val_ty, node->var_type->type);
+                assert(node->value->getNodeType() == ND_EXPR);
                 node->value->setType(val_ty);
             }
         }

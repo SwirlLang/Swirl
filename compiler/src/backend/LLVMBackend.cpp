@@ -865,7 +865,7 @@ CGValue LLVMBackend::llvmCodegen(Ident* node, const SwContext& context) {
 
 
 CGValue LLVMBackend::llvmCodegen(Function* node, const SwContext& context) {
-    if (!node->generic_params.empty() && !context.is_generic_inst)
+    if (!node->generic_params.empty() && !node->is_monomorphization)
         return {};
 
     const auto fn_sw_type = SymMan.lookupType(node->ident)->to<FunctionType>();
@@ -875,8 +875,14 @@ CGValue LLVMBackend::llvmCodegen(Function* node, const SwContext& context) {
     const auto linkage = (node->is_exported || node->is_extern || node->ident->toString() == "main"
                          ) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
 
-    auto*               fn_type  = llvm::dyn_cast<llvm::FunctionType>(codegen(fn_sw_type, context));
-    llvm::Function*     func     = llvm::Function::Create(fn_type, linkage, name, LModule.get());
+    auto* fn_type  = llvm::dyn_cast<llvm::FunctionType>(codegen(fn_sw_type, context));
+
+    // check whether the function has been declared before, if not, create a new one
+    llvm::Function* func = LModule->getFunction(name);
+    if (!func) {
+        func = llvm::Function::Create(fn_type, linkage, name, LModule.get());
+    }
+
 
     SW_LLVM_SET_CURRENT_PARENT(func);
 
@@ -1190,44 +1196,13 @@ CGValue LLVMBackend::llvmCodegen(Struct* node, const SwContext& context) {
 }
 
 
-llvm::Function* LLVMBackend::instantiateGenericFunction(Ident& id, Function* function) {
-    for (auto [key, value] : id.type_instantiation_map) {
-        key->to<GenericType>()->contained_type = value;
-    }
-
-    const auto insertion_cache = Builder.saveIP();
-    const auto cur_parent = CurParent;
-
-    SwContext ctx{.is_generic_inst = true};
-    for (const auto& arg : id.full_qualification.back().generic_args) {
-        if (arg->isType()) {
-            ctx.generic_args.push_back(arg->getType()->type);
-        }
-    }
-
-    const auto ret = llvmCodegen(function, ctx).getLValue();
-
-    // restore cache
-    Builder.restoreIP(insertion_cache);
-    CurParent = cur_parent;
-
-    return llvm::dyn_cast<llvm::Function>(ret);
-}
-
-
 CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
     std::vector<llvm::Type*> paramTypes;
 
     assert(node->ident->getIdentInfo());
     const auto fn_name = node->ident->getIdentInfo();
 
-    llvm::Function* func;
-    if (node->ident->type_instantiation_map.empty()) {
-        func = LModule->getFunction(mangleString(fn_name));
-    } else {
-        const auto fn_ptr = SymMan.lookupDecl(node->ident->value).node_ptr->to<Function>();
-        func = instantiateGenericFunction(*node->ident, fn_ptr);
-    }
+    llvm::Function* func = LModule->getFunction(mangleString(fn_name));
 
     if (!func) {
         [[maybe_unused]] auto fn = llvm::Function::Create(

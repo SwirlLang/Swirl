@@ -20,6 +20,16 @@ public:
     };
 
 
+    Value evaluate(const Node* node, const Context ctx) {
+    #define SW_NODE(x, y) case x: return compute(static_cast<const y*>(node), ctx);
+        switch (node->kind) {
+            SW_NODE_LIST;
+            default: throw std::runtime_error("ComptimeEvaluator::evaluate(): invalid node kind");
+        }
+    #undef SW_NODE
+    }
+
+
     Node* transform(const Ident* node) {
         assert(node->value);
 
@@ -45,37 +55,30 @@ public:
 private:
     Module* m_Module;
     ErrorCallback_t m_ErrorCallback;
-
-
-    Value evaluate(const Node* node, const Context ctx) {
-    #define SW_NODE(x, y) case x: return compute(static_cast<const y*>(node), ctx);
-        switch (node->kind) {
-            SW_NODE_LIST;
-            default: throw std::runtime_error("ComptimeEvaluator::evaluate(): invalid node kind");
-        }
-    #undef SW_NODE
-    }
+    bool m_ErrorsOccurred = false;
 
 
     [[nodiscard]]
     Node* makeNode(Value val) const {
+    #define make_expr(x) m_Module->makeNode<Expression>(Expression::makeExpression(x));
         switch (val.type) {
             case Value::STR:
-                return m_Module->makeNode<StrLit>(val.val_str);
+                return make_expr(m_Module->makeNode<StrLit>(val.val_str));
             case Value::UINT:
-                return m_Module->makeNode<IntLit>(
-                    internStr(std::to_string(val.val_uint)));
+                return make_expr(m_Module->makeNode<IntLit>(
+                    internStr(std::to_string(val.val_uint))));
             case Value::INT:
-                return m_Module->makeNode<IntLit>(
-                    internStr(std::to_string(val.val_int)));
+                return make_expr(m_Module->makeNode<IntLit>(
+                    internStr(std::to_string(val.val_int))));
             case Value::FLOAT:
-                return m_Module->makeNode<FloatLit>(
-                    internStr(std::to_string(val.val_double)));
+                return make_expr(m_Module->makeNode<FloatLit>(
+                    internStr(std::to_string(val.val_double))));
             case Value::BOOL:
-                return m_Module->makeNode<BoolLit>(val.val_bool);
+                return make_expr(m_Module->makeNode<BoolLit>(val.val_bool));
             default:
                 return nullptr;
         }
+        #undef make_expr
     }
 
 
@@ -179,12 +182,13 @@ private:
             case Op::BITWISE_XOR:             return operand_1 ^ operand_2;
             case Op::BITWISE_LSHIFT:          return operand_1 << operand_2;
             case Op::BITWISE_RSHIFT:          return operand_1 >> operand_2;
-            case Op::LOGICAL_EQUAL:           return operand_1 == operand_2;
-            case Op::LOGICAL_NOTEQUAL:        return operand_1 != operand_2;
             case Op::GREATER_THAN:            return operand_1 > operand_2;
             case Op::GREATER_THAN_OR_EQUAL:   return operand_1 >= operand_2;
             case Op::LESS_THAN:               return operand_1 < operand_2;
             case Op::LESS_THAN_OR_EQUAL:      return operand_1 <= operand_2;
+
+            case Op::LOGICAL_EQUAL:           return Value::makeBool(operand_1 == operand_2);
+            case Op::LOGICAL_NOTEQUAL:        return Value::makeBool(operand_1 != operand_2);
 
             case Op::LOGICAL_AND:   return Value::makeBool(operand_1.val_bool && operand_2.val_bool);
             case Op::LOGICAL_OR:    return Value::makeBool(operand_1.val_bool || operand_2.val_bool);
@@ -197,7 +201,7 @@ private:
     }
 
 
-    Value compute(const Node* node, Context) const {
+    Value compute(const Node* node, Context) {
         reportError(ErrCode::NOT_ALLOWED_CT_CTX, {.location = node->location});
         return {};
     }
@@ -252,7 +256,8 @@ private:
     }
 
 
-    void reportError(const ErrCode code, ErrorContext ctx) const {
+    void reportError(const ErrCode code, ErrorContext ctx) {
+        m_ErrorsOccurred = true;
         ctx.module = m_Module;
         m_ErrorCallback(code, ctx);
     }
@@ -263,6 +268,12 @@ private:
         return m_Module->getStringPool().internLocked(str);
     }
 
+
+public:
+    [[nodiscard]]
+    bool errorsOccurred() const {
+        return m_ErrorsOccurred;
+    }
 
     static std::int64_t toInt64(const std::string_view s) {
         if (s.empty()) return 0;

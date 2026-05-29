@@ -166,6 +166,8 @@ public:
 
 
     void registerType(IdentInfo* id, Type* type) {
+        if (m_TypeManager.contains(id))
+            return;
         m_TypeManager.registerType(id, type);
     }
 
@@ -230,9 +232,7 @@ public:
 
     void registerDecl(IdentInfo* id, const TableEntry& entry) {
         if (m_IdToTableEntry.contains(id))
-            throw std::runtime_error(
-                "SymbolManager::registerDecl: duplicate declaration of "
-                "'" + id->toString() + "'");
+            return;
         m_IdToTableEntry.insert({id, entry});
     }
 

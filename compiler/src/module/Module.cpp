@@ -1,9 +1,10 @@
 #include "CompilerInst.h"
 #include "modules/Module.h"
 
-#include "comptime/ComptimeEvaluator.h"
 #include "modules/ModuleManager.h"
 #include "sema/Sema.h"
+#include "comptime/ComptimeEvaluator.h"
+#include "generics/GenericInstantiator.h"
 
 
 Module::Module(const ModuleContext& context)
@@ -34,6 +35,11 @@ void Module::performSema(const ErrorCallback_t& error_callback) {
 void Module::performComptimeEval(const ErrorCallback_t& error_callback) {
     sw::ComptimeEvaluator evaluator{this, error_callback};
     ast = evaluator.run(ast);
+
+    if (!evaluator.errorsOccurred()) {
+        sw::GenericInstantiator instantiator{this, error_callback};
+        instantiator.instantiateAllGenerics();
+    }
 }
 
 

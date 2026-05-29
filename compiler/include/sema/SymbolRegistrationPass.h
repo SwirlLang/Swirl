@@ -76,6 +76,8 @@ public:
         traverse(node);
         StructStack.pop_back();
 
+        registerGenericParameters(node->generic_params, node->members);
+
         if (isGlobalScope()) {
             NodeJmpTable.insert({node->ident, node});
         }
@@ -111,6 +113,9 @@ public:
         ScopeStack.push_back(node->children);
         node->children->symbols = SymMan.newScope();
         PreCreatedScope = node->children->symbols;
+
+        registerGenericParameters(node->generic_params, node->children);
+
         traverse(node);
         ScopeStack.pop_back();
 
@@ -232,6 +237,21 @@ public:
     bool isGlobalScope() const {
         assert(!ScopeStack.empty());
         return !ScopeStack.back();
+    }
+
+
+private:
+    void registerGenericParameters(std::span<GenericParam*> params, const Scope* scope) const {
+        // register generic params as types and decls in the scope
+        for (const auto& child : params) {
+            const auto id = scope->symbols->getNewIDInfo(child->name);
+            const auto gen_type = new GenericType();
+
+            SymMan.registerDecl(id, {.swirl_type = gen_type});
+
+            gen_type->id = id;
+            SymMan.registerType(id, gen_type);
+        }
     }
 };
 }

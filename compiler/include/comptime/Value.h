@@ -1,7 +1,8 @@
 #pragma once
 #include <cstdint>
+#include <string>
 #include <string_view>
-#include "types/SwTypes.h"
+#include <functional>
 
 
 namespace sw {
@@ -83,15 +84,6 @@ struct Value {
     SHIFT_OP(<<)
     SHIFT_OP(>>)
 
-#define EQ_OP(OP) \
-    friend Value operator OP(const Value& a, const Value& b) { \
-        if (a.type == BOOL && b.type == BOOL) return makeBool(a.val_bool OP b.val_bool); \
-        if (a.type == INT && b.type == INT) return makeBool(a.val_int OP b.val_int); \
-        if (a.type == UINT && b.type == UINT) return makeBool(a.val_uint OP b.val_uint); \
-        if (a.type == FLOAT && b.type == FLOAT) return makeBool(a.val_double OP b.val_double); \
-        if (a.type == STR && b.type == STR) return makeBool(a.val_str OP b.val_str); \
-        return makeBool(false); \
-    }
 
 #define CMP_OP(OP) \
     friend Value operator OP(const Value& a, const Value& b) { \
@@ -101,12 +93,26 @@ struct Value {
         return makeBool(false); \
     }
 
-    EQ_OP(==)
-    EQ_OP(!=)
     CMP_OP(<)
     CMP_OP(<=)
     CMP_OP(>)
     CMP_OP(>=)
+
+    bool operator==(const Value& other) const {
+        if (type != other.type) return false;
+        switch (type) {
+            case BOOL:  return val_bool == other.val_bool;
+            case FLOAT: return val_double == other.val_double;
+            case INT:   return val_int == other.val_int;
+            case UINT:  return val_uint == other.val_uint;
+            case STR:   return val_str == other.val_str;
+            default:    return false;
+        }
+    }
+
+    bool operator!=(const Value& other) const {
+        return !(*this == other);
+    }
 
     Value operator-() const {
         if (type == INT) return makeInt(-val_int);
@@ -124,11 +130,37 @@ struct Value {
         if (type == BOOL) return makeBool(!val_bool);
         return {};
     }
+
+    [[nodiscard]]
+    std::string toString() const {
+        switch (type) {
+            case BOOL:  return val_bool ? "true" : "false";
+            case FLOAT: return std::to_string(val_double);
+            case INT:   return std::to_string(val_int);
+            case UINT:  return std::to_string(val_uint);
+            case STR:   return '"' + std::string(val_str) + '"';
+            default:    return "invalid";
+        }
+    }
 };
 
 #undef CMP_OP
-#undef EQ_OP
 #undef SHIFT_OP
 #undef INT_OP
 #undef NUMERIC_OP
 }
+
+
+template <>
+struct std::hash<sw::Value> {
+    std::size_t operator()(const sw::Value& v) const noexcept {
+        switch (v.type) {
+            case sw::Value::BOOL:  return std::hash<bool>{}(v.val_bool);
+            case sw::Value::FLOAT: return std::hash<double>{}(v.val_double);
+            case sw::Value::INT:   return std::hash<std::int64_t>{}(v.val_int);
+            case sw::Value::UINT:  return std::hash<std::uint64_t>{}(v.val_uint);
+            case sw::Value::STR:   return std::hash<std::string_view>{}(v.val_str);
+            default:               return std::hash<int>{}(v.type);
+        }
+    }
+};

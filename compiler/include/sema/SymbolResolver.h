@@ -1,7 +1,6 @@
 #pragma once
 #include <ranges>
 
-// #include "GenericSubstitutor.h"
 #include "modules/ModuleManager.h"
 #include "SemaVisitor.h"
 
@@ -11,7 +10,6 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
     SymbolManager&    SymMan;
     ModuleManager&    ModuleMap;
     std::unordered_map<IdentInfo*, Node*>& GlobalNodeJmpTable;
-    // GenericSubstitutor Substitutor;
 
 
     struct Data {
@@ -25,7 +23,6 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
         , SymMan(module->symbol_table)
         , ModuleMap(module->getModuleManager())
         , GlobalNodeJmpTable(module->node_jmp_table)
-        // , Substitutor(module)
         {}
 
 
@@ -146,76 +143,7 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             reportError(ErrCode::UNDEFINED_IDENTIFIER, {
                 .str_1 = node->full_qualification.back().name
             });
-            return;
         }
-
-        // if (!node->has_generic_args) {
-        //     return;
-        // }
-        //
-        // --- instantiate generics if present --- //
-        // std::vector<Ident::Qualifier> tmp;
-        //
-        // for (auto&& [i, qual] : std::views::enumerate(node->full_qualification)) {
-        //     tmp.push_back(qual);
-        //
-        //     // handle the generic arguments of this particular qual and build the substitution map
-        //     if (!qual.generic_args.empty()) {
-        //         SubstitutionMap_t map;
-        //         Node* current_node = nullptr;
-        //
-        //         for (GenericArg* arg : qual.generic_args) {
-        //             // handle the IDs in generic arguments first
-        //             if (arg->isType()) {
-        //                 auto a = arg->getType();
-        //                 if (a->type_id) {
-        //                     handle(a->type_id, data);
-        //                 }
-        //             }
-        //
-        //             // build the substitution map
-        //             auto original_id = SymMan.getIDInfoFor(Ident(tmp));
-        //             const auto decl = SymMan.lookupDecl(original_id);
-        //             current_node = decl.node_ptr;
-        //             node->value = original_id;
-        //
-        //             GenericParam* param = nullptr;
-        //             assert(current_node->isGlobal());
-        //             param = current_node->to<GlobalNode>()->generic_params.at(i);
-        //
-        //             map.insert({param->name, arg});
-        //         }
-        //
-        //         // compute the new identifier
-        //         std::string new_qual_name{tmp.back().name};
-        //         for (const auto& gen_arg : tmp.back().generic_args) {
-        //             // TODO: comptime values
-        //             if (gen_arg->isType()) {
-        //                 new_qual_name += '_' + gen_arg->getType()->getIDStr();
-        //             }
-        //         }
-        //
-        //         // the generic arguments of the qual have been resolved
-        //         qual.generic_args = {};
-        //         qual.name = internString(new_qual_name);
-        //
-        //         // do not instantiate if an instance already exists
-        //         if (SymMan.getIdInfoOfAGlobal(std::string(tmp.back().name), false, false)) {
-        //             continue;
-        //         }
-        //
-        //         // instantiate
-        //         auto ctx = SubstitutionContext{.map = map};
-        //         const auto transformed_node = Substitutor.run(current_node, ctx);
-        //         // TODO: change the .swirl_type field to reflect the instantiation
-        //     }
-        // }
-        //
-        // node->has_generic_args = false;
-        //
-        // // reevaluate the identifier
-        // node->value = nullptr;
-        // handle(node, data);
     }
 };
 }

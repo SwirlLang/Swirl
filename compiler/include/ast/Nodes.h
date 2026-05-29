@@ -136,13 +136,14 @@ struct GenericParam final : Node {
 
 /// Nodes which can appear in the Global Scope inherit from `GlobalNode`.
 struct GlobalNode : Node {
-    bool is_extern   = false;
-    bool is_exported = false;
-
     std::string_view name;
 
     std::string_view extern_attributes;
     std::span<GenericParam*> generic_params;
+
+    bool is_extern   = false;
+    bool is_exported = false;
+    bool is_monomorphization = false;
 
     explicit GlobalNode(const NodeType ty)
         : Node(ty) {}

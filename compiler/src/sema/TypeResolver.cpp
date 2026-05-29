@@ -68,6 +68,10 @@ bool sema::TypeResolver::checkTypeCompatibility(Type* from, Type* to, bool repor
         return true;
     }
 
+    if (from->getTypeTag() == Type::GENERIC || to->getTypeTag() == Type::GENERIC) {
+        return true;
+    }
+
     report_error(ErrCode::INCOMPATIBLE_TYPES, {.type_1 = from, .type_2 = to});
     return false;
 }
@@ -115,6 +119,10 @@ Type* sema::TypeResolver::unify(Type* type1, Type* type2) {
 
         return SymMan.getArrayType(
             unify(type1->getWrappedType(), type2->getWrappedType()), type1->getAggregateSize());
+    }
+
+    if (type1->getTypeTag() == Type::GENERIC || type2->getTypeTag() == Type::GENERIC) {
+        return nullptr;
     }
 
     if (type1->isEnumType() && type2->isEnumType() && type1 == type2) {

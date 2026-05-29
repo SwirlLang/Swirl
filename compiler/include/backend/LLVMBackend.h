@@ -133,8 +133,6 @@ public:
         const Scope* children, const SwContext& context, llvm::Value* condition = nullptr
     );
 
-    /// Triggers the generation of an instantiated generic function and returns its `llvm::Function*`.
-    llvm::Function* instantiateGenericFunction(Ident& id, Function* function);
 
     llvm::Module* getLLVMModule() const {
         return LModule.get();

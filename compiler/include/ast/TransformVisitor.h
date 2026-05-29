@@ -161,6 +161,7 @@ protected:
 
         if (changed) {
             const auto new_node = makeNode<Function>(*node);
+            new_node->ident = nullptr;
             new_node->generic_params = m_Module->internArray<GenericParam*>(new_gen_params);
             new_node->params = m_Module->internArray<Var*>(new_params);
             new_node->return_type = static_cast<TypeWrapper*>(ret);
@@ -248,7 +249,8 @@ protected:
         }
 
         if (changed) {
-            auto new_node = makeNode<Struct>(*node);
+            const auto new_node = makeNode<Struct>(*node);
+            new_node->ident = nullptr;
             new_node->generic_params = m_Module->internArray<GenericParam*>(new_gen_params);
             new_node->protocols = m_Module->internArray<Ident*>(new_protocols);
             new_node->members = members;
@@ -290,7 +292,8 @@ protected:
         }
 
         if (changed) {
-            auto new_node = makeNode<TypeWrapper>(*node);
+            const auto new_node = makeNode<TypeWrapper>(*node);
+            new_node->type = nullptr;
             if (type_id != node->type_id)
                 new_node->type_id = static_cast<Ident*>(type_id);
             if (of_type)
@@ -313,6 +316,7 @@ protected:
 
         if (changed) {
             auto new_node = makeNode<Var>(*node);
+            new_node->var_ident = nullptr;
             new_node->var_type = static_cast<TypeWrapper*>(var_type);
             new_node->value = static_cast<Expression*>(value);
             return new_node;
@@ -414,6 +418,7 @@ protected:
 
         if (changed) {
             auto new_node = makeNode<Protocol>(*node);
+            new_node->protocol_id = nullptr;
             new_node->depended_protocols = m_Module->internArray<Ident*>(new_depended);
             new_node->members = m_Module->internArray<Protocol::MemberSignature>(new_members);
             new_node->methods = m_Module->internArray<Protocol::MethodSignature>(new_methods);
@@ -452,6 +457,7 @@ protected:
             auto new_type = run(node->enum_type.value(), std::forward<Args>(args)...);
             if (new_type != node->enum_type.value()) {
                 auto new_node = makeNode<Enum>(*node);
+                new_node->ident = nullptr;
                 new_node->enum_type = static_cast<TypeWrapper*>(new_type);
                 return new_node;
             }
