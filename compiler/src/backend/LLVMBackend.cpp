@@ -1059,8 +1059,8 @@ CGValue LLVMBackend::llvmCodegen(ArrayLit* node, const SwContext& context) {
         return {};
     }
 
-    auto tmp = Builder.CreateAlloca(codegen(context.bound_type, context));
-    auto base_ptr = Builder.CreateStructGEP(codegen(context.bound_type, context), tmp, 0);
+    const auto tmp = Builder.CreateAlloca(codegen(context.bound_type, context));
+    const auto base_ptr = Builder.CreateStructGEP(codegen(context.bound_type, context), tmp, 0);
 
     for (auto [i, element] : llvm::enumerate(node->elements)) {
         ptr = Builder.CreateGEP(arr_type, base_ptr, {toLLVMInt(0), toLLVMInt(i)});
@@ -1179,7 +1179,7 @@ CGValue LLVMBackend::llvmCodegen(ReturnStatement* node, const SwContext& context
 
 
 CGValue LLVMBackend::llvmCodegen(Struct* node, const SwContext& context) {
-    if (!node->generic_params.empty() && !context.is_generic_inst) {
+    if (!node->generic_params.empty() && !node->is_monomorphization) {
         return {};
     }
 

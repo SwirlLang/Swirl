@@ -107,7 +107,7 @@ public:
 
                         subst_map.insert({param->name, {type}});
                         subst_name += type->toString();
-                    }
+                    } subst_name += '_';
                 }
 
                 // monomorphize the generic and push it to the ast if not already done
@@ -121,7 +121,10 @@ public:
                     Node* new_node = m_Substitutor.run(node, ctx);
                     new_node = runAllPassesOn(new_node);
 
+                    if (!new_node) return;
+
                     assert(new_node->isGlobal());
+
                     auto* glob_node = new_node->to<GlobalNode>();
                     glob_node->is_monomorphization = true;
 

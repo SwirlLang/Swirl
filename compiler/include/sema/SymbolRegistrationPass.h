@@ -24,9 +24,14 @@ public:
 
 
     void handle(Scope* node) {
+        assert(!ScopeStack.empty());
+        node->parent_scope = ScopeStack.back();
+
         if (!PreCreatedScope) {
             ScopeStack.push_back(node);
-            node->symbols = SymMan.newScope();
+
+            if (!node->symbols)
+                node->symbols = SymMan.newScope();
 
             if (StructStack.back() && !StructStack.back()->scope) {
                 StructStack.back()->scope = node->symbols;
@@ -72,11 +77,14 @@ public:
             .node_ptr = node,
         });
 
+        node->members->symbols = SymMan.newScope();
         StructStack.push_back(struct_ty);
-        traverse(node);
-        StructStack.pop_back();
 
         registerGenericParameters(node->generic_params, node->members);
+        traverse(node);
+
+        StructStack.pop_back();
+
 
         if (isGlobalScope()) {
             NodeJmpTable.insert({node->ident, node});
@@ -210,7 +218,7 @@ public:
             return id.value();
         }
 
-        for (const Scope* scope : ScopeStack | std::views::reverse) {
+        for (const Scope* scope : ScopeStack) {
             if (scope) {
                 if (const auto id = scope->symbols->getIDInfoFor(name)) {
                     assert(id.value());

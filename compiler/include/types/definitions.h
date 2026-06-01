@@ -31,6 +31,8 @@ inline VoidType  GlobalTypeVoid{};
 inline TypeStr   GlobalTypeStr;
 inline TypeStr   GlobalTypeMutStr{true};
 
+inline GenericType GlobalTypeGeneric{};
+
 
 // C Types
 inline TypeCInt       GlobalTypeCInt{false};

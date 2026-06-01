@@ -58,8 +58,6 @@ public:
 
 
 class SymbolManager {
-    bool m_LockEmplace = false;
-
     TypeManager m_TypeManager;
     ModuleManager& m_ModuleMap;
 

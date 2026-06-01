@@ -359,15 +359,6 @@ public:
     }
 
 
-    // void handle(Ident* node) {
-    //     assert(node->value);
-    //     const auto target_node = SymMan.lookupDecl(node->value).node_ptr->to<GlobalNode>();
-    //
-    //     Ident tmp;
-    //     std::vector<Ident::Qualifier> full_qualification;
-    // }
-
-
     void handle(ReturnStatement* node) {
         ReturnStmtCounter++;
 
@@ -571,7 +562,7 @@ public:
             case ND_BOOL:
                 return &GlobalTypeBool;
             case ND_STR:
-                return &GlobalTypeStr;
+                return SymMan.lookupType("str");
             case ND_IDENT:
                 return SymMan.lookupDecl(node->getIdentInfo()).swirl_type;
             case ND_CALL:

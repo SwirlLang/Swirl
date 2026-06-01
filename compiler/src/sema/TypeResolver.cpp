@@ -122,7 +122,7 @@ Type* sema::TypeResolver::unify(Type* type1, Type* type2) {
     }
 
     if (type1->getTypeTag() == Type::GENERIC || type2->getTypeTag() == Type::GENERIC) {
-        return nullptr;
+        return &GlobalTypeGeneric;
     }
 
     if (type1->isEnumType() && type2->isEnumType() && type1 == type2) {

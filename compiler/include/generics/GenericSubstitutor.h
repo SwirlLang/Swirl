@@ -29,6 +29,15 @@ public:
     }
 
 
+    Node* transform(const Struct* node, SubstitutionContext& ctx) {
+        const auto transformed_struct = const_cast<Node*>(transformDefault(node, ctx));
+
+        const auto new_node = makeNode<Struct>(*(transformed_struct->to<Struct>()));
+        new_node->name = ctx.substitution_name;
+        return new_node;
+    }
+
+
     Node* transform(const Ident* node, SubstitutionContext& ctx) {
         assert(!node->full_qualification.empty());
         if (ctx.map.contains(node->full_qualification.front().name)) {
