@@ -1186,7 +1186,7 @@ CGValue LLVMBackend::llvmCodegen(Struct* node, const SwContext& context) {
     const auto struct_sw_ty = SymMan.lookupType(node->ident);
     assert(struct_sw_ty);
 
-    for (auto& member : node->members->children) {
+    for (const auto& member : node->members->children) {
         if (member->getNodeType() == ND_FUNC) {
             codegen(member, context);
         }

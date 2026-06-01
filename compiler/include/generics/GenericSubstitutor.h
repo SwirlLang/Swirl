@@ -15,8 +15,9 @@ struct SubstitutionContext {
 
 class GenericSubstitutor : public TransformVisitor<GenericSubstitutor> {
 public:
-    explicit GenericSubstitutor(Module* module)
-        : TransformVisitor(module) {}
+    explicit GenericSubstitutor(Module* module, sw::ComptimeEvaluator& evaluator)
+        : TransformVisitor(module)
+        , m_Evaluator(evaluator) {}
 
 
     Node* transform(const Function* node, SubstitutionContext& ctx) {
@@ -25,6 +26,17 @@ public:
         const auto new_node = makeNode<Function>(*(transformed_fn->to<Function>()));
         new_node->name = ctx.substitution_name;
         return new_node;
+    }
+
+
+    Node* transform(const Ident* node, SubstitutionContext& ctx) {
+        assert(!node->full_qualification.empty());
+        if (ctx.map.contains(node->full_qualification.front().name)) {
+            const auto element = ctx.map[node->full_qualification.front().name];
+            assert(std::holds_alternative<sw::Value>(element));
+
+            return m_Evaluator.makeNode(std::get<sw::Value>(element));
+        } return const_cast<Node*>(transformDefault(node, ctx));
     }
 
 
@@ -41,4 +53,8 @@ public:
         }
         return const_cast<Node*>(transformDefault(node, ctx));
     }
+
+
+private:
+    sw::ComptimeEvaluator& m_Evaluator;
 };

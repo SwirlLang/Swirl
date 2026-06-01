@@ -9,10 +9,10 @@ namespace sw {
 class GenericInstantiator : public RecursiveVisitor<GenericInstantiator> {
 public:
     explicit GenericInstantiator(Module* module, ErrorCallback_t error_callback)
-        : m_Substitutor(module)
-        , m_SymMan(module->symbol_table)
+        : m_SymMan(module->symbol_table)
         , m_Module(module)
         , m_ComptimeEvaluator(module, error_callback)
+        , m_Substitutor(module, m_ComptimeEvaluator)
         , m_ErrorCallback(std::move(error_callback)) {}
 
 
@@ -142,10 +142,10 @@ public:
 
 
 private:
-    GenericSubstitutor m_Substitutor;
     SymbolManager&     m_SymMan;
     Module*            m_Module;
     ComptimeEvaluator  m_ComptimeEvaluator;
+    GenericSubstitutor m_Substitutor;
     ErrorCallback_t    m_ErrorCallback;
 };
 }

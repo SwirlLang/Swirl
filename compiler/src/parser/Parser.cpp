@@ -568,7 +568,7 @@ GenericArgList Parser::parseGenericArgList() {
     GenericArgList ret;
     std::vector<GenericArg*> args;
 
-    forwardStream();  // skip '<'
+    ignoreButExpect(Token::PUNC_LBRACE);  // skip '{'
 
     while (true) {
         if (m_Stream.eof()) {
@@ -576,7 +576,7 @@ GenericArgList Parser::parseGenericArgList() {
             break;
         }
 
-        if (m_Stream.CurTok.tokenid == Token::OP_GT) {
+        if (m_Stream.CurTok.tokenid == Token::PUNC_RBRACE) {
             forwardStream();
             break;
         }

@@ -6,6 +6,8 @@
 #include "ast/TransformVisitor.h"
 
 
+class GenericSubstitutor;
+
 namespace sw {
 class ComptimeEvaluator : public TransformVisitor<ComptimeEvaluator> {
 public:
@@ -335,5 +337,7 @@ public:
 
         return val;
     }
+
+    friend class ::GenericSubstitutor;
 };
 }

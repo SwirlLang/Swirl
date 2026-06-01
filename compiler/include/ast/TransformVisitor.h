@@ -319,6 +319,14 @@ protected:
             new_node->var_ident = nullptr;
             new_node->var_type = static_cast<TypeWrapper*>(var_type);
             new_node->value = static_cast<Expression*>(value);
+
+            // remove the generic placeholder type
+            if (new_node->var_type) {
+                new_node->var_type =
+                    new_node->var_type->getSwType()->getTypeTag() == Type::GENERIC
+                    ? nullptr : new_node->var_type;
+            }
+
             return new_node;
         }
         return node;

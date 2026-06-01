@@ -56,6 +56,12 @@ public:
             return false;
         }
 
+        // force re-evaluation of the return type
+        if (node->is_monomorphization &&
+            node->return_type         &&
+            node->return_type->getSwType()->getTypeTag() == Type::GENERIC)
+            node->return_type->type = nullptr;
+
         VisitedNodes.insert(node);
         CurrentParentFunction.push_back(node);
         return true;
