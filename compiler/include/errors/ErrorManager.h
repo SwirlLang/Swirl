@@ -45,6 +45,7 @@ enum class ErrCode {
     // The following error codes are related to types, `type_1` and/or `type_2` shall be set to give context
     // about the types involves
     NO_SUCH_TYPE,             // when the type can't be resolved
+    NOT_CALLABLE,             // the object is not a callable
     INCOMPATIBLE_TYPES,       // non-specific
     NO_IMPLICIT_CONVERSION,   // non-specific catch-all for the edgy implicit-conversion cases
     INT_AND_FLOAT_CONV,       // no implicit integral-floating conversions

@@ -447,6 +447,8 @@ struct Ident final : Node {
 
 /// Encodes all the necessary information needed to get a `Type*`.
 struct TypeWrapper final : Node {
+    using ArraySize_t = std::variant<std::monostate, Node*, std::size_t>;
+
     enum Modifiers { Reference, Pointer };
     Type* type = nullptr;
 
@@ -457,8 +459,8 @@ struct TypeWrapper final : Node {
 
     Ident*  type_id  = nullptr;
 
-    std::size_t array_size = 0;        // 0 indicates that the type isn't an array
-    TypeWrapper* of_type{};            // set in the case of wrapper types (refs, ptr, arrays, slices)
+    ArraySize_t array_size{};   // monostate indicates that the type isn't an array
+    TypeWrapper* of_type{};     // set in the case of wrapper types (refs, ptr, arrays, slices)
 
     explicit TypeWrapper()
         : Node(ND_TYPE) {}

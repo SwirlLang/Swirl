@@ -1261,7 +1261,7 @@ CGValue LLVMBackend::llvmCodegen(Var* node, const SwContext& context) {
 
     llvm::Value* init = nullptr;
 
-    auto linkage = (node->is_exported || node->is_extern) ?
+    const auto linkage = (node->is_exported || node->is_extern) ?
         llvm::GlobalVariable::ExternalLinkage : llvm::GlobalVariable::InternalLinkage;
 
 

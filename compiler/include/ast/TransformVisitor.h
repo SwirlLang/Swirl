@@ -76,6 +76,7 @@ protected:
         if (expr != node->expr) {
             auto new_node = makeNode<Expression>(*node);
             new_node->expr = expr;
+            assert(new_node->expr_type != nullptr);
             return new_node;
         }
         return node;
@@ -291,9 +292,18 @@ protected:
             if (of_type != node->of_type) changed = true;
         }
 
+        Node* array_size_node = nullptr;
+        if (std::holds_alternative<Node*>(node->array_size)) {
+            auto orig = std::get<Node*>(node->array_size);
+            array_size_node = run(orig, std::forward<Args>(args)...);
+            if (array_size_node != orig) changed = true;
+        }
+
         if (changed) {
             const auto new_node = makeNode<TypeWrapper>(*node);
             new_node->type = nullptr;
+            if (array_size_node)
+                new_node->array_size = array_size_node;
             if (type_id != node->type_id)
                 new_node->type_id = static_cast<Ident*>(type_id);
             if (of_type)
@@ -322,9 +332,9 @@ protected:
 
             // remove the generic placeholder type
             if (new_node->var_type) {
-                new_node->var_type =
-                    new_node->var_type->getSwType()->getTypeTag() == Type::GENERIC
-                    ? nullptr : new_node->var_type;
+                if (const auto ty = new_node->var_type->getSwType()) {
+                    new_node->var_type = ty->getTypeTag() == Type::GENERIC ? nullptr : new_node->var_type;
+                }
             }
 
             return new_node;

@@ -163,15 +163,20 @@ TypeWrapper* Parser::parseType() {
 
             if (m_Stream.CurTok.tokenid == Token::OP_BITWISE_OR) {
                 forwardStream();
-                if (m_Stream.CurTok.tokenid == Token::NUM_INT) {
-                    wrapper->array_size =
-                        sw::ComptimeEvaluator::toUInt64(m_Stream.CurTok.value);
-                } else {
-                    reportError(ErrCode::NON_INT_ARRAY_SIZE);
+                switch (m_Stream.CurTok.tokenid) {
+                    case Token::NUM_INT:
+                        wrapper->array_size =
+                            sw::ComptimeEvaluator::toUInt64(forwardStream().value);
+                        break;
+                    case Token::IDENT:
+                        wrapper->array_size = parseIdent();
+                        break;
+                    default:
+                        reportError(ErrCode::NON_INT_ARRAY_SIZE);
                 }
             }
 
-            ignoreButExpect(Token::PUNC_LBRACKET);
+            ignoreButExpect(Token::PUNC_RBRACKET);
             break;
         default:
             reportError(ErrCode::SYNTAX_ERROR, {.msg = "Expected a type"});

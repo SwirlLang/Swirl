@@ -329,7 +329,7 @@ Token TokenStream::readNextTok() {
             if (KeywordMap.contains(val)) {
                 Token::TokenValue kw_val = KeywordMap.at(val);
                 return {KEYWORD, std::move(val), getStreamState(), kw_val};
-            } else if (val == "as")
+            } if (val == "as")
                 return {OP, std::move(val), getStreamState(), Token::OP_AS};
             m_isPreviousTokIdent = true;
             return {IDENT, std::move(val), getStreamState(), Token::IDENT};

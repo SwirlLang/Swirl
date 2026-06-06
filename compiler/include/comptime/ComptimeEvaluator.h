@@ -38,7 +38,11 @@ public:
         if (const TableEntry* decl = SymMan.searchDecl(node->value)) {
             if (decl->is_comptime) {
                 assert(decl->node_ptr);
-                return makeNode(evaluate(decl->node_ptr, {}));
+                const auto ret = makeNode(evaluate(decl->node_ptr, {}));
+
+                // makeNode returns a raw Expression with no `expr_type`
+                ret->expr_type = decl->swirl_type;
+                return ret;
             }
         }
 
@@ -49,8 +53,35 @@ public:
     Node* transform(const Expression* node) {
         if (node->is_comptime) {
             assert(node->expr);
-            return makeNode(evaluate(node->expr, {.type = node->expr_type}));
-        } return const_cast<Node*>(transformDefault(node));
+            const auto expr = makeNode(evaluate(node->expr, {.type = node->expr_type}));
+            expr->to<Expression>()->expr_type = node->expr_type;
+            assert(expr->to<Expression>()->expr_type);
+            return expr;
+        }
+
+        const auto expr = const_cast<Node*>(transformDefault(node));
+        expr->to<Expression>()->expr_type = node->expr_type;
+        assert(node->expr_type);
+        return expr;
+    }
+
+
+    Node* transform(const Function* node) {
+        const auto ret = const_cast<Node*>(transformDefault(node));
+        if (ret != node) {
+            // set the ident to the old one as transformation nullifies it
+            ret->to<Function>()->ident = node->ident;
+        } return ret;
+    }
+
+
+    Node* transform(const Var* node) {
+        const auto ret = const_cast<Node*>(transformDefault(node));
+        if (ret != node) {
+            // set the var_ident to what it was before, as transformation nullifies it
+            auto* var = ret->to<Var>();
+            var->var_ident = node->var_ident;
+        } return ret;
     }
 
 
@@ -60,8 +91,10 @@ private:
     bool m_ErrorsOccurred = false;
 
 
+    /// Constructs a raw Expression node out of `Value`.
+    /// CAUTION: this method does NOT set `expr_type`.
     [[nodiscard]]
-    Node* makeNode(Value val) const {
+    Expression* makeNode(Value val) const {
     #define make_expr(x) m_Module->makeNode<Expression>(Expression::makeExpression(x));
         switch (val.type) {
             case Value::STR:

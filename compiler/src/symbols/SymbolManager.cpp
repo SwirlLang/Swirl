@@ -21,7 +21,7 @@ TableEntry* SymbolManager::searchDecl(IdentInfo* id) {
 
 
 Type* SymbolManager::lookupType(IdentInfo* id) {
-    if (!id) return nullptr;
+    assert(id != nullptr);
     if (const auto mod_path = id->getModuleFileHandle(); mod_path != m_ModuleHandle) {
         return m_ModuleMap.get(mod_path).symbol_table.m_TypeManager.getFor(id);
     } return m_TypeManager.getFor(id);

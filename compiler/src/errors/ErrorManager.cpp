@@ -132,7 +132,8 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
         case ErrCode::PACKAGE_NOT_FOUND:
             return std::format("No package with the name `{}` is registered.", ctx.str_1);
 
-
+        case ErrCode::NOT_CALLABLE:
+            return std::format("`{}` is not callable.", ctx.str_1);
         case ErrCode::NOT_A_GENERIC:
             return std::format("{} is not a generic construct.", ctx.str_1);
         case ErrCode::NOT_ENOUGH_ARGS:

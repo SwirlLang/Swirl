@@ -138,6 +138,37 @@ public:
     }
 
 
+    void postVisit(TypeWrapper* node) {
+        if (node->type && node->type->containsGeneric() && node->type_id && node->type_id->value) {
+            Type* new_type = m_SymMan.lookupType(node->type_id->value);
+            if (new_type && !new_type->containsGeneric()) {
+                node->type = new_type;
+            }
+            return;
+        }
+
+        if (!node->type && !node->type_id && node->of_type && node->of_type->type &&
+            std::holds_alternative<Node*>(node->array_size)) {
+            if (auto* size_node = std::get<Node*>(node->array_size); size_node->getNodeType() == ND_EXPR) {
+                if (const auto* expr = size_node->to<Expression>(); expr->expr->getNodeType() == ND_INT) {
+                    const auto size = ComptimeEvaluator::toUInt64(expr->expr->to<IntLit>()->value);
+                    node->type = m_SymMan.getArrayType(node->of_type->type, size);
+                }
+            }
+        }
+    }
+
+
+    void postVisit(Var* node) {
+        if (node->var_type && node->var_type->type && node->var_ident) {
+            auto& decl = m_SymMan.lookupDecl(node->var_ident);
+            if (decl.swirl_type != node->var_type->type) {
+                decl.swirl_type = node->var_type->type;
+            }
+        }
+    }
+
+
     void reportError(const ErrCode code, ErrorContext ctx) const {
         ctx.module = m_Module;
         m_ErrorCallback(code, ctx);

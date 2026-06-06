@@ -2,10 +2,15 @@
 #include <print>
 
 #include "ast/Visitor.h"
+#include "comptime/ComptimeEvaluator.h"
 #include "modules/ModuleManager.h"
 #include "types/definitions.h"
 #include "sema/SemaVisitor.h"
 
+
+namespace sw {
+class ComptimeEvaluator;
+}
 
 namespace sema {
 struct TypeContext {
@@ -163,10 +168,10 @@ public:
         }
 
         // is an array
-        else if (node->array_size) {
-            auto arr_of_type = evaluateType(node->of_type, ctx);
+        else if (!std::holds_alternative<std::monostate>(node->array_size)) {
+            const auto arr_of_type = evaluateType(node->of_type, ctx);
             if (arr_of_type.deduced_type != nullptr) {
-                ret = SymMan.getArrayType(arr_of_type.deduced_type, node->array_size);
+                ret = SymMan.getArrayType(arr_of_type.deduced_type, std::get<std::size_t>(node->array_size));
             }
         }
 
@@ -277,7 +282,17 @@ public:
         // if not a recursive-case, ensure the function is handled first
         if (getCurrentParentFunc()->getIdentInfo() != id) {
             const auto function = SymMan.lookupDecl(id).node_ptr;
-            assert(function && function->getNodeType() == ND_FUNC);
+            assert(function);
+
+            if (function->getNodeType() != ND_FUNC) {
+                reportError(ErrCode::NOT_CALLABLE, {
+                    .str_1 = id->toString(),
+                    .location = node->location
+                });
+
+                return {};
+            }
+
             analyzeNodeWithID(id);
         }
 
@@ -314,7 +329,7 @@ public:
         // check the type compatibility between the function signature and the arguments
         for (std::size_t i = 0; i < node->args.size(); i++) {
             const std::size_t index = i + (ctx.is_method_call ? 1 : 0);
-            auto arg_type = inferType(node->args.at(i), {
+            const auto arg_type = inferType(node->args.at(i), {
                 .bound_type = fn_type->param_types.at(index)
             });
 
@@ -403,6 +418,7 @@ public:
 
     void handle(Var* node) {
         if (node->var_type) {
+            visit(node->var_type);
             inferType(node->var_type, {});
         }
 

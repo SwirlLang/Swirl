@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <format>
 #include <vector>
 
@@ -120,6 +121,11 @@ struct Type {
         return this;
     }
 
+    /// Returns true if the type contains anything generic
+    [[nodiscard]] virtual bool containsGeneric() {
+        return false;
+    }
+
     template <typename From>
     std::add_pointer_t<From> to();
 
@@ -156,6 +162,12 @@ struct FunctionType final : Type {
     SwTypes getTypeTag() override { return FUNCTION; }
     [[nodiscard]] IdentInfo* getIdent() const override { return ident; }
 
+    bool containsGeneric() override {
+        return std::ranges::any_of(param_types, [](auto p) {
+            return p->containsGeneric();
+        });
+    }
+
     [[nodiscard]] std::string toString() const override;
 };
 
@@ -191,6 +203,12 @@ struct StructType final : Type {
 
     [[nodiscard]] std::string toString() const override;
     [[nodiscard]] IdentInfo*  getIdent() const override { return ident; }
+
+    bool containsGeneric() override {
+        return std::ranges::any_of(field_types, [](auto p) {
+            return p->containsGeneric();
+        });
+    }
 
     bool isStructType() override {
         return true;
@@ -277,6 +295,10 @@ struct GenericType final : Type {
     IdentInfo* getIdent() const override {
         return contained_type ? contained_type->getIdent() : id;
     }
+
+    bool containsGeneric() override {
+        return true;
+    }
 };
 
 
@@ -302,6 +324,10 @@ struct ArrayType final : Type {
 
     bool isArrayType() override {
         return true;
+    }
+
+    bool containsGeneric() override {
+        return of_type->containsGeneric();
     }
 };
 
@@ -359,6 +385,10 @@ struct ReferenceType final : Type {
     bool isReferenceType() override {
         return true;
     }
+
+    bool containsGeneric() override {
+        return of_type->containsGeneric();
+    }
 };
 
 
@@ -376,6 +406,10 @@ struct PointerType final : Type {
     SwTypes    getTypeTag() override { return POINTER; }
 
     Type* getWrappedType() override { return of_type; }
+
+    bool containsGeneric() override {
+        return of_type->containsGeneric();
+    }
 };
 
 
@@ -390,6 +424,10 @@ struct SliceType final : Type {
 
     SwTypes getTypeTag() override { return SLICE; }
     Type* getWrappedType() override { return of_type; }
+
+    bool containsGeneric() override {
+        return of_type->containsGeneric();
+    }
 };
 
 
