@@ -11,6 +11,7 @@
 #include "modules/ModuleManager.h"
 #include "utils/FileSystem.h"
 #include "utils/StringPool.h"
+#include "builtins/builtins.h"
 
 #include <llvm/TargetParser/Host.h>
 

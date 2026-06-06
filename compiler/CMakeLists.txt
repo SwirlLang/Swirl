@@ -1,5 +1,15 @@
 configure_file(include/SwirlConfig.h.in "${PROJECT_BINARY_DIR}/include/SwirlConfig.h")
 
+file(READ "include/builtins/builtins.sw" BUILTIN_FILE)
+configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/builtins/builtins.h.in"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/builtins/builtins.h"
+        @ONLY
+        ESCAPE_QUOTES
+        NEWLINE_STYLE LF
+)
+
+
 find_package(LLVM REQUIRED CONFIG)
 find_package(LLD REQUIRED CONFIG)
 
