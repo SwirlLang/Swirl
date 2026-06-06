@@ -97,6 +97,12 @@ public:
         if (node->full_qualification.size() == 1 && node->full_qualification.at(0).generic_args.empty()) {
             node->value = searchForSymbol(node->full_qualification.front().name);
         }
+
+        for (auto& [_, generic_args] : node->full_qualification ) {
+            for (GenericArg* arg : generic_args) {
+                visit(arg);
+            }
+        }
     }
 
 

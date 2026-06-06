@@ -138,24 +138,24 @@ public:
     }
 
 
-    void postVisit(TypeWrapper* node) {
+    void postVisit(TypeWrapper* node) const {
         if (node->type && node->type->containsGeneric() && node->type_id && node->type_id->value) {
             Type* new_type = m_SymMan.lookupType(node->type_id->value);
             if (new_type && !new_type->containsGeneric()) {
                 node->type = new_type;
-            }
-            return;
+            } return;
         }
 
-        if (!node->type && !node->type_id && node->of_type && node->of_type->type &&
-            std::holds_alternative<Node*>(node->array_size)) {
-            if (auto* size_node = std::get<Node*>(node->array_size); size_node->getNodeType() == ND_EXPR) {
-                if (const auto* expr = size_node->to<Expression>(); expr->expr->getNodeType() == ND_INT) {
-                    const auto size = ComptimeEvaluator::toUInt64(expr->expr->to<IntLit>()->value);
-                    node->type = m_SymMan.getArrayType(node->of_type->type, size);
-                }
-            }
-        }
+        // handle the special case of arrays
+        // if (!node->type_id && node->of_type && node->of_type->type &&
+        //     std::holds_alternative<Node*>(node->array_size)) {
+        //     if (auto* size_node = std::get<Node*>(node->array_size); size_node->getNodeType() == ND_EXPR) {
+        //         if (const auto* expr = size_node->to<Expression>(); expr->expr->getNodeType() == ND_INT) {
+        //             const auto size = ComptimeEvaluator::toUInt64(expr->expr->to<IntLit>()->value);
+        //             node->type = m_SymMan.getArrayType(node->of_type->type, size);
+        //         }
+        //     }
+        // }
     }
 
 

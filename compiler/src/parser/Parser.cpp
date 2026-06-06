@@ -169,7 +169,7 @@ TypeWrapper* Parser::parseType() {
                             sw::ComptimeEvaluator::toUInt64(forwardStream().value);
                         break;
                     case Token::IDENT:
-                        wrapper->array_size = parseIdent();
+                        wrapper->array_size = static_cast<Node*>(parseIdent());
                         break;
                     default:
                         reportError(ErrCode::NON_INT_ARRAY_SIZE);

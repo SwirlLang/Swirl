@@ -136,7 +136,7 @@ public:
     TypeInfo evaluateType(ArrayLit* node, const TypeContext& ctx) {
         Type* common_type = nullptr;
 
-        for (auto& element : node->elements) {
+        for (const auto& element : node->elements) {
             if (common_type) {
                 common_type = unify(inferType(element, ctx).deduced_type, common_type);
             } else common_type = inferType(element, ctx).deduced_type;
@@ -169,9 +169,22 @@ public:
 
         // is an array
         else if (!std::holds_alternative<std::monostate>(node->array_size)) {
-            const auto arr_of_type = evaluateType(node->of_type, ctx);
-            if (arr_of_type.deduced_type != nullptr) {
-                ret = SymMan.getArrayType(arr_of_type.deduced_type, std::get<std::size_t>(node->array_size));
+            const auto arr_of_type = evaluateType(node->of_type, ctx).deduced_type;
+            std::size_t array_size  = 0;
+
+            if (std::holds_alternative<std::size_t>(node->array_size)) {
+                array_size = std::get<std::size_t>(node->array_size);
+            }
+
+            if (Node** size = std::get_if<Node*>(&node->array_size)) {
+                if (const auto nd = *size; nd->getNodeType() == ND_EXPR) {
+                    array_size = sw::ComptimeEvaluator::toUInt64(
+                        nd->to<Expression>()->expr->to<IntLit>()->value);
+                }
+            }
+
+            if (arr_of_type != nullptr) {
+                ret = SymMan.getArrayType(arr_of_type, array_size);
             }
         }
 
