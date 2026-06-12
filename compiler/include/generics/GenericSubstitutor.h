@@ -24,13 +24,19 @@ public:
         const auto transformed_fn = const_cast<Node*>(transformDefault(node, ctx));
 
         const auto new_node = makeNode<Function>(*(transformed_fn->to<Function>()));
-        new_node->name = ctx.substitution_name;
+
+        if (!m_IsWithinStruct) {
+            new_node->name = ctx.substitution_name;
+        }
+
         return new_node;
     }
 
 
     Node* transform(const Struct* node, SubstitutionContext& ctx) {
+        m_IsWithinStruct = true;
         const auto transformed_struct = const_cast<Node*>(transformDefault(node, ctx));
+        m_IsWithinStruct = false;
 
         const auto new_node = makeNode<Struct>(*(transformed_struct->to<Struct>()));
         new_node->name = ctx.substitution_name;
@@ -66,4 +72,5 @@ public:
 
 private:
     sw::ComptimeEvaluator& m_Evaluator;
+    bool m_IsWithinStruct = false;
 };

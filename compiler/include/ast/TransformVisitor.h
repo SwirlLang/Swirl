@@ -567,6 +567,12 @@ protected:
     }
 
 
+    [[nodiscard]]
+    std::string_view internString(const std::string_view str) const {
+        return m_Module->getStringPool().internLocked(str);
+    }
+
+
 private:
     Module* m_Module;
 

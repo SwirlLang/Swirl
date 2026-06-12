@@ -545,8 +545,6 @@ struct TypeF32 final : FloatingPointType {
 
     bool isFloatingPoint() override { return true; }
     unsigned int getBitWidth() override { return 32; }
-
-    
 };
 
 

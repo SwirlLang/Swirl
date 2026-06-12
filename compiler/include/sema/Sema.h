@@ -15,14 +15,16 @@
 namespace sema {
 class Sema {
 public:
-    Sema(Module* module, ErrorCallback_t error_callback)
-        : m_Module(module), m_ErrorCallback(std::move(error_callback)) {}
+    Sema(Module* module, ErrorCallback_t error_callback, const bool is_mono = false)
+        : m_Module(module)
+        , m_ErrorCallback(std::move(error_callback))
+        , m_IsMonomorphization(is_mono) {}
 
 
     /// Performs sema on the entire module.
     void start() {
     #define SW_SEMA_PASS(x, ...) \
-        x x ## _inst{m_Module, m_ErrorCallback}; \
+        x x ## _inst{{m_Module, m_ErrorCallback}}; \
         x ## _inst.dispatch(m_Module->ast __VA_OPT__(,) __VA_ARGS__); \
         if (x ## _inst.errorsOccurred()) { m_ErrorsOccurred = true; return; }
         SW_SEMA_PIPELINE
@@ -31,9 +33,9 @@ public:
 
 
     /// Performs sema on the particular node.
-    void start(Node* node) {
+    void start(Node* node, bool is_monomorphization = false) {
     #define SW_SEMA_PASS(x, ...) \
-        x x ## _inst{m_Module, m_ErrorCallback}; \
+        x x ## _inst{{m_Module, m_ErrorCallback, is_monomorphization}}; \
         x ## _inst.dispatch(node __VA_OPT__(,) __VA_ARGS__); \
         if (x ## _inst.errorsOccurred()) { m_ErrorsOccurred = true; return; }
         SW_SEMA_PIPELINE
@@ -52,5 +54,6 @@ private:
     ErrorCallback_t m_ErrorCallback;
 
     bool m_ErrorsOccurred = false;
+    bool m_IsMonomorphization = false;
 };
 }

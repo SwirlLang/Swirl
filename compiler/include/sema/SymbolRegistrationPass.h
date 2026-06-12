@@ -6,10 +6,10 @@ namespace sema {
 class SymbolRegistrationPass : public SemaVisitor<SymbolRegistrationPass> {
 public:
     explicit
-    SymbolRegistrationPass(Module* module, const ErrorCallback_t& error_callback)
-        : SemaVisitor(module, error_callback)
-        , SymMan(module->symbol_table)
-        , NodeJmpTable(module->node_jmp_table) {}
+    SymbolRegistrationPass(const SemaContext& context)
+        : SemaVisitor(context.module, context.error_callback)
+        , SymMan(context.module->symbol_table)
+        , NodeJmpTable(context.module->node_jmp_table) {}
 
 
     // The scope being nullptr => the current scope is global
@@ -56,6 +56,7 @@ public:
 
 
     void handle(Struct* node) {
+        if (node->ident) return;
         node->ident = getNewIDInfo(node->name);
 
         const auto struct_ty = new StructType{};
@@ -93,9 +94,13 @@ public:
 
 
     void handle(Ident* node) {
+        if (node->value) return;
+
         // attempt to resolve possibly local symbols
         if (node->full_qualification.size() == 1 && node->full_qualification.at(0).generic_args.empty()) {
-            node->value = searchForSymbol(node->full_qualification.front().name);
+            if (const auto result = searchForSymbol(node->full_qualification.front().name)) {
+                node->value = result;
+            }
         }
 
         for (auto& [_, generic_args] : node->full_qualification ) {
@@ -107,6 +112,7 @@ public:
 
 
     void handle(Function* node) {
+        if (node->ident) return;
         node->ident = getNewIDInfo(node->name);
 
         const auto fn_type = new FunctionType();
@@ -140,6 +146,8 @@ public:
 
 
     bool preVisit(Var* node) {
+        if (node->var_ident) return true;
+
         if (node->is_instance_param) {
             if (StructStack.empty() || !StructStack.back()) {
                 reportError(ErrCode::NO_INSTANCE_PARAM_HERE, {});

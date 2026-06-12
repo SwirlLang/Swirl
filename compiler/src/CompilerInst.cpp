@@ -214,6 +214,8 @@ void CompilerInst::produceExecutable() {
     }
 
     std::vector<const char*> llvm_args;
+    llvm_args.reserve(args.size());
+
     for (const auto& s : args) {
         llvm_args.push_back(s.c_str());
     }

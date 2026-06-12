@@ -5,6 +5,8 @@
 #include "SemaVisitor.h"
 
 
+class NamespaceResolver;
+
 namespace sema {
 struct SymbolResolver : SemaVisitor<SymbolResolver> {
     SymbolManager&    SymMan;
@@ -18,11 +20,11 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
     };
 
 
-    explicit SymbolResolver(Module* module, const ErrorCallback_t& error_callback)
-        : SemaVisitor(module, error_callback)
-        , SymMan(module->symbol_table)
-        , ModuleMap(module->getModuleManager())
-        , GlobalNodeJmpTable(module->node_jmp_table)
+    explicit SymbolResolver(const SemaContext& context)
+        : SemaVisitor(context.module, context.error_callback)
+        , SymMan(context.module->symbol_table)
+        , ModuleMap(context.module->getModuleManager())
+        , GlobalNodeJmpTable(context.module->node_jmp_table)
         {}
 
 
@@ -110,15 +112,20 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
     }
 
 
-    bool preVisit(Ident* node, const Data&) {
-        if (node->full_qualification.empty()) {
-            return false;
-        } return true;
+    void handle(Op* node, Data data) {
+        if (node->op_type == Op::DOT) {
+            // only visit LHS; RHS method-name Ident is handled by TypeResolver::evaluateType(Op*)
+            visit(node->operands.at(0), std::move(data));
+        } else {
+            for (auto& operand : node->operands) {
+                visit(operand, data);
+            }
+        }
     }
 
 
-    bool preVisit(Op* node, const Data& data) {
-        if (node->op_type == Op::DOT) {
+    bool preVisit(Ident* node, const Data&) {
+        if (node->full_qualification.empty()) {
             return false;
         } return true;
     }

@@ -29,16 +29,17 @@ public:
     std::vector<Function*> CurrentParentFunction = {nullptr};
     std::unordered_map<IdentInfo*, Node*> GlobalNodeJmpTable;
 
-    bool IsGenericInst = false;
-    CREATE_STATE_RAII_WRAPPER(IsGenericInst);
+    bool IsMonomorphization = false;
 
 
     inline static GlobalCache VisitedNodes;
 
-    explicit TypeResolver(Module* module, const ErrorCallback_t& error_callback)
-        : SemaVisitor(module, error_callback)
-        , SymMan(module->symbol_table)
-        , GlobalNodeJmpTable(module->node_jmp_table) {}
+    explicit TypeResolver(const SemaContext& context)
+        : SemaVisitor(context.module, context.error_callback)
+        , SymMan(context.module->symbol_table)
+        , GlobalNodeJmpTable(context.module->node_jmp_table)
+        , IsMonomorphization(context.is_monomorphization) {}
+
 
     struct TypeInfo {
         Type* deduced_type = nullptr;
@@ -57,7 +58,7 @@ public:
 
 
     bool preVisit(Function* node) {
-        if (VisitedNodes.contains(node) && !IsGenericInst) {
+        if (VisitedNodes.contains(node)) {
             return false;
         }
 
@@ -73,22 +74,25 @@ public:
     }
 
 
-    void postVisit(Function* node) {
+    void postVisit(const Function* node) {
         auto* fn_type = SymMan.lookupType(node->ident)->to<FunctionType>();
 
-        if (!fn_type->ret_type) {
-            fn_type->ret_type = CommonFunctionType;
+        // early return if `postVisit` skips over
+        if (CurrentParentFunction.back() != node) {
+            ReturnStmtCounter = 0;
+            CommonFunctionType = nullptr;
+            return;
         }
+
+        if (!fn_type->ret_type)
+            fn_type->ret_type = CommonFunctionType;
 
         if (fn_type->ret_type == nullptr && ReturnStmtCounter == 0) {
             fn_type->ret_type       = &GlobalTypeVoid;
             node->return_type->type = &GlobalTypeVoid;
         }
 
-        if (CurrentParentFunction.back() == node) {
-            CurrentParentFunction.pop_back();
-        }
-
+        CurrentParentFunction.pop_back();
         ReturnStmtCounter = 0;
         CommonFunctionType = nullptr;
     }
@@ -355,6 +359,7 @@ public:
 
     TypeInfo evaluateType(Op* node, const TypeContext& ctx);
 
+
     void handle(Function* node) {
         if (node->return_type) {
             inferType(node->return_type, {});
@@ -365,15 +370,15 @@ public:
 
         CommonFunctionType = fn_type->ret_type;
 
-        assert(fn_type->param_types.size() <= 1 || IsGenericInst);
+        fn_type->param_types.clear();
+
+        assert(fn_type->param_types.size() <= 1);
         for (Var* param : node->params) {
             handle(param);
 
-            if (!IsGenericInst) {
-                auto param_type = param->var_type->type;
-                fn_type->param_types.push_back(param_type);
-                SymMan.lookupDecl(param->var_ident).swirl_type = param_type;
-            }
+            auto param_type = param->var_type->type;
+            fn_type->param_types.push_back(param_type);
+            SymMan.lookupDecl(param->var_ident).swirl_type = param_type;
         }
 
         // visit children
@@ -509,6 +514,7 @@ public:
 
     void postVisit(Struct* node) {
         const auto ty = SymMan.lookupType(node->ident)->to<StructType>();
+        ty->field_types.clear();
 
         std::unordered_set<Protocol::MemberSignature> member_lookup;
         std::unordered_set<Protocol::MethodSignature> method_lookup;
@@ -573,12 +579,6 @@ public:
     void analyzeNodeWithID(IdentInfo* id) {
         if (!GlobalNodeJmpTable.contains(id)) { return; }
         this->visit(GlobalNodeJmpTable[id]);
-    }
-
-
-    void evaluateGenericInst(Node* node) {
-        SET_STATE_TO(IsGenericInst, true);
-        visit(node);
     }
 
 

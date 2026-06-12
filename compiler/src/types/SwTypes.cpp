@@ -74,6 +74,10 @@ llvm::Type* LLVMBackend::llvmCodegen(StructType* type, const SwContext& ctx) {
         llvm_fields.push_back(codegen(field, ctx));
     }
 
+    if (llvm_fields.empty()) {
+        llvm_fields.push_back(llvm::Type::getInt8Ty(LLVMContext));
+    }
+
     const auto struct_t = llvm::StructType::create(LLVMContext, type->ident->toString());
     struct_t->setBody(llvm_fields);
 

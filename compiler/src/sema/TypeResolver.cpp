@@ -14,7 +14,6 @@ bool sema::TypeResolver::checkTypeCompatibility(Type* from, Type* to, bool repor
         }
     };
 
-
     if (from->isIntegral() && to->isFloatingPoint() || to->isFloatingPoint() && from->isIntegral()) {
         report_error(ErrCode::INT_AND_FLOAT_CONV, {.type_1 = from, .type_2 = to});
         return false;
@@ -62,6 +61,13 @@ bool sema::TypeResolver::checkTypeCompatibility(Type* from, Type* to, bool repor
             report_error(ErrCode::INCOMPATIBLE_TYPES, {.type_1 = from, .type_2 = to});
             return false;
         } return true;
+    }
+
+    // relax the rules for enums when monomorphizing, this is a clutch since enums are substituted
+    // with integers after compile time evaluation, which precedes monomorphization, triggering the type checker
+    // for implicit conversion between enums and integral types is prohibited
+    if (IsMonomorphization && (from->isEnumType() || to->isEnumType())) {
+        return true;
     }
 
     if (from->isEnumType() && to->isEnumType() && from == to) {
@@ -330,8 +336,6 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                             .bound_type = ctx.bound_type,
                             .method_id = *id,
                         });
-
-                        // it's on the callee to restore the method call state
 
                         deduced_type = analysis_res.deduced_type;
 

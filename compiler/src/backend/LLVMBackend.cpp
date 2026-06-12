@@ -858,6 +858,10 @@ CGValue LLVMBackend::llvmCodegen(Ident* node, const SwContext& context) {
         return CGValue::rValue(e.llvm_value);
     }
 
+    if (e.swirl_type->isStructType()) {
+        return CGValue::lValue(e.llvm_value);
+    }
+
     return {e.llvm_value, castIfNecessary(
         e.swirl_type, Builder.CreateLoad(
             codegen(e.swirl_type, context), e.llvm_value), context)};
@@ -1139,7 +1143,7 @@ CGValue LLVMBackend::llvmCodegen(Intrinsic* node, const SwContext& context) {
                 return CGValue::rValue(toLLVMInt(getDataLayout().getPointerSize(0)));
             } if (val_type->isVoidTy()) {
                 return CGValue::rValue(toLLVMInt(0));
-            } return CGValue::rValue(toLLVMInt(getDataLayout().getTypeSizeInBits(val_type) / 8));
+            } return CGValue::rValue(toLLVMInt(getDataLayout().getTypeSizeInBits(val_type).getFixedValue() / 8));
         }
         case Intrinsic::TYPEOF:
             return codegen(node->args.at(0), context);
@@ -1309,7 +1313,7 @@ CGValue LLVMBackend::llvmCodegen(Var* node, const SwContext& context) {
             Builder.CreateMemSet(
                 var_alloca,
                 toLLVMInt(0, 8),
-                getDataLayout().getTypeAllocSize(type),
+                getDataLayout().getTypeAllocSize(type).getFixedValue(),
                 llvm::MaybeAlign());
 
             // TODO: make the memset inline in freestanding mode ^

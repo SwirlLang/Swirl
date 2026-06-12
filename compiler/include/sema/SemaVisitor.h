@@ -14,6 +14,13 @@
 
 
 namespace sema {
+struct SemaContext {
+    Module* module{};
+    ErrorCallback_t error_callback{};
+    bool is_monomorphization = false;
+};
+
+
 class GlobalCache {
 public:
     void insert(Node* node) {
@@ -24,6 +31,10 @@ public:
     bool contains(Node* node) {
         auto guard = std::lock_guard(m_Mutex);
         return m_VisitedNodes.contains(node);
+    }
+
+    void clear() {
+        m_VisitedNodes.clear();
     }
 
 private:
@@ -57,7 +68,7 @@ protected:
         if (!context.location.has_value()) {
             assert(!m_NodeStack.empty());
             context.location = m_NodeStack.back()->location;
-        } m_Callback(code, std::move(context));
+        } // m_Callback(code, std::move(context));
     }
 
     friend class RecursiveVisitor<Derived>;
