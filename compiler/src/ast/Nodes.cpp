@@ -55,6 +55,7 @@ std::unordered_map<Op::OpTag_t, OpInfo> OpInfoTable = {
     {Op::UNARY_ADD, {150, OpInfo::LEFT}},
     {Op::UNARY_SUB, {150, OpInfo::LEFT}},
     {Op::DEREFERENCE, {150, OpInfo::LEFT}},
+    {Op::LOGICAL_NOT, {150, OpInfo::LEFT}},
 
     {Op::INDEXING_OP, {200, OpInfo::LEFT}},
     {Op::DOT, {800, OpInfo::LEFT}},
