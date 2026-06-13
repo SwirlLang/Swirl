@@ -254,7 +254,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
             case Op::DOT: {
                 DisableErrorCode _(*this, ErrCode::UNDEFINED_IDENTIFIER);
 
-                const Ident* accessed_id = node->getRHS()->getWrappedNodeOrInstance()->getIdent();
+                auto* accessed_id = node->getRHS()->getWrappedNodeOrInstance()->getIdent();
                 if (!accessed_id) {
                     reportError(ErrCode::SYNTAX_ERROR, {
                         .msg = "Expected a named expression."});
@@ -288,6 +288,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
 
                         // now when the ID with the name does exist
                         const auto& member_tab_entry = SymMan.lookupDecl(*id);
+                        accessed_id->value = *id;
                         ret.computed_namespace = member_tab_entry.scope;
                         ret.deduced_type = member_tab_entry.swirl_type;
                         node->common_type = ret.deduced_type;
@@ -326,6 +327,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
 
 
                     const auto& member_tab_entry = SymMan.lookupDecl(*id);
+                    accessed_id->value = *id;
 
                     auto deduced_type = member_tab_entry.swirl_type;
                     auto computed_namespace = member_tab_entry.scope;
