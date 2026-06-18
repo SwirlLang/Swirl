@@ -37,6 +37,81 @@ The following text is a brief on the compilation pipeline of the Compiler (detai
 
 - [`LLVMBackend`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/backend/LLVMBackend.h): this class owns the codegen logic for generating the LLVM IR, since all the needed information to codegen a Module is already built in previous stages, each Module is codegen'ed in parallel.
 
+```mermaid
+flowchart TB
+    subgraph Entry["CompilerInst (orchestrates the whole pipeline)"]
+        A1["• Owns ThreadPool, ErrorManager, FileSystem, StringPool<br/>• Owns ModuleManager<br/>• Calls Module::parse() for each module<br/>• Drives the batched Sema loop<br/>• Starts LLVM codegen + linking"]
+    end
+    subgraph Phase1["① Parsing Phase — Per Module"]
+        direction LR
+        M["Module<br/>(Each .swirl file)<br/>• AST, SymbolTable<br/>• BumpAllocator"]
+        L["Lexer / Tokenizer<br/>TokenStream + Tokens"]
+        P["Parser<br/>• Created per module, then destroyed<br/>• Builds AST<br/>• Owns ExpressionParser <br/>• Owns the Tokenizer (lexer)"]
+        M --> L --> P
+    end
+    subgraph Phase2["② Semantic Analysis — 3 Passes (batched & parallel)"]
+        MM["ModuleManager<br/>• Topological sort → zero-dep batches<br/>• Modules in same batch run parallel<br/>• Each module performs all 3 passes"]
+        SRP["1. SymbolRegistrationPass<br/>• Registers symbols in SymbolManager<br/>• Resolves local refs → IdentInfo*"]
+        SR["2. SymbolResolver<br/>• Imports symbols into scope<br/>• Resolves global refs"]
+        TR["3. TypeResolver<br/>• Type enforcement + inference<br/>• via TypeManager + SwTypes"]
+        MM -.- SRP --> SR --> TR
+    end
+    subgraph Phase3["③ Post-Sema"]
+        CT["Compile-Time Evaluation<br/>ComptimeEvaluator + Value"]
+        GI["Generic Instantiation<br/>GenericInstantiator + GenericSubstitutor<br/>(monomorphization)"]
+    end
+    subgraph Phase4["④ LLVM Codegen"]
+        CG["LLVMBackend<br/>• Generates LLVM IR per module (parallel)<br/>• Object file generation"]
+        LINK["Linker — links objects + deps → executable"]
+    end
+    Entry -->|"Module::parse()"| Phase1
+    Phase1 -->|"AST"| Phase2
+    Phase2 -->|"no errors"| Phase3
+    Phase3 --> Phase4
+    CG --> LINK
+    LINK --> DONE["[Done]"]
+    style Entry fill:#1a1a2e,color:#eee,stroke:#e94560,stroke-width:2px
+    style Phase1 fill:#533483,color:#eee,stroke:#e94560,stroke-width:2px
+    style Phase2 fill:#0f3460,color:#eee,stroke:#e94560,stroke-width:2px
+    style Phase3 fill:#16213e,color:#eee,stroke:#e94560,stroke-width:2px
+    style Phase4 fill:#1a1a2e,color:#eee,stroke:#e94560,stroke-width:2px
+```
+## Source references
+
+| Component | File |
+|---|---|
+| CompilerInst | [`compiler/include/CompilerInst.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/CompilerInst.h) |
+| ModuleManager | [`compiler/include/modules/ModuleManager.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/modules/ModuleManager.h) |
+| Module | [`compiler/include/modules/Module.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/modules/Module.h) |
+| TokenStream (Lexer) | [`compiler/include/lexer/TokenStream.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/lexer/TokenStream.h) |
+| Tokens | [`compiler/include/lexer/Tokens.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/lexer/Tokens.h) |
+| Parser | [`compiler/include/parser/Parser.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/parser/Parser.h) |
+| ExpressionParser | [`compiler/include/parser/ExpressionParser.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/parser/ExpressionParser.h) |
+| SymbolRegistrationPass | [`compiler/include/sema/SymbolRegistrationPass.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/sema/SymbolRegistrationPass.h) |
+| SymbolResolver | [`compiler/include/sema/SymbolResolver.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/sema/SymbolResolver.h) |
+| TypeResolver | [`compiler/include/sema/TypeResolver.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/sema/TypeResolver.h) |
+| Sema (pipeline orchestrator) | [`compiler/include/sema/Sema.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/sema/Sema.h) |
+| SymbolManager | [`compiler/include/symbols/SymbolManager.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/symbols/SymbolManager.h) |
+| IdentManager | [`compiler/include/symbols/IdentManager.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/symbols/IdentManager.h) |
+| SwTypes | [`compiler/include/types/SwTypes.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/types/SwTypes.h) |
+| TypeManager | [`compiler/include/types/TypeManager.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/types/TypeManager.h) |
+| ComptimeEvaluator | [`compiler/include/comptime/ComptimeEvaluator.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/comptime/ComptimeEvaluator.h) |
+| Value | [`compiler/include/comptime/Value.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/comptime/Value.h) |
+| GenericInstantiator | [`compiler/include/generics/GenericInstantiator.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/generics/GenericInstantiator.h) |
+| GenericSubstitutor | [`compiler/include/generics/GenericSubstitutor.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/generics/GenericSubstitutor.h) |
+| LLVMBackend | [`compiler/include/backend/LLVMBackend.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/backend/LLVMBackend.h) |
+| BumpAllocator | [`compiler/include/utils/BumpAllocator.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/utils/BumpAllocator.h) |
+| FileSystem | [`compiler/include/utils/FileSystem.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/utils/FileSystem.h) |
+| StringPool | [`compiler/include/utils/StringPool.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/utils/StringPool.h) |
+| ErrorManager | [`compiler/include/errors/ErrorManager.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/errors/ErrorManager.h) |
+| ErrorPipeline | [`compiler/include/errors/ErrorPipeline.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/errors/ErrorPipeline.h) |
+| AST Nodes | [`compiler/include/ast/Nodes.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/ast/Nodes.h) |
+| AST Visitor | [`compiler/include/ast/Visitor.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/ast/Visitor.h) |
+| SourceManager | [`compiler/include/managers/SourceManager.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/managers/SourceManager.h) |
+| CLI | [`compiler/include/cli/cli.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/cli/cli.h) |
+| Builtins | [`compiler/include/builtins/builtins.h`](https://github.com/SwirlLang/Swirl/blob/main/compiler/include/builtins/builtins.h) |
+
+
 ## Contributing to Swirl
 We welcome contributions to Swirl! To start contributing to Swirl, fork the repository, create a new branch, make the changes, and submit a pull request. Read the [Docs](https://swirl-lang.netlify.app/docs) for more info.
 
