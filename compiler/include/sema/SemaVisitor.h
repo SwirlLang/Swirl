@@ -68,7 +68,7 @@ protected:
         if (!context.location.has_value()) {
             assert(!m_NodeStack.empty());
             context.location = m_NodeStack.back()->location;
-        } // m_Callback(code, std::move(context));
+        } m_Callback(code, std::move(context));
     }
 
     friend class RecursiveVisitor<Derived>;
