@@ -31,7 +31,7 @@ concept HasShouldTraverse = requires (D& d, T* node, Args&&... args) {
 
 template <typename D, typename T, typename... Args>
 concept HasPreVisitImplHook = requires (D& d, T* node, Args&&... args) {
-    { d.preVisitImplHook(node) } -> std::same_as<void>;
+    { d.preVisitImplHook(node) } -> std::same_as<bool>;
 };
 
 
@@ -78,8 +78,12 @@ private:
         using namespace detail;
         auto self = static_cast<Derived*>(this);
 
+        // This hook is intended for inheriting classes which want to extend this visitor
+        // without disturbing the main visiting API.
         if constexpr (HasPreVisitImplHook<Derived, T, Args...>) {
-            self->preVisitImplHook(node);
+            if (!self->preVisitImplHook(node)) {
+                return;
+            }
         }
 
         bool handle_node = true;

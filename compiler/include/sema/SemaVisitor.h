@@ -109,6 +109,15 @@ protected:
     }
 
 
+    /// Verify that the Sema pass has not broken any contracts
+    bool verify() {
+        if constexpr (requires (Derived& derived)
+            {{ derived.verify() } -> std::same_as<bool>; }) {
+            return static_cast<Derived*>(this)->verify();
+        } return true;
+    }
+
+
 private:
     std::vector<Node*> m_NodeStack;
     ErrorCallback_t    m_Callback;
@@ -119,8 +128,9 @@ private:
 
     bool m_ErrorOccurred = false;
 
-    void preVisitImplHook(Node* node) {
+    bool preVisitImplHook(Node* node) {
         m_NodeStack.push_back(node);
+        return true;
     }
 
 
