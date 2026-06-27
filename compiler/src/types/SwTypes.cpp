@@ -2,7 +2,7 @@
 #include "CompilerInst.h"
 #include "types/definitions.h"
 #include "symbols/IdentManager.h"
-#include "../../include/backend/LLVMBackend.h"
+#include "backend/LLVMBackend.h"
 
 
 #include <llvm/IR/DerivedTypes.h>
@@ -116,7 +116,7 @@ llvm::Type* LLVMBackend::llvmCodegen(VoidType*, SwContext) {
 llvm::Type* LLVMBackend::llvmCodegen(const GenericType* type, const SwContext& context) {
     if (type->contained_type) {
         return codegen(type->contained_type, context);
-    } throw std::runtime_error("GenericType::llvmCodegen: no contained type!");
+    } throw std::runtime_error(std::format("GenericType::llvmCodegen: no contained type! id={}", type->id ? type->id->toString() : "nullptr"));
 }
 
 
@@ -133,7 +133,7 @@ llvm::Type* LLVMBackend::llvmCodegen(ArrayType* type, const SwContext& context) 
     if (LLVMTypeCache.contains(type)) {
         return LLVMTypeCache[type];
     }
-
+    
     const auto arr_struct = llvm::StructType::create(LLVMContext, "__Arr");
     arr_struct->setBody(llvm::ArrayType::get(codegen(type->of_type, context), type->size));
     LLVMTypeCache[type] = arr_struct;
