@@ -130,8 +130,15 @@ public:
         SymMan.registerType(node->ident, fn_type);
         SymMan.registerDecl(node->ident, entry);
 
+        if (!node->children) {
+            node->children = new Scope();
+        }
+
         ScopeStack.push_back(node->children);
-        node->children->symbols = SymMan.newScope();
+
+        if (!node->children->symbols)
+            node->children->symbols = SymMan.newScope();
+
         PreCreatedScope = node->children->symbols;
 
         registerGenericParameters(node->generic_params, node->children);
