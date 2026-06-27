@@ -51,6 +51,12 @@ struct Module {
     /// Returns whether this module is the main one
     bool isMainModule() const { return m_IsMainModule; }
 
+    /// Returns whether the module has been marked erroneous
+    bool isErroneous() const { return m_IsErroneous; }
+
+    /// Marks the module as erroneous
+    void markErroneous() { m_IsErroneous = true; }
+
     /// Creates a Parser instance and begins parsing
     void parse(const ErrorCallback_t& error_callback) {
         auto context = ParserContext{this, error_callback, m_ModuleManager, m_StringPool};
@@ -131,8 +137,9 @@ struct Module {
 
 
 private:
-    bool m_IsMainModule = false;
+    bool m_IsMainModule   = false;
     bool m_IsSemaComplete = false;
+    bool m_IsErroneous    = false;
 
     ModuleManager&    m_ModuleManager;
     sw::BumpAllocator m_Allocator{64 * 1024};

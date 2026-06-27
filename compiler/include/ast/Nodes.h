@@ -1,10 +1,11 @@
 #pragma once
-#include <ranges>
 #include <string_view>
 #include <filesystem>
 #include <stdexcept>
 #include <utility>
 #include <variant>
+#include <format>
+#include <ranges>
 #include <span>
 
 #include "utils/utils.h"
@@ -66,6 +67,11 @@ struct SourceLocation {
     StreamState     from;
     StreamState     to;
     sw::FileHandle* source = nullptr;
+
+    [[nodiscard]]
+    std::string toString() const {
+        return std::format("{}:{}", from.Line, from.Col);
+    }
 };
 
 

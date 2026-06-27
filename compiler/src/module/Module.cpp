@@ -36,10 +36,10 @@ void Module::performComptimeEval(const ErrorCallback_t& error_callback) {
     sw::ComptimeEvaluator evaluator{this, error_callback};
     ast = evaluator.run(ast);
 
-    if (!evaluator.errorsOccurred()) {
-        sw::GenericInstantiator instantiator{this, error_callback};
-        instantiator.instantiateAllGenerics();
-    }
+    // if (!evaluator.errorsOccurred()) {
+    //     sw::GenericInstantiator instantiator{this, error_callback};
+    //     instantiator.instantiateAllGenerics();
+    // }
 }
 
 

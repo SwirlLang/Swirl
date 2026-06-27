@@ -502,6 +502,7 @@ public:
         visit(node->else_children);
     }
 
+
     void handle(WhileLoop* node) {
         const auto condition_ty = inferType(node->condition, {}).deduced_type;
         if (!checkTypeCompatibility(condition_ty, &GlobalTypeBool, false)) {
@@ -575,6 +576,7 @@ public:
             }
         }
     }
+
 
     void analyzeNodeWithID(IdentInfo* id) {
         if (!GlobalNodeJmpTable.contains(id)) { return; }

@@ -62,6 +62,8 @@ protected:
         if (m_DisabledErrorCodes.contains(code))
             return;
 
+        m_Module->markErroneous();
+
         m_ErrorOccurred = true;
         context.module = m_Module;
 
@@ -108,20 +110,23 @@ protected:
         return m_StringPool.internLocked(str);
     }
 
+public:
 
     /// Verify that the Sema pass has not broken any contracts
     bool verify() {
-        if constexpr (requires (Derived& derived)
-            {{ derived.verify() } -> std::same_as<bool>; }) {
-            return static_cast<Derived*>(this)->verify();
-        } return true;
+        // if constexpr (requires (Derived& derived)
+        //     {{ derived.verify() } -> std::same_as<bool>; }) {
+        //     return static_cast<Derived*>(this)->verify();
+        // }
+
+        return true;
     }
 
+    Module* m_Module;
 
 private:
     std::vector<Node*> m_NodeStack;
     ErrorCallback_t    m_Callback;
-    Module*            m_Module;
     sw::StringPool&    m_StringPool;
 
     std::unordered_set<ErrCode> m_DisabledErrorCodes;

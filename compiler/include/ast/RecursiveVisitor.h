@@ -60,7 +60,6 @@ public:
     template <typename... Args>
     void visit(Node* node, Args&&... args) {
         if (!node) {
-            SW_LOG_WARN("RecursiveVisitor::visit: node = nullptr.");
             return;
         }
 

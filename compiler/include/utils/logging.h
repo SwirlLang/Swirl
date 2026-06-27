@@ -86,3 +86,13 @@ void stderr_write_line(std::format_string<Args...> fmt, Args... args) {
                 std::format(__VA_ARGS__)); \
         } \
     } while (0)
+
+
+#define SW_LOG_FATAL(...) \
+    do { \
+        if (SW_IS_DEBUG) { \
+            detail::stdout_write_line("{}{}", \
+                detail::colorize("[FATAL] ", detail::Color::RED), \
+                std::format(__VA_ARGS__)); \
+        } \
+    } while (0)

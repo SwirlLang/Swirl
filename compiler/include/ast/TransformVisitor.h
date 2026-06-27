@@ -32,7 +32,6 @@ public:
             (transformDefault(static_cast<const y*>(node), std::forward<Args>(args)...));
 
         if (node == nullptr) {
-            SW_LOG_WARN("TransformVisitor::run: node == nullptr");
             return nullptr;
         }
 

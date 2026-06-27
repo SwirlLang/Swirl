@@ -1,5 +1,6 @@
 #pragma once
 #include "SemaVisitor.h"
+#include "verifiers/SymbolRegistration.h"
 
 
 namespace sema {
