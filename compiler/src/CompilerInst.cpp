@@ -1,9 +1,9 @@
 #include "CompilerInst.h"
 #include "backend/LLVMBackend.h"
 
+#include <lld/Common/Driver.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/FileSystem.h>
-#include <lld/Common/Driver.h>
 
 #ifdef __linux__
 LLD_HAS_DRIVER(elf)
@@ -166,19 +166,35 @@ void CompilerInst::produceExecutable() {
 
     } else if (is_linux) {
         args.push_back("-static");
-        args.push_back("-L" + ((m_SrcPath.parent_path() / "lib")).string());
-        args.push_back((m_SrcPath.parent_path() / "lib" / "crt1.o").string());
-        args.push_back((m_SrcPath.parent_path() / "lib" / "crti.o").string());
+        if (exists(m_SrcPath.parent_path() / "lib")) {
+            args.push_back("-L" + ((m_SrcPath.parent_path() / "lib")).string());
+            args.push_back((m_SrcPath.parent_path() / "lib" / "crt1.o").string());
+            args.push_back((m_SrcPath.parent_path() / "lib" / "crti.o").string());
 
-        // iterate over all object files of the build directory and push their paths to the vector
-        for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
-            args.push_back(file.path().string());
+            // iterate over all object files of the build directory and push their paths to the vector
+            for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
+                args.push_back(file.path().string());
+            }
+
+            args.push_back("--start-group");
+            args.push_back("-lc");
+            args.push_back("--end-group");
+            args.push_back((m_SrcPath.parent_path() / "lib" / "crtn.o").string());
+        } else {
+            args.push_back("-L/usr/local/lib/swirl");
+            args.push_back("/usr/local/lib/swirl/crt1.o");
+            args.push_back("/usr/local/lib/swirl/crti.o");
+
+            // iterate over all object files of the build directory and push their paths to the vector
+            for (const auto& file : fs::directory_iterator(build_dir / "obj")) {
+                args.push_back(file.path().string());
+            }
+
+            args.push_back("--start-group");
+            args.push_back("-lc");
+            args.push_back("--end-group");
+            args.push_back("/usr/local/lib/swirl/crtn.o");
         }
-
-        args.push_back("--start-group");
-        args.push_back("-lc");
-        args.push_back("--end-group");
-        args.push_back((m_SrcPath.parent_path() / "lib" / "crtn.o").string());
     }
 
     // push toolchain-specific args (e.g., -L<mingw>/lib)
