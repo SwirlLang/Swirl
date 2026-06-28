@@ -1,5 +1,11 @@
 import project::dir::mod::{sum};
 
+extern "C" fn write(fd: i64, buf: *char, count: i64): i64;
+
+export fn println(s: str): void {
+    write(1, s.ptr(), s.size());
+}
+
 export fn sum_i32(a: i32, b: i32) {
     return sum(a, b);
 }

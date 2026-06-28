@@ -16,5 +16,6 @@ fn main() {
     var instance: T;
     var my_stuff = instance.method();
     var i = instance_taker(&instance);
+    mod::println("Hello, World!");
     return ENUM::A;
 }

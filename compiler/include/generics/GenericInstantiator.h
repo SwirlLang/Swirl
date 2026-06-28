@@ -2,6 +2,8 @@
 #include <utility>
 
 #include "GenericSubstitutor.h"
+#include "sema/SymbolRegistrationPass.h"
+#include "sema/SymbolResolver.h"
 #include "ast/RecursiveVisitor.h"
 
 
@@ -38,26 +40,37 @@ public:
     };
 
 
-    std::unordered_set<InstKey, InstKey::hasher> Cache;
+    std::unordered_map<InstKey, IdentInfo*, InstKey::hasher> Cache;
 
 
-    void instantiateAllGenerics() {
-        sema::TypeResolver::VisitedNodes.clear();
-        for (Node* node : m_Module->ast) {
-            visit(node);
-            runAllPassesOn(node);
+    /// Runs symbol registration and symbol resolution passes on the node, returns `nullptr` if errors
+    /// were reported.
+    Node* runPasses(Node* node) {
+        sema::SymbolRegistrationPass reg_pass{{
+                .module = m_Module,
+                .error_callback = m_ErrorCallback,
+                .is_monomorphization = true
+            }};
+
+        reg_pass.dispatch(node);
+
+        if (reg_pass.errorsOccurred()) {
+            return nullptr;
         }
-    }
 
+        sema::SymbolResolver resolver{{
+                .module = m_Module,
+                .error_callback = m_ErrorCallback,
+                .is_monomorphization = true
+            }};
 
-    Node* runAllPassesOn(Node* node) {
-        sema::Sema sema_inst{m_Module, m_ErrorCallback};
-        sema_inst.start(node, true);
+        resolver.dispatch(node, sema::SymbolResolver::Data{});
 
-        if (!sema_inst.errorsOccurred()) {
-            Node* ret = m_ComptimeEvaluator.run(node);
-            return ret;
-        } return nullptr;
+        if (resolver.errorsOccurred()) {
+            return nullptr;
+        }
+
+        return node;
     }
 
 
@@ -121,7 +134,7 @@ public:
                     name = m_Module->getStringPool().internLocked(subst_name);
 
                     Node* new_node = m_Substitutor.run(node, ctx);
-                    new_node = runAllPassesOn(new_node);
+                    new_node = runPasses(new_node);
 
                     if (!new_node) return;
 
@@ -131,9 +144,14 @@ public:
                     glob_node->is_monomorphization = true;
 
                     m_Module->ast.push_back(new_node);
-                    Cache.insert(inst_key);
+                    Cache.insert({inst_key, new_node->getIdentInfo()});
 
                     ident->value = new_node->getIdentInfo();
+                    ident->has_generic_args = false;
+
+                } else {
+                    ident->value = Cache.at(inst_key);
+                    ident->has_generic_args = false;
                 }
             }
         }

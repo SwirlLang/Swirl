@@ -3,6 +3,7 @@
 
 #include "ast/Visitor.h"
 #include "comptime/ComptimeEvaluator.h"
+#include "generics/GenericInstantiator.h"
 #include "modules/ModuleManager.h"
 #include "types/definitions.h"
 #include "sema/SemaVisitor.h"
@@ -13,6 +14,7 @@ class ComptimeEvaluator;
 }
 
 namespace sema {
+/// Used to pass context down the call graph
 struct TypeContext {
     bool       is_method_call = false;
     Type*      bound_type     = nullptr;
@@ -29,6 +31,8 @@ public:
     std::vector<Function*> CurrentParentFunction = {nullptr};
     std::unordered_map<IdentInfo*, Node*> GlobalNodeJmpTable;
 
+    sw::GenericInstantiator GenericInstantiator;
+
     bool IsMonomorphization = false;
 
 
@@ -38,16 +42,21 @@ public:
         : SemaVisitor(context.module, context.error_callback)
         , SymMan(context.module->symbol_table)
         , GlobalNodeJmpTable(context.module->node_jmp_table)
+        , GenericInstantiator(m_Module, context.error_callback)
         , IsMonomorphization(context.is_monomorphization) {}
 
 
+    /// Computation result of type evaluation
     struct TypeInfo {
         Type* deduced_type = nullptr;
         Namespace* computed_namespace = nullptr;
     };
 
 
+    /// Computes a type which is compatible with both `type1` and `type2`
     Type* unify(Type* type1, Type* type2);
+
+    /// Checks whether `from` can be converted to `to`
     bool checkTypeCompatibility(Type* from, Type* to, bool report_errors = true);
 
 
@@ -61,12 +70,6 @@ public:
         if (VisitedNodes.contains(node)) {
             return false;
         }
-
-        // force re-evaluation of the return type
-        if (node->is_monomorphization &&
-            node->return_type         &&
-            node->return_type->getSwType()->getTypeTag() == Type::GENERIC)
-            node->return_type->type = nullptr;
 
         VisitedNodes.insert(node);
         CurrentParentFunction.push_back(node);
@@ -106,7 +109,7 @@ public:
         }
         #undef SW_NODE
     }
-    
+
 
     TypeInfo evaluateType(Node*, const TypeContext&) {
         return {};
@@ -140,6 +143,8 @@ public:
     TypeInfo evaluateType(ArrayLit* node, const TypeContext& ctx) {
         Type* common_type = nullptr;
 
+        // loop over the elements and compute a type which is compatible with all
+        // the expressions inside
         for (const auto& element : node->elements) {
             if (common_type) {
                 common_type = unify(inferType(element, ctx).deduced_type, common_type);
@@ -167,6 +172,7 @@ public:
             }
 
             if (node->type_id->value != nullptr) {
+                monomorphize(node->type_id);
                 ret = SymMan.lookupType(node->type_id->value);
             }
         }
@@ -176,12 +182,15 @@ public:
             const auto arr_of_type = evaluateType(node->of_type, ctx).deduced_type;
             std::size_t array_size  = 0;
 
+            // if array size is hardcoded
             if (std::holds_alternative<std::size_t>(node->array_size)) {
                 array_size = std::get<std::size_t>(node->array_size);
             }
 
+            // if array size is a comptime expression
             if (Node** size = std::get_if<Node*>(&node->array_size)) {
                 if (const auto nd = *size; nd->getNodeType() == ND_EXPR) {
+                    // evaluate the comptime expression and use it as the array size
                     array_size = sw::ComptimeEvaluator::toUInt64(
                         nd->to<Expression>()->expr->to<IntLit>()->value);
                 }
@@ -260,7 +269,7 @@ public:
     }
 
 
-    TypeInfo evaluateType(const Ident* node, const TypeContext& ctx) {
+    TypeInfo evaluateType(Ident* node, const TypeContext& ctx) {
         assert(node->value);
         Type* ret = nullptr;
         if (node->value->isFictitious()) {
@@ -271,6 +280,8 @@ public:
             const Enum* en = SymMan.getFictitiousIDValue(node->value);
             ret = SymMan.lookupType(en->ident);
         } else {
+            // instantiate generics
+            monomorphize(node);
             const auto decl = SymMan.lookupDecl(node->value);
             ret = decl.swirl_type;
         }
@@ -294,6 +305,8 @@ public:
         // assuming `SymbolResolver` has resolved the ID otherwise
 
         assert(node->ident->getIdentInfo());
+        monomorphize(node->ident);
+
         auto* id = node->ident->getIdentInfo();
 
         // if not a recursive-case, ensure the function is handled first
@@ -574,6 +587,27 @@ public:
                     }
                 }
             }
+        }
+    }
+
+
+    /// Checks whether the identifier contains any generic arguments and
+    /// initiates monomorphization if it does.
+    void monomorphize(Ident* ident)  {
+        if (ident->has_generic_args) {
+            // resolve all generic arguments (types)
+            for (auto& [name, args] : ident->full_qualification) {
+                for (const GenericArg* arg : args) {
+                    if (arg->isType()) {
+                        visit(arg->getType());
+                    }
+                }
+            }
+
+            GenericInstantiator.handle(ident);
+            assert(ident->getIdentInfo());
+            assert(SymMan.lookupDecl(ident->getIdentInfo()).node_ptr);
+            visit(SymMan.lookupDecl(ident->getIdentInfo()).node_ptr);
         }
     }
 
