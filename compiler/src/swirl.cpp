@@ -72,6 +72,11 @@ int main(const int argc, const char **argv) {
             for (const auto &lib: app.get_flag_values("-l"))
                 CompilerInst::appendLinkTarget(lib);
         }
+        if (app.contains_flag("-o")) {
+            CompilerInst::OutputPath = app.get_flag_value("-o");
+            if (!CompilerInst::OutputPath.is_absolute())
+                CompilerInst::OutputPath = absolute(CompilerInst::OutputPath);
+        }
         if (app.contains_flag("-dep")) {
             // format: `path:alias`
             for (const auto &dep: app.get_flag_values("-dep"))

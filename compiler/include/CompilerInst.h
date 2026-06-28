@@ -29,7 +29,6 @@ class CompilerInst {
     ModuleManager  m_ModuleManager;
 
     fs::path       m_SrcPath;
-    fs::path       m_OutputPath;     // path/to/executable (absolute)
     unsigned       m_BaseThreadCount = std::thread::hardware_concurrency() / 2;
 
     sw::FileSystem m_Filesystem;
@@ -56,6 +55,7 @@ public:
     inline static std::string TargetTriple;
     inline static std::unordered_set<std::string> LinkTargets;
     inline static std::unordered_map<std::string, PackageInfo> PackageTable;
+    inline static fs::path OutputPath; // path/to/executable (absolute)
 
     inline static bool RunExe = false;
     inline static bool DebugMode = true;

@@ -187,18 +187,18 @@ void CompilerInst::produceExecutable() {
     }
 
     // compute the output path
-    if (m_OutputPath.empty()) {
-        m_OutputPath = m_SrcPath.parent_path() / ".build" /
+    if (OutputPath.empty()) {
+        OutputPath = m_SrcPath.parent_path() / ".build" /
                        (m_SrcPath.filename().replace_extension().string() + (is_win ? ".exe" : ""));
     }
 
 // push the output path to the vector
 #ifdef _MSC_VER
     // For MSVC, combine /OUT: with the path
-    args.push_back(std::format("/OUT:{}", m_OutputPath.string()));
+    args.push_back(std::format("/OUT:{}", OutputPath.string()));
 #else
     args.push_back("-o");
-    args.push_back(m_OutputPath.string());
+    args.push_back(OutputPath.string());
 #endif
 
     for (auto& lib : LinkTargets) {
@@ -225,9 +225,9 @@ void CompilerInst::produceExecutable() {
     if (RunExe) {
 
 #ifdef WIN32
-        system(std::format("{}", m_OutputPath.string()).c_str());
+        system(std::format("{}", OutputPath.string()).c_str());
 #else
-        system(std::format("./{}", m_OutputPath.string()).c_str());
+        system(std::format("./{}", OutputPath.string()).c_str());
 #endif
     }
 }
