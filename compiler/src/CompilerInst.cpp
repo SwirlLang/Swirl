@@ -239,11 +239,6 @@ void CompilerInst::produceExecutable() {
     // do the final ritual
     lld::lldMain(llvm_args, llvm::outs(), llvm::errs(), {platform_driver});
     if (RunExe) {
-
-#ifdef WIN32
         system(std::format("{}", OutputPath.string()).c_str());
-#else
-        system(std::format("./{}", OutputPath.string()).c_str());
-#endif
     }
 }
