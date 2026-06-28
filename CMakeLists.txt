@@ -6,6 +6,7 @@ add_subdirectory(compiler)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     install(FILES "misc/man/swirl.1" DESTINATION share/man/man1)
+    install(DIRECTORY "misc/lib/" DESTINATION lib/swirl)
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 include(CPackConfig.cmake)
