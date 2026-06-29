@@ -7,6 +7,7 @@
 
 bool sema::TypeResolver::checkTypeCompatibility(Type* from, Type* to, bool report_errors) {
     if (!from || !to) return false;
+    if (from == to)   return true;
 
     auto report_error = [this, report_errors](const ErrCode code, ErrorContext ctx) {
         if (report_errors) {
