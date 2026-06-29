@@ -20,6 +20,7 @@ class SymbolManager;
 
 struct SwContext {
     Type* bound_type = nullptr;
+    Type* cast_to    = nullptr;  // used to pass down casting hints in certail contexts
     bool  is_generic_inst = false;
     std::vector<Type*> generic_args;
 

@@ -335,6 +335,15 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
                     size_field
                 );
 
+                // if the address of the array is requested instead
+                if (context.cast_to && context.cast_to->isPointerType()) {
+                    auto pointer = Builder.CreateStructGEP(
+                        codegen(type, context),
+                        arr_instance_ptr.getLValue(),
+                        0);
+                    return CGValue::rValue(pointer);
+                }
+
                 return CGValue::rValue(llvm::dyn_cast<llvm::Value>(slice_instance));
             }
 
@@ -379,6 +388,8 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
         case Op::CAST_OP: {
             assert(node->operands.at(1)->getNodeType() == ND_TYPE);
             context.bound_type = node->operands.at(1)->getSwType();
+            context.cast_to = context.bound_type;
+
             return CGValue::rValue(
                 castIfNecessary(
                     fetchSwType(node->operands.at(0)),
@@ -1286,6 +1297,9 @@ CGValue LLVMBackend::llvmCodegen(Var* node, const SwContext& context) {
         } else if (node->value && node->value->expr == nullptr) {
             // when the `undefined` keyword isn't used, initialize with 0's
             var->setInitializer(llvm::Constant::getNullValue(type));
+        } else {
+            // when the `undefined` keyword is used
+            var->setInitializer(llvm::UndefValue::get(type));
         }
 
         // handle references
