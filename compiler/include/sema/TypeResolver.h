@@ -32,6 +32,7 @@ public:
     std::unordered_map<IdentInfo*, Node*> GlobalNodeJmpTable;
 
     sw::GenericInstantiator GenericInstantiator;
+    sw::ComptimeEvaluator   ComptimeEvaluator;
 
     bool IsMonomorphization = false;
 
@@ -43,6 +44,7 @@ public:
         , SymMan(context.module->symbol_table)
         , GlobalNodeJmpTable(context.module->node_jmp_table)
         , GenericInstantiator(m_Module, context.error_callback)
+        , ComptimeEvaluator(context.module, context.error_callback)
         , IsMonomorphization(context.is_monomorphization) {}
 
 
@@ -191,8 +193,14 @@ public:
             if (Node** size = std::get_if<Node*>(&node->array_size)) {
                 if (const auto nd = *size; nd->getNodeType() == ND_EXPR) {
                     // evaluate the comptime expression and use it as the array size
-                    array_size = sw::ComptimeEvaluator::toUInt64(
-                        nd->to<Expression>()->expr->to<IntLit>()->value);
+                    const auto expr = nd->to<Expression>();
+                    expr->expr_type = &GlobalTypeI64;
+
+                    const auto trans_node = ComptimeEvaluator.transform(expr);
+                    if (!ComptimeEvaluator.errorsOccurred()) {
+                        array_size = sw::ComptimeEvaluator::toUInt64(
+                            trans_node->to<Expression>()->expr->to<IntLit>()->value);
+                    }
                 }
             }
 

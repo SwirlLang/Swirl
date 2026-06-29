@@ -169,7 +169,9 @@ TypeWrapper* Parser::parseType() {
                             sw::ComptimeEvaluator::toUInt64(forwardStream().value);
                         break;
                     case Token::IDENT:
-                        wrapper->array_size = static_cast<Node*>(parseIdent());
+                        wrapper->array_size = parseExpr();
+                        std::get<Node*>(wrapper->array_size)
+                            ->to<Expression>()->is_comptime = true;
                         break;
                     default:
                         reportError(ErrCode::NON_INT_ARRAY_SIZE);

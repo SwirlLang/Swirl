@@ -8,12 +8,14 @@ struct OpInfo {
     int precedence;
     Associativity associativity;
 
-    OpInfo(const int prec, const Associativity ass) : precedence(prec), associativity(ass) {}
+    OpInfo(const int prec, const Associativity ass)
+        : precedence(prec), associativity(ass) {}
 };
 
 
 struct PairHash {
-    std::size_t operator()(const std::pair<Token::TokenValue, int>& pair) const noexcept {
+    using pair_t = std::pair<Token::TokenValue, int>;
+    std::size_t operator()(const pair_t& pair) const noexcept {
         return combineHashes(std::hash<int>()(pair.first), std::hash<int>()(pair.second));
     }
 };
