@@ -157,6 +157,7 @@ TypeWrapper* Parser::parseType() {
             } else wrapper->of_type = parseType();
             break;
 
+        // syntax: [<type> | <expr>]
         case Token::PUNC_LBRACKET:
             forwardStream();  // skip '['
             wrapper->of_type = parseType();
@@ -164,8 +165,7 @@ TypeWrapper* Parser::parseType() {
             if (m_Stream.CurTok.tokenid == Token::OP_BITWISE_OR) {
                 forwardStream();
                 wrapper->array_size = parseExpr();
-                std::get<Node*>(wrapper->array_size)
-                    ->to<Expression>()->is_comptime = true;
+                wrapper->array_size->is_comptime = true;
             }
 
             ignoreButExpect(Token::PUNC_RBRACKET);

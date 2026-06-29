@@ -4,7 +4,6 @@
 #include "ast/Visitor.h"
 #include "comptime/ComptimeEvaluator.h"
 #include "generics/GenericInstantiator.h"
-#include "modules/ModuleManager.h"
 #include "types/definitions.h"
 #include "sema/SemaVisitor.h"
 
@@ -180,28 +179,17 @@ public:
         }
 
         // is an array
-        else if (!std::holds_alternative<std::monostate>(node->array_size)) {
+        else if (node->array_size != nullptr) {
             const auto arr_of_type = evaluateType(node->of_type, ctx).deduced_type;
-            std::size_t array_size  = 0;
+            std::size_t array_size = 0;
 
-            // if array size is hardcoded
-            if (std::holds_alternative<std::size_t>(node->array_size)) {
-                array_size = std::get<std::size_t>(node->array_size);
-            }
+            node->array_size->expr_type = &GlobalTypeI64;
 
-            // if array size is a comptime expression
-            if (Node** size = std::get_if<Node*>(&node->array_size)) {
-                if (const auto nd = *size; nd->getNodeType() == ND_EXPR) {
-                    // evaluate the comptime expression and use it as the array size
-                    const auto expr = nd->to<Expression>();
-                    expr->expr_type = &GlobalTypeI64;
-
-                    const auto trans_node = ComptimeEvaluator.transform(expr);
-                    if (!ComptimeEvaluator.errorsOccurred()) {
-                        array_size = sw::ComptimeEvaluator::toUInt64(
-                            trans_node->to<Expression>()->expr->to<IntLit>()->value);
-                    }
-                }
+            // evaluate the comptime expression and set it as the array size
+            const auto trans_node = ComptimeEvaluator.transform(node->array_size);
+            if (!ComptimeEvaluator.errorsOccurred()) {
+                array_size = sw::ComptimeEvaluator::toUInt64(
+                    trans_node->to<Expression>()->expr->to<IntLit>()->value);
             }
 
             if (arr_of_type != nullptr) {

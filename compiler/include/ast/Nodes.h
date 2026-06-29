@@ -465,7 +465,7 @@ struct TypeWrapper final : Node {
 
     Ident*  type_id  = nullptr;
 
-    ArraySize_t array_size{};   // monostate indicates that the type isn't an array
+    Expression* array_size{};   // set if the type is an array
     TypeWrapper* of_type{};     // set in the case of wrapper types (refs, ptr, arrays, slices)
 
     explicit TypeWrapper()

@@ -193,10 +193,7 @@ protected:
     void traverse(TypeWrapper* node, Args&&... args) {
         visit(node->type_id, std::forward<Args>(args)...);
         visit(node->of_type, std::forward<Args>(args)...);
-
-        if (std::holds_alternative<Node*>(node->array_size)) {
-            visit(std::get<Node*>(node->array_size), std::forward<Args>(args)...);
-        }
+        visit(node->array_size, std::forward<Args>(args)...);
     }
 
 
