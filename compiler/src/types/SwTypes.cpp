@@ -4,10 +4,8 @@
 #include "symbols/IdentManager.h"
 #include "backend/LLVMBackend.h"
 
-
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/TargetParser/Triple.h>
-
 
 
 std::string FunctionType::toString() const {
@@ -268,12 +266,14 @@ unsigned int TypeCL::getBitWidth() {
     throw std::runtime_error("TypeCL::isUnsigned: unsupported arch");
 }
 
+
 llvm::Type* LLVMBackend::llvmCodegen(TypeCL* type, SwContext) {
     return llvm::Type::getIntNTy(LLVMContext, type->getBitWidth());
 }
 
+
 unsigned int TypeCSSizeT::getBitWidth() {
-    return fetchPointerSize(llvm::Triple(CompilerInst::TargetTriple).getArch());
+    return fetchPointerSize(llvm::Triple(CompilerInst::TargetTriple).getArch()) * 8;
 }
 
 llvm::Type* LLVMBackend::llvmCodegen(TypeCSSizeT* type, SwContext) {
@@ -301,8 +301,9 @@ llvm::Type* LLVMBackend::llvmCodegen(TypeCUL* type, SwContext context) {
 
 
 unsigned int TypeCPtrDiffT::getBitWidth() {
-    return fetchPointerSize(llvm::Triple(CompilerInst::TargetTriple).getArch());
+    return fetchPointerSize(llvm::Triple(CompilerInst::TargetTriple).getArch()) * 8;
 }
+
 
 llvm::Type* LLVMBackend::llvmCodegen(TypeCPtrDiffT* type, SwContext) {
     return llvm::Type::getIntNTy(LLVMContext, type->getBitWidth());
