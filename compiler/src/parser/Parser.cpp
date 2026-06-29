@@ -163,19 +163,9 @@ TypeWrapper* Parser::parseType() {
 
             if (m_Stream.CurTok.tokenid == Token::OP_BITWISE_OR) {
                 forwardStream();
-                switch (m_Stream.CurTok.tokenid) {
-                    case Token::NUM_INT:
-                        wrapper->array_size =
-                            sw::ComptimeEvaluator::toUInt64(forwardStream().value);
-                        break;
-                    case Token::IDENT:
-                        wrapper->array_size = parseExpr();
-                        std::get<Node*>(wrapper->array_size)
-                            ->to<Expression>()->is_comptime = true;
-                        break;
-                    default:
-                        reportError(ErrCode::NON_INT_ARRAY_SIZE);
-                }
+                wrapper->array_size = parseExpr();
+                std::get<Node*>(wrapper->array_size)
+                    ->to<Expression>()->is_comptime = true;
             }
 
             ignoreButExpect(Token::PUNC_RBRACKET);
