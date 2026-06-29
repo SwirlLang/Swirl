@@ -197,7 +197,7 @@ public:
 
 
     Type* getPointerType(Type* of_type, const bool is_mutable) {
-        return m_TypeManager.getPointerType(of_type, is_mutable);
+        return m_TypeManager.getPointerType(of_type, true); // TODO - re-enable immutability
     }
 
 
