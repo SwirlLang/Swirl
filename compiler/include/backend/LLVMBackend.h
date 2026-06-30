@@ -209,6 +209,7 @@ public:
     CGValue llvmCodegen(Op* node, SwContext context);
     CGValue llvmCodegen(Var* node, const SwContext& context);
     CGValue llvmCodegen(const StrLit* node, const SwContext& context);
+    CGValue llvmCodegen(const CharLit* node, const SwContext& context);
     CGValue llvmCodegen(FuncCall* node, const SwContext& context);
     CGValue llvmCodegen(Ident* node, const SwContext& context);
     CGValue llvmCodegen(Function* node, const SwContext& context);

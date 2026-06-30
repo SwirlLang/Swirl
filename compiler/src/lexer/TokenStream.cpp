@@ -124,11 +124,13 @@ std::string TokenStream::readEscaped(const char _end) const {
     return ret;
 }
 
+
 Token TokenStream::readString(const char del) const {
     auto str = readEscaped(del);
-    // if (!m_Stream.eof()) m_Stream.next();  // escape the '"'
-    return {STRING, std::move(str), getStreamState(), Token::STRING};
+    const auto type = del == '\'' ? CHAR : STRING;
+    return {type, std::move(str), getStreamState(), Token::STRING};
 }
+
 
 Token TokenStream::readOperator() const {
     const char curr = m_Stream.getCurrentChar();

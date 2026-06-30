@@ -22,6 +22,7 @@
     SW_NODE(ND_OP, Op) \
     SW_NODE(ND_VAR, Var) \
     SW_NODE(ND_STR, StrLit) \
+    SW_NODE(ND_CHAR, CharLit) \
     SW_NODE(ND_CALL, FuncCall) \
     SW_NODE(ND_IDENT, Ident) \
     SW_NODE(ND_FUNC, Function) \
@@ -364,6 +365,14 @@ struct BoolLit final : Node {
     [[nodiscard]] bool isLiteral() const override {
         return true;
     }
+};
+
+
+struct CharLit final : Node {
+    char value;
+    explicit CharLit(const char val)
+        : Node(ND_CHAR)
+        , value(val) {}
 };
 
 

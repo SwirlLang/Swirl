@@ -184,8 +184,12 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
         }
     } else {
         // 2nd operand
-        auto analysis_2 = node->op_type != Op::CAST_OP && node->op_type != Op::DOT && node->op_type != Op::ASSIGNMENT
-            ? inferType(node->operands.at(1), ctx) : TypeInfo{};
+        auto analysis_2 =
+            node->op_type != Op::CAST_OP         &&
+            node->op_type != Op::DOT             &&
+            node->op_type != Op::ASSIGNMENT      ?
+            inferType(node->operands.at(1), ctx) :
+            TypeInfo{};
 
         switch (node->op_type) {
             case Op::DIV: {

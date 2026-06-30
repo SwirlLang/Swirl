@@ -847,6 +847,14 @@ CGValue LLVMBackend::llvmCodegen(const StrLit* node, const SwContext& context) {
 }
 
 
+CGValue LLVMBackend::llvmCodegen(const CharLit* node, const SwContext& context) {
+    return CGValue::rValue(llvm::ConstantInt::get(
+        llvm::Type::getInt8Ty(LLVMContext),
+        static_cast<uint64_t>(node->value)
+    ));
+}
+
+
 CGValue LLVMBackend::llvmCodegen(Ident* node, const SwContext& context) {
     const auto e = SymMan.lookupDecl(node->value);
 

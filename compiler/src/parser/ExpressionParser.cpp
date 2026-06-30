@@ -53,6 +53,23 @@ Node* ExpressionParser::parseComponent() {
             return str;
         }
 
+        case CHAR: {
+            char content{};
+            if (m_Stream.CurTok.value.empty()) {
+                m_Parser.reportError(ErrCode::CHAR_LIT_EMPTY);
+            } else if (m_Stream.CurTok.value.size() > 1) {
+                m_Parser.reportError(ErrCode::CHAR_LIT_TOO_LONG);
+            } else {
+                content = m_Stream.CurTok.value[0];
+            }
+
+            auto ret = make_node<CharLit>(content);
+            SET_NODE_ATTRS(ret);
+
+            m_Parser.forwardStream();
+            return ret;
+        }
+
         case IDENT: {
             auto id = m_Parser.parseIdent();
             SET_NODE_ATTRS(id);

@@ -274,6 +274,7 @@ Node* Parser::dispatch() {
                         forwardStream();
                         continue;
                     case NUMBER:
+                    case CHAR:
                     case STRING:
                     case IDENT:
                     case OP:

@@ -183,6 +183,11 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return "Only other comptime variables' IDs can be written in this context.";
         case ErrCode::OP_NOT_ALLOWED_HERE:
             return std::format("The operator '{}' isn't allowed in this context.", ctx.str_1);
+        case ErrCode::CHAR_LIT_TOO_LONG:
+            return "Character literals can only have one character. Use a string a literal (\"...\") or"
+                   " remove the extra characters.";
+        case ErrCode::CHAR_LIT_EMPTY:
+            return "Character literals cannot be empty.";
         default:
             throw std::runtime_error("Undefined error code");
     }

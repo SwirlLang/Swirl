@@ -149,6 +149,11 @@ private:
     }
 
 
+    Value compute(const CharLit* node, Context ctx) {
+        return Value::makeChar(node->value);
+    }
+
+
     Value compute(const Ident* node, const Context ctx) {
         assert(node->value);
 

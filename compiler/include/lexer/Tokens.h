@@ -6,16 +6,16 @@
 
 
 enum TokenCategory {
-    KEYWORD, // 0
-    IDENT, // 1
-    OP, // 2
-    STRING, // 3
-    PUNC, // 4
-    NUMBER, // 5
-    COMMENT, // 6
-
-    NONE, // 7
-    UNINIT // 8
+    KEYWORD,
+    IDENT,
+    OP,
+    STRING,
+    CHAR,
+    PUNC,
+    NUMBER,
+    COMMENT,
+    NONE,
+    UNINIT
 };
 
 

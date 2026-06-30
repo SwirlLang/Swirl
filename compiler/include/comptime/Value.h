@@ -7,10 +7,11 @@
 
 namespace sw {
 struct Value {
-    enum tag { INVALID, BOOL, FLOAT, STR, UINT, INT };
+    enum tag { INVALID, BOOL, FLOAT, STR, UINT, INT, CHAR };
     tag type = INVALID;
 
     union {
+        char             val_char;
         bool             val_bool;
         double           val_double;
         std::int64_t     val_int;
@@ -45,6 +46,12 @@ struct Value {
     static Value makeStr(const std::string_view val) {
         Value v{.type = STR};
         v.val_str = val;
+        return v;
+    }
+
+    static Value makeChar(const char val) {
+        Value v{.type = CHAR};
+        v.val_char = val;
         return v;
     }
 
@@ -106,6 +113,7 @@ struct Value {
             case INT:   return val_int == other.val_int;
             case UINT:  return val_uint == other.val_uint;
             case STR:   return val_str == other.val_str;
+            case CHAR:  return val_char == other.val_char;
             default:    return false;
         }
     }
@@ -139,6 +147,7 @@ struct Value {
             case INT:   return std::to_string(val_int);
             case UINT:  return std::to_string(val_uint);
             case STR:   return '"' + std::string(val_str) + '"';
+            case CHAR:  return '\'' + std::string(1, val_char) + '\'';
             default:    return "invalid";
         }
     }
@@ -160,6 +169,7 @@ struct std::hash<sw::Value> {
             case sw::Value::INT:   return std::hash<std::int64_t>{}(v.val_int);
             case sw::Value::UINT:  return std::hash<std::uint64_t>{}(v.val_uint);
             case sw::Value::STR:   return std::hash<std::string_view>{}(v.val_str);
+            case sw::Value::CHAR:  return std::hash<char>{}(v.val_char);
             default:               return std::hash<int>{}(v.type);
         }
     }

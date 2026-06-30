@@ -136,6 +136,11 @@ public:
     }
 
 
+    TypeInfo evaluateType(CharLit* node, const TypeContext& ctx) {
+        return {.deduced_type = &GlobalTypeChar};
+    }
+
+
     TypeInfo evaluateType(StrLit* node, const TypeContext& ctx) {
         return {.deduced_type = SymMan.lookupType(SymMan.getIdInfoOfAGlobal("str"))};
     }

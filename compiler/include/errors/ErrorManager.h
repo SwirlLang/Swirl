@@ -104,6 +104,8 @@ enum class ErrCode {
     NOT_ALLOWED_CT_CTX,        // when a construct isn't allowed in compile-time evaluated context
     NOT_A_CT_VAR,              // referenced ID is not of a comptime var
     OP_NOT_ALLOWED_HERE,       // when an operator isn't allowed in a context
+    CHAR_LIT_TOO_LONG,         // when a character literal has more than 1 chars
+    CHAR_LIT_EMPTY,            // char literals cannot be empty
 };
 
 
