@@ -186,7 +186,7 @@ Expression ExpressionParser::parseExpr(const int rbp) {
 
         switch (op->op_type) {
             case Op::INDEXING_OP:
-                right = parseExpr(Op::getRBPFor(Op::INDEXING_OP));
+                right = parseExpr(0);
                 m_Parser.ignoreButExpect(Token::PUNC_RBRACKET);
                 break;
             case Op::CAST_OP: {
