@@ -111,12 +111,16 @@ Node* ExpressionParser::parseComponent() {
                 while (m_Stream.CurTok.tokenid != Token::PUNC_RBRACKET) {
                     elements.push_back(make_node<Expression>(parseExpr()));
 
-                    if (m_Stream.CurTok.tokenid == Token::PUNC_COMMA) {
-                        m_Parser.forwardStream();
+                    if (!m_Stream.CurTok.is(Token::PUNC_COMMA, Token::PUNC_RBRACKET)) {
+                        m_Parser.reportError(ErrCode::COMMA_SEP_REQUIRED,
+                            {.location = SourceLocation{m_Stream.CurTok.location}});
+                        parseExpr();
                         continue;
                     }
-                    if (m_Stream.peek().tokenid != Token::PUNC_RBRACKET)
-                        m_Parser.reportError(ErrCode::COMMA_SEP_REQUIRED);
+
+                    if (m_Stream.CurTok.tokenid == Token::PUNC_COMMA) {
+                        m_Parser.forwardStream();
+                    }
                 } m_Parser.forwardStream();
 
                 arr_node->elements = intern_arr<Expression*>(elements);
