@@ -32,6 +32,7 @@ inline TypeStr   GlobalTypeStr;
 inline TypeStr   GlobalTypeMutStr{true};
 
 inline GenericType GlobalTypeGeneric{};
+inline UniversalType GlobalUniversalType{};
 
 
 // C Types

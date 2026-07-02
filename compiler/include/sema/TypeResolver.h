@@ -149,6 +149,10 @@ public:
     TypeInfo evaluateType(ArrayLit* node, const TypeContext& ctx) {
         Type* common_type = nullptr;
 
+        if (node->elements.empty()) {
+            return {.deduced_type = &GlobalUniversalType};
+        }
+
         // loop over the elements and compute a type which is compatible with all
         // the expressions inside
         for (const auto& element : node->elements) {

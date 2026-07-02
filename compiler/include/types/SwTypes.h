@@ -42,6 +42,7 @@ struct Var;
     SW_TYPE(SLICE, SliceType) \
     SW_TYPE(VOID, VoidType) \
     SW_TYPE(GENERIC, GenericType) \
+    SW_TYPE(UNI_TY,  UniversalType)\
     \
     \
     SW_TYPE(C_INT, TypeCInt) \
@@ -148,6 +149,19 @@ struct FloatingPointType : Type {
 
     bool isFloatingPoint() override {
         return true;
+    }
+};
+
+
+/// A type which is supposed to be compatible with any type
+struct UniversalType : Type {
+    explicit UniversalType(): Type(UNI_TY) {}
+
+    [[nodiscard]]
+    std::string toString() const override { return "UniversalType"; }
+
+    SwTypes getTypeTag() override {
+        return UNI_TY;
     }
 };
 

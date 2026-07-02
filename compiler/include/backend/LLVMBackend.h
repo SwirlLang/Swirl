@@ -274,4 +274,7 @@ public:
     llvm::Type* llvmCodegen(TypeCIntMax* type, SwContext context);
     llvm::Type* llvmCodegen(TypeCUIntMax* type, SwContext context);
     llvm::Type* llvmCodegen(TypeCWChar* type, SwContext context);
+    llvm::Type* llvmCodegen(UniversalType* type, SwContext context) {
+        throw std::runtime_error("codegen called on a universal type!");
+    }
 };

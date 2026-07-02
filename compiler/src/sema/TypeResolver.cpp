@@ -8,6 +8,9 @@
 bool sema::TypeResolver::checkTypeCompatibility(Type* from, Type* to, bool report_errors) {
     if (!from || !to) return false;
     if (from == to)   return true;
+    if (from == &GlobalUniversalType || to == &GlobalUniversalType) {
+        return true;
+    }
 
     auto report_error = [this, report_errors](const ErrCode code, ErrorContext ctx) {
         if (report_errors) {
@@ -94,6 +97,11 @@ Type* sema::TypeResolver::unify(Type* type1, Type* type2) {
     if (type1 == type2) {
         return type1;
     }
+
+    if (type1 == &GlobalUniversalType)
+        return type2;
+    if (type2 == &GlobalUniversalType)
+        return type1;
 
     // return the greater of the two types, ensuring that both integral types are either all signed or unsigned
     if (type1->isIntegral() && type2->isIntegral()) {
