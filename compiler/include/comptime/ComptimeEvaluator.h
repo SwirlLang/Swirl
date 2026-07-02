@@ -23,12 +23,12 @@ public:
 
 
     Value evaluate(const Node* node, const Context ctx) {
-    #define SW_NODE(x, y) case x: return compute(static_cast<const y*>(node), ctx);
+#define SW_NODE(x, y) case x: return compute(static_cast<const y*>(node), ctx);
         switch (node->kind) {
             SW_NODE_LIST;
             default: throw std::runtime_error("ComptimeEvaluator::evaluate(): invalid node kind");
         }
-    #undef SW_NODE
+#undef SW_NODE
     }
 
 
@@ -81,6 +81,15 @@ public:
             // set the var_ident to what it was before, as transformation nullifies it
             auto* var = ret->to<Var>();
             var->var_ident = node->var_ident;
+        } return ret;
+    }
+
+
+    Node* transform(const Struct* node) {
+        const auto ret = const_cast<Node*>(transformDefault(node));
+        if (ret != node) {
+            auto* struct_ = ret->to<Struct>();
+            struct_->ident = node->ident;
         } return ret;
     }
 
