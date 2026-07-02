@@ -543,7 +543,9 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
             auto arr_ptr = Builder.CreateStructGEP(
                 operand_llvm_ty, codegen(node->getLHS(), context).getLValue(), 0);
 
-            context.bound_type = fetchSwType(node->operands.at(1));
+            auto arr_sw_type = fetchSwType(node->operands.at(0));
+            context.bound_type = arr_sw_type->getWrappedType();
+
             llvm::Value* second_op = codegen(node->operands.at(1), context).getRValue(*this, context);
 
             auto element_ptr = Builder.CreateGEP(
@@ -554,7 +556,10 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
 
             assert(element_ptr != nullptr);
             ComputedPtr = element_ptr;
-            return CGValue::lValue(element_ptr);
+
+            return {element_ptr, Builder.CreateLoad(
+                codegen(context.bound_type, context), element_ptr
+            )};
         }
 
         case Op::BITWISE_OR: {

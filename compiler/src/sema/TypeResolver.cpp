@@ -146,6 +146,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
 
     // 1st operand
     auto analysis_1 = inferType(node->operands.at(0), ctx);
+    TypeInfo analysis_2{};
 
     if (analysis_1.deduced_type == nullptr)
         return {};
@@ -184,11 +185,11 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
         }
     } else {
         // 2nd operand
-        auto analysis_2 =
+        analysis_2 =
             node->op_type != Op::CAST_OP         &&
             node->op_type != Op::DOT             &&
             node->op_type != Op::ASSIGNMENT      ?
-            inferType(node->operands.at(1), ctx) :
+            inferType(node->operands.at(1), {.bound_type = analysis_1.deduced_type}) :
             TypeInfo{};
 
         switch (node->op_type) {
@@ -246,7 +247,10 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                             .type_1 = analysis_2.deduced_type,
                         });
                     break;
-                } ret.deduced_type = analysis_1.deduced_type->getWrappedType();
+                }
+
+                ret.deduced_type = analysis_1.deduced_type->getWrappedType();
+                node->common_type = ret.deduced_type;
                 break;
             }
 
@@ -406,8 +410,8 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
         }
     }
 
-    if (node->arity == 2)
-        node->common_type = unify(analysis_1.deduced_type, analysis_1.deduced_type);
+    if (node->arity == 2 && !node->common_type)
+        node->common_type = unify(analysis_1.deduced_type, analysis_2.deduced_type);
     else node->common_type = analysis_1.deduced_type;
     return ret;
 }
