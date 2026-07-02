@@ -542,8 +542,18 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
         case Op::INDEXING_OP: {
             auto operand_llvm_ty = codegen(fetchSwType(node->operands.at(0)), context);
 
+            llvm::Value* lhs_lvalue;
+            if (auto cg = codegen(node->getLHS(), context); !cg.isLValue()) {
+                // allocate the parameter on the stack and store the argument
+                lhs_lvalue = Builder.CreateAlloca(operand_llvm_ty);
+                Builder.CreateStore(cg.getRValue(*this, context), lhs_lvalue);
+            } else {
+                // load the lvalue directly
+                lhs_lvalue = codegen(node->getLHS(), context).getLValue();
+            }
+
             auto arr_or_ptr_ptr = Builder.CreateStructGEP(
-                operand_llvm_ty, codegen(node->getLHS(), context).getLValue(), 0);
+                operand_llvm_ty, lhs_lvalue, 0);
 
             context.bound_type = fetchSwType(node->operands.at(1));
             llvm::Value* second_op = codegen(node->operands.at(1), context).getRValue(*this, context);
