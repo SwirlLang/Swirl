@@ -3,7 +3,6 @@
 #include <filesystem>
 #include <unordered_set>
 
-#include "parser/Parser.h"
 #include "utils/Threadpool.h"
 #include "utils/logging.h"
 #include "backend/LLVMBackend.h"

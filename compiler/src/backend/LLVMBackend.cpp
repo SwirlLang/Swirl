@@ -249,6 +249,8 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
     assert(node->common_type);
     context.bound_type = node->common_type;
 
+    static const Type* str_type = SymMan.lookupType(SymMan.getIdInfoOfAGlobal("str"));
+
 
     switch (node->op_type) {
         case Op::UNARY_ADD:
@@ -540,28 +542,40 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
         case Op::INDEXING_OP: {
             auto operand_llvm_ty = codegen(fetchSwType(node->operands.at(0)), context);
 
-            auto arr_ptr = Builder.CreateStructGEP(
+            auto arr_or_ptr_ptr = Builder.CreateStructGEP(
                 operand_llvm_ty, codegen(node->getLHS(), context).getLValue(), 0);
 
-            auto arr_sw_type = fetchSwType(node->operands.at(0));
-            context.bound_type = arr_sw_type->getWrappedType();
-
+            context.bound_type = fetchSwType(node->operands.at(1));
             llvm::Value* second_op = codegen(node->operands.at(1), context).getRValue(*this, context);
+            llvm::Value* element_ptr;
 
-            auto element_ptr = Builder.CreateGEP(
-                operand_llvm_ty->getStructElementType(0),
-                arr_ptr,
-                {toLLVMInt(0), second_op}
-            );
+            auto container_sw_type = fetchSwType(node->operands.at(0));
+            auto elem_sw_type = container_sw_type == str_type ?
+                static_cast<Type*>(&GlobalTypeI8) :
+                container_sw_type->getWrappedType();
+            auto elem_llvm_ty = codegen(elem_sw_type, context);
+
+            if (auto arr_ty = llvm::dyn_cast<llvm::ArrayType>(
+                operand_llvm_ty->getStructElementType(0)))
+            {
+                // { [T | N] } GEP through the array
+                element_ptr = Builder.CreateGEP(
+                    arr_ty, arr_or_ptr_ptr, {toLLVMInt(0), second_op});
+            }
+
+            else {
+                auto data_ptr = Builder.CreateLoad(
+                    operand_llvm_ty->getStructElementType(0), arr_or_ptr_ptr);
+                element_ptr = Builder.CreateGEP(
+                    elem_llvm_ty, data_ptr, second_op);
+            }
+
 
             assert(element_ptr != nullptr);
             ComputedPtr = element_ptr;
 
-            return {element_ptr, Builder.CreateLoad(
-                codegen(context.bound_type, context), element_ptr
-            )};
+            return {element_ptr, Builder.CreateLoad(elem_llvm_ty, element_ptr)};
         }
-
         case Op::BITWISE_OR: {
             llvm::Value* lhs = codegen(node->getLHS(), context).getRValue(*this, context);
             llvm::Value* rhs = codegen(node->getRHS(), context).getRValue(*this, context);

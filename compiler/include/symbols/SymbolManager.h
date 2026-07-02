@@ -140,6 +140,10 @@ public:
 
 
     IdentInfo* getIDInfoFor(const std::string& id) {
+        if (const auto ret = getIdInfoOfAGlobal(id)) {
+            return ret;
+        }
+
         for (const Namespace* scope : m_ScopeTrack | std::views::reverse) {
             if (const auto ret = scope->getIDInfoFor(id)) {
                 return *ret;
@@ -158,6 +162,7 @@ public:
     Namespace* getGlobalScopeFromModule(sw::FileHandle* path) const;
 
 
+    /// Looks up a GLOBAL type
     Type* lookupType(const std::string& id) {
         return m_TypeManager.getFor(getIDInfoFor(id));
     }

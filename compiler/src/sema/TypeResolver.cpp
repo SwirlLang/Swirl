@@ -249,7 +249,10 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                     break;
                 }
 
-                ret.deduced_type = analysis_1.deduced_type->getWrappedType();
+                auto type_str = SymMan.lookupType(SymMan.getIdInfoOfAGlobal("str"));
+                ret.deduced_type = analysis_1.deduced_type == type_str ?
+                    &GlobalTypeChar :
+                    analysis_1.deduced_type->getWrappedType();
                 node->common_type = ret.deduced_type;
                 break;
             }
