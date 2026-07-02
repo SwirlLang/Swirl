@@ -260,6 +260,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
             case Op::CAST_OP: {
                 inferType(node->operands.at(1), ctx);
                 ret.deduced_type = node->operands.at(1)->getSwType();
+                node->common_type = ret.deduced_type;
                 break;
             }
 
