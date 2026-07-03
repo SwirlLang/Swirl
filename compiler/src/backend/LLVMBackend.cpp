@@ -44,10 +44,11 @@ bool CGValue::isLValue() const {
 llvm::Value* CGValue::getRValue(LLVMBackend& instance, const SwContext& context) const {
     if (!m_RValue) {
         assert(m_LValue);
+        assert(m_SourceTy);
         return instance.castIfNecessary(
-            m_SourceTy ? m_SourceTy : &GlobalUniversalType,
+            m_SourceTy,
             instance.Builder.CreateLoad(
-                instance.codegen(context.bound_type, context), m_LValue),
+                instance.codegen(m_SourceTy, context), m_LValue),
                 context);
 
     } return instance.castIfNecessary(
