@@ -32,8 +32,15 @@ struct SwContext {
 
 class CGValue {
 public:
-    CGValue(): m_LValue(nullptr), m_RValue(nullptr) {}
-    CGValue(llvm::Value* lvalue, llvm::Value* rvalue): m_LValue(lvalue), m_RValue(rvalue) {}
+    CGValue()
+        : m_LValue(nullptr)
+        , m_RValue(nullptr)
+        , m_SourceTy(nullptr) {}
+
+    CGValue(llvm::Value* lvalue, llvm::Value* rvalue, Type* source_ty)
+        : m_LValue(lvalue)
+        , m_RValue(rvalue)
+        , m_SourceTy(source_ty) {}
 
     [[nodiscard]]
     bool isLValue() const;
@@ -42,12 +49,13 @@ public:
     llvm::Value*   getLValue() const;
     llvm::Value*   getRValue(LLVMBackend&, const SwContext& context) const;
 
-    static CGValue lValue(llvm::Value* lvalue);
-    static CGValue rValue(llvm::Value* rvalue);
+    static CGValue lValue(llvm::Value* lvalue, Type* source_ty);
+    static CGValue rValue(llvm::Value* rvalue, Type* source_ty);
 
 private:
     llvm::Value* m_LValue;
     llvm::Value* m_RValue;
+    Type*        m_SourceTy;
 };
 
 
