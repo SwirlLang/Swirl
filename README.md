@@ -8,7 +8,7 @@ Swirl is a statically and strongly-typed, systems programming language, leveragi
 [Docs](https://swirl-lang.netlify.app/docs) |
 [Contributing](./CONTRIBUTING.md)  
 
-[![vscode extension](https://img.shields.io/visual-studio-marketplace/v/MrinmoyHaloi.swirl-lang-support?color=blue&label=VSCode%20Extension&logo=visualstudiocode&logoColor=blue&style=flat-square)](https://marketplace.visualstudio.com/items?itemName=MrinmoyHaloi.swirl-lang-support)
+[![vscode extension](https://img.shields.io/badge/VSCode-Extension-Blue/?color=blue&style=flat-square)](https://marketplace.visualstudio.com/items?itemName=SwirlLang.swirl-lang-support)
 [![License](https://img.shields.io/github/license/SwirlLang/Swirl?style=flat-square)](LICENSE)
 [![Discord](https://img.shields.io/discord/894989427628179477?color=blue&label=Discord&logo=Discord&logoColor=white&style=flat-square)](https://discord.gg/RSJ5TUDdqx)
 <!--[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/SwirlLang/Swirl/cmake.yml?style=flat-square)](https://github.com/SwirlLang/Swirl/actions/workflows/cmake.yml)-->
