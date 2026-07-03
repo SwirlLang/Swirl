@@ -153,6 +153,10 @@ llvm::Value* LLVMBackend::castIfNecessary(Type* source_type, llvm::Value* subjec
         return Builder.CreatePtrToInt(subject, codegen(context.bound_type, context));
     }
 
+    if (source_type->isIntegral() && context.bound_type->isPointerType()) {
+        return Builder.CreateIntToPtr(subject, codegen(context.bound_type, context));
+    }
+
     if (context.bound_type != source_type && !source_type->isStructType()) {
         if (context.bound_type->isIntegral() || context.bound_type->isBoolean()) {
             // if the destination type is unsigned or if the source type is boolean
