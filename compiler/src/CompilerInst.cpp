@@ -53,7 +53,7 @@ void CompilerInst::startLLVMCodegen() {
 
     m_ThreadPool.wait();
 
-    if (DebugMode) {
+    if (SW_IS_DEBUG) {
         for (const auto& backend : llvm_backends) {
             backend->printIR();
         }

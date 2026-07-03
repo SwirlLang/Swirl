@@ -97,7 +97,6 @@ int main(const int argc, const char **argv) {
             CompilerInst::RunExe = true;
         if (app.contains_flag("-d")) {
             SW_IS_DEBUG = true;
-            CompilerInst::DebugMode = true;
         }
 
         compiler_inst.compile();

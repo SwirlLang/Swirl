@@ -57,7 +57,6 @@ public:
     inline static fs::path OutputPath; // path/to/executable (absolute)
 
     inline static bool RunExe = false;
-    inline static bool DebugMode = true;
 
     explicit CompilerInst(fs::path path)
         : m_SrcPath(std::move(path))
