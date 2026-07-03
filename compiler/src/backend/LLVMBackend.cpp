@@ -553,8 +553,25 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
             return {};
         }
 
+        // (this case is quite unreadable, but only until operator overloading is implemented)
         case Op::INDEXING_OP: {
             auto operand_llvm_ty = codegen(fetchSwType(node->operands.at(0)), context);
+
+            // pointer indexing
+            if (operand_llvm_ty->isPointerTy()) {
+                auto ptr_val = codegen(node->getLHS(), context).getRValue(*this, context);
+                context.bound_type = fetchSwType(node->operands.at(1));
+
+                llvm::Value* idx = codegen(node->getRHS(), context).getRValue(*this, context);
+
+                auto container_sw_type = fetchSwType(node->operands.at(0));
+                auto elem_sw_type = container_sw_type->getWrappedType();
+                auto elem_llvm_ty = codegen(elem_sw_type, context);
+                auto element_ptr = Builder.CreateGEP(elem_llvm_ty, ptr_val, idx);
+
+                ComputedPtr = element_ptr;
+                return {element_ptr, Builder.CreateLoad(elem_llvm_ty, element_ptr), elem_sw_type};
+            }
 
             llvm::Value* lhs_lvalue;
             if (auto cg = codegen(node->getLHS(), context); !cg.isLValue()) {
