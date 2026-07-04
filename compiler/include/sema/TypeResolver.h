@@ -58,7 +58,7 @@ public:
     Type* unify(Type* type1, Type* type2);
 
     /// Checks whether `from` can be converted to `to`
-    bool checkTypeCompatibility(Type* from, Type* to, bool report_errors = true);
+    bool checkTypeCompatibility(Type* from, Type* to, bool report_errors = true, Node* location_node = nullptr);
 
 
     Function* getCurrentParentFunc() const {
@@ -368,7 +368,7 @@ public:
                 .bound_type = fn_type->param_types.at(index)
             });
 
-            checkTypeCompatibility(arg_type.deduced_type, fn_type->param_types.at(index));
+            checkTypeCompatibility(arg_type.deduced_type, fn_type->param_types.at(index), true, node->args.at(i));
             node->args.at(i)->setType(fn_type->param_types.at(index));
         }
 

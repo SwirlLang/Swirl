@@ -19,7 +19,7 @@ public:
         std::fill(backticks.begin(), backticks.end(), ' ');
 
         backticks.append("|\t");
-        for (int i = 0; i < ctx.location->from.Col; i++) {
+        for (int i = 0; i < ctx.location->from.Col-1; i++) {
             backticks.append(" ");
         }
 

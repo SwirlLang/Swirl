@@ -5,17 +5,37 @@
 #include "parser/Parser.h"
 
 
-bool sema::TypeResolver::checkTypeCompatibility(Type* from, Type* to, bool report_errors) {
+bool sema::TypeResolver::checkTypeCompatibility(Type* from, Type* to, bool report_errors, Node* location_node) {
     if (!from || !to) return false;
     if (from == to)   return true;
     if (from == &GlobalUniversalType || to == &GlobalUniversalType) {
         return true;
     }
 
-    auto report_error = [this, report_errors](const ErrCode code, ErrorContext ctx) {
-        if (report_errors) {
-            reportError(code, std::move(ctx));
+    auto report_error = [this, report_errors, location_node](const ErrCode code, ErrorContext ctx) {
+        if (!report_errors) {
+            return;
         }
+
+        if (!ctx.location.has_value() && location_node) {
+            auto* node = location_node;
+            if (auto* expr = node->to<Expression>()) {
+                if (expr->expr) {
+                    const auto child_location = expr->expr->location;
+                    const bool has_location =
+                        child_location.from.Line != 0 ||
+                        child_location.from.Col != 0 ||
+                        child_location.from.Pos != 0;
+                    ctx.location = has_location ? child_location : node->location;
+                } else {
+                    ctx.location = node->location;
+                }
+            } else {
+                ctx.location = node->location;
+            }
+        }
+
+        reportError(code, std::move(ctx));
     };
 
     if (from->isIntegral() && to->isFloatingPoint() || to->isFloatingPoint() && from->isIntegral()) {
@@ -243,7 +263,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
 
                 analysis_2 = inferType(node->operands.at(1), {.bound_type = analysis_1.deduced_type});
 
-                checkTypeCompatibility(analysis_2.deduced_type, analysis_1.deduced_type);
+                checkTypeCompatibility(analysis_2.deduced_type, analysis_1.deduced_type, true, node->operands.at(1));
                 ret.deduced_type = unify(analysis_1.deduced_type, analysis_2.deduced_type);
                 break;
             }
