@@ -741,14 +741,7 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
                 (struct_ty->field_offsets.at(field_node->full_qualification.front().name.data()))
             );
 
-            // in the case of this operator, the node->common_type is supposed to be the type of the field
-            // being accessed, not an actual common type between node->operands
-            auto field_type = node->common_type;
-
-            StructFieldPtr = field_ptr;
-            StructFieldType = field_type;
             ComputedPtr = field_ptr;
-
             return CGValue::lValue(field_ptr, context.bound_type);
         }
         case Op::ADD_ASSIGN:

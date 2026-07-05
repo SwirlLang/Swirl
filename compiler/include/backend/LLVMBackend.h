@@ -76,9 +76,7 @@ public:
 
     llvm::Function* CurParent       = nullptr;
     llvm::Value*    RefMemory       = nullptr;  // set by the addr-taking op after computation
-    llvm::Value*    ComputedPtr     = nullptr;  // set GEP operations like `[]` or `.`
-    Type*           StructFieldType = nullptr;  // used to "bubble-up" struct-field types
-    llvm::Value*    StructFieldPtr  = nullptr;  // used to "bubble-up" StructGEPd pointers
+    llvm::Value*    ComputedPtr     = nullptr;  // set by GEP operations like `[]` or `.`
 
 
     LLVMBackend() = delete;
