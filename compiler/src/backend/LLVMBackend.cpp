@@ -702,31 +702,6 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
         }
 
         case Op::DOT: {
-            // when nested
-            if (node->operands.at(0)->getNodeType() == ND_OP) {
-                const auto inst_ptr = codegen(node->operands.at(0), context).getLValue();
-
-                const auto field_node = node->operands.at(1)->to<Ident>();
-                const auto struct_ty  = StructFieldType->to<StructType>();
-
-                auto field_ptr = Builder.CreateStructGEP(
-                    codegen(StructFieldType, context),
-                    inst_ptr,
-                    static_cast<unsigned int>
-                    (struct_ty->field_offsets.at(field_node->full_qualification.front().name.data()))
-                );
-
-                auto field_ty = SymMan.lookupDecl(field_node->value).swirl_type;
-
-                StructFieldType = field_ty;
-                StructFieldPtr  = field_ptr;
-                ComputedPtr     = field_ptr;
-
-                return CGValue::lValue(field_ptr, context.bound_type);
-            }
-
-            // ---- * ---- * ---- * ---- * ---- //
-            // otherwise...
             auto operand = codegen(node->operands.at(0), context);
 
             // fetch the instance's struct-type
