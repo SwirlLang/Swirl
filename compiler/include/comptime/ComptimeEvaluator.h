@@ -11,10 +11,17 @@ class GenericSubstitutor;
 namespace sw {
 class ComptimeEvaluator : public TransformVisitor<ComptimeEvaluator> {
 public:
-    explicit ComptimeEvaluator(Module* module, ErrorCallback_t error_callback)
+    using GenericParamList_t = std::unordered_set<std::string_view>;
+    explicit ComptimeEvaluator(Module* module, ErrorCallback_t error_callback, GenericParamList_t* generic_params)
         : TransformVisitor(module)
         , m_Module(module)
-        , m_ErrorCallback(std::move(error_callback)) {}
+        , m_ErrorCallback(std::move(error_callback))
+        , m_GenericParams(generic_params) {}
+
+
+    explicit ComptimeEvaluator(Module* module, ErrorCallback_t error_callback)
+        : ComptimeEvaluator(module, std::move(error_callback), nullptr)
+        {}
 
 
     struct Context {
@@ -54,6 +61,11 @@ public:
         if (node->is_comptime) {
             assert(node->expr);
             const auto expr = makeNode(evaluate(node->expr, {.type = node->expr_type}));
+            
+            if (expr == nullptr) {
+                return const_cast<Expression*>(node);
+            }
+
             expr->to<Expression>()->expr_type = node->expr_type;
             assert(expr->to<Expression>()->expr_type);
             return expr;
@@ -98,7 +110,7 @@ private:
     Module* m_Module;
     ErrorCallback_t m_ErrorCallback;
     bool m_ErrorsOccurred = false;
-
+    GenericParamList_t* m_GenericParams;
 
     /// Constructs a raw Expression node out of `Value`.
     /// CAUTION: this method does NOT set `expr_type`.
@@ -176,13 +188,18 @@ private:
 
         const TableEntry decl = SymMan.lookupDecl(node->value);
 
-        if (!decl.is_comptime) {
+        // do not report an error if the identifier is a generic parameter
+        const bool is_generic =
+            m_GenericParams &&
+            m_GenericParams->contains(node->full_qualification.front().name);
+
+        if (!decl.is_comptime && !is_generic) {
             reportError(ErrCode::NOT_ALLOWED_CT_CTX, {
                 .location = node->location});
             return {};
         }
 
-        return evaluate(decl.node_ptr, ctx);
+        return is_generic ? Value{} : evaluate(decl.node_ptr, ctx);
     }
 
 

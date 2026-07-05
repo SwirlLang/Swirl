@@ -33,6 +33,8 @@ public:
     sw::GenericInstantiator GenericInstantiator;
     sw::ComptimeEvaluator   ComptimeEvaluator;
 
+    std::unordered_set<std::string_view> GenericParameters;
+
     bool IsMonomorphization = false;
 
 
@@ -43,7 +45,7 @@ public:
         , SymMan(context.module->symbol_table)
         , GlobalNodeJmpTable(context.module->node_jmp_table)
         , GenericInstantiator(m_Module, context.error_callback)
-        , ComptimeEvaluator(context.module, context.error_callback)
+        , ComptimeEvaluator(context.module, context.error_callback, &GenericParameters)
         , IsMonomorphization(context.is_monomorphization) {}
 
 
@@ -72,6 +74,10 @@ public:
             return false;
         }
 
+        for (GenericParam* param : node->generic_params) {
+            GenericParameters.insert(param->name);
+        }
+
         VisitedNodes.insert(node);
         CurrentParentFunction.push_back(node);
         return true;
@@ -86,6 +92,10 @@ public:
             ReturnStmtCounter = 0;
             CommonFunctionType = nullptr;
             return;
+        }
+
+        for (const GenericParam* param : node->generic_params) {
+            GenericParameters.erase(param->name);
         }
 
         if (!fn_type->ret_type)
@@ -196,7 +206,7 @@ public:
 
             // evaluate the comptime expression and set it as the array size
             const auto trans_node = ComptimeEvaluator.transform(node->array_size);
-            if (!ComptimeEvaluator.errorsOccurred()) {
+            if (!ComptimeEvaluator.errorsOccurred() && trans_node != node->array_size) {
                 array_size = sw::ComptimeEvaluator::toUInt64(
                     trans_node->to<Expression>()->expr->to<IntLit>()->value);
             }
@@ -410,6 +420,10 @@ public:
     }
 
 
+    void handle(Intrinsic* node) {
+        evaluateType(node, {});
+    }
+
     void handle(ReturnStatement* node) {
         ReturnStmtCounter++;
 
@@ -531,6 +545,13 @@ public:
     }
 
 
+    bool preVisit(const Struct* node) {
+        for (const GenericParam* param : node->generic_params) {
+            GenericParameters.insert(param->name);
+        } return true;
+    }
+
+
     void postVisit(Struct* node) {
         const auto ty = SymMan.lookupType(node->ident)->to<StructType>();
         ty->field_types.clear();
@@ -562,6 +583,10 @@ public:
                     .return_type = fn_node->return_type,
                     .params = internArray<TypeWrapper*>(param_types)
                 });
+            }
+
+            for (const GenericParam* param : node->generic_params) {
+                GenericParameters.erase(param->name);
             }
         }
 
