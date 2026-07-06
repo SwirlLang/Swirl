@@ -156,23 +156,12 @@ public:
     bool preVisit(Var* node) {
         if (node->var_ident) return true;
 
-        if (node->is_instance_param) {
-            if (StructStack.empty() || !StructStack.back()) {
-                reportError(ErrCode::NO_INSTANCE_PARAM_HERE, {});
-                return false;
-            }
-
-            node->var_type = makeNode<TypeWrapper>(
-                SymMan.getReferenceType(StructStack.back(), !node->is_const));
-        }
-
         node->var_ident = getNewIDInfo(node->name);
 
         TableEntry entry;
         entry.is_const    = node->is_const;
         entry.is_volatile = node->is_volatile;
         entry.is_exported = node->is_exported;
-        entry.is_param    = node->is_param;
         entry.node_ptr    = node;
         entry.is_comptime = node->is_comptime;
 
@@ -183,6 +172,32 @@ public:
         }
 
         return true;
+    }
+
+
+    bool preVisit(Parameter* node) {
+        if (node->is_instance_param) {
+            if (StructStack.empty() || !StructStack.back()) {
+                reportError(ErrCode::NO_INSTANCE_PARAM_HERE, {});
+                return false;
+            }
+
+            node->type = makeNode<TypeWrapper>(
+                SymMan.getReferenceType(StructStack.back(), !node->is_const));
+        }
+
+        node->ident = getNewIDInfo(node->name);
+
+        TableEntry entry;
+        entry.is_const    = node->is_const;
+        entry.is_param    = true;
+        entry.node_ptr    = node;
+
+        SymMan.registerDecl(node->ident, entry);
+
+        if (isGlobalScope()) {
+            NodeJmpTable.insert({node->ident, node});
+        } return true;
     }
 
 

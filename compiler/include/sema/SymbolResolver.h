@@ -71,7 +71,7 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             }
         }
 
-        for (Var* param : node->params) {
+        for (Parameter* param : node->params) {
             visit(param, data);
         } visit(node->return_type, data);
 

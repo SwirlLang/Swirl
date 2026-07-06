@@ -72,7 +72,7 @@ class SymbolManager {
     // tracks the exported symbols of the mod
     std::unordered_map<std::string, ExportedSymbolMeta_t> m_ExportedSymbolTable;
 
-    // maps qualifier-names to their paths
+    // maps qualifier-names to their namespace
     std::unordered_map<std::string, Namespace*> m_QualifierTable;
 
     // maps fictitious IDs to parent enum nodes

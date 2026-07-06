@@ -144,12 +144,19 @@ protected:
             visit(child, std::forward<Args>(args)...);
         }
 
-        for (Var* child : node->params) {
+        for (Parameter* child : node->params) {
             visit(child, std::forward<Args>(args)...);
         }
 
         visit(node->return_type, std::forward<Args>(args)...);
         visit(node->children, std::forward<Args>(args)...);
+    }
+
+
+    template <typename... Args>
+    void traverse(Parameter* node, Args&&... args) {
+        visit(node->type, std::forward<Args>(args)...);
+        visit(node->value);
     }
 
 

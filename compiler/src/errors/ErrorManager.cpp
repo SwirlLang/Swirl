@@ -188,6 +188,8 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
                    " remove the extra characters.";
         case ErrCode::CHAR_LIT_EMPTY:
             return "Character literals cannot be empty.";
+        case ErrCode::PARAM_MUST_HAVE_TYPE:
+            return "Non-variadic parameters must have an explicit type.";
         default:
             throw std::runtime_error("Undefined error code");
     }

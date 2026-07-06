@@ -140,11 +140,11 @@ protected:
             new_gen_params.push_back(static_cast<GenericParam*>(new_param));
         }
 
-        std::vector<Var*> new_params;
+        std::vector<Parameter*> new_params;
         for (auto param : node->params) {
             auto new_param = run(param, std::forward<Args>(args)...);
             if (new_param != param) changed = true;
-            new_params.push_back(static_cast<Var*>(new_param));
+            new_params.push_back(static_cast<Parameter*>(new_param));
         }
 
         Node* ret = nullptr;
@@ -163,12 +163,39 @@ protected:
             const auto new_node = makeNode<Function>(*node);
             new_node->ident = nullptr;
             new_node->generic_params = m_Module->internArray<GenericParam*>(new_gen_params);
-            new_node->params = m_Module->internArray<Var*>(new_params);
+            new_node->params = m_Module->internArray<Parameter*>(new_params);
             new_node->return_type = static_cast<TypeWrapper*>(ret);
             new_node->children = static_cast<Scope*>(children);
             return new_node;
         }
         return node;
+    }
+
+
+    template <typename... Args>
+    const Node* transformDefault(const Parameter* node, Args&&... args) {
+        bool changed = false;
+
+        auto type = run(node->type, std::forward<Args>(args)...);
+        if (type != node->type) changed = true;
+
+        auto val = run(node->value, std::forward<Args>(args)...);
+        if (val != node->value) changed = true;
+
+        if (changed) {
+            const auto new_node = makeNode<Parameter>(*node);
+            new_node->type = static_cast<TypeWrapper*>(val);
+            new_node->value = static_cast<Expression*>(val);
+            new_node->ident = nullptr;
+
+            // remove the generic placeholder type
+            if (new_node->type) {
+                if (const auto ty = new_node->type->getSwType()) {
+                    new_node->type = ty->getTypeTag() == Type::GENERIC
+                        ? nullptr : new_node->type;
+                }
+            } return new_node;
+        } return node;
     }
 
 

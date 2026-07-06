@@ -97,9 +97,9 @@ public:
     Scope*     parseScope();
     Condition* parseCondition(bool is_comptime = false);
 
-    Var*  parseParam(bool&);
-    Var*  parseVar(bool is_comptime = false);
-    Node* parseCall(std::optional<Ident*> _ = std::nullopt);
+    Var*        parseVar(bool is_comptime = false);
+    Node*       parseCall(std::optional<Ident*> _ = std::nullopt);
+    Parameter*  parseParam(bool&);
 
     std::span<Ident*>         parseProtocolList();
     std::span<GenericParam*>  parseGenericParamList();

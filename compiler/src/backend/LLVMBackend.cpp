@@ -951,7 +951,7 @@ CGValue LLVMBackend::llvmCodegen(Function* node, const SwContext& context) {
     Builder.SetInsertPoint(entry_bb);
 
     for (unsigned int i = 0; i < node->params.size(); i++) {
-        const auto p_name = node->params[i]->var_ident;
+        const auto p_name = node->params[i]->ident;
         [[maybe_unused]] const auto param = func->getArg(i);
         // param->setName(p_name->toString());
 

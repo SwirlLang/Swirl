@@ -401,12 +401,12 @@ public:
         fn_type->param_types.clear();
 
         assert(fn_type->param_types.size() <= 1);
-        for (Var* param : node->params) {
+        for (Parameter* param : node->params) {
             handle(param);
 
-            auto param_type = param->var_type->type;
+            auto param_type = param->type->type;
             fn_type->param_types.push_back(param_type);
-            SymMan.lookupDecl(param->var_ident).swirl_type = param_type;
+            SymMan.lookupDecl(param->ident).swirl_type = param_type;
         }
 
         // visit children
@@ -466,13 +466,25 @@ public:
     }
 
 
+    void handle(const Parameter* node) {
+        if (node->type) {
+            visit(node->type);
+            inferType(node->type, {});
+        }
+
+        if (node->type) {
+            SymMan.lookupDecl(node->ident).swirl_type = node->type->type;
+        }
+    }
+
+
     void handle(Var* node) {
         if (node->var_type) {
             visit(node->var_type);
             inferType(node->var_type, {});
         }
 
-        if (!node->initialized && (!node->is_param && node->is_const)) {
+        if (!node->initialized && node->is_const) {
             reportError(
                 ErrCode::INITIALIZER_REQUIRED,
                 {.ident = node->var_ident}
@@ -574,8 +586,8 @@ public:
 
                 std::vector<TypeWrapper*> param_types;
                 param_types.reserve(fn_node->params.size());
-                for (const Var* param : fn_node->params) {
-                    param_types.push_back(param->var_type);
+                for (const Parameter* param : fn_node->params) {
+                    param_types.push_back(param->type);
                 }
 
                 method_lookup.insert({

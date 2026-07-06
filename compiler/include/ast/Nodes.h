@@ -26,6 +26,7 @@
     SW_NODE(ND_CALL, FuncCall) \
     SW_NODE(ND_IDENT, Ident) \
     SW_NODE(ND_FUNC, Function) \
+    SW_NODE(ND_PARAM, Parameter) \
     SW_NODE(ND_RET, ReturnStatement) \
     SW_NODE(ND_COND, Condition) \
     SW_NODE(ND_WHILE, WhileLoop) \
@@ -549,8 +550,6 @@ struct Var final : GlobalNode {
     bool is_const    = false;
     bool is_volatile = false;
     bool is_comptime = false;
-    bool is_param    = false;
-    bool is_instance_param = false;   // for the special case of `&self` in methods
 
     explicit Var(): GlobalNode(ND_VAR) {}
 
@@ -579,12 +578,29 @@ struct Scope final : Node {
 };
 
 
+struct Parameter final : Node {
+    IdentInfo*       ident = nullptr;
+    TypeWrapper*     type = nullptr;
+
+    std::string_view name{};
+    Expression*      value = nullptr;
+
+    bool is_const          = false;
+    bool is_variadic       = false;
+    bool is_instance_param = false;
+    bool is_initialized    = false;
+
+    Parameter()
+        : Node(ND_PARAM) {}
+};
+
+
 struct Function final : GlobalNode {
     bool is_static_method = true;
     IdentInfo* ident = nullptr;
 
-    std::span<Var*>  params;
-    Scope*           children = nullptr;
+    Scope* children = nullptr;
+    std::span<Parameter*>  params;
 
     TypeWrapper* return_type = nullptr;
 

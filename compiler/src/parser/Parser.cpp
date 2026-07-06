@@ -459,7 +459,7 @@ Node* Parser::parseFunction() {
     ignoreButExpect(Token::PUNC_LPAREN);
 
     // parse the parameters...
-    std::vector<Var*> params;
+    std::vector<Parameter*> params;
 
     if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.tokenid != Token::PUNC_RPAREN) {
         while (m_Stream.CurTok.tokenid != Token::PUNC_RPAREN && m_Stream.CurTok.type != PUNC) {
@@ -467,7 +467,7 @@ Node* Parser::parseFunction() {
             if (m_Stream.CurTok.tokenid == Token::PUNC_COMMA)
                 forwardStream();
         }
-    }  func_nd->params = m_Module->internArray<Var*>(params);
+    }  func_nd->params = m_Module->internArray<Parameter*>(params);
 
     forwardStream();  // skip ')'
 
@@ -495,10 +495,8 @@ Node* Parser::parseFunction() {
 }
 
 
-Var* Parser::parseParam(bool& method_is_static) {
-    Var* param = m_Module->makeNode<Var>();
-    param->is_param = true;
-
+Parameter* Parser::parseParam(bool& method_is_static) {
+    auto* param = m_Module->makeNode<Parameter>();
     SET_NODE_ATTRS(param);
 
     // special case of `&self`
@@ -520,13 +518,26 @@ Var* Parser::parseParam(bool& method_is_static) {
         return param;
     }
 
+    // variadic parameters (...args)
+    if (m_Stream.CurTok.tokenid == Token::OP_ELLIPSIS) {
+        forwardStream();  // skip '...'
+        param->is_variadic = true;
+    }
+
     param->name = internString(m_Stream.CurTok.value);
 
-    forwardStream(2);
-    param->var_type = parseType();
+    forwardStream();  // skip the identifier
+    if (m_Stream.CurTok.tokenid == Token::PUNC_COLON) {
+        forwardStream();  // skip the colon
+        param->type = parseType();
+    } else {
+        if (!param->is_variadic) {
+            reportError(ErrCode::PARAM_MUST_HAVE_TYPE);
+        }
+    }
 
-    param->initialized = m_Stream.CurTok.tokenid == Token::OP_ASSIGN;
-    if (param->initialized)
+    param->is_initialized = m_Stream.CurTok.tokenid == Token::OP_ASSIGN;
+    if (param->is_initialized)
         param->value = parseExpr();
 
     return param;
@@ -917,8 +928,8 @@ Node* Parser::parseProtocol() {
                 // TODO: allow protocols to be used as "types" in the methods' params within the protocol
 
                 func_params.reserve(func->params.size());
-                for (auto& var : func->params) {
-                    func_params.push_back(var->var_type);
+                for (const auto& var : func->params) {
+                    func_params.push_back(var->type);
                 }
 
                 methods.push_back(Protocol::MethodSignature{
