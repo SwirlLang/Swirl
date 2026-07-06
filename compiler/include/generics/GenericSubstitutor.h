@@ -40,6 +40,7 @@ public:
 
         const auto new_node = makeNode<Struct>(*(transformed_struct->to<Struct>()));
         new_node->name = ctx.substitution_name;
+        new_node->generic_params = {};
         return new_node;
     }
 
@@ -66,7 +67,34 @@ public:
                 return ret;
             }
         }
-        return const_cast<Node*>(transformDefault(node, ctx));
+
+        auto* result = const_cast<Node*>(transformDefault(node, ctx));
+
+        // also substitute array_size (e.g., N in [T | N])
+        if (result->to<TypeWrapper>()->array_size) {
+            auto* size_node = const_cast<Node*>(static_cast<const Node*>(
+                result->to<TypeWrapper>()->array_size));
+            auto* new_size = run(size_node, ctx);
+            if (new_size != size_node) {
+                if (result == node) {
+                    // transformDefault returned original — make a copy
+                    result = makeNode<TypeWrapper>(*node);
+                    result->to<TypeWrapper>()->type = nullptr;
+                }
+                result->to<TypeWrapper>()->array_size =
+                    static_cast<Expression*>(new_size);
+            }
+        }
+
+        return result;
+    }
+
+
+    Node* transform(const Var* node, SubstitutionContext& ctx) {
+        auto* new_node = const_cast<Node*>(transformDefault(node, ctx));
+        // Always reset var_ident so SymbolRegistrationPass re-registers params
+        new_node->to<Var>()->var_ident = nullptr;
+        return new_node;
     }
 
 
