@@ -79,6 +79,12 @@ public:
 
 
     Node* transform(const Function* node) {
+        // variadics have been processed before, comptime evaluator is not supposed
+        // to do anything with it
+        if (!node->params.empty() && node->params.back()->is_variadic) {
+            return cast<Node>(node);
+        }
+
         const auto ret = const_cast<Node*>(transformDefault(node));
         if (ret != node) {
             // set the ident to the old one as transformation nullifies it

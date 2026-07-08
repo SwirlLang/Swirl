@@ -51,6 +51,7 @@ struct Token {
         KW_FN,
         KW_VOLATILE,
         KW_STRUCT,
+        KW_IN,
 
         OP_AS,
         OP_NOT,
@@ -142,6 +143,7 @@ KeywordMap = {
     {"if", Token::KW_IF},
     {"else", Token::KW_ELSE},
     {"for", Token::KW_FOR},
+    {"in", Token::KW_IN},
     {"while", Token::KW_WHILE},
     {"mut", Token::KW_MUT},
     {"true", Token::KW_TRUE},
@@ -193,6 +195,7 @@ inline std::string_view Token::toString(TokenValue v) {
         case KW_FN: return "fn";
         case KW_VOLATILE: return "volatile";
         case KW_STRUCT: return "struct";
+        case KW_IN: return "in";
         case OP_AS: return "as";
         case OP_NOT: return "not";
         case OP_DOT: return ".";

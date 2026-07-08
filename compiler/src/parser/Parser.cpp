@@ -124,6 +124,14 @@ void Parser::ignoreButExpect(const Token::TokenValue tok) {
 }
 
 
+Token Parser::expect(const Token::TokenValue tok) {
+    if (m_Stream.CurTok.tokenid != tok) {
+        reportError(ErrCode::SYNTAX_ERROR, {
+            .msg = std::format("Expected '{}'", Token::toString(tok))});
+    } return forwardStream();
+}
+
+
 TypeWrapper* Parser::parseType() {
     auto wrapper = m_Module->makeNode<TypeWrapper>();
     SET_NODE_ATTRS(wrapper);
@@ -200,6 +208,8 @@ Node* Parser::dispatch() {
                 return parseRet();
             case Token::KW_PROTOCOL:
                 return parseProtocol();
+            case Token::KW_FOR:
+                return parseForLoop();
             case Token::KW_ENUM:
                 return parseEnum();
             case Token::KW_TRUE:
@@ -246,6 +256,9 @@ Node* Parser::dispatch() {
                     case Token::KW_IF:
                         forwardStream();
                         return parseCondition(true);
+                    case Token::KW_FOR:
+                        forwardStream();
+                        return parseForLoop(true);
                     default:
                         reportError(ErrCode::NOT_ALLOWED_CT_CTX);
                         break;
@@ -605,6 +618,29 @@ GenericArgList Parser::parseGenericArgList() {
     }
 
     ret.generic_args = m_Module->internArray<GenericArg*>(args);
+    return ret;
+}
+
+
+ForLoop* Parser::parseForLoop(const bool is_comptime) {
+    const auto ret = m_Module->makeNode<ForLoop>();
+    SET_NODE_ATTRS(ret);
+
+    forwardStream();  // skip 'for'
+
+    ret->loop_var_name = internString(expect(Token::IDENT).value);
+    ret->is_comptime   = is_comptime;
+
+    if (m_Stream.CurTok.tokenid == Token::PUNC_COLON) {
+        forwardStream();
+        ret->loop_var_type = parseType();
+    }
+
+    ignoreButExpect(Token::KW_IN);
+
+    ret->iterable = parseExpr();
+    ret->children = parseScope();
+
     return ret;
 }
 

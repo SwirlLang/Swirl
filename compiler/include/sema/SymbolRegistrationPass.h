@@ -153,6 +153,19 @@ public:
     }
 
 
+    void handle(ForLoop* node) {
+        node->loop_var_id = getNewIDInfo(node->loop_var_name);
+
+        TableEntry entry;
+        SymMan.registerDecl(node->loop_var_id, entry);
+
+        node->children->symbols = SymMan.newScope();
+        ScopeStack.push_back(node->children);
+        traverse(node);
+        ScopeStack.pop_back();
+    }
+
+
     bool preVisit(Var* node) {
         if (node->var_ident) return true;
 

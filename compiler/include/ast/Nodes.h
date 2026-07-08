@@ -43,7 +43,8 @@
     SW_NODE(ND_UNDEFINED, UndefinedValue) \
     SW_NODE(ND_ENUM, Enum) \
     SW_NODE(ND_GEN_ARG, GenericArg) \
-    SW_NODE(ND_GEN_ARG_LIST, GenericArgList)
+    SW_NODE(ND_GEN_ARG_LIST, GenericArgList) \
+    SW_NODE(ND_FOR_LOOP, ForLoop)
 
 
 #define SW_NODE(x, y) x,
@@ -825,6 +826,21 @@ struct std::hash<Protocol::MethodSignature> {
             arg_hash
             );
     }
+};
+
+
+struct ForLoop final : Node {
+    ForLoop():
+        Node(ND_FOR_LOOP) {}
+
+    IdentInfo*       loop_var_id   = nullptr;
+    TypeWrapper*     loop_var_type = nullptr;
+    std::string_view loop_var_name{};
+
+    Expression* iterable = nullptr;
+    Scope*      children = nullptr;
+
+    bool        is_comptime = false;
 };
 
 

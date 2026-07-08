@@ -304,6 +304,14 @@ protected:
 
 
     template <typename... Args>
+    void traverse(ForLoop* node, Args&&... args) {
+        visit(node->loop_var_type, std::forward<Args>(args)...);
+        visit(node->iterable, std::forward<Args>(args)...);
+        visit(node->children, std::forward<Args>(args)...);
+    }
+
+
+    template <typename... Args>
     void traverse(Node* node, Args&&... args) {}
 };
 

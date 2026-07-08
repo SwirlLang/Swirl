@@ -918,8 +918,13 @@ CGValue LLVMBackend::llvmCodegen(Ident* node, const SwContext& context) {
 }
 
 
-CGValue LLVMBackend::llvmCodegen(Function* node, const SwContext& context) {
-    if (!node->generic_params.empty() && !node->is_monomorphization)
+CGValue LLVMBackend::llvmCodegen(const Function* node, const SwContext& context) {
+    const bool early_return =
+        !node->generic_params.empty() &&
+        !node->is_monomorphization    ||
+        (!node->params.empty() && node->params.back()->is_variadic);
+
+    if (early_return)
         return {};
 
     const auto fn_sw_type = SymMan.lookupType(node->ident)->to<FunctionType>();

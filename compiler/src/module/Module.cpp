@@ -4,7 +4,7 @@
 #include "modules/ModuleManager.h"
 #include "sema/Sema.h"
 #include "comptime/ComptimeEvaluator.h"
-#include "generics/GenericInstantiator.h"
+#include "transformers/GenericInstantiator.h"
 
 
 Module::Module(const ModuleContext& context)

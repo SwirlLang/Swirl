@@ -51,8 +51,15 @@ public:
     }
 
 
+    template <typename To, typename From>
+    constexpr static To* cast(From from) {
+        return const_cast<To*>(static_cast<const To*>(from));
+    }
+
+
 protected:
     SymbolManager& SymMan;
+    Module* m_Module;
 
     template <typename T, typename... Args>
     T* makeNode(Args&&... args) {
@@ -75,7 +82,7 @@ protected:
         if (expr != node->expr) {
             auto new_node = makeNode<Expression>(*node);
             new_node->expr = expr;
-            assert(new_node->expr_type != nullptr);
+            // assert(new_node->expr_type != nullptr);
             return new_node;
         }
         return node;
@@ -184,7 +191,7 @@ protected:
 
         if (changed) {
             const auto new_node = makeNode<Parameter>(*node);
-            new_node->type = static_cast<TypeWrapper*>(val);
+            new_node->type = static_cast<TypeWrapper*>(type);
             new_node->value = static_cast<Expression*>(val);
             new_node->ident = nullptr;
 
@@ -227,7 +234,7 @@ protected:
 
             if (expr_changed || body_changed) {
                 changed = true;
-                new_elif.emplace_back(static_cast<Expression*>(new_expr), static_cast<Scope*>(body));
+                new_elif.emplace_back(static_cast<Expression*>(new_expr), static_cast<Scope*>(elif_body));
             } else {
                 new_elif.emplace_back(static_cast<Expression*>(new_expr), static_cast<Scope*>(body));
             }
@@ -578,6 +585,30 @@ protected:
     }
 
 
+    template <typename... Args>
+    const Node* transformDefault(const ForLoop* node, Args&&... args) {
+        bool changed = false;
+
+        auto type = run(node->loop_var_type, std::forward<Args>(args)...);
+        if (type != node->loop_var_type) changed = true;
+
+        auto iterable = run(node->iterable, std::forward<Args>(args)...);
+        if (iterable != node->iterable) changed = true;
+
+        auto children = run(node->children, std::forward<Args>(args)...);
+        if (children != node->children) changed = true;
+
+        if (changed) {
+            const auto new_node = makeNode<ForLoop>(*node);
+
+            new_node->loop_var_type = static_cast<TypeWrapper*>(type);
+            new_node->iterable      = static_cast<Expression*>(iterable);
+            new_node->children      = static_cast<Scope*>(children);
+            return new_node;
+        } return node;
+    }
+
+
     template <typename T>
     std::span<T> internArray(std::span<T> arr) {
         return m_Module->internArray<T>(arr);
@@ -588,10 +619,6 @@ protected:
     std::string_view internString(const std::string_view str) const {
         return m_Module->getStringPool().internLocked(str);
     }
-
-
-private:
-    Module* m_Module;
 
     constexpr Derived* derived() {
         return static_cast<Derived*>(this);

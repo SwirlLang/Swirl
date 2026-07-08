@@ -3,9 +3,10 @@
 
 #include "ast/Visitor.h"
 #include "comptime/ComptimeEvaluator.h"
-#include "generics/GenericInstantiator.h"
+#include "transformers/GenericInstantiator.h"
 #include "types/definitions.h"
 #include "sema/SemaVisitor.h"
+#include "transformers/VariadicGenerator.h"
 
 
 namespace sw {
@@ -70,7 +71,7 @@ public:
 
 
     bool preVisit(Function* node) {
-        if (VisitedNodes.contains(node)) {
+        if (VisitedNodes.contains(node) || !node->params.empty() && node->params.back()->is_variadic) {
             return false;
         }
 
@@ -80,6 +81,16 @@ public:
 
         VisitedNodes.insert(node);
         CurrentParentFunction.push_back(node);
+        return true;
+    }
+
+
+    bool preVisit(Scope* node) {
+        if (VisitedNodes.contains(node)) {
+            return false;
+        }
+
+        VisitedNodes.insert(node);
         return true;
     }
 
@@ -323,6 +334,28 @@ public:
         monomorphize(node->ident);
 
         auto* id = node->ident->getIdentInfo();
+
+        const auto fn_node = SymMan.lookupDecl(id).node_ptr->to<Function>();
+        assert(fn_node);
+
+        // check for variadics
+        if (!fn_node->params.empty() && fn_node->params.back()->is_variadic) {
+            std::vector<Type*> variadic_types;
+            auto start_index = fn_node->params.size() - 1;
+
+            while (start_index < node->args.size()) {
+                auto expr_type = inferType(node->args[start_index], {}).deduced_type;
+                variadic_types.push_back(expr_type);
+                start_index++;
+            }
+
+            if (!variadic_types.empty()) {
+                node->ident->value = expandVariadics(node, variadic_types);
+                id = node->ident->value;
+                assert(node->ident->value);
+            }
+        }
+
 
         // if not a recursive-case, ensure the function is handled first
         if (getCurrentParentFunc()->getIdentInfo() != id) {
@@ -651,6 +684,32 @@ public:
             assert(SymMan.lookupDecl(ident->getIdentInfo()).node_ptr);
             visit(SymMan.lookupDecl(ident->getIdentInfo()).node_ptr);
         }
+    }
+
+
+    [[nodiscard]] /// Expands the variadic
+    IdentInfo* expandVariadics(FuncCall* node, std::span<Type*> types) {
+        assert(node->ident && node->ident->value);
+
+        const auto fn_node = SymMan.lookupDecl(node->ident->value).node_ptr->to<Function>();
+        assert(fn_node != nullptr);
+
+        if (const auto last_param = fn_node->params.back(); last_param->is_variadic) {
+            VariadicGenerator variadic_generator{
+                m_Module,
+                [this](const ErrCode code, const ErrorContext& ctx) {
+                reportError(code, ctx);
+            }};
+
+            VariadicGenerator::Context ctx {
+                .types = types,
+                .variadic_name = last_param->name
+            };
+
+            const auto new_node = variadic_generator.transform(fn_node, ctx);
+            visit(new_node);
+            return new_node->to<Function>()->ident;
+        } return node->ident->value;
     }
 
 

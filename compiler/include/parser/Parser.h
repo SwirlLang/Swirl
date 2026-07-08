@@ -95,6 +95,7 @@ public:
     Node* parseEnum();
 
     Scope*     parseScope();
+    ForLoop*   parseForLoop(bool is_comptime = false);
     Condition* parseCondition(bool is_comptime = false);
 
     Var*        parseVar(bool is_comptime = false);
@@ -114,7 +115,11 @@ public:
     void parse();
     void ignoreButExpect(const Token&);
     void ignoreButExpect(Token::TokenValue tok);
+
     void stackSafeguard() const;
+
+    /// Returns the current token and reports an error if it doesn't match the given token id
+    Token expect(Token::TokenValue tok);
 
 
     /// Buffers the reported errors, also sets certain context attributes automatically
