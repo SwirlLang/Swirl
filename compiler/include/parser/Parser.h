@@ -68,6 +68,10 @@ class Parser {
     struct Bracket_t { char val{}; StreamState location; };
     std::vector<Bracket_t> m_BracketTracker;
 
+    // extern declaration buffer
+    std::vector<Node*> m_ExternBlockBuffer;
+    size_t             m_ExternBlockIdx = 0;
+
     struct NodeAttrHelper;
 
     friend class CompilerInst;
@@ -93,6 +97,7 @@ public:
     Node* parseIntrinsic();
     Node* parseProtocol();
     Node* parseEnum();
+    Node* parseExternBlock();
 
     Scope*     parseScope();
     ForLoop*   parseForLoop(bool is_comptime = false);

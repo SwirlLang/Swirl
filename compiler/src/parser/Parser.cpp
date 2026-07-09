@@ -189,6 +189,13 @@ TypeWrapper* Parser::parseType() {
 
 
 Node* Parser::dispatch() {
+    if (m_ExternBlockIdx < m_ExternBlockBuffer.size()) {
+        return m_ExternBlockBuffer[m_ExternBlockIdx++];
+    }
+    if (!m_ExternBlockBuffer.empty()) {
+        m_ExternBlockBuffer.clear();
+        m_ExternBlockIdx = 0;
+    }
     while (!m_Stream.eof()) {
         switch (m_Stream.CurTok.tokenid) {
             case Token::KW_LET:
@@ -235,6 +242,10 @@ Node* Parser::dispatch() {
                 if (m_Stream.CurTok.tokenid == Token::STRING) {
                     m_ExternAttributes = std::move(m_Stream.CurTok.value);
                     forwardStream();
+                }
+
+                if (m_Stream.CurTok.tokenid == Token::PUNC_LBRACE) {
+                    return parseExternBlock();
                 }
                 continue;
 
@@ -303,6 +314,45 @@ Node* Parser::dispatch() {
     return {};
 }
 
+Node* Parser::parseExternBlock() {
+    forwardStream(); // consume '{'
+
+    const auto savedAttributes = std::string(m_ExternAttributes);
+    
+    while (m_Stream.CurTok.tokenid != Token::PUNC_RBRACE && !m_Stream.eof()) {
+        m_LastSymIsExtern = true;
+        m_ExternAttributes = savedAttributes;
+
+        switch (m_Stream.CurTok.tokenid) {
+            case Token::KW_FN:
+                m_ExternBlockBuffer.push_back(parseFunction());
+                break;
+            case Token::PUNC_SEMI:
+                forwardStream();
+                break;
+            default:
+                reportError(ErrCode::SYNTAX_ERROR, {
+                    .msg = "Expected a declaration inside extern block."});
+                forwardStream();
+                break;
+        }
+    }
+
+    if (m_Stream.eof()) {
+        reportError(ErrCode::UNEXPECTED_EOF);
+        return nullptr;
+    }
+
+    forwardStream(); // consume '}'
+
+    if (m_ExternBlockBuffer.empty()) {
+        return m_Module->makeNode<Node>(); // empty block
+    }
+
+    // Return first node; rest stay in buffer for subsequent dispatch() calls
+    m_ExternBlockIdx = 1;
+    return m_ExternBlockBuffer[0];
+}
 
 Node* Parser::parseImport() {
     ImportNode ret;
