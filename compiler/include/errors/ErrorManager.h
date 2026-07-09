@@ -107,6 +107,8 @@ enum class ErrCode {
     CHAR_LIT_TOO_LONG,         // when a character literal has more than 1 chars
     CHAR_LIT_EMPTY,            // char literals cannot be empty
     PARAM_MUST_HAVE_TYPE,      // non variadic params must have a type
+    VARIADIC_AT_END,           // variadic parameters must be at the end
+    ONLY_ONE_VARIADIC,         // there should be no consecutive variadics
 };
 
 

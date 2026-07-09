@@ -190,6 +190,10 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return "Character literals cannot be empty.";
         case ErrCode::PARAM_MUST_HAVE_TYPE:
             return "Non-variadic parameters must have an explicit type.";
+        case ErrCode::VARIADIC_AT_END:
+            return "Variadic Parameter cannot be followed by regular parameters.";
+        case ErrCode::ONLY_ONE_VARIADIC:
+            return "There must only be a single variadic parameter at the end.";
         default:
             throw std::runtime_error("Undefined error code");
     }

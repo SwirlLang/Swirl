@@ -475,8 +475,23 @@ Node* Parser::parseFunction() {
     std::vector<Parameter*> params;
 
     if (m_Stream.CurTok.type != PUNC && m_Stream.CurTok.tokenid != Token::PUNC_RPAREN) {
+        bool last_param_was_variadic = false;
         while (m_Stream.CurTok.tokenid != Token::PUNC_RPAREN && m_Stream.CurTok.type != PUNC) {
-            params.emplace_back(parseParam(func_nd->is_static_method));
+            auto param = parseParam(func_nd->is_static_method);
+            params.emplace_back(param);
+
+            if (last_param_was_variadic) {
+                 reportError(
+                     param->is_variadic ?
+                     ErrCode::ONLY_ONE_VARIADIC :
+                     ErrCode::VARIADIC_AT_END   ,
+                     {.location = param->location});
+            }
+
+            if (param->is_variadic) {
+                last_param_was_variadic = true;
+            }
+
             if (m_Stream.CurTok.tokenid == Token::PUNC_COMMA)
                 forwardStream();
         }
@@ -646,7 +661,7 @@ ForLoop* Parser::parseForLoop(const bool is_comptime) {
 
 
 Var* Parser::parseVar(const bool is_comptime) {
-    auto ret = m_Module->makeNode<Var>();
+    const auto ret = m_Module->makeNode<Var>();
     SET_NODE_ATTRS(ret);
 
     ret->is_comptime = is_comptime;
@@ -691,7 +706,7 @@ Var* Parser::parseVar(const bool is_comptime) {
 
 
 Node* Parser::parseCall(std::optional<Ident*> ident) {
-    auto call_node = m_Module->makeNode<FuncCall>();
+    const auto call_node = m_Module->makeNode<FuncCall>();
     SET_NODE_ATTRS(call_node);
     call_node->ident = ident.value();
 
@@ -741,7 +756,7 @@ Node* Parser::parseRet() {
 
 
 Node* Parser::parseIntrinsic() {
-    auto call_node = m_Module->makeNode<Intrinsic>();
+    const auto call_node = m_Module->makeNode<Intrinsic>();
     SET_NODE_ATTRS(call_node);
 
     forwardStream();  // skip the `@`
@@ -796,7 +811,7 @@ Scope* Parser::parseScope() {
 
 
 Condition* Parser::parseCondition(const bool is_comptime) {
-    auto cnd = m_Module->makeNode<Condition>();
+    const auto cnd = m_Module->makeNode<Condition>();
     cnd->is_comptime = is_comptime;
 
     SET_NODE_ATTRS(cnd);
