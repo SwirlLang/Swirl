@@ -317,11 +317,11 @@ Node* Parser::dispatch() {
 Node* Parser::parseExternBlock() {
     forwardStream(); // consume '{'
 
-    const auto savedAttributes = std::string(m_ExternAttributes);
+    const auto saved_attributes = std::string(m_ExternAttributes);
     
     while (m_Stream.CurTok.tokenid != Token::PUNC_RBRACE && !m_Stream.eof()) {
         m_LastSymIsExtern = true;
-        m_ExternAttributes = savedAttributes;
+        m_ExternAttributes = saved_attributes;
 
         switch (m_Stream.CurTok.tokenid) {
             case Token::KW_FN:
