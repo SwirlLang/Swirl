@@ -244,13 +244,13 @@ DEFINE_ATTRIBUTES(TypeCUIntPtr, true)
 #undef DEFINE_ATTRIBUTES
 
 
-unsigned int fetchPointerSize(const llvm::Triple::ArchType arch) {
+unsigned int fetchPointerSize(const sw::Target::Architecture arch) {
     switch (arch) {
-        case llvm::Triple::x86:
-        case llvm::Triple::arm:
+        case sw::Target::x86:
+        case sw::Target::ARM32:
             return 4;
-        case llvm::Triple::x86_64:
-        case llvm::Triple::aarch64:
+        case sw::Target::x64:
+        case sw::Target::ARM64:
             return 8;
         default:
             throw std::runtime_error("fetchPointerSize: Unsupported architecture");
@@ -258,10 +258,10 @@ unsigned int fetchPointerSize(const llvm::Triple::ArchType arch) {
 }
 
 unsigned int TypeCL::getBitWidth() {
-    const auto arch = llvm::Triple(CompilerInst::TargetTriple).getArch();
-    if (arch == llvm::Triple::x86_64 || arch == llvm::Triple::aarch64)
+    const auto arch = CompilerInst::Target.getTriple().getArch();
+    if (arch == sw::Target::x64 || arch == sw::Target::ARM64)
         return 64;
-    if (arch == llvm::Triple::x86 || arch == llvm::Triple::arm)
+    if (arch == sw::Target::x86 || arch == sw::Target::ARM32)
         return 32;
     throw std::runtime_error("TypeCL::isUnsigned: unsupported arch");
 }
@@ -273,7 +273,7 @@ llvm::Type* LLVMBackend::llvmCodegen(TypeCL* type, SwContext) {
 
 
 unsigned int TypeCSSizeT::getBitWidth() {
-    return fetchPointerSize(llvm::Triple(CompilerInst::TargetTriple).getArch()) * 8;
+    return fetchPointerSize(CompilerInst::Target.getTriple().getArch()) * 8;
 }
 
 llvm::Type* LLVMBackend::llvmCodegen(TypeCSSizeT* type, SwContext) {
@@ -301,7 +301,7 @@ llvm::Type* LLVMBackend::llvmCodegen(TypeCUL* type, SwContext context) {
 
 
 unsigned int TypeCPtrDiffT::getBitWidth() {
-    return fetchPointerSize(llvm::Triple(CompilerInst::TargetTriple).getArch()) * 8;
+    return fetchPointerSize(CompilerInst::Target.getTriple().getArch()) * 8;
 }
 
 
@@ -311,8 +311,8 @@ llvm::Type* LLVMBackend::llvmCodegen(TypeCPtrDiffT* type, SwContext) {
 
 
 unsigned int TypeCWChar::getBitWidth() {
-    const auto triple = llvm::Triple(CompilerInst::TargetTriple);
-    if (triple.getOS() == llvm::Triple::Win32) {
+    const auto triple = CompilerInst::Target.getTriple();
+    if (triple.getOS() == sw::Target::Windows) {
         return 16;
     } return 32;
 }
@@ -324,32 +324,32 @@ llvm::Type* LLVMBackend::llvmCodegen(TypeCWChar* type, SwContext) {
 
 
 unsigned int TypeCLDouble::getBitWidth() {
-    const auto triple = llvm::Triple(CompilerInst::TargetTriple);
+    const auto triple = CompilerInst::Target.getTriple();
 
-    if (triple.getArch() == llvm::Triple::x86_64) {
-        if (triple.getOS() == llvm::Triple::Win32) {
+    if (triple.getArch() == sw::Target::x64) {
+        if (triple.getOS() == sw::Target::Windows) {
             return 64;
         }
-        if (triple.getOS() == llvm::Triple::Linux || triple.getOS() == llvm::Triple::Darwin) {
+        if (triple.getOS() == sw::Target::Linux || triple.getOS() == sw::Target::Darwin) {
             return 128; // 80-bit x87 extended precision, padded to 128 bits
         }
     }
 
-    if (triple.getArch() == llvm::Triple::x86) {
-        if (triple.getOS() == llvm::Triple::Win32) {
+    if (triple.getArch() == sw::Target::x86) {
+        if (triple.getOS() == sw::Target::Windows) {
             return 64;
         }
-        if (triple.getOS() == llvm::Triple::Linux) {
+        if (triple.getOS() == sw::Target::Linux) {
             return 96; // 80-bit x87 extended, padded to 96
         }
     }
 
-    if (triple.getArch() == llvm::Triple::aarch64) {
+    if (triple.getArch() == sw::Target::ARM64) {
         // 128 with -mlong-double-128 not handled
         return 64;
     }
 
-    if (triple.getArch() == llvm::Triple::arm) {
+    if (triple.getArch() == sw::Target::ARM32) {
         return 64;
     }
 
@@ -358,14 +358,14 @@ unsigned int TypeCLDouble::getBitWidth() {
 
 
 llvm::Type* LLVMBackend::llvmCodegen(TypeCLDouble* type, SwContext) {
-    const auto triple = llvm::Triple(CompilerInst::TargetTriple);
+    const auto triple = CompilerInst::Target.getTriple();
 
-    if (triple.getOS() == llvm::Triple::Linux && triple.getArch() == llvm::Triple::x86) {
+    if (triple.getOS() == sw::Target::Linux && triple.getArch() == sw::Target::x86) {
         return llvm::Type::getX86_FP80Ty(LLVMContext);
     }
 
-    if ((triple.getOS() == llvm::Triple::Linux || triple.getOS() == llvm::Triple::Darwin) &&
-        triple.getArch() == llvm::Triple::x86_64) {
+    if ((triple.getOS() == sw::Target::Linux || triple.getOS() == sw::Target::Darwin) &&
+        triple.getArch() == sw::Target::x64) {
         return llvm::Type::getFP128Ty(LLVMContext);
         }
 

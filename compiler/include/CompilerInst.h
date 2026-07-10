@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <unordered_set>
 
+#include "Target.h"
 #include "utils/Threadpool.h"
 #include "utils/logging.h"
 #include "backend/LLVMBackend.h"
@@ -13,7 +14,6 @@
 #include "builtins/builtins.h"
 
 #include <llvm/TargetParser/Host.h>
-
 
 
 namespace fs = std::filesystem;
@@ -51,7 +51,7 @@ class CompilerInst {
 
 public:
     inline static int RecursionDepth = 1024;
-    inline static std::string TargetTriple;
+    inline static sw::Target  Target;
     inline static std::unordered_set<std::string> LinkTargets;
     inline static std::unordered_map<std::string, PackageInfo> PackageTable;
     inline static fs::path OutputPath; // path/to/executable (absolute)
@@ -87,14 +87,17 @@ public:
         setRecursionDepth(std::stoi(str));
     }
 
+    static void setTargetTriple(const std::string_view triple) {
+        Target = sw::Target::fromTriple(triple);
+    }
+
 
     void compile() {
-        if (TargetTriple.empty()) {
-            TargetTriple = llvm::sys::getDefaultTargetTriple();
+        if (!Target.isInitialized()) {
+            Target = sw::Target::fromHostTriple();
         }
 
-        using Triple = llvm::Triple;
-        const auto LLVMTargetTriple = llvm::Triple(TargetTriple);
+        const auto Triple = Target.getTriple();
 
         // create a virtual file for builtins
         m_Filesystem.createVirtualFile(SW_BUILTIN_FILE_PATH, SW_BUILTIN_SOURCE);
@@ -148,12 +151,7 @@ public:
 
     /// Parses the string and adds an entry to the package table
     static void addPackageEntry(std::string_view, bool is_project = false);
-
-    static void setTargetTriple(const std::string& triple) { TargetTriple = triple; }
-    static std::string_view getTargetTriple() { return TargetTriple; }
     static void appendLinkTarget(std::string_view target) { LinkTargets.emplace(target); }
-
-    // ~CompilerInst() { m_ThreadPool.shutdown(); }
 };
 
 

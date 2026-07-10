@@ -100,19 +100,19 @@ void CompilerInst::generateObjectFiles(Backends_t& backends) {
 }
 
 void CompilerInst::produceExecutable() {
-    const auto triple = llvm::Triple(TargetTriple);
+    const auto triple = Target.getTriple();
     const auto build_dir = m_SrcPath.parent_path() / ".build";
 
     std::string runtime_filename{"runtime_"};
 
     switch (triple.getOS()) {
-    case llvm::Triple::Linux:
+    case sw::Target::Linux:
         runtime_filename += "linux_";
         break;
-    case llvm::Triple::Darwin:
+    case sw::Target::Darwin:
         runtime_filename += "darwin_";
         break;
-    case llvm::Triple::Win32:
+    case sw::Target::Windows:
         runtime_filename += "windows_";
         break;
     default:
@@ -120,13 +120,13 @@ void CompilerInst::produceExecutable() {
     }
 
     switch (triple.getArch()) {
-    case llvm::Triple::x86:
+    case sw::Target::x86:
         runtime_filename += "x86";
         break;
-    case llvm::Triple::x86_64:
+    case sw::Target::x64:
         runtime_filename += "x64";
         break;
-    case llvm::Triple::aarch64:
+    case sw::Target::ARM64:
         runtime_filename += "aarch64";
         break;
     default:
@@ -134,14 +134,14 @@ void CompilerInst::produceExecutable() {
     }
 
     // add the extension, `.o` for linux and mac, `.obj` for windows
-    runtime_filename += triple.getOS() == llvm::Triple::Win32 ? ".obj" : ".o";
+    runtime_filename += triple.getOS() == sw::Target::Windows ? ".obj" : ".o";
 
     // path to the swirl runtime stored in the lib folder of parent directory to source file
     const auto runtime_path = (m_SrcPath.parent_path() / "lib" / runtime_filename).string();
 
     // decide driver flavor based on toolchain
-    const bool is_win = triple.getOS() == llvm::Triple::Win32;
-    const bool is_linux = triple.getOS() == llvm::Triple::Linux;
+    const bool is_win = triple.getOS() == sw::Target::Windows;
+    const bool is_linux = triple.getOS() == sw::Target::Linux;
 
     // a DriverDef is composed of a "flavor" and a `link` "callback"
     lld::DriverDef platform_driver = {SW_LLD_FLAVOR, &lld::SW_LLD_DRIVER_NAMESPACE::link};

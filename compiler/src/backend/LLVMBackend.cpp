@@ -76,7 +76,8 @@ LLVMBackend::LLVMBackend(Module* module)
     });
 
     std::string error;
-    const auto target = llvm::TargetRegistry::lookupTarget(CompilerInst::TargetTriple, error);
+    const auto target = llvm::TargetRegistry::lookupTarget(
+        llvm::Triple(CompilerInst::Target.getTriple().toString()), error);
 
     if (!target) {
         throw std::runtime_error("Failed to lookup target! " + error);
@@ -88,13 +89,13 @@ LLVMBackend::LLVMBackend(Module* module)
     static std::once_flag _;
     std::call_once(_, [&] {
         TargetMachine = target->createTargetMachine(
-            llvm::Triple(CompilerInst::TargetTriple), "generic", "", options, reloc_model
+            llvm::Triple(CompilerInst::Target.getTriple().toString()), "generic", "", options, reloc_model
         );
     });
 
     assert(TargetMachine);
     LModule->setDataLayout(TargetMachine->createDataLayout());
-    LModule->setTargetTriple(llvm::Triple(CompilerInst::TargetTriple));
+    LModule->setTargetTriple(llvm::Triple(CompilerInst::Target.getTriple().toString()));
 }
 
 
