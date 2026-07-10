@@ -36,6 +36,17 @@ constexpr std::size_t hashSequence(const std::span<T> seq) {
 }
 
 
+template <typename T> requires requires (const T& container)
+{{ *container.cbegin() } -> std::same_as<const typename T::value_type&>;
+ { *container.cend()   } -> std::same_as<const typename T::value_type&>;}
+constexpr std::size_t hashSequence(const T& container) {
+    std::size_t ret{};
+    for (const typename T::value_type& item : container) {
+        ret = combineHashes(ret, std::hash<typename T::value_type>{}(item));
+    } return ret;
+}
+
+
 /// A helper to define a visitor (for the very few uses of `std::visit`).
 template <typename... T>
 struct VisitorHelper: T... {

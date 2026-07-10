@@ -33,8 +33,10 @@ public:
 
     sw::GenericInstantiator GenericInstantiator;
     sw::ComptimeEvaluator   ComptimeEvaluator;
+    sw::VariadicGenerator   VariadicExpander;
 
     std::unordered_set<std::string_view> GenericParameters;
+
 
     bool IsMonomorphization = false;
 
@@ -47,7 +49,12 @@ public:
         , GlobalNodeJmpTable(context.module->node_jmp_table)
         , GenericInstantiator(m_Module, context.error_callback)
         , ComptimeEvaluator(context.module, context.error_callback, &GenericParameters)
-        , IsMonomorphization(context.is_monomorphization) {}
+        , IsMonomorphization(context.is_monomorphization)
+        , VariadicExpander(
+                m_Module,
+                [this](const ErrCode code, const ErrorContext& ctx) {
+                reportError(code, ctx);
+            }) {}
 
 
     /// Computation result of type evaluation
@@ -695,18 +702,12 @@ public:
         assert(fn_node != nullptr);
 
         if (const auto last_param = fn_node->params.back(); last_param->is_variadic) {
-            VariadicGenerator variadic_generator{
-                m_Module,
-                [this](const ErrCode code, const ErrorContext& ctx) {
-                reportError(code, ctx);
-            }};
-
-            VariadicGenerator::Context ctx {
+            sw::VariadicGenerator::Context ctx {
                 .types = types,
                 .variadic_name = last_param->name
             };
 
-            const auto new_node = variadic_generator.transform(fn_node, ctx);
+            const auto new_node = VariadicExpander.transform(fn_node, ctx);
             visit(new_node);
             return new_node->to<Function>()->ident;
         } return node->ident->value;

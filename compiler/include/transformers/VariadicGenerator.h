@@ -4,7 +4,7 @@
 #include "sema/SymbolRegistrationPass.h"
 #include "sema/SymbolResolver.h"
 
-
+namespace sw {
 class VariadicGenerator : public TransformVisitor<VariadicGenerator> {
 public:
     struct Context {
@@ -17,7 +17,7 @@ public:
 
     struct Key {
         IdentInfo* ident{};
-        std::span<Type*> types;
+        std::vector<Type*> types;
 
         bool operator==(const Key& other) const {
             return ident == other.ident && std::ranges::equal(types, other.types);
@@ -27,7 +27,7 @@ public:
             std::size_t operator()(const Key& k) const {
                 return combineHashes(
                     std::hash<IdentInfo*>()(k.ident),
-                    hashSequence<Type*>(k.types)
+                    hashSequence(k.types)
                 );
             }
         };
@@ -38,7 +38,7 @@ public:
     explicit VariadicGenerator(Module* module, ErrorCallback_t error_callback)
         : TransformVisitor(module)
         , m_ErrorCallback(std::move(error_callback))
-        {}
+    {}
 
 
     Node* transform(const Function* node, Context& context) {
@@ -46,9 +46,10 @@ public:
         assert(node->params.back()->is_variadic);
 
         // lookup the cache and early return if this has been resolved
-        if (const Key key{node->ident, context.types}; Cache.contains(key)) {
+        if (const Key key{node->ident, {context.types.begin(), context.types.end()}};
+            Cache.contains(key)) {
             return Cache[key];
-        }
+            }
 
         std::string new_name = "__Vdic_" + node->ident->toString();
         std::ranges::for_each(context.types, [&new_name](const Type* ty) {
@@ -143,3 +144,4 @@ public:
 private:
     ErrorCallback_t m_ErrorCallback;
 };
+}
