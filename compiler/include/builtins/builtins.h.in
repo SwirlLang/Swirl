@@ -16,13 +16,14 @@ export enum target {{
 export comptime let arch:     target = target::{};
 export comptime let platform: target = target::{};
 
-{})",                                                                    \
-LLVMTargetTriple.getArch() == Triple::x86 ? "x86"                        \
-: LLVMTargetTriple.getArch() == Triple::x86_64 ? "x64"                   \
-: LLVMTargetTriple.getArch() == Triple::aarch64 ? "arm64" : "unknown",   \
+{})",                                                            \
+Triple.getArch()   == sw::Target::x86 ? "x86"                    \
+: Triple.getArch() == sw::Target::x64 ? "x64"                    \
+: Triple.getArch() == sw::Target::ARM64 ? "arm64" : "unknown",   \
+                                                                 \
+Triple.getOS()   == sw::Target::Windows ? "windows"              \
+: Triple.getOS() == sw::Target::Linux ? "linux"                  \
+: Triple.getOS() == sw::Target::Darwin ? "darwin" : "unknown",   \
                                                                          \
-LLVMTargetTriple.getOS() == Triple::Win32 ? "windows"                    \
-: LLVMTargetTriple.getOS() == Triple::Linux ? "linux"                    \
-: LLVMTargetTriple.getOS() == Triple::MacOSX ? "darwin" : "unknown",     \
                                                                          \
 R"(@BUILTIN_FILE@)")

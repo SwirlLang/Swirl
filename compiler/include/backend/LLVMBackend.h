@@ -233,7 +233,7 @@ public:
 
 
     // --- llvmCodegen for Types (implementation in SwTypes.cpp) --- //
-    llvm::Type* llvmCodegen(FunctionType* type, const SwContext &context);
+    llvm::Type* llvmCodegen(const FunctionType* type, const SwContext &context);
     llvm::Type* llvmCodegen(StructType* type, const SwContext &context);
     llvm::Type* llvmCodegen(EnumType* type, const SwContext &context);
     llvm::Type* llvmCodegen(TypeI8* type, SwContext context);
@@ -262,7 +262,7 @@ public:
     llvm::Type* llvmCodegen(TypeCLL* type, SwContext context);
     llvm::Type* llvmCodegen(TypeCULL* type, SwContext context);
     llvm::Type* llvmCodegen(TypeCL* type, SwContext context);
-    llvm::Type* llvmCodegen(TypeCUL* type, SwContext context);
+    llvm::Type* llvmCodegen(TypeCUL* type, const SwContext& context);
     llvm::Type* llvmCodegen(TypeCSizeT* type, const SwContext& context);
     llvm::Type* llvmCodegen(TypeCSSizeT* type, SwContext context);
     llvm::Type* llvmCodegen(TypeChar* type, SwContext context);

@@ -13,8 +13,6 @@
 #include "utils/StringPool.h"
 #include "builtins/builtins.h"
 
-#include <llvm/TargetParser/Host.h>
-
 
 namespace fs = std::filesystem;
 using ThreadPool = sw::ThreadPool;
