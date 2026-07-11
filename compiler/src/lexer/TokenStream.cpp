@@ -327,12 +327,18 @@ Token TokenStream::readNextTok() {
 
         m_isPreviousTokIdent = false;
         if (isIdStart(ch)) {
+            const static std::unordered_map<std::string_view, Token::TokenValue>
+                KeywordOpMap = {
+                {"as", Token::OP_AS}, {"alignof", Token::OP_ALIGNOF},
+                {"sizeof", Token::OP_SIZEOF}, {"typeof", Token::OP_TYPEOF}
+            };
+
             auto val = readWhile(isId);
             if (KeywordMap.contains(val)) {
-                Token::TokenValue kw_val = KeywordMap.at(val);
+                const Token::TokenValue kw_val = KeywordMap.at(val);
                 return {KEYWORD, std::move(val), getStreamState(), kw_val};
-            } if (val == "as")
-                return {OP, std::move(val), getStreamState(), Token::OP_AS};
+            } if (KeywordOpMap.contains(val))
+                return {OP, val, getStreamState(), KeywordOpMap.at(val)};
             m_isPreviousTokIdent = true;
             return {IDENT, std::move(val), getStreamState(), Token::IDENT};
         }

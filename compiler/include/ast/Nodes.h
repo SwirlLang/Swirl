@@ -267,6 +267,10 @@ struct Op final : Node {
         BITWISE_LSHIFT_ASSIGN,
         BITWISE_RSHIFT_ASSIGN,
 
+        ALIGNOF,
+        SIZEOF,
+        TYPEOF,
+
         INVALID
     };
 

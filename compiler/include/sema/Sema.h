@@ -24,7 +24,7 @@ public:
     /// Performs sema on the entire module.
     void start() {
     #define SW_SEMA_PASS(x, ...) \
-        x x ## _inst{{m_Module, m_ErrorCallback}}; \
+        x x ## _inst{{m_Module, m_ErrorCallback, false, m_Module->getTarget()}}; \
         x ## _inst.dispatch(m_Module->ast __VA_OPT__(,) __VA_ARGS__); \
         if (x ## _inst.errorsOccurred()) { m_ErrorsOccurred = true; return; }
         SW_SEMA_PIPELINE
@@ -35,7 +35,7 @@ public:
     /// Performs sema on the particular node.
     void start(Node* node, bool is_monomorphization = false) {
     #define SW_SEMA_PASS(x, ...) \
-        x x ## _inst{{m_Module, m_ErrorCallback, is_monomorphization}}; \
+        x x ## _inst{{m_Module, m_ErrorCallback, is_monomorphization, m_Module->getTarget()}}; \
         x ## _inst.dispatch(node __VA_OPT__(,) __VA_ARGS__); \
         if (x ## _inst.errorsOccurred()) { m_ErrorsOccurred = true; return; }
         SW_SEMA_PIPELINE

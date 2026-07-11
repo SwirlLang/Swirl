@@ -12,6 +12,7 @@ Module::Module(const ModuleContext& context)
     , file_handle(context.file_handle)
     , m_ModuleManager(context.module_manager)
     , m_StringPool(context.string_pool)
+    , m_Target(context.target)
     , m_CtxCopy(context)
 {}
 

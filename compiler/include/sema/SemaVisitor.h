@@ -13,11 +13,13 @@
     auto GET_UNIQUE_NAME(err_code_disabler) = SemaVisitor<decltype(*this)>::DisableErrorCode(*this, code)
 
 
+namespace sw { class Target; }
 namespace sema {
 struct SemaContext {
     Module* module{};
     ErrorCallback_t error_callback{};
     bool is_monomorphization = false;
+    sw::Target& target;
 };
 
 

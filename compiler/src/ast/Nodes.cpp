@@ -58,6 +58,9 @@ std::unordered_map<Op::OpTag_t, OpInfo> OpInfoTable = {
     {Op::UNARY_SUB, {150, OpInfo::LEFT}},
     {Op::DEREFERENCE, {150, OpInfo::LEFT}},
     {Op::LOGICAL_NOT, {150, OpInfo::LEFT}},
+    {Op::SIZEOF, {150, OpInfo::RIGHT}},
+    {Op::ALIGNOF, {150, OpInfo::RIGHT}},
+    {Op::TYPEOF, {150, OpInfo::RIGHT}},
 
     {Op::INDEXING_OP, {200, OpInfo::LEFT}},
     {Op::DOT, {800, OpInfo::LEFT}},
@@ -85,6 +88,9 @@ std::unordered_map<std::pair<Token::TokenValue, int>, Op::OpTag_t, PairHash> OpT
 
     {{Token::OP_PLUS, 1}, Op::UNARY_ADD},
     {{Token::OP_MINUS, 1}, Op::UNARY_SUB},
+    {{Token::OP_SIZEOF, 1}, Op::SIZEOF},
+    {{Token::OP_ALIGNOF, 1}, Op::ALIGNOF},
+    {{Token::OP_TYPEOF, 1}, Op::TYPEOF},
 
     {{Token::OP_MUL, 2}, Op::MUL},
     {{Token::OP_DIV, 2}, Op::DIV},

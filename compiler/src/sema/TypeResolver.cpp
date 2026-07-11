@@ -1,6 +1,4 @@
 #include "sema/TypeResolver.h"
-
-#include "sema/SymbolResolver.h"
 #include "errors/ErrorManager.h"
 #include "parser/Parser.h"
 
@@ -207,6 +205,10 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                     reportError(ErrCode::ONLY_INTEGRAL_BITWISE, {});
                     return {};
                 }
+            case Op::ALIGNOF:
+            case Op::SIZEOF:
+                ret.deduced_type = &GlobalTypeI64;
+                break;
             default:
                 ret = analysis_1;
                 break;

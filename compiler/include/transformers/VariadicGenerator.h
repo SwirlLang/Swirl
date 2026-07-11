@@ -125,7 +125,11 @@ public:
 
 
     void resolve(Function* node) const {
-        sema::SemaContext ctx{.module = m_Module, .error_callback = m_ErrorCallback};
+        sema::SemaContext ctx{
+            .module = m_Module,
+            .error_callback = m_ErrorCallback,
+            .target = m_Module->getTarget()
+        };
 
         sema::SymbolRegistrationPass pass_1{ctx};
         sema::SymbolResolver pass_2{ctx};

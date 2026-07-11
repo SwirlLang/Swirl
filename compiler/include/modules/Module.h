@@ -3,6 +3,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include "Target.h"
 #include "parser/Parser.h"
 #include "utils/BumpAllocator.h"
 #include "utils/FileSystem.h"
@@ -17,9 +18,10 @@ namespace sw {
 
 
 struct ModuleContext {
-    sw::FileHandle* file_handle;
+    sw::FileHandle* file_handle{};
     ModuleManager&  module_manager;
     sw::StringPool& string_pool;
+    sw::Target&     target;
 };
 
 
@@ -53,6 +55,8 @@ struct Module {
 
     /// Returns whether the module has been marked erroneous
     bool isErroneous() const { return m_IsErroneous; }
+
+    sw::Target& getTarget() const { return m_Target; }
 
     /// Marks the module as erroneous
     void markErroneous() { m_IsErroneous = true; }
@@ -144,6 +148,7 @@ private:
     ModuleManager&    m_ModuleManager;
     sw::BumpAllocator m_Allocator{64 * 1024};
     sw::StringPool&   m_StringPool;
+    sw::Target&       m_Target;
     ModuleContext     m_CtxCopy;
 
     std::vector<std::array<std::size_t, 2>> m_LineOffsets{};

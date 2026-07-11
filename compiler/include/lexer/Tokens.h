@@ -35,6 +35,7 @@ struct Token {
         KW_TRUE,
         KW_FALSE,
         KW_UNDEFINED,
+        KW_TYPE,
         KW_ENUM,
         KW_PROTOCOL,
         KW_CONST,
@@ -54,6 +55,9 @@ struct Token {
         KW_IN,
 
         OP_AS,
+        OP_SIZEOF,
+        OP_ALIGNOF,
+        OP_TYPEOF,
         OP_NOT,
         OP_DOT,
         OP_RANGE,
@@ -164,11 +168,12 @@ KeywordMap = {
     {"var", Token::KW_VAR},
     {"fn", Token::KW_FN},
     {"volatile", Token::KW_VOLATILE},
-    {"struct", Token::KW_STRUCT}
+    {"struct", Token::KW_STRUCT},
+    {"type", Token::KW_TYPE},
 };
 
 
-inline std::string_view Token::toString(TokenValue v) {
+inline std::string_view Token::toString(const TokenValue v) {
     switch (v) {
         case KW_RETURN: return "return";
         case KW_IF: return "if";
@@ -184,6 +189,7 @@ inline std::string_view Token::toString(TokenValue v) {
         case KW_CONST: return "const";
         case KW_STATIC: return "static";
         case KW_BREAK: return "break";
+        case KW_TYPE: return "type";
         case KW_CONTINUE: return "continue";
         case KW_ELIF: return "elif";
         case KW_EXTERN: return "extern";

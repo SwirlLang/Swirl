@@ -49,7 +49,8 @@ public:
         sema::SymbolRegistrationPass reg_pass{{
                 .module = m_Module,
                 .error_callback = m_ErrorCallback,
-                .is_monomorphization = true
+                .is_monomorphization = true,
+                .target = m_Module->getTarget()
             }};
 
         reg_pass.dispatch(node);
@@ -61,7 +62,8 @@ public:
         sema::SymbolResolver resolver{{
                 .module = m_Module,
                 .error_callback = m_ErrorCallback,
-                .is_monomorphization = true
+                .is_monomorphization = true,
+                .target = m_Module->getTarget()
             }};
 
         resolver.dispatch(node, sema::SymbolResolver::Data{});

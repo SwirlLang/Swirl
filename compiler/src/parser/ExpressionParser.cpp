@@ -19,7 +19,6 @@ std::string_view ExpressionParser::internString(const std::string_view str) cons
 
 
 Node* ExpressionParser::parseComponent() {
-    // this helper returns a packaged element-access operator if it detects its presence
     switch (m_Stream.CurTok.type) {
         case NUMBER: {
             if (m_Stream.CurTok.tokenid == Token::NUM_FLOAT) {
@@ -83,18 +82,36 @@ Node* ExpressionParser::parseComponent() {
         }
 
         case KEYWORD: {
-            if (m_Stream.CurTok.is(Token::KW_TRUE, Token::KW_FALSE)) {
-                auto ret = make_node<BoolLit>(m_Stream.CurTok.tokenid == Token::KW_TRUE);
-                SET_NODE_ATTRS(ret);
-                m_Parser.forwardStream();
-                return ret;
-            }
+            switch (m_Stream.CurTok.tokenid) {
+                case Token::KW_TRUE:
+                case Token::KW_FALSE: {
+                    auto ret = make_node<BoolLit>(m_Stream.CurTok.tokenid == Token::KW_TRUE);
+                    SET_NODE_ATTRS(ret);
+                    m_Parser.forwardStream();
+                    return ret;
+                }
 
-            if (m_Stream.CurTok.tokenid == Token::KW_UNDEFINED) {
-                auto ret = make_node<UndefinedValue>();
-                SET_NODE_ATTRS(ret);
-                m_Parser.forwardStream();
-                return ret;
+                case Token::KW_UNDEFINED: {
+                    auto ret = make_node<UndefinedValue>();
+                    SET_NODE_ATTRS(ret);
+                    m_Parser.forwardStream();
+                    return ret;
+                }
+
+                case Token::KW_TYPE: {
+                    m_Parser.forwardStream();
+                    return m_Parser.parseType();
+                }
+
+                default:
+                    m_Parser.reportError(ErrCode::SYNTAX_ERROR, {
+                        .msg = std::format(
+                            "The keyword '{}' cannot appear in this context.",
+                            m_Stream.CurTok.value)
+                    });
+
+                    m_Parser.forwardStream();
+                    return make_node<Node>();
             }
         }
 

@@ -112,6 +112,23 @@ public:
     }
 
 
+    Node* transform(const Op* node) {
+        if (const auto res = evaluateComptimeOps(node)) {
+            const auto ret = makeNode(res.value());
+            switch (node->op_type) {
+                case Op::SIZEOF:
+                case Op::ALIGNOF:
+                    ret->expr_type = &GlobalTypeI64;
+                    return ret;
+                default:
+                    throw std::runtime_error("ComptimeEvaluator::transform(Op*): unhandled op");
+            }
+        }
+
+        return cast<Op>(transformDefault(node));
+    }
+
+
 private:
     Module* m_Module;
     ErrorCallback_t m_ErrorCallback;
@@ -141,6 +158,33 @@ private:
                 return nullptr;
         }
         #undef make_expr
+    }
+
+
+    /// Evaluates the node if it is a comptime operator, otherwise returns nullopt.
+    std::optional<Value> evaluateComptimeOps(const Op* node) const {
+        switch (node->op_type) {
+            case Op::SIZEOF: {
+                const auto operand_ty = node->operands.at(0)->getWrappedNodeOrInstance();
+                assert(operand_ty->getNodeType() == ND_TYPE);
+
+                const auto ty = operand_ty->to<TypeWrapper>()->type;
+                assert(ty);
+
+                return Value::makeInt(m_Module->getTarget().getSizeInBits(ty) / 8);
+            }
+            case Op::ALIGNOF: {
+                const auto operand_ty = node->operands.at(0)->getWrappedNodeOrInstance();
+                assert(operand_ty->getNodeType() == ND_TYPE);
+
+                const auto ty = operand_ty->to<TypeWrapper>()->type;
+                assert(ty);
+
+                return Value::makeInt(m_Module->getTarget().getAlignment(ty));
+            }
+            default:
+                return std::nullopt;
+        }
     }
 
 
@@ -209,11 +253,16 @@ private:
     }
 
 
-    Value compute(const Op* node, Context ctx) {
+    Value compute(const Op* node, const Context ctx) {
+        // check for and handle special operators first
         if (node->op_type == Op::CAST_OP) {
-            Value src = evaluate(node->operands.at(0), ctx);
+            const Value src = evaluate(node->operands.at(0), ctx);
             if (src.type == Value::INVALID) return {};
             return castValue(src, node->operands.at(1)->getSwType());
+        }
+
+        if (const auto res = evaluateComptimeOps(node)) {
+            return res.value();
         }
 
         const Value operand_1 = evaluate(node->operands.at(0), ctx);

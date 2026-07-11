@@ -108,7 +108,7 @@ public:
 
         // create a module for the main source file
         const auto file_handle = m_Filesystem.open(m_SrcPath);
-        const auto main_module = new Module{{file_handle, m_ModuleManager, m_StringPool}};
+        const auto main_module = new Module{{file_handle, m_ModuleManager, m_StringPool, Target}};
         main_module->m_IsMainModule = true;
 
         // add an entry to the module manager
