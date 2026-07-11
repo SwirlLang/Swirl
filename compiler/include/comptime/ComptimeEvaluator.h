@@ -169,7 +169,7 @@ private:
                 assert(operand_ty->getNodeType() == ND_TYPE);
 
                 const auto ty = operand_ty->to<TypeWrapper>()->type;
-                assert(ty);
+                assert(ty != nullptr);
 
                 return Value::makeInt(m_Module->getTarget().getSizeInBits(ty) / 8);
             }
@@ -178,7 +178,7 @@ private:
                 assert(operand_ty->getNodeType() == ND_TYPE);
 
                 const auto ty = operand_ty->to<TypeWrapper>()->type;
-                assert(ty);
+                assert(ty != nullptr);
 
                 return Value::makeInt(m_Module->getTarget().getAlignment(ty));
             }

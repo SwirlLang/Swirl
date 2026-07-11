@@ -207,6 +207,13 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                 }
             case Op::ALIGNOF:
             case Op::SIZEOF:
+                // substitute the expression with a type equal to the inferred type of the expression
+                if (node->operands.at(0)->getNodeType() == ND_EXPR &&
+                    node->operands.at(0)->getWrappedNodeOrInstance()->getNodeType() != ND_TYPE)
+                    {
+                    const auto [deduced_type, _] = inferType(node->operands.at(0), {});
+                    node->operands[0] = makeNode<TypeWrapper>(deduced_type);
+                    }
                 ret.deduced_type = &GlobalTypeI64;
                 break;
             default:
