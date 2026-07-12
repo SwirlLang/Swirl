@@ -92,8 +92,16 @@ public:
 
     Node* transform(const Var* node, SubstitutionContext& ctx) {
         auto* new_node = const_cast<Node*>(transformDefault(node, ctx));
-        // Always reset var_ident so SymbolRegistrationPass re-registers params
+        // always reset var_ident so SymbolRegistrationPass re-registers them
         new_node->to<Var>()->var_ident = nullptr;
+        return new_node;
+    }
+
+
+    Node* transform(const Parameter* node, SubstitutionContext& ctx) {
+        auto* new_node = const_cast<Node*>(transformDefault(node, ctx));
+        // always reset var_ident so SymbolRegistrationPass re-registers params
+        new_node->to<Parameter>()->ident = nullptr;
         return new_node;
     }
 
