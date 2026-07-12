@@ -3,35 +3,23 @@
 #include "parser/Parser.h"
 
 
-bool sema::TypeResolver::checkTypeCompatibility(Type* from, Type* to, bool report_errors, Node* location_node) {
+bool sema::TypeResolver::checkTypeCompatibility(
+    Type* from,
+    Type* to,
+    bool report_errors,
+    const std::optional<SourceLocation>& loc)
+{
     if (!from || !to) return false;
     if (from == to)   return true;
     if (from == &GlobalUniversalType || to == &GlobalUniversalType) {
         return true;
     }
 
-    auto report_error = [this, report_errors, location_node](const ErrCode code, ErrorContext ctx) {
-        if (!report_errors) {
+    auto report_error = [this, report_errors, loc](const ErrCode code, ErrorContext ctx) {
+        if (!report_errors)
             return;
-        }
-
-        if (!ctx.location.has_value() && location_node) {
-            auto* node = location_node;
-            if (auto* expr = node->to<Expression>()) {
-                if (expr->expr) {
-                    const auto child_location = expr->expr->location;
-                    const bool has_location =
-                        child_location.from.Line != 0 ||
-                        child_location.from.Col != 0 ||
-                        child_location.from.Pos != 0;
-                    ctx.location = has_location ? child_location : node->location;
-                } else {
-                    ctx.location = node->location;
-                }
-            } else {
-                ctx.location = node->location;
-            }
-        }
+        if (loc.has_value())
+            ctx.location = loc.value();
 
         reportError(code, std::move(ctx));
     };
@@ -40,7 +28,6 @@ bool sema::TypeResolver::checkTypeCompatibility(Type* from, Type* to, bool repor
         report_error(ErrCode::INT_AND_FLOAT_CONV, {.type_1 = from, .type_2 = to});
         return false;
     }
-
 
     if (from->isIntegral() && to->isIntegral() || from->isFloatingPoint() && to->isFloatingPoint()) {
         if (from->getBitWidth() > to->getBitWidth()) {
@@ -272,7 +259,11 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
 
                 analysis_2 = inferType(node->operands.at(1), {.bound_type = analysis_1.deduced_type});
 
-                checkTypeCompatibility(analysis_2.deduced_type, analysis_1.deduced_type, true, node->operands.at(1));
+                checkTypeCompatibility(
+                    analysis_2.deduced_type,
+                    analysis_1.deduced_type,
+                    true, node->operands.at(1)->location);
+
                 ret.deduced_type = unify(analysis_1.deduced_type, analysis_2.deduced_type);
                 break;
             }

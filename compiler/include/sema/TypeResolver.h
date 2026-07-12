@@ -68,7 +68,11 @@ public:
     Type* unify(Type* type1, Type* type2);
 
     /// Checks whether `from` can be converted to `to`
-    bool checkTypeCompatibility(Type* from, Type* to, bool report_errors = true, Node* location_node = nullptr);
+    bool checkTypeCompatibility(
+        Type* from,
+        Type* to,
+        bool report_errors = true,
+        const std::optional<SourceLocation>& loc = std::nullopt);
 
 
     Function* getCurrentParentFunc() const {
@@ -357,12 +361,27 @@ public:
             }
 
             if (!variadic_types.empty()) {
-                node->ident->value = expandVariadics(node, variadic_types);
-                id = node->ident->value;
-                assert(node->ident->value);
+                bool is_valid = true;
+
+                // run a type compatibility check if the variadic specifies an explicit type
+                if (const auto variadic_ty = fn_node->params.back()->type) {
+                    evaluateType(variadic_ty, {});
+                    if (variadic_ty->type) {
+                        for (auto [i, ty] : std::views::enumerate(variadic_types)) {
+                            const auto arg_node = node->args.at(i + fn_node->params.size() - 1);
+                            is_valid &= checkTypeCompatibility(
+                                ty, variadic_ty->type, true, arg_node->location);
+                        }
+                    }
+                }
+
+                if (is_valid) {
+                    node->ident->value = expandVariadics(node, variadic_types);
+                    id = node->ident->value;
+                    assert(node->ident->value);
+                } else return {};
             }
         }
-
 
         // if not a recursive-case, ensure the function is handled first
         if (getCurrentParentFunc()->getIdentInfo() != id) {
@@ -418,7 +437,10 @@ public:
                 .bound_type = fn_type->param_types.at(index)
             });
 
-            checkTypeCompatibility(arg_type.deduced_type, fn_type->param_types.at(index), true, node->args.at(i));
+            checkTypeCompatibility(
+                arg_type.deduced_type,
+                fn_type->param_types.at(index),
+                true, node->args.at(i)->location);
             node->args.at(i)->setType(fn_type->param_types.at(index));
         }
 
