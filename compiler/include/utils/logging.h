@@ -2,7 +2,7 @@
 #include <format>
 #include <string_view>
 
-#ifdef __has_include(<print>)
+#if defined(__has_include) && __has_include(<print>)
 #include <print>
 #else
 #include <iostream>
