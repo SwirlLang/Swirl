@@ -349,10 +349,14 @@ public:
         const auto fn_node = SymMan.lookupDecl(id).node_ptr->to<Function>();
         assert(fn_node);
 
-        // ---  check for variadics ---
+        // ---  check for variadics --- //
         if (!fn_node->params.empty() && fn_node->params.back()->is_variadic) {
             std::vector<Type*> variadic_types;
             auto start_index = fn_node->params.size() - 1;
+
+            // account for the implicit instance parameter
+            if (ctx.is_method_call && fn_node->params.front()->is_instance_param)
+                start_index -= 1;
 
             while (start_index < node->args.size()) {
                 auto expr_type = inferType(node->args[start_index], {}).deduced_type;
@@ -367,7 +371,13 @@ public:
                 evaluateType(variadic_ty, {});
                 if (variadic_ty->type) {
                     for (auto [i, ty] : std::views::enumerate(variadic_types)) {
-                        const auto arg_node = node->args.at(i + fn_node->params.size() - 1);
+                        auto arg_idx = i + (fn_node->params.size() - 1);
+
+                        // account for the implicit instance parameter
+                        if (ctx.is_method_call && fn_node->params.front()->is_instance_param)
+                            arg_idx -= 1;
+
+                        const auto arg_node = node->args.at(arg_idx);
                         is_valid &= checkTypeCompatibility(
                             ty, variadic_ty->type, true, arg_node->location);
                     }

@@ -51,6 +51,8 @@ public:
             return Cache[key];
             }
 
+        IdentInfo* old_id = node->ident;
+
         std::string new_name = "__Vdic_" + node->ident->toString();
         std::ranges::for_each(context.types, [&new_name](const Type* ty) {
             new_name += ty->toString();
@@ -74,7 +76,7 @@ public:
         new_function->params = internArray<Parameter*>(new_parameters);
         new_function->ident  = nullptr;
         new_function->name   = internString(new_name);
-        resolve(new_function);
+        resolve(new_function, old_id);
         return new_function;
     }
 
@@ -125,8 +127,8 @@ public:
     }
 
 
-    void resolve(Function* node) const {
-        sema::SemaContext ctx{
+    void resolve(Function* node, IdentInfo* old_id) const {
+        const sema::SemaContext ctx{
             .module = m_Module,
             .error_callback = m_ErrorCallback,
             .target = m_Module->getTarget()
@@ -142,6 +144,13 @@ public:
             pass_2.dispatch(node);
         }
 
+        // since the entire struct isn't re-handled by the first two passes, parent context
+        // fields of TableEntry like `method_of` or `is_static` will not be set, we therefore
+        // copy the old id's fields into the new one
+        assert(node->ident != nullptr);
+        assert(old_id != nullptr);
+
+        SymMan.lookupDecl(node->ident) = SymMan.lookupDecl(old_id);
         m_Module->ast.push_back(node);
     }
 

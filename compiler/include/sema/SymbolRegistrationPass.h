@@ -14,8 +14,9 @@ public:
 
 
     // The scope being nullptr => the current scope is global
-    std::vector<Scope*>      ScopeStack { nullptr };
-    std::vector<StructType*> StructStack{ nullptr };
+    std::vector<Scope*>      ScopeStack    { nullptr };
+    std::vector<StructType*> StructStack   { nullptr };
+    std::vector<Function*>   FunctionStack { nullptr };
 
     // asks the immediate scope to use this namespace instead
     Namespace* PreCreatedScope = nullptr;
@@ -119,6 +120,8 @@ public:
         const auto fn_type = new FunctionType();
         fn_type->ident = node->ident;
 
+        FunctionStack.push_back(node);
+
         assert(!StructStack.empty());
         TableEntry entry {
             .is_exported = node->is_exported,
@@ -146,6 +149,7 @@ public:
 
         traverse(node);
         ScopeStack.pop_back();
+        FunctionStack.pop_back();
 
         if (isGlobalScope()) {
             NodeJmpTable.insert({node->ident, node});
@@ -190,13 +194,25 @@ public:
 
     bool preVisit(Parameter* node) {
         if (node->is_instance_param) {
-            if (StructStack.empty() || !StructStack.back()) {
+            // This is a 2-tier lookup to resolve the type of the instance parameter. If the struct
+            // stack is in a valid state then the reference to its type becomes the instance param's
+            // type. If it isn't set, as in the case of monomorphiztion of variadics, then an attempt
+            // is made to retrieve it via the registry of the parent Function's declaration. If everything
+            // fails, then it is concluded that the instance parameter isn't allowed in this context.
+            if (!StructStack.empty() && StructStack.back()) {
+                node->type = makeNode<TypeWrapper>(
+                    SymMan.getReferenceType(StructStack.back(), !node->is_const));
+            }
+
+            else if (!FunctionStack.empty() && FunctionStack.back()) {
+                if (const auto parent = SymMan.lookupDecl(FunctionStack.back()->ident).method_of) {
+                    node->type = makeNode<TypeWrapper>(
+                        SymMan.getReferenceType(parent, !node->is_const));
+                }
+            } else {
                 reportError(ErrCode::NO_INSTANCE_PARAM_HERE, {});
                 return false;
             }
-
-            node->type = makeNode<TypeWrapper>(
-                SymMan.getReferenceType(StructStack.back(), !node->is_const));
         }
 
         node->ident = getNewIDInfo(node->name);
