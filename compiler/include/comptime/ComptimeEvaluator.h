@@ -30,12 +30,12 @@ public:
 
 
     Value evaluate(const Node* node, const Context ctx) {
-#define SW_NODE(x, y) case x: return compute(static_cast<const y*>(node), ctx);
+    #define SW_NODE(x, y) case x: return compute(static_cast<const y*>(node), ctx);
         switch (node->kind) {
             SW_NODE_LIST;
             default: throw std::runtime_error("ComptimeEvaluator::evaluate(): invalid node kind");
         }
-#undef SW_NODE
+    #undef SW_NODE
     }
 
 

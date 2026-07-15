@@ -349,7 +349,7 @@ public:
         const auto fn_node = SymMan.lookupDecl(id).node_ptr->to<Function>();
         assert(fn_node);
 
-        // check for variadics
+        // ---  check for variadics ---
         if (!fn_node->params.empty() && fn_node->params.back()->is_variadic) {
             std::vector<Type*> variadic_types;
             auto start_index = fn_node->params.size() - 1;
@@ -360,28 +360,26 @@ public:
                 start_index++;
             }
 
-            if (!variadic_types.empty()) {
-                bool is_valid = true;
+            bool is_valid = true;
 
-                // run a type compatibility check if the variadic specifies an explicit type
-                if (const auto variadic_ty = fn_node->params.back()->type) {
-                    evaluateType(variadic_ty, {});
-                    if (variadic_ty->type) {
-                        for (auto [i, ty] : std::views::enumerate(variadic_types)) {
-                            const auto arg_node = node->args.at(i + fn_node->params.size() - 1);
-                            is_valid &= checkTypeCompatibility(
-                                ty, variadic_ty->type, true, arg_node->location);
-                        }
+            // run a type compatibility check if the variadic specifies an explicit type
+            if (const auto variadic_ty = fn_node->params.back()->type) {
+                evaluateType(variadic_ty, {});
+                if (variadic_ty->type) {
+                    for (auto [i, ty] : std::views::enumerate(variadic_types)) {
+                        const auto arg_node = node->args.at(i + fn_node->params.size() - 1);
+                        is_valid &= checkTypeCompatibility(
+                            ty, variadic_ty->type, true, arg_node->location);
                     }
                 }
-
-                if (is_valid) {
-                    node->ident->value = expandVariadics(node, variadic_types);
-                    id = node->ident->value;
-                    assert(node->ident->value);
-                } else return {};
             }
-        }
+
+            if (is_valid) {
+                node->ident->value = expandVariadics(node, variadic_types);
+                id = node->ident->value;
+                assert(node->ident->value);
+            } else return {};
+        }  // --- --- --- --- --- --- //
 
         // if not a recursive-case, ensure the function is handled first
         if (getCurrentParentFunc()->getIdentInfo() != id) {
@@ -397,7 +395,7 @@ public:
                 return {};
             }
 
-            analyzeNodeWithID(id);
+            visit(function);
         }
 
         // fetch the corresponding Function's type
@@ -733,12 +731,6 @@ public:
             visit(new_node);
             return new_node->to<Function>()->ident;
         } return node->ident->value;
-    }
-
-
-    void analyzeNodeWithID(IdentInfo* id) {
-        if (!GlobalNodeJmpTable.contains(id)) { return; }
-        this->visit(GlobalNodeJmpTable[id]);
     }
 
 

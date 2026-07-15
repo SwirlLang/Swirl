@@ -106,8 +106,9 @@ public:
 
 
     Node* transform(const Ident* node, Context& context) {
-        const auto active_param = context.var_param_names[context.active_parameter];
         if (node->full_qualification.front().name == context.variadic_name) {
+            const auto active_param = context.var_param_names[context.active_parameter];
+
             Ident new_node(*node);
             new_node.value = nullptr;
 
