@@ -38,7 +38,7 @@ public:
     explicit VariadicGenerator(Module* module, ErrorCallback_t error_callback)
         : TransformVisitor(module)
         , m_ErrorCallback(std::move(error_callback))
-    {}
+        {}
 
 
     Node* transform(const Function* node, Context& context) {
@@ -76,7 +76,15 @@ public:
         new_function->params = internArray<Parameter*>(new_parameters);
         new_function->ident  = nullptr;
         new_function->name   = internString(new_name);
+
+        // run symbol resolution on the function and put it in the cache
         resolve(new_function, old_id);
+        Cache.insert({
+            Key{
+                .ident = node->ident,
+                .types = {context.types.begin(), context.types.end()}
+            },  new_function});
+
         return new_function;
     }
 
@@ -93,7 +101,7 @@ public:
 
                     context.variadic_name = node->loop_var_name;
 
-                    for (auto param : context.var_param_names) {
+                    for (auto _ : context.var_param_names) {
                         for (const Node* child : node->children->children) {
                             children.push_back(run(child, context));
                         } context.active_parameter++;
@@ -127,7 +135,7 @@ public:
     }
 
 
-    void resolve(Function* node, IdentInfo* old_id) const {
+    void resolve(Function* node, IdentInfo* old_id) {
         const sema::SemaContext ctx{
             .module = m_Module,
             .error_callback = m_ErrorCallback,

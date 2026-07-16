@@ -432,11 +432,14 @@ public:
             }
         }
 
-        // when recursion is involved and return type of the function is not specified, report an error
-        if (fn_type->ret_type == nullptr && getCurrentParentFunc() && id == getCurrentParentFunc()->getIdentInfo()) {
+        // when recursion is involved and return type of the function is not specified,
+        // report an error
+        if (fn_type->ret_type == nullptr && getCurrentParentFunc()
+            && id == getCurrentParentFunc()->getIdentInfo())
+            {
             reportError(ErrCode::RET_TYPE_REQUIRED, {});
             return {};
-        }
+            }
 
         // check the type compatibility between the function signature and the arguments
         for (std::size_t i = 0; i < node->args.size(); i++) {
@@ -725,7 +728,7 @@ public:
 
 
     [[nodiscard]] /// Expands the variadic
-    IdentInfo* expandVariadics(FuncCall* node, std::span<Type*> types) {
+    IdentInfo* expandVariadics(const FuncCall* node, std::span<Type*> types) {
         assert(node->ident && node->ident->value);
 
         const auto fn_node = SymMan.lookupDecl(node->ident->value).node_ptr->to<Function>();
