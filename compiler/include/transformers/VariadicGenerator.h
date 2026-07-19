@@ -4,6 +4,7 @@
 #include "sema/SymbolRegistrationPass.h"
 #include "sema/SymbolResolver.h"
 
+
 namespace sw {
 class VariadicGenerator : public TransformVisitor<VariadicGenerator> {
 public:
