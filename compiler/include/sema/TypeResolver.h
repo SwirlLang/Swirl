@@ -96,16 +96,6 @@ public:
     }
 
 
-    bool preVisit(Scope* node) {
-        if (VisitedNodes.contains(node)) {
-            return false;
-        }
-
-        VisitedNodes.insert(node);
-        return true;
-    }
-
-
     void postVisit(const Function* node) {
         auto* fn_type = SymMan.lookupType(node->ident)->to<FunctionType>();
 
@@ -340,6 +330,10 @@ public:
             node->ident->value = ctx.method_id;
         } visit(node->ident);
         // assuming `SymbolResolver` has resolved the ID otherwise
+
+        if (GenericParameters.contains(node->ident->full_qualification.front().name) &&
+            !node->ident->getIdentInfo())
+            return {};
 
         assert(node->ident->getIdentInfo());
         monomorphize(node->ident);
@@ -711,7 +705,7 @@ public:
     void monomorphize(Ident* ident)  {
         if (ident->has_generic_args) {
             // resolve all generic arguments (types)
-            for (auto& [name, args] : ident->full_qualification) {
+            for (auto& [name, args, _] : ident->full_qualification) {
                 for (const GenericArg* arg : args) {
                     if (arg->isType()) {
                         visit(arg->getType());

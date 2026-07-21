@@ -20,9 +20,7 @@ public:
 
 
     explicit ComptimeEvaluator(Module* module, ErrorCallback_t error_callback)
-        : ComptimeEvaluator(module, std::move(error_callback), nullptr)
-        {}
-
+        : ComptimeEvaluator(module, std::move(error_callback), nullptr) {}
 
     struct Context {
         Type* type = nullptr;
@@ -61,7 +59,7 @@ public:
         if (node->is_comptime) {
             assert(node->expr);
             const auto expr = makeNode(evaluate(node->expr, {.type = node->expr_type}));
-            
+
             if (expr == nullptr) {
                 return const_cast<Expression*>(node);
             }

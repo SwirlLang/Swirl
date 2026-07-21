@@ -66,7 +66,7 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
     for (const auto& [counter, str] : std::views::enumerate(id.full_qualification)) {
         if (counter == id.full_qualification.size() - 1) break;
         if (counter == 0) {
-            const auto qual_id = getIdInfoOfAGlobal(std::string(str.name));
+            const auto qual_id = str.value ? str.value : getIdInfoOfAGlobal(std::string(str.name));
 
             if (!qual_id)
                 return nullptr;

@@ -160,6 +160,7 @@ public:
         assert(old_id != nullptr);
 
         SymMan.lookupDecl(node->ident) = SymMan.lookupDecl(old_id);
+        SymMan.lookupDecl(node->ident).node_ptr = node;
         m_Module->ast.push_back(node);
     }
 

@@ -17,6 +17,8 @@ public:
         , m_Substitutor(module, m_ComptimeEvaluator)
         , m_ErrorCallback(std::move(error_callback)) {}
 
+    using SubstitutionMap_t   = GenericSubstitutor::SubstitutionMap_t;
+    using SubstitutionContext = GenericSubstitutor::SubstitutionContext;
 
     struct InstKey {
         using Args_t = std::vector<std::variant<std::monostate, Type*, Value>>;
@@ -79,7 +81,7 @@ public:
     void handle(Ident* ident) {
         std::vector<Ident::Qualifier> tmp;
 
-        for (auto& [name, generic_args] : ident->full_qualification) {
+        for (auto& [name, generic_args, _] : ident->full_qualification) {
             tmp.push_back({.name = name});
 
             if (!generic_args.empty()) {
@@ -136,14 +138,15 @@ public:
                     name = m_Module->getStringPool().internLocked(subst_name);
 
                     Node* new_node = m_Substitutor.run(node, ctx);
+
+                    assert(new_node->isGlobal());
+                    auto* glob_node = new_node->to<GlobalNode>();
+                    glob_node->is_monomorphization = true;
+                    glob_node->generic_params = {};
+
                     new_node = runPasses(new_node);
 
                     if (!new_node) return;
-
-                    assert(new_node->isGlobal());
-
-                    auto* glob_node = new_node->to<GlobalNode>();
-                    glob_node->is_monomorphization = true;
 
                     m_Module->ast.push_back(new_node);
                     Cache.insert({inst_key, new_node->getIdentInfo()});

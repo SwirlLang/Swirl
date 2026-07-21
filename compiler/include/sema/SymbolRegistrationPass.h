@@ -58,7 +58,9 @@ public:
 
 
     void handle(Struct* node) {
-        if (node->ident) return;
+        if (node->ident && !node->is_monomorphization)
+            return;
+
         node->ident = getNewIDInfo(node->name);
 
         const auto struct_ty = new StructType{};
@@ -105,7 +107,7 @@ public:
             }
         }
 
-        for (auto& [_, generic_args] : node->full_qualification ) {
+        for (auto& [_, generic_args, _] : node->full_qualification ) {
             for (GenericArg* arg : generic_args) {
                 visit(arg);
             }
@@ -114,7 +116,9 @@ public:
 
 
     void handle(Function* node) {
-        if (node->ident) return;
+        if (node->ident && !node->is_monomorphization)
+            return;
+
         node->ident = getNewIDInfo(node->name);
 
         const auto fn_type = new FunctionType();

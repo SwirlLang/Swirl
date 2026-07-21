@@ -421,6 +421,7 @@ struct Ident final : Node {
     struct Qualifier {
         std::string_view name;
         GenericArgList generic_args;
+        IdentInfo* value = nullptr;  // for partial resolution
     };
 
     bool has_generic_args = false;
@@ -457,8 +458,8 @@ struct Ident final : Node {
     [[nodiscard]]
     std::string toString() const {
         std::string ret;
-        for (const auto& [name, generic_args] : full_qualification) {
-            ret += std::string(name) + "::";
+        for (const auto& qual : full_qualification) {
+            ret += std::string(qual.name) + "::";
         } ret.pop_back();
         ret.pop_back();
         return ret;
@@ -497,12 +498,6 @@ struct TypeWrapper final : Node {
     [[nodiscard]]
     NodeType getNodeType() const override {
         return ND_TYPE;
-    }
-
-
-    [[nodiscard]]
-    std::string getIDStr() const {
-        return {};
     }
 };
 

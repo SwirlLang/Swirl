@@ -2,22 +2,24 @@
 #include "ast/TransformVisitor.h"
 
 
-using SubstitutionMap_t = std::unordered_map<
-        std::string_view,
-        std::variant<std::monostate, sw::Value, Type*>>;
-
-
-struct SubstitutionContext {
-    SubstitutionMap_t map;
-    std::string_view  substitution_name;
-};
-
-
 class GenericSubstitutor : public TransformVisitor<GenericSubstitutor> {
 public:
     explicit GenericSubstitutor(Module* module, sw::ComptimeEvaluator& evaluator)
         : TransformVisitor(module)
         , m_Evaluator(evaluator) {}
+
+    /// Maps x to y, where x is the to-be-substituted value and y is the substitution value.
+    using SubstitutionMap_t = std::unordered_map<
+        std::string_view,
+        std::variant<std::monostate, sw::Value, Type*>>;
+
+
+    /// This struct is used to pass information regarding -
+    /// "What to substitute and with what?" down the call graph.
+    struct SubstitutionContext {
+        SubstitutionMap_t map;
+        std::string_view  substitution_name;  // the name of the new monomorphized node
+    };
 
 
     Node* transform(const Function* node, SubstitutionContext& ctx) {
@@ -47,11 +49,21 @@ public:
 
     Node* transform(const Ident* node, SubstitutionContext& ctx) {
         assert(!node->full_qualification.empty());
+
+        // check if the identifier's front matches against a generic parameter name
         if (ctx.map.contains(node->full_qualification.front().name)) {
             const auto element = ctx.map[node->full_qualification.front().name];
-            assert(std::holds_alternative<sw::Value>(element));
 
-            return m_Evaluator.makeNode(std::get<sw::Value>(element));
+            // substitute the ident with the comptime constant
+            if (std::holds_alternative<sw::Value>(element))
+                return m_Evaluator.makeNode(std::get<sw::Value>(element));
+
+            // otherwise, assume that it is a type and do a partial resolution
+            assert(std::holds_alternative<Type*>(element));
+            auto ty = std::get<Type*>(element);
+            node->full_qualification.front().value = ty->getIdent();
+            assert(node->full_qualification.front().value);
+
         } return const_cast<Node*>(transformDefault(node, ctx));
     }
 
@@ -70,7 +82,7 @@ public:
 
         auto* result = const_cast<Node*>(transformDefault(node, ctx));
 
-        // also substitute array_size (e.g., N in [T | N])
+        // also substitute array_size, e.g., N in [T | N]
         if (result->to<TypeWrapper>()->array_size) {
             auto* size_node = const_cast<Node*>(static_cast<const Node*>(
                 result->to<TypeWrapper>()->array_size));
