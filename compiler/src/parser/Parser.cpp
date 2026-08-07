@@ -1,5 +1,4 @@
 #include <filesystem>
-#include <memory>
 #include <fstream>
 #include <utility>
 #include <unordered_map>
@@ -219,6 +218,10 @@ Node* Parser::dispatch() {
                 return parseForLoop();
             case Token::KW_ENUM:
                 return parseEnum();
+            case Token::KW_IMPL:
+                return parseProtocolImpl();
+            case Token::KW_TYPE:
+                return parseTypeAlias();
             case Token::KW_TRUE:
             case Token::KW_FALSE:
                 return parseExpr();
@@ -354,7 +357,7 @@ Node* Parser::parseExternBlock() {
     return m_ExternBlockBuffer[0];
 }
 
-Node* Parser::parseImport() {
+ImportNode* Parser::parseImport() {
     ImportNode ret;
     SET_NODE_ATTRS(&ret);
 
@@ -500,7 +503,7 @@ void Parser::parse() {
 }
 
 
-Node* Parser::parseFunction() {
+Function* Parser::parseFunction() {
     const auto func_nd = m_Module->makeNode<Function>();
     SET_NODE_ATTRS(func_nd);
 
@@ -565,8 +568,10 @@ Node* Parser::parseFunction() {
         return func_nd;
     }
 
-    // parse the children
-    func_nd->children = parseScope();
+    if (m_Stream.CurTok.tokenid == Token::PUNC_LBRACE) {
+        // parse the children
+        func_nd->children = parseScope();
+    }
 
     m_LatestFuncNode = nullptr;
     return func_nd;
@@ -787,7 +792,7 @@ Node* Parser::parseCall(std::optional<Ident*> ident) {
 }
 
 
-Node* Parser::parseRet() {
+ReturnStatement* Parser::parseRet() {
     auto ret = m_Module->makeNode<ReturnStatement>();
     SET_NODE_ATTRS(ret);
 
@@ -805,7 +810,7 @@ Node* Parser::parseRet() {
 }
 
 
-Node* Parser::parseIntrinsic() {
+Intrinsic* Parser::parseIntrinsic() {
     const auto call_node = m_Module->makeNode<Intrinsic>();
     SET_NODE_ATTRS(call_node);
 
@@ -834,7 +839,8 @@ Node* Parser::parseIntrinsic() {
 }
 
 
-Scope* Parser::parseScope() {
+template <typename Fn>
+Scope* Parser::parseScope(const Fn& hook) {
     auto scope = m_Module->makeNode<Scope>();
     SET_NODE_ATTRS(scope);
 
@@ -852,7 +858,9 @@ Scope* Parser::parseScope() {
             break;
         }
 
-        children.emplace_back(dispatch());
+        auto child = dispatch();
+        hook(child);
+        children.emplace_back(child);
     }
 
     scope->children = m_Module->internArray<Node*>(children);
@@ -940,7 +948,7 @@ Ident* Parser::parseIdent() {
 }
 
 
-Node* Parser::parseEnum() {
+Enum* Parser::parseEnum() {
     auto ret = m_Module->makeNode<Enum>();
     SET_NODE_ATTRS(ret);
 
@@ -965,8 +973,7 @@ Node* Parser::parseEnum() {
             forwardStream();
             continue;
         }
-
-        if (m_Stream.CurTok.tokenid == Token::IDENT) {
+         if (m_Stream.CurTok.tokenid == Token::IDENT) {
             const auto name = m_StringPool.intern(forwardStream().value);
             ret->addEntry(name);
             continue;
@@ -980,23 +987,15 @@ Node* Parser::parseEnum() {
 }
 
 
-Node* Parser::parseProtocol() {
-    auto ret = m_Module->makeNode<Protocol>();
+Protocol* Parser::parseProtocol() {
+    const auto ret = m_Module->makeNode<Protocol>();
     SET_NODE_ATTRS(ret);
 
-    std::vector<Protocol::MemberSignature> members;
-    std::vector<Protocol::MethodSignature> methods;
+    std::vector<Protocol::MethodSignature<>> methods;
+    std::vector<TypeAlias*> type_aliases;
 
     forwardStream(); // skip 'protocol'
     ret->name = m_StringPool.intern(forwardStream().value);
-
-    if (m_Stream.CurTok.tokenid == Token::OP_LT) {
-        ret->generic_params = parseGenericParamList();
-    }
-
-    if (m_Stream.CurTok.tokenid == Token::PUNC_COLON) {
-        ret->depended_protocols = parseProtocolList();
-    }
 
     ignoreButExpect(Token::PUNC_LBRACE);
 
@@ -1011,50 +1010,42 @@ Node* Parser::parseProtocol() {
             break;
         }
 
-        const auto child = dispatch();
-        switch (child->getNodeType()) {
-            case ND_VAR: {
-                const auto var = child->to<Var>();
-                members.push_back(Protocol::MemberSignature{
-                    .name = m_StringPool.intern(var->var_ident->toString()),
-                    .type = var->var_type,
-                });
+        switch (const auto node = dispatch(); node->kind) {
+            case ND_FUNC: {
+                const auto fn = node->to<Function>();
+                Protocol::MethodSignature signature;
+
+                std::vector<TypeWrapper*> param_types;
+                for (Parameter* param : fn->params) {
+                    param_types.emplace_back(param->type);
+                }
+
+                signature.name        = fn->name;
+                signature.return_type = fn->return_type;
+                signature.params      = m_Module->internArray<TypeWrapper*>(param_types);
+                methods.emplace_back(signature);
                 break;
             }
 
-            case ND_FUNC: {
-                const auto func  = child->to<Function>();
-                std::vector<TypeWrapper*> func_params;
-
-                // TODO: allow protocols to be used as "types" in the methods' params within the protocol
-
-                func_params.reserve(func->params.size());
-                for (const auto& var : func->params) {
-                    func_params.push_back(var->type);
-                }
-
-                methods.push_back(Protocol::MethodSignature{
-                    .name = m_StringPool.intern(func->ident->toString()),
-                    .return_type = func->return_type,
-                    .params = func_params,
-                });
+            case ND_TYPE_ALIAS: {
+                type_aliases.push_back(node->to<TypeAlias>());
                 break;
             }
 
             case ND_INVALID:
-                continue;
-
-            default:
-                reportError(ErrCode::SYNTAX_ERROR, {
-                    .msg = "unexpected statement inside a protocol",
-                    .location = child->location
-                }); break;
+                break;
+            default: {
+                reportError(
+                    ErrCode::SYNTAX_ERROR,
+                    {.msg = "Construct not allowed within a protocols."});
+                dispatch();
+                break;
+            }
         }
     }
 
-    ret->members = m_Module->internArray<Protocol::MemberSignature>(members);
-    ret->methods = m_Module->internArray<Protocol::MethodSignature>(methods);
-
+    ret->methods      = m_Module->internArray<Protocol::MethodSignature<>>(methods);
+    ret->type_aliases = m_Module->internArray<TypeAlias*>(type_aliases);
     return ret;
 }
 
@@ -1089,7 +1080,58 @@ std::span<Ident*> Parser::parseProtocolList() {
 }
 
 
-Node* Parser::parseStruct() {
+TypeAlias* Parser::parseTypeAlias() {
+    auto* ret = m_Module->makeNode<TypeAlias>();
+    SET_NODE_ATTRS(ret);
+
+    forwardStream();  // skip 'type'
+    ret->alias = m_StringPool.intern(m_Stream.CurTok.value);
+
+    ignoreButExpect(Token::IDENT);
+
+    if (m_Stream.CurTok.tokenid == Token::OP_ASSIGN) {
+        forwardStream();
+        ret->alias_for = parseType();
+    }
+
+    return ret;
+}
+
+
+ProtocolImpl* Parser::parseProtocolImpl() {
+    auto* ret = m_Module->makeNode<ProtocolImpl>();
+    SET_NODE_ATTRS(ret);
+
+    forwardStream();  // skip 'impl'
+    ret->protocol = parseIdent();
+
+    ignoreButExpect(Token::KW_FOR);
+    ret->impl_for = parseIdent();
+
+    std::vector<TypeAlias*> aliases;
+    ret->children = parseScope(
+        [&aliases, this](Node* node) {
+            if (node->getNodeType() == ND_TYPE_ALIAS) {
+                auto* alias_node = static_cast<TypeAlias*>(node);
+                aliases.push_back(alias_node);
+
+                if (!alias_node->alias_for) {
+                    reportError(ErrCode::SYNTAX_ERROR, {
+                        .msg = "Type aliases cannot be empty inside a protocol"
+                               " implementation.",
+                        .location = alias_node->location
+                    });
+                }
+            }
+        }
+    );
+
+    ret->type_aliases = m_Module->internArray<TypeAlias*>(aliases);
+    return ret;
+}
+
+
+Struct* Parser::parseStruct() {
     forwardStream();  // skip 'struct'
     auto ret = m_Module->makeNode<Struct>();
     SET_NODE_ATTRS(ret);
@@ -1114,7 +1156,7 @@ Node* Parser::parseStruct() {
 }
 
 
-Node* Parser::parseWhile() {
+WhileLoop* Parser::parseWhile() {
     auto ret = m_Module->makeNode<WhileLoop>();
     SET_NODE_ATTRS(ret);
 

@@ -1,5 +1,4 @@
 #pragma once
-#include <mutex>
 #include <utility>
 #include <filesystem>
 
@@ -89,23 +88,28 @@ public:
 
 
     Node* dispatch();
-    Node* parseFunction();
-    Node* parseWhile();
-    Node* parseStruct();
-    Node* parseImport();
-    Node* parseRet();
-    Node* parseIntrinsic();
-    Node* parseProtocol();
-    Node* parseEnum();
     Node* parseExternBlock();
 
-    Scope*     parseScope();
-    ForLoop*   parseForLoop(bool is_comptime = false);
+    Function*        parseFunction();
+    WhileLoop*       parseWhile();
+    Struct*          parseStruct();
+    ImportNode*      parseImport();
+    ReturnStatement* parseRet();
+    Intrinsic*       parseIntrinsic();
+    Protocol*        parseProtocol();
+    Enum*            parseEnum();
+    TypeAlias*       parseTypeAlias();
+    ProtocolImpl*    parseProtocolImpl();
+
+    ForLoop*   parseForLoop  (bool is_comptime = false);
     Condition* parseCondition(bool is_comptime = false);
 
     Var*        parseVar(bool is_comptime = false);
     Node*       parseCall(std::optional<Ident*> _ = std::nullopt);
     Parameter*  parseParam(bool&);
+
+    template <typename Fn = std::identity>
+    Scope* parseScope(const Fn& hook = std::identity{});
 
     std::span<Ident*>         parseProtocolList();
     std::span<GenericParam*>  parseGenericParamList();

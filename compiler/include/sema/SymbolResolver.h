@@ -9,8 +9,6 @@ namespace sema {
 struct SymbolResolver : SemaVisitor<SymbolResolver> {
     SymbolManager&    SymMan;
     ModuleManager&    ModuleMap;
-    std::unordered_map<IdentInfo*, Node*>& GlobalNodeJmpTable;
-
 
     struct Data {
         std::unordered_set<std::string_view> ignore_symbols{};
@@ -22,7 +20,6 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
         : SemaVisitor(context.module, context.error_callback)
         , SymMan(context.module->symbol_table)
         , ModuleMap(context.module->getModuleManager())
-        , GlobalNodeJmpTable(context.module->node_jmp_table)
         {}
 
 
@@ -54,8 +51,6 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
                         : std::string(symbol.assigned_alias),
                     id, node->is_exported
                     );
-
-                GlobalNodeJmpTable.insert({id, ModuleMap.get(node->mod_handle).node_jmp_table.at(id)});
             }
         }
     }
@@ -74,6 +69,27 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
         } visit(node->return_type, data);
 
         visit(node->children, data);
+    }
+
+
+    void handle(const Protocol* node, Data data) {
+        // mandated associated types are placeholders, add them to the ignored-symbols set
+        for (TypeAlias* alias : node->type_aliases) {
+            if (!alias->alias_for) {
+                data.ignore_symbols.insert(alias->alias);
+            }
+        }
+
+        for (const auto& method : node->methods) {
+            for (TypeWrapper* ty : method.params) {
+                visit(ty, data);
+            }
+            visit(method.return_type, data);
+        }
+
+        for (TypeAlias* alias : node->type_aliases) {
+            visit(alias, data);
+        }
     }
 
 

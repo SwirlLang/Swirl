@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <functional>
 
-#include "ast/Nodes.h"
+#include "ast/SourceLocation.h"
 
 
 struct Type;
@@ -57,7 +57,11 @@ enum class ErrCode {
     SLICE_NOT_COMPATIBLE,     // when slice types are not compatible with each other
     NOT_DEREFERENCE_ABLE,     // type cannot be dereferenced,
     NO_SUCH_PROTOCOL,         // the protocol does not exist
-    PROTOCOL_VIOLATED,        // the protocol hasn't been satisfied
+    TYPE_ALIAS_REQUIRED,      // when a type alias definition is mandated by the protocol
+    PROTOCOL_VIOLATED,        // the protocol hasn't been satisfied (a required method is missing)
+    PROTOCOL_METHOD_MISMATCH, // an implemented method's signature doesn't satisfy the protocol
+    DUPLICATE_PROTO_IMPL,     // the protocol impl already exists
+    PROTO_IMPL_NOT_EXPORTED,  // the protocol impl exists but not exported
     ENUM_TYPE_NOT_INTEGRAL,   // enum types should be integral
     ONLY_INTEGRAL_BITWISE,    // only integral bitwise operands are allowed in bitwise operators
     EXPONENTIAL_RHS_INTEGRAL, // exponential operator's rhs must be of an integral type

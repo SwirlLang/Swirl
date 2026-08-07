@@ -1,6 +1,5 @@
 #pragma once
 #include "Nodes.h"
-#include "utils/logging.h"
 #include "Visitor.h"
 
 
@@ -235,12 +234,8 @@ protected:
 
     template <typename... Args>
     void traverse(Protocol* node, Args&&... args) {
-        for (Ident* dep : node->depended_protocols) {
+        for (Ident* dep : node->dependencies) {
             visit(dep, std::forward<Args>(args)...);
-        }
-
-        for (auto& member : node->members) {
-            visit(member.type, std::forward<Args>(args)...);
         }
 
         for (auto& member : node->methods) {
@@ -308,6 +303,20 @@ protected:
         visit(node->loop_var_type, std::forward<Args>(args)...);
         visit(node->iterable, std::forward<Args>(args)...);
         visit(node->children, std::forward<Args>(args)...);
+    }
+
+
+    template <typename... Args>
+    void traverse(ProtocolImpl* node, Args&&... args) {
+        visit(node->protocol, std::forward<Args>(args)...);
+        visit(node->impl_for, std::forward<Args>(args)...);
+        visit(node->children, std::forward<Args>(args)...);
+    }
+
+
+    template <typename... Args>
+    void traverse(TypeAlias* node, Args&&... args) {
+        visit(node->alias_for, std::forward<Args>(args)...);
     }
 
 

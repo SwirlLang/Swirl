@@ -2,7 +2,9 @@
 #include <algorithm>
 #include <format>
 #include <vector>
+#include <cassert>
 
+#include "symbols/IdentManager.h"
 #include "errors/ErrorManager.h"
 
 
@@ -10,6 +12,8 @@ class Namespace;
 class IdentInfo;
 class  LLVMBackend;
 
+struct Protocol;
+struct ProtocolConstraint;
 struct Var;
 
 #define SW_TYPE_LIST \
@@ -35,6 +39,7 @@ struct Var;
     SW_TYPE(BOOL, TypeBool) \
     SW_TYPE(STR, TypeStr) \
     SW_TYPE(CHAR, TypeChar) \
+    SW_TYPE(PROTOCOL, ProtocolConstraint) \
     \
     SW_TYPE(REFERENCE, ReferenceType) \
     SW_TYPE(POINTER, PointerType) \
@@ -96,6 +101,7 @@ struct Type {
     virtual bool         isArrayType()     { return false; }
     virtual bool         isReferenceType() { return false; }
     virtual bool         isEnumType()      { return false; }
+    virtual bool         isConcrete()      { return true;  }
 
     explicit Type(const SwTypes tag): kind(tag) {}
 
@@ -236,6 +242,11 @@ struct GenericType final : Type {
 
     GenericType(): Type(GENERIC) {}
 
+    [[nodiscard]]
+    bool isConcrete() override {
+        return false;
+    }
+
     SwTypes getTypeTag() override {
         return contained_type ? contained_type->getTypeTag() : GENERIC;
     }
@@ -312,6 +323,39 @@ struct GenericType final : Type {
 
     bool containsGeneric() override {
         return true;
+    }
+};
+
+
+struct ProtocolConstraint final : Type {
+    IdentInfo* id = nullptr;
+    Protocol*  protocol = nullptr;
+
+    // maps method constraint names to their required parameter types and return type
+    // note: the last element of the vector is the return type
+    std::unordered_map<std::string_view, std::vector<Type*>> method_constrains;
+
+    ProtocolConstraint()
+        : Type(PROTOCOL) {}
+
+    [[nodiscard]]
+    bool isConcrete() override {
+        return false;
+    }
+
+    SwTypes getTypeTag() override {
+        return PROTOCOL;
+    }
+
+    [[nodiscard]]
+    IdentInfo* getIdent() const override {
+        return id;
+    }
+
+    [[nodiscard]]
+    std::string toString() const override {
+        assert(id != nullptr);
+        return "protocol " + id->toString();
     }
 };
 

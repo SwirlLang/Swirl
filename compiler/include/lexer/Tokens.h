@@ -53,6 +53,7 @@ struct Token {
         KW_VOLATILE,
         KW_STRUCT,
         KW_IN,
+        KW_IMPL,
 
         OP_AS,
         OP_SIZEOF,
@@ -170,6 +171,7 @@ KeywordMap = {
     {"volatile", Token::KW_VOLATILE},
     {"struct", Token::KW_STRUCT},
     {"type", Token::KW_TYPE},
+    {"impl", Token::KW_IMPL},
 };
 
 
@@ -197,6 +199,7 @@ inline std::string_view Token::toString(const TokenValue v) {
         case KW_LET: return "let";
         case KW_IMPORT: return "import";
         case KW_EXPORT: return "export";
+        case KW_IMPL: return "impl";
         case KW_VAR: return "var";
         case KW_FN: return "fn";
         case KW_VOLATILE: return "volatile";

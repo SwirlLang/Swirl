@@ -102,10 +102,34 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return std::format("No such protocol exists.");
         case ErrCode::PROTOCOL_VIOLATED:
             return std::format(
-                "The protocol {} requires `{}`'s implementation.",
+                "The protocol `{}` requires a method `{}`, which is not implemented.",
                 ctx.str_1,
                 ctx.str_2
                 );
+        case ErrCode::PROTOCOL_METHOD_MISMATCH:
+            return std::format(
+                "The implementation of `{}` does not satisfy the protocol `{}`: {}",
+                ctx.str_2,
+                ctx.str_1,
+                ctx.msg
+                );
+        case ErrCode::TYPE_ALIAS_REQUIRED:
+            return std::format(
+                "The type alias `{}` is required by the protocol `{}`.",
+                ctx.str_1,
+                ctx.str_2
+            );
+        case ErrCode::DUPLICATE_PROTO_IMPL:
+            return std::format(
+                "The implementation of the protocol `{}` already exists for the type `{}` "
+                "in the module or its dependencies.", ctx.str_1, ctx.str_2);
+
+        case ErrCode::PROTO_IMPL_NOT_EXPORTED:
+            return std::format(
+                "The implementation of the protocol `{}` for the type `{}` exists "
+                "but is not exported by its parent module",
+                ctx.str_1, ctx.str_2
+            );
 
         case ErrCode::ENUM_TYPE_NOT_INTEGRAL:
             return "Enumeration types must be integral.";

@@ -50,13 +50,20 @@ class SemaVisitor : public RecursiveVisitor<Derived> {
 protected:
     explicit
     SemaVisitor(Module* module, ErrorCallback_t error_callback)
-        : m_Callback(std::move(error_callback))
-        , m_Module(module)
+        : m_Module(module)
+        , m_Callback(std::move(error_callback))
         , m_StringPool(module->getStringPool())
+        , m_PreviousCallback(module->symbol_table.getErrorCallback())
     {
         module->symbol_table.setErrorCallback([this](const ErrCode code, ErrorContext ctx) {
             reportError(code, std::move(ctx));
         });
+    }
+
+    ~SemaVisitor() {
+        // restore the previous callback so the symbol table never holds a
+        // reference to a visitor that has already been destroyed
+        m_Module->symbol_table.setErrorCallback(std::move(m_PreviousCallback));
     }
 
 
@@ -147,6 +154,7 @@ private:
     std::vector<Node*> m_NodeStack;
     ErrorCallback_t    m_Callback;
     sw::StringPool&    m_StringPool;
+    ErrorCallback_t    m_PreviousCallback;
 
     std::unordered_set<ErrCode> m_DisabledErrorCodes;
 

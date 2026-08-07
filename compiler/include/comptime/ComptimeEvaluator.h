@@ -76,6 +76,11 @@ public:
     }
 
 
+    Node* transform(const Protocol* node) {
+        return cast<Protocol>(node);
+    }
+
+
     Node* transform(const Function* node) {
         // variadics have been processed before, comptime evaluator is not supposed
         // to do anything with it

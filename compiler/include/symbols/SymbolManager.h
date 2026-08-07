@@ -277,6 +277,10 @@ public:
         m_ErrorCallback = err_callback;
     }
 
+    ErrorCallback_t getErrorCallback() const {
+        return m_ErrorCallback;
+    }
+
 
 private:
     void registerExportedSymbol(const std::string& name, const ExportedSymbolMeta_t& meta) {

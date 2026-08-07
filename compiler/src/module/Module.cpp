@@ -14,7 +14,11 @@ Module::Module(const ModuleContext& context)
     , m_StringPool(context.string_pool)
     , m_Target(context.target)
     , m_CtxCopy(context)
-{}
+{
+    for (Module* mod : dependencies) {
+        m_ProtocolImplDeps.push_back(&mod->m_ProtocolImplTable);
+    }
+}
 
 
 void Module::performSema(const ErrorCallback_t& error_callback) {

@@ -1,9 +1,8 @@
 #pragma once
-#include <print>
-
-#include "ast/Visitor.h"
+#include "ast/Nodes.h"
 #include "comptime/ComptimeEvaluator.h"
 #include "transformers/GenericInstantiator.h"
+#include "transformers/ProtocolSubstitutor.h"
 #include "types/definitions.h"
 #include "sema/SemaVisitor.h"
 #include "transformers/VariadicGenerator.h"
@@ -29,7 +28,6 @@ public:
     std::size_t        ReturnStmtCounter  = 0;
 
     std::vector<Function*> CurrentParentFunction = {nullptr};
-    std::unordered_map<IdentInfo*, Node*> GlobalNodeJmpTable;
 
     sw::GenericInstantiator GenericInstantiator;
     sw::ComptimeEvaluator   ComptimeEvaluator;
@@ -46,7 +44,6 @@ public:
     explicit TypeResolver(const SemaContext& context)
         : SemaVisitor(context.module, context.error_callback)
         , SymMan(context.module->symbol_table)
-        , GlobalNodeJmpTable(context.module->node_jmp_table)
         , GenericInstantiator(m_Module, context.error_callback)
         , ComptimeEvaluator(context.module, context.error_callback, &GenericParameters)
         , IsMonomorphization(context.is_monomorphization)
@@ -78,6 +75,18 @@ public:
     Function* getCurrentParentFunc() const {
         assert(!CurrentParentFunction.empty());
         return CurrentParentFunction.back();
+    }
+
+
+    std::optional<Module::ProtocolImplInfo> getProtocolInfo(Type* for_type, ProtocolConstraint* protocol) {
+        if (const auto lookup = m_Module->lookupProtocolImpl({for_type, protocol})) {
+            if (!lookup->is_exported && m_Module != lookup->parent_module) {
+                reportError(ErrCode::PROTO_IMPL_NOT_EXPORTED, {
+                    .str_1 = protocol->toString(),
+                    .str_2 = for_type->toString()
+                });
+            } return lookup;
+        } return std::nullopt;
     }
 
 
@@ -480,10 +489,21 @@ public:
         visit(node->children);
     }
 
-
     bool preVisit(TypeWrapper* node) {
         node->type = evaluateType(node, {}).deduced_type;
         return true;
+    }
+
+
+    // resolve the type alias to a concrete type
+    void handle(const TypeAlias* node) {
+        if (node->alias_for) {
+            visit(node->alias_for);
+            if (node->alias_for->type) {
+                assert(node->ident);
+                SymMan.registerType(node->ident, node->alias_for->type);
+            }
+        }
     }
 
 
@@ -614,7 +634,236 @@ public:
     }
 
 
-    void handle(WhileLoop* node) {
+    bool preVisit(Protocol* node) {
+        if (VisitedNodes.contains(node))
+            return false;
+
+        VisitedNodes.insert(node);
+        return true;
+    }
+
+
+    void handle(const Protocol* node) {
+        const auto protocol_ty =
+            SymMan.lookupDecl(node->ident).swirl_type->to<ProtocolConstraint>();
+
+        // true if the type references one of the protocol-mandated associated types,
+        // either directly or indirectly
+        const auto references_mandated_alias = [](const auto& self, const TypeWrapper* ty,
+                                                      const Protocol* protocol) -> bool {
+            if (!ty) return false;
+
+            if (ty->type_id && !ty->type_id->full_qualification.empty()) {
+                const auto& name = ty->type_id->full_qualification.front().name;
+                for (const TypeAlias* alias : protocol->type_aliases) {
+                    if (alias->alias == name) return true;
+                }
+
+                for (const auto& qual : ty->type_id->full_qualification) {
+                    for (const GenericArg* arg : qual.generic_args) {
+                        if (arg->isType() && self(self, arg->getType(), protocol)) return true;
+                    }
+                }
+            }
+
+            if (ty->of_type && self(self, ty->of_type, protocol)) return true;
+            return false;
+        };
+
+        for (auto& method : node->methods) {
+            std::vector<Type*> type_constraints;
+
+            for (TypeWrapper* ty : method.params) {
+                if (references_mandated_alias(references_mandated_alias, ty, node)) {
+                    type_constraints.push_back(nullptr);
+                } else {
+                    visit(ty);
+                    type_constraints.push_back(ty->type);
+                }
+            }
+
+            if (method.return_type) {
+                if (references_mandated_alias(references_mandated_alias, method.return_type, node)) {
+                    type_constraints.push_back(nullptr);
+                } else {
+                    visit(method.return_type);
+                    type_constraints.push_back(method.return_type->type);
+                }
+            } else type_constraints.push_back(&GlobalTypeVoid);
+
+            protocol_ty->method_constrains.insert({
+                method.name, std::move(type_constraints)
+            });
+        }
+    }
+
+
+    void handle(const ProtocolImpl* node) {
+        assert(node->protocol->value);
+
+        const auto target_protocol_id = node->protocol->value;
+        const auto target_protocol = SymMan.lookupDecl(target_protocol_id).node_ptr->to<Protocol>();
+
+        visit(target_protocol);
+
+        // resolve the implementation's declared aliases first; the resulting
+        // bindings are used to substitute associated-type references in both the
+        // implementation's own method signatures and the protocol's requirements
+        ProtocolSubstitutor substitutor{m_Module};
+        ProtocolSubstitutor::AliasMap_t alias_map;
+        for (Node* member : node->children->children) {
+            if (member->kind == ND_TYPE_ALIAS) {
+                const auto* alias = member->to<TypeAlias>();
+                visit(alias->alias_for);
+                if (alias->alias_for && alias->alias_for->type) {
+                    alias_map[alias->alias] = alias->alias_for->type;
+                }
+            }
+        }
+
+        // set of type aliases and methods that the implementation provides
+        // the target protocol requirements will be checked against these
+        std::unordered_set<std::string_view> type_aliases;
+        std::unordered_map<std::string_view, Protocol::MethodSignature<true>> methods;
+        std::unordered_map<std::string_view, SourceLocation> impl_locs;
+
+        for (Node* member : node->children->children) {
+            switch (member->kind) {
+                case ND_TYPE_ALIAS: {
+                    const auto* alias = member->to<TypeAlias>();
+                    type_aliases.insert(alias->alias);
+                    break;
+                }
+
+                case ND_FUNC: {
+                    auto* func = member->to<Function>();
+                    func->return_type = static_cast<TypeWrapper*>(
+                        substitutor.substitute(func->return_type, alias_map));
+
+                    for (auto& param : func->params) {
+                        param->type = static_cast<TypeWrapper*>(
+                            substitutor.substitute(param->type, alias_map));
+                    }
+
+                    visit(func);
+
+                    Protocol::MethodSignature<true> sign;
+                    sign.name = func->name;
+                    sign.return_type = func->return_type;
+
+                    for (const Parameter* param : func->params) {
+                      sign.params.push_back(param->type);
+                    } methods.insert({sign.name, sign});
+                    impl_locs[sign.name] = func->location;
+                      break;
+                } default: {}
+            }
+        }
+
+        // check whether all required type aliases are defined
+        bool all_aliases_present = true;
+        for (const TypeAlias* alias : target_protocol->type_aliases) {
+            if (!type_aliases.contains(alias->alias)) {
+                reportError(ErrCode::TYPE_ALIAS_REQUIRED, {
+                    .str_1 = target_protocol_id->toString(),
+                    .str_2 = alias->alias,
+                });
+                all_aliases_present = false;
+            }
+        }
+
+        // without the aliases we cannot normalize the protocol's signatures,
+        // so only check the method bodies when every required alias is bound
+        if (!all_aliases_present) return;
+
+        // check whether all required methods are implemented.
+        // the protocol's mandated associated types are substituted with the impl's
+        // bindings first, so the protocol's declared signature and the impl's can
+        // be compared structurally
+        auto protocol_ty = SymMan.lookupDecl(target_protocol_id).swirl_type->to<ProtocolConstraint>();
+
+        const auto protocol_str = target_protocol_id->toString();
+        const auto report_mismatch = [this](const std::string& protocol, const std::string_view method,
+                                            std::string&& msg, const SourceLocation loc) {
+            reportError(ErrCode::PROTOCOL_METHOD_MISMATCH, {
+                .msg = std::move(msg), .str_1 = protocol, .str_2 = method, .location = loc
+            });
+        };
+
+        const auto check_satisfied = [&](Type* expected, Type* provided,
+                                         const std::string& protocol, const std::string_view method,
+                                         const std::string_view what, const SourceLocation loc) {
+            if (provided == expected) return;
+
+            if (expected && expected->getTypeTag() == Type::PROTOCOL && provided &&
+                getProtocolInfo(provided, expected->to<ProtocolConstraint>()).has_value())
+                return;
+
+            report_mismatch(protocol, method,
+                std::format("{}: expected `{}`, found `{}`.",
+                            what,
+                            expected ? expected->toString() : "<void>",
+                            provided ? provided->toString() : "<void>"),
+                loc);
+        };
+
+        for (const auto& sig : target_protocol->methods) {
+            const auto impl_it = methods.find(sig.name);
+            if (impl_it == methods.end()) {
+                reportError(ErrCode::PROTOCOL_VIOLATED, {.str_1 = protocol_str, .str_2 = sig.name});
+                continue;
+            }
+
+            const auto& impl_sig = impl_it->second;
+            const auto impl_loc = impl_locs[sig.name];
+
+            if (impl_sig.params.size() != sig.params.size()) {
+                report_mismatch(protocol_str, sig.name,
+                    std::format("expected {} parameter(s), found {}.",
+                                sig.params.size(), impl_sig.params.size()),
+                    impl_loc);
+                continue;
+            }
+
+            const auto expected_params = substitutor.substitute(sig.params, alias_map);
+            for (auto [i, ty] : std::views::enumerate(expected_params)) {
+                visit(ty);
+                check_satisfied(ty->type, impl_sig.params[i]->type, protocol_str, sig.name,
+                                std::format("parameter #{}", i), impl_loc);
+            }
+
+            auto* provided_ret =
+                impl_sig.return_type ? impl_sig.return_type->type : &GlobalTypeVoid;
+
+            if (sig.return_type) {
+                auto* expected_ret = static_cast<TypeWrapper*>
+                    (substitutor.substitute(sig.return_type, alias_map));
+                visit(expected_ret);
+                check_satisfied(expected_ret->type, provided_ret, protocol_str, sig.name,
+                                "return type", impl_loc);
+            } else {
+                check_satisfied(&GlobalTypeVoid, provided_ret, protocol_str, sig.name,
+                                "return type", impl_loc);
+            }
+        }
+
+        // Check whether the impl already exists and insert it into the table
+        const auto impl_type = SymMan.lookupDecl(node->impl_for->value).swirl_type;
+        if (!m_Module->insertProtocolImpl(
+            {impl_type, protocol_ty},
+            {   .is_exported = node->is_exported,
+                .scope = node->children->symbols,
+                .parent_module = m_Module}))
+        {
+            reportError(ErrCode::DUPLICATE_PROTO_IMPL, {
+                .str_1 = protocol_ty->toString(),
+                .str_2 = node->impl_for->toString(),
+            });
+        }
+    }
+
+
+    void handle(const WhileLoop* node) {
         const auto condition_ty = inferType(node->condition, {}).deduced_type;
         if (!checkTypeCompatibility(condition_ty, &GlobalTypeBool, false)) {
             reportError(ErrCode::CONDITION_NOT_BOOL, {});
@@ -635,17 +884,11 @@ public:
         const auto ty = SymMan.lookupType(node->ident)->to<StructType>();
         ty->field_types.clear();
 
-        std::unordered_set<Protocol::MemberSignature> member_lookup;
-        std::unordered_set<Protocol::MethodSignature> method_lookup;
-
         for (const auto& member : node->members->children) {
             if (member->getNodeType() == ND_VAR) {
                 const auto var_node = member->to<Var>();
 
                 ty->field_types.push_back(var_node->var_type->type);
-                member_lookup.insert({
-                    .name = var_node->var_ident->toString(),
-                    .type = var_node->var_type});
             }
 
             else if (member->getNodeType() == ND_FUNC) {
@@ -656,45 +899,10 @@ public:
                 for (const Parameter* param : fn_node->params) {
                     param_types.push_back(param->type);
                 }
-
-                method_lookup.insert({
-                    .name = fn_node->ident->toString(),
-                    .return_type = fn_node->return_type,
-                    .params = internArray<TypeWrapper*>(param_types)
-                });
             }
 
             for (const GenericParam* param : node->generic_params) {
                 GenericParameters.erase(param->name);
-            }
-        }
-
-        // enforce protocols
-        for (Ident* proto_id : node->protocols) {
-            if (proto_id->value) {
-                const auto protocol = SymMan.lookupDecl(proto_id->value).node_ptr->to<Protocol>();
-                if (!protocol) {
-                    reportError(ErrCode::NO_SUCH_PROTOCOL, {.location = proto_id->location});
-                    continue;
-                }
-
-                for (auto& mem : protocol->members) {
-                    if (!member_lookup.contains(mem)) {
-                        reportError(ErrCode::PROTOCOL_VIOLATED, {
-                            .str_1 =   node->ident->toString(),
-                            .str_2 =   mem.name
-                        });
-                    }
-                }
-
-                for (auto& method : protocol->methods) {
-                    if (!method_lookup.contains(method)) {
-                        reportError(ErrCode::PROTOCOL_VIOLATED, {
-                            .str_1 = proto_id->toString(),
-                            .str_2 = "<placeholder>"  // TODO
-                        });
-                    }
-                }
             }
         }
     }

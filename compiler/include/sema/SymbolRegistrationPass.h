@@ -9,8 +9,7 @@ public:
     explicit
     SymbolRegistrationPass(const SemaContext& context)
         : SemaVisitor(context.module, context.error_callback)
-        , SymMan(context.module->symbol_table)
-        , NodeJmpTable(context.module->node_jmp_table) {}
+        , SymMan(context.module->symbol_table) {}
 
 
     // The scope being nullptr => the current scope is global
@@ -22,8 +21,6 @@ public:
     Namespace* PreCreatedScope = nullptr;
 
     SymbolManager& SymMan;
-    std::unordered_map<IdentInfo*, Node*>& NodeJmpTable;
-
 
     void handle(Scope* node) {
         assert(!ScopeStack.empty());
@@ -89,11 +86,6 @@ public:
         traverse(node);
 
         StructStack.pop_back();
-
-
-        if (isGlobalScope()) {
-            NodeJmpTable.insert({node->ident, node});
-        }
     }
 
 
@@ -154,10 +146,6 @@ public:
         traverse(node);
         ScopeStack.pop_back();
         FunctionStack.pop_back();
-
-        if (isGlobalScope()) {
-            NodeJmpTable.insert({node->ident, node});
-        }
     }
 
 
@@ -174,6 +162,13 @@ public:
     }
 
 
+    void handle(TypeAlias* node) {
+        if (node->alias_for) {
+            node->ident = getNewIDInfo(node->alias);
+        }
+    }
+
+
     bool preVisit(Var* node) {
         if (node->var_ident) return true;
 
@@ -187,11 +182,6 @@ public:
         entry.is_comptime = node->is_comptime;
 
         SymMan.registerDecl(node->var_ident, entry);
-
-        if (isGlobalScope()) {
-            NodeJmpTable.insert({node->var_ident, node});
-        }
-
         return true;
     }
 
@@ -227,10 +217,7 @@ public:
         entry.node_ptr    = node;
 
         SymMan.registerDecl(node->ident, entry);
-
-        if (isGlobalScope()) {
-            NodeJmpTable.insert({node->ident, node});
-        } return true;
+        return true;
     }
 
 
@@ -256,33 +243,31 @@ public:
         SymMan.registerDecl(node->ident, entry);
         SymMan.registerType(node->ident, ty);
 
-        if (isGlobalScope()) {
-            NodeJmpTable.insert({node->ident, node});
-        }
-
         return true;
     }
 
 
     bool preVisit(Protocol* node) const {
-        node->protocol_id = getNewIDInfo(node->name);
+        node->ident = getNewIDInfo(node->name);
+
+        const auto type = new ProtocolConstraint();
+        type->id = node->ident;
+        type->protocol = node;
 
         TableEntry entry;
         entry.is_protocol = true;
-        entry.node_ptr = node;
+        entry.node_ptr    = node;
+        entry.swirl_type  = type;
         entry.is_exported = node->is_exported;
 
-        SymMan.registerDecl(node->protocol_id, entry);
-
-        if (isGlobalScope()) {
-            NodeJmpTable.insert({node->protocol_id, node});
-        }
+        SymMan.registerDecl(node->ident, entry);
+        SymMan.registerType(node->ident, type);
 
         return true;
     }
 
 
-    IdentInfo* searchForSymbol(const std::string_view name) {
+    IdentInfo* searchForSymbol(const std::string_view name) const {
         if (const auto id = SymMan.getGlobalScope()->getIDInfoFor(name)) {
             assert(id.value());
             return id.value();

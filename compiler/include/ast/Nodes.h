@@ -4,13 +4,16 @@
 #include <stdexcept>
 #include <utility>
 #include <variant>
+#include <vector>
 #include <format>
 #include <ranges>
 #include <span>
 
+#include "SourceLocation.h"
 #include "utils/utils.h"
 #include "lexer/Tokens.h"
 #include "symbols/IdentManager.h"
+#include "types/SwTypes.h"
 #include "utils/FileSystem.h"
 
 
@@ -44,7 +47,9 @@
     SW_NODE(ND_ENUM, Enum) \
     SW_NODE(ND_GEN_ARG, GenericArg) \
     SW_NODE(ND_GEN_ARG_LIST, GenericArgList) \
-    SW_NODE(ND_FOR_LOOP, ForLoop)
+    SW_NODE(ND_FOR_LOOP, ForLoop) \
+    SW_NODE(ND_TYPE_ALIAS, TypeAlias) \
+    SW_NODE(ND_PROTOCOL_IMPL, ProtocolImpl)
 
 
 #define SW_NODE(x, y) x,
@@ -64,18 +69,6 @@ class Parser;
 class Namespace;
 class IdentInfo;
 class LLVMBackend;
-
-
-struct SourceLocation {
-    StreamState     from;
-    StreamState     to;
-    sw::FileHandle* source = nullptr;
-
-    [[nodiscard]]
-    std::string toString() const {
-        return std::format("{}:{}", from.Line, from.Col);
-    }
-};
 
 
 // The common base class of all the nodes
@@ -501,6 +494,20 @@ struct TypeWrapper final : Node {
     }
 };
 
+
+struct TypeAlias final : Node {
+    std::string_view alias;
+
+    IdentInfo*   ident     = nullptr;
+    TypeWrapper* alias_for = nullptr;
+
+    TypeAlias()
+        : Node(ND_TYPE_ALIAS) {}
+
+    [[nodiscard]] NodeType getNodeType() const override { return ND_TYPE_ALIAS; }
+};
+
+
 struct GenericArg final : Node {
     explicit GenericArg(): Node(ND_GEN_ARG) {}
 
@@ -754,11 +761,14 @@ struct Enum final : GlobalNode {
 
 
 struct Protocol final : GlobalNode {
+    template <bool keep_dynamic = false>
     struct MethodSignature {
-        std::string_view name;
-        TypeWrapper*     return_type;
-        std::span<TypeWrapper*> params;
+        std::string_view        name;
+        TypeWrapper*            return_type{};
 
+        std::conditional_t<keep_dynamic,
+            std::vector<TypeWrapper*>,
+            std::span<TypeWrapper*>> params{};
 
         bool operator==(const MethodSignature& other) const {
             return name == other.name && other.return_type->type == return_type->type &&
@@ -768,25 +778,37 @@ struct Protocol final : GlobalNode {
                         return a->type == b->type;
                     });
         }
-    };
 
-    struct MemberSignature {
-        std::string_view name;
-        TypeWrapper*     type;
+        operator MethodSignature<true>() const {
+            MethodSignature<true> result;
+            result.name = name;
+            result.return_type = return_type;
 
-        bool operator==(const MemberSignature& other) const {
-            return name == other.name && other.type->type == type->type;
+            for (auto ty : params) {
+                result.params.push_back(ty);
+            } return result;
+        }
+
+        std::string toString() const {
+            std::string res = std::format("fn {}(", name);
+            for (const TypeWrapper* ty : params) {
+                res += "_: " + (ty->type ? ty->type->toString() : "???");
+                res += ',';
+            }
+
+            res += "): " + (return_type->type ? return_type->type->toString() : "???");
+            return res;
         }
     };
 
-    IdentInfo*  protocol_id = nullptr;
+    IdentInfo*  ident = nullptr;
 
-    std::span<Ident*> depended_protocols;
-    std::span<MemberSignature> members;
-    std::span<MethodSignature> methods;
+    std::span<Ident*> dependencies;
+    std::span<MethodSignature<>> methods;
+    std::span<TypeAlias*> type_aliases;
 
     IdentInfo* getIdentInfo() override {
-        return protocol_id;
+        return ident;
     }
 
     explicit Protocol()
@@ -804,16 +826,10 @@ struct std::hash<TypeWrapper> {
     }
 };
 
-template <>
-struct std::hash<Protocol::MemberSignature> {
-    std::size_t operator()(const Protocol::MemberSignature& m) const noexcept {
-        return combineHashes(std::hash<const char*>{}(m.name.data()), std::hash<TypeWrapper*>{}(m.type));
-    }
-};
 
 template <>
-struct std::hash<Protocol::MethodSignature> {
-    std::size_t operator()(const Protocol::MethodSignature& m) const noexcept {
+struct std::hash<Protocol::MethodSignature<>> {
+    std::size_t operator()(const Protocol::MethodSignature<>& m) const noexcept {
         std::size_t arg_hash = 0;
         for (auto& arg : m.params) {
             arg_hash = combineHashes(arg_hash, std::hash<TypeWrapper*>{}(arg));
@@ -828,9 +844,43 @@ struct std::hash<Protocol::MethodSignature> {
 };
 
 
+template <>
+struct std::hash<Protocol::MethodSignature<true>> {
+    std::size_t operator()(const Protocol::MethodSignature<true>& m) const noexcept {
+        std::size_t arg_hash = 0;
+        for (auto& arg : m.params) {
+            arg_hash = combineHashes(arg_hash, std::hash<TypeWrapper*>{}(arg));
+        }
+
+        return combineHashes(
+            std::hash<const char*>{}(m.name.data()),
+            std::hash<TypeWrapper*>{}(m.return_type),
+            arg_hash
+            );
+    }
+};
+
+
+struct ProtocolImpl final : GlobalNode {
+    Ident* protocol = nullptr;
+    Ident* impl_for = nullptr;
+    Scope* children = nullptr;
+    std::span<TypeAlias*> type_aliases;
+
+    ProtocolImpl(): GlobalNode(ND_PROTOCOL_IMPL) {}
+
+    [[nodiscard]]
+    TypeWrapper* getAliasTypeFor(const std::string_view name) const {
+        for (const TypeAlias* alias : type_aliases) {
+            if (alias->alias == name)
+                return alias->alias_for;
+        } return nullptr;
+    }
+};
+
+
 struct ForLoop final : Node {
-    ForLoop():
-        Node(ND_FOR_LOOP) {}
+    ForLoop(): Node(ND_FOR_LOOP) {}
 
     IdentInfo*       loop_var_id   = nullptr;
     TypeWrapper*     loop_var_type = nullptr;

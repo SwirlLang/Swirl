@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include <expected>
 #include <unordered_map>
 
 #include "Target.h"
@@ -30,6 +31,23 @@ struct Module {
     SymbolManager symbol_table;
     sw::FileHandle* file_handle = nullptr;
 
+    struct Hasher {
+        std::size_t operator()(const std::pair<Type*, ProtocolConstraint*>& item) const {
+            return combineHashes(
+                std::hash<Type*>{}(item.first),
+                std::hash<ProtocolConstraint*>{}(item.second));
+        }
+    };
+
+    struct ProtocolImplInfo {
+        bool is_exported = false; Namespace* scope = nullptr;
+        Module* parent_module = nullptr;
+    };
+
+    using ProtocolImplTable = std::unordered_map<
+        std::pair<Type*, ProtocolConstraint*>, ProtocolImplInfo, Hasher>;
+
+
     explicit Module(const ModuleContext& context);
 
     /// the modules which directly depend on this module
@@ -40,9 +58,6 @@ struct Module {
 
     /// all modules which directly or indirectly depend on this one
     std::unordered_set<Module*> cumulative_dependents{};
-
-    /// maps global symbols to their nodes
-    std::unordered_map<IdentInfo*, Node*> node_jmp_table{};
 
     /// counter for the no. of unresolved dependencies
     std::size_t unresolved_deps{};
@@ -112,6 +127,26 @@ struct Module {
         return std::span<T>{reinterpret_cast<T*>(memory), arr.size()};
     }
 
+
+    std::optional<ProtocolImplInfo> lookupProtocolImpl(const ProtocolImplTable::key_type& key) {
+        if (m_ProtocolImplTable.contains(key))
+            return m_ProtocolImplTable[key];
+
+        for (ProtocolImplTable* table : m_ProtocolImplDeps) {
+            if (table->contains(key))
+                return table->operator[](key);
+        } return std::nullopt;
+    }
+
+    /// Returns false if the implementation already exists.
+    bool insertProtocolImpl(const ProtocolImplTable::key_type& key, const ProtocolImplInfo& impl_info) {
+        if (lookupProtocolImpl(key) != std::nullopt)
+            return false;
+        m_ProtocolImplTable.insert({key, impl_info});
+        return true;
+    }
+
+
     sw::StringPool& getStringPool() const {
         return m_StringPool;
     }
@@ -154,6 +189,9 @@ private:
     std::vector<std::array<std::size_t, 2>> m_LineOffsets{};
     std::vector<std::unique_ptr<Node*>> m_Nodes{};
     std::vector<std::function<void()>>  m_Destructors{};
+
+    ProtocolImplTable m_ProtocolImplTable;
+    std::vector<ProtocolImplTable*> m_ProtocolImplDeps;
 
     friend class CompilerInst;
     friend class SourceManager;

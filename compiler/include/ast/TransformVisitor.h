@@ -1,7 +1,5 @@
 #pragma once
 #include "modules/Module.h"
-#include "utils/logging.h"
-
 
 struct Module;
 
@@ -414,26 +412,13 @@ protected:
         bool changed = false;
 
         std::vector<Ident*> new_depended;
-        for (auto dep : node->depended_protocols) {
+        for (auto dep : node->dependencies) {
             auto new_dep = run(dep, std::forward<Args>(args)...);
             if (new_dep != dep) changed = true;
             new_depended.push_back(static_cast<Ident*>(new_dep));
         }
 
-        std::vector<Protocol::MemberSignature> new_members;
-        for (auto& member : node->members) {
-            auto new_type = run(member.type, std::forward<Args>(args)...);
-            if (new_type != member.type) {
-                changed = true;
-                auto m = member;
-                m.type = static_cast<TypeWrapper*>(new_type);
-                new_members.push_back(m);
-            } else {
-                new_members.push_back(member);
-            }
-        }
-
-        std::vector<Protocol::MethodSignature> new_methods;
+        std::vector<Protocol::MethodSignature<>> new_methods;
         for (auto& method : node->methods) {
             bool method_changed = false;
 
@@ -459,11 +444,10 @@ protected:
         }
 
         if (changed) {
-            auto new_node = makeNode<Protocol>(*node);
-            new_node->protocol_id = nullptr;
-            new_node->depended_protocols = m_Module->internArray<Ident*>(new_depended);
-            new_node->members = m_Module->internArray<Protocol::MemberSignature>(new_members);
-            new_node->methods = m_Module->internArray<Protocol::MethodSignature>(new_methods);
+            const auto new_node = makeNode<Protocol>(*node);
+            new_node->ident = nullptr;
+            new_node->dependencies = m_Module->internArray<Ident*>(new_depended);
+            new_node->methods = m_Module->internArray<Protocol::MethodSignature<>>(new_methods);
             return new_node;
         }
         return node;
@@ -582,6 +566,32 @@ protected:
             }
         }
         return node;
+    }
+
+
+    template <typename... Args>
+    const Node* transformDefault(const TypeAlias* node, Args&&... args) {
+        auto ty = run(node->alias_for, std::forward<Args>(args)...);
+
+        if (ty != node->alias_for) {
+            const auto new_node = makeNode<TypeAlias>(*node);
+            new_node->alias_for = static_cast<TypeWrapper*>(ty);
+            return new_node;
+        } return node;
+    }
+
+
+    template <typename... Args>
+    const Node* transformDefault(const ProtocolImpl* node, Args&&... args) {
+        auto id = run(node->protocol, std::forward<Args>(args)...);
+        auto children = run(node->children, std::forward<Args>(args)...);
+
+        if (id != node->protocol || children != node->children) {
+            const auto new_node = makeNode<ProtocolImpl>(*node);
+            new_node->protocol  = static_cast<Ident*>(id);
+            new_node->children  = static_cast<Scope*>(children);
+            return new_node;
+        } return node;
     }
 
 

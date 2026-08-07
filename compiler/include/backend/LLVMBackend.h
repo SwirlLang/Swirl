@@ -208,6 +208,7 @@ public:
     CGValue llvmCodegen(ImportNode*, const SwContext&)     { return {}; }
     CGValue llvmCodegen(Protocol*, const SwContext&)       { return {}; }
     CGValue llvmCodegen(UndefinedValue*, const SwContext&) { return {}; }
+    CGValue llvmCodegen(TypeAlias*, const SwContext&)      { return {}; }
 
     CGValue llvmCodegen(Expression* node, SwContext context);
     CGValue llvmCodegen(const IntLit* node, const SwContext &context);
@@ -232,7 +233,7 @@ public:
     CGValue llvmCodegen(ReturnStatement* node, const SwContext& context);
 
 
-    // --- llvmCodegen for Types (implementation in SwTypes.cpp) --- //
+    // --- llvmCodegen for Types (implementation in TypeCodegen.cpp) --- //
     llvm::Type* llvmCodegen(const FunctionType* type, const SwContext &context);
     llvm::Type* llvmCodegen(StructType* type, const SwContext &context);
     llvm::Type* llvmCodegen(EnumType* type, const SwContext &context);
@@ -256,6 +257,7 @@ public:
     llvm::Type* llvmCodegen(SliceType* type, const SwContext &context);
     llvm::Type* llvmCodegen(VoidType* type, SwContext context);
     llvm::Type* llvmCodegen(const GenericType* type, const SwContext& context);
+    llvm::Type* llvmCodegen(const ProtocolConstraint*, const SwContext&) { return nullptr; }
 
     llvm::Type* llvmCodegen(TypeCInt* type, SwContext context);
     llvm::Type* llvmCodegen(TypeCUInt* type, SwContext context);
