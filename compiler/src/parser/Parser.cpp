@@ -1020,6 +1020,8 @@ Protocol* Parser::parseProtocol() {
                     param_types.emplace_back(param->type);
                 }
 
+                signature.is_instance_method =
+                    !fn->params.empty() && fn->params.front()->is_instance_param;
                 signature.name        = fn->name;
                 signature.return_type = fn->return_type;
                 signature.params      = m_Module->internArray<TypeWrapper*>(param_types);

@@ -63,7 +63,7 @@ protected:
     ~SemaVisitor() {
         // restore the previous callback so the symbol table never holds a
         // reference to a visitor that has already been destroyed
-        m_Module->symbol_table.setErrorCallback(std::move(m_PreviousCallback));
+        m_Module->symbol_table.setErrorCallback(m_PreviousCallback);
     }
 
 

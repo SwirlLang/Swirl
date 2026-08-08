@@ -427,7 +427,8 @@ protected:
 
             std::vector<TypeWrapper*> new_params;
             for (auto param : method.params) {
-                auto new_param = run(param, std::forward<Args>(args)...);
+                // a null slot is the instance parameter placeholder (`&self`)
+                auto new_param = param ? run(param, std::forward<Args>(args)...) : nullptr;
                 if (new_param != param) method_changed = true;
                 new_params.push_back(static_cast<TypeWrapper*>(new_param));
             }

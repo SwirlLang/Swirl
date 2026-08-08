@@ -673,7 +673,14 @@ public:
         for (auto& method : node->methods) {
             std::vector<Type*> type_constraints;
 
-            for (TypeWrapper* ty : method.params) {
+            for (auto [i, ty] : std::views::enumerate(method.params)) {
+                // the instance parameter is a placeholder whose type is bound to a
+                // reference of the implementing type during conformance checking
+                if (method.is_instance_method && i == 0) {
+                    type_constraints.push_back(nullptr);
+                    continue;
+                }
+
                 if (references_mandated_alias(references_mandated_alias, ty, node)) {
                     type_constraints.push_back(nullptr);
                 } else {
@@ -727,6 +734,8 @@ public:
         std::unordered_map<std::string_view, Protocol::MethodSignature<true>> methods;
         std::unordered_map<std::string_view, SourceLocation> impl_locs;
 
+        const auto impl_type = SymMan.lookupDecl(node->impl_for->value).swirl_type;
+
         for (Node* member : node->children->children) {
             switch (member->kind) {
                 case ND_TYPE_ALIAS: {
@@ -741,8 +750,20 @@ public:
                         substitutor.substitute(func->return_type, alias_map));
 
                     for (auto& param : func->params) {
-                        param->type = static_cast<TypeWrapper*>(
-                            substitutor.substitute(param->type, alias_map));
+                        if (param->type) {
+                            param->type = static_cast<TypeWrapper*>(
+                                substitutor.substitute(param->type, alias_map));
+                        }
+                    }
+
+                    const auto is_instance_method =
+                        !func->params.empty() && func->params.front()->is_instance_param;
+
+                    // bind the instance parameter's type to a reference of the
+                    // implementing type, matching the instance parameter's mutability
+                    if (is_instance_method) {
+                        func->params.front()->type = makeNode<TypeWrapper>(
+                            SymMan.getReferenceType(impl_type, !func->params.front()->is_const));
                     }
 
                     visit(func);
@@ -750,6 +771,7 @@ public:
                     Protocol::MethodSignature<true> sign;
                     sign.name = func->name;
                     sign.return_type = func->return_type;
+                    sign.is_instance_method = is_instance_method;
 
                     for (const Parameter* param : func->params) {
                       sign.params.push_back(param->type);
@@ -777,7 +799,7 @@ public:
         if (!all_aliases_present) return;
 
         // check whether all required methods are implemented.
-        // the protocol's mandated associated types are substituted with the impl's
+        // the protocol-mandated associated types are substituted with the impl's
         // bindings first, so the protocol's declared signature and the impl's can
         // be compared structurally
         auto protocol_ty = SymMan.lookupDecl(target_protocol_id).swirl_type->to<ProtocolConstraint>();
@@ -817,6 +839,19 @@ public:
             const auto& impl_sig = impl_it->second;
             const auto impl_loc = impl_locs[sig.name];
 
+            // instance vs static: the implementation must match the protocol's method
+            // kind (the mutability of `&self` is not part of the contract)
+            if (impl_sig.is_instance_method != sig.is_instance_method) {
+                report_mismatch(protocol_str, sig.name,
+                    std::format("expected {}, found {}.",
+                                sig.is_instance_method ? "an instance method (taking `&self`)"
+                                                       : "a static method",
+                                impl_sig.is_instance_method ? "an instance method (taking `&self`)"
+                                                            : "a static method"),
+                    impl_loc);
+                continue;
+            }
+
             if (impl_sig.params.size() != sig.params.size()) {
                 report_mismatch(protocol_str, sig.name,
                     std::format("expected {} parameter(s), found {}.",
@@ -825,11 +860,27 @@ public:
                 continue;
             }
 
-            const auto expected_params = substitutor.substitute(sig.params, alias_map);
-            for (auto [i, ty] : std::views::enumerate(expected_params)) {
+            // drop the instance parameter from both sides: it is a placeholder on the
+            // protocol side and binds to a reference of the implementing type on the
+            // impl side, so there is nothing to compare
+            std::vector<TypeWrapper*> expected_params;
+            for (auto [i, ty] : std::views::enumerate(sig.params)) {
+                if (!(sig.is_instance_method && i == 0))
+                    expected_params.push_back(ty);
+            }
+
+            std::vector<TypeWrapper*> provided_params;
+            for (auto [i, ty] : std::views::enumerate(impl_sig.params)) {
+                if (!(impl_sig.is_instance_method && i == 0))
+                    provided_params.push_back(ty);
+            }
+
+            const auto substituted = substitutor.substitute(expected_params, alias_map);
+            for (auto [i, ty] : std::views::enumerate(substituted)) {
                 visit(ty);
-                check_satisfied(ty->type, impl_sig.params[i]->type, protocol_str, sig.name,
-                                std::format("parameter #{}", i), impl_loc);
+                check_satisfied(ty->type, provided_params[i]->type, protocol_str, sig.name,
+                                std::format("parameter #{}", sig.is_instance_method ? i + 1 : i),
+                                impl_loc);
             }
 
             auto* provided_ret =
@@ -848,7 +899,6 @@ public:
         }
 
         // Check whether the impl already exists and insert it into the table
-        const auto impl_type = SymMan.lookupDecl(node->impl_for->value).swirl_type;
         if (!m_Module->insertProtocolImpl(
             {impl_type, protocol_ty},
             {   .is_exported = node->is_exported,

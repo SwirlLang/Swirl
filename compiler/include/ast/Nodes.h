@@ -766,17 +766,27 @@ struct Protocol final : GlobalNode {
         std::string_view        name;
         TypeWrapper*            return_type{};
 
+        // true if the method's first parameter is an instance parameter (`&self`).
+        // in that case the first element of `params` is a placeholder (nullptr)
+        // whose type is resolved to a reference of the implementing type during
+        // conformance checking
+        bool is_instance_method = false;
+
         std::conditional_t<keep_dynamic,
             std::vector<TypeWrapper*>,
             std::span<TypeWrapper*>> params{};
 
         bool operator==(const MethodSignature& other) const {
-            return name == other.name && other.return_type->type == return_type->type &&
-                std::equal(params.begin(), params.end(),
-                    other.params.begin(), other.params.end(),
-                    [](const TypeWrapper* a, const TypeWrapper* b) {
-                        return a->type == b->type;
-                    });
+            if (name != other.name || is_instance_method != other.is_instance_method) return false;
+            if ((return_type && other.return_type) ? return_type->type != other.return_type->type
+                                                  : return_type != other.return_type) return false;
+
+            return std::equal(params.begin(), params.end(),
+                other.params.begin(), other.params.end(),
+                [](const TypeWrapper* a, const TypeWrapper* b) {
+                    if (!a || !b) return a == b;
+                    return a->type == b->type;
+                });
         }
 
         operator MethodSignature<true>() const {
@@ -792,7 +802,7 @@ struct Protocol final : GlobalNode {
         std::string toString() const {
             std::string res = std::format("fn {}(", name);
             for (const TypeWrapper* ty : params) {
-                res += "_: " + (ty->type ? ty->type->toString() : "???");
+                res += "_: " + (ty ? (ty->type ? ty->type->toString() : "???") : "self");
                 res += ',';
             }
 
