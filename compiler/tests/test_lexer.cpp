@@ -14,10 +14,11 @@ struct LexerFixture {
     Module*         mod;
     SourceManager*  sm;
     TokenStream*    lex;
+    sw::Target      target;
 
     explicit LexerFixture(std::string_view source) {
         auto* fh = fs.createVirtualFile("test.sw", std::string(source));
-        ModuleContext ctx{fh, modman, pool};
+        ModuleContext ctx{fh, modman, pool, target};
         mod = modman.insert(ctx);
         sm  = new SourceManager(mod);
         lex = new TokenStream(*sm);
@@ -355,7 +356,7 @@ TEST_CASE("Lexer handles basic string literals", "[lexer][strings]") {
     }
     SECTION("single-quoted empty") {
         LexerFixture f("''");
-        CHECK_TOK(f.next(), STRING, "", Token::STRING);
+        CHECK_TOK(f.next(), CHAR, "", Token::STRING);
     }
     SECTION("double-quoted basic") {
         LexerFixture f("\"hello\"");
@@ -363,7 +364,7 @@ TEST_CASE("Lexer handles basic string literals", "[lexer][strings]") {
     }
     SECTION("single-quoted basic") {
         LexerFixture f("'world'");
-        CHECK_TOK(f.next(), STRING, "world", Token::STRING);
+        CHECK_TOK(f.next(), CHAR, "world", Token::STRING);
     }
 }
 
@@ -395,7 +396,7 @@ TEST_CASE("Lexer handles string escape sequences", "[lexer][strings]") {
     SECTION("single quote") {
         LexerFixture f("'a\\'b'");
         auto tok = f.next();
-        CHECK(tok.type == STRING);
+        CHECK(tok.type == CHAR);
         CHECK(tok.value == "a'b");
     }
     SECTION("null") {
@@ -571,7 +572,7 @@ TEST_CASE("tokenize for loop with range", "[lexer][integration]") {
     LexerFixture f("for i in 0...10 { break }");
     CHECK_TOK(f.next(), KEYWORD, "for",   Token::KW_FOR);
     CHECK_TOK(f.next(), IDENT,   "i",     Token::IDENT);
-    CHECK_TOK(f.next(), IDENT,   "in",    Token::IDENT);
+    CHECK_TOK(f.next(), KEYWORD, "in",    Token::KW_IN);
     CHECK_TOK(f.next(), NUMBER,  "0",     Token::NUM_INT);
     CHECK_TOK(f.next(), OP,      "...",   Token::OP_ELLIPSIS);
     CHECK_TOK(f.next(), NUMBER,  "10",    Token::NUM_INT);

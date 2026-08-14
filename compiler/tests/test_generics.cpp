@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <llvm/TargetParser/Host.h>
 #include <llvm/TargetParser/Triple.h>
@@ -148,6 +149,79 @@ TEST_CASE("Nested DOT field access", "[sema][nested]") {
 struct Inner { var value: i32; }
 struct Outer { var inner: Inner; }
 fn run() { var o: Outer; var v = o.inner.value; }
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("DOT method call via protocol impl", "[sema][dot][protocol]") {
+    SemaFixture f(R"(
+protocol Greeter { fn greet(&self): i32; }
+struct Console {}
+impl Greeter for Console { fn greet(&self): i32 { return 7; } }
+fn run() { var c: Console; var result = c.greet(); }
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Static method call via protocol impl", "[sema][static][protocol]") {
+    SemaFixture f(R"(
+protocol Maker { fn make(): T; }
+struct T {}
+impl Maker for T { fn make(): T { var tmp: T; return tmp; } }
+fn run() { var t = T::make(); }
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("DOT method call ambiguous between two impls", "[sema][dot][protocol][ambiguous]") {
+    SemaFixture f(R"(
+protocol P { fn m(&self): i32; }
+protocol Q { fn m(&self): i32; }
+struct T {}
+impl P for T { fn m(&self): i32 { return 1; } }
+impl Q for T { fn m(&self): i32 { return 2; } }
+fn run() { var t: T; var r = t.m(); }
+)");
+    const auto it = std::ranges::find_if(f.errors, [](const auto& e) {
+        return e.first == ErrCode::AMBIGUOUS_MEMBER;
+    });
+    REQUIRE(it != f.errors.end());
+}
+
+TEST_CASE("DOT method call ambiguous between type scope and impl", "[sema][dot][protocol][ambiguous]") {
+    SemaFixture f(R"(
+protocol P { fn m(&self): i32; }
+struct T { fn m(&self): i32 { return 0; } }
+impl P for T { fn m(&self): i32 { return 1; } }
+fn run() { var t: T; var r = t.m(); }
+)");
+    const auto it = std::ranges::find_if(f.errors, [](const auto& e) {
+        return e.first == ErrCode::AMBIGUOUS_MEMBER;
+    });
+    REQUIRE(it != f.errors.end());
+}
+
+TEST_CASE("Static method call ambiguous via protocol impls", "[sema][static][protocol][ambiguous]") {
+    SemaFixture f(R"(
+protocol P { fn m(&self): i32; }
+protocol Q { fn m(&self): i32; }
+struct T {}
+impl P for T { fn m(&self): i32 { return 1; } }
+impl Q for T { fn m(&self): i32 { return 2; } }
+fn run() { var t: T; var r = T::m(t); }
+)");
+    const auto it = std::ranges::find_if(f.errors, [](const auto& e) {
+        return e.first == ErrCode::AMBIGUOUS_MEMBER;
+    });
+    REQUIRE(it != f.errors.end());
+}
+
+TEST_CASE("Impl method with value parameter via DOT", "[sema][dot][protocol][params]") {
+    SemaFixture f(R"(
+protocol Writer { fn write(&self, content: i32): i32; }
+struct File {}
+impl Writer for File { fn write(&self, content: i32): i32 { return content; } }
+fn run() { var f: File; var r = f.write(42); }
 )");
     CHECK_FALSE(f.hasErrors());
 }
