@@ -31,21 +31,20 @@ struct Module {
     SymbolManager symbol_table;
     sw::FileHandle* file_handle = nullptr;
 
-    struct Hasher {
-        std::size_t operator()(const std::pair<Type*, ProtocolConstraint*>& item) const {
-            return combineHashes(
-                std::hash<Type*>{}(item.first),
-                std::hash<ProtocolConstraint*>{}(item.second));
-        }
-    };
-
     struct ProtocolImplInfo {
         bool is_exported = false; Namespace* scope = nullptr;
         Module* parent_module = nullptr;
     };
 
     using ProtocolImplTable = std::unordered_map<
-        std::pair<Type*, ProtocolConstraint*>, ProtocolImplInfo, Hasher>;
+        Type*, std::unordered_map<ProtocolConstraint*, ProtocolImplInfo>>;
+
+    /// A registered protocol impl: its info (member-scope, export status,
+    /// declaring module) and the protocol it satisfies.
+    struct ImplScopeRef {
+        const ProtocolImplInfo* info = nullptr;
+        const ProtocolConstraint* protocol = nullptr;
+    };
 
 
     explicit Module(const ModuleContext& context);
@@ -128,21 +127,54 @@ struct Module {
     }
 
 
-    std::optional<ProtocolImplInfo> lookupProtocolImpl(const ProtocolImplTable::key_type& key) {
-        if (m_ProtocolImplTable.contains(key))
-            return m_ProtocolImplTable[key];
+    std::optional<ProtocolImplInfo> lookupProtocolImpl(Type* type, ProtocolConstraint* protocol) {
+        if (m_ProtocolImplTable.contains(type)) {
+            if (auto& map = m_ProtocolImplTable[type]; map.contains(protocol)) {
+                return map[protocol];
+            }
+        }
 
-        for (ProtocolImplTable* table : m_ProtocolImplDeps) {
-            if (table->contains(key))
-                return table->operator[](key);
+        for (Module* dep : dependencies) {
+            auto& table = dep->m_ProtocolImplTable;
+            if (table.contains(type)) {
+                if (auto& map = table[type]; map.contains(protocol)) {
+                    return map[protocol];
+                }
+            }
         } return std::nullopt;
     }
 
+
+    /// Returns every protocol impl registered for `type`, across this module
+    /// and its direct dependencies.
+    std::vector<ImplScopeRef> getImplScopesFor(Type* type) const {
+        std::vector<ImplScopeRef> refs;
+
+        if (m_ProtocolImplTable.contains(type)) {
+            for (const auto& [protocol, info] : m_ProtocolImplTable.at(type)) {
+                if (info.scope) refs.push_back({.info = &info, .protocol = protocol});
+            }
+        }
+
+        for (const Module* dep : dependencies) {
+            if (const auto& table = dep->m_ProtocolImplTable; table.contains(type)) {
+                for (const auto& [protocol, info] : table.at(type)) {
+                    if (info.scope) refs.push_back({.info = &info, .protocol = protocol});
+                }
+            }
+        }
+
+        return refs;
+    }
+
     /// Returns false if the implementation already exists.
-    bool insertProtocolImpl(const ProtocolImplTable::key_type& key, const ProtocolImplInfo& impl_info) {
-        if (lookupProtocolImpl(key) != std::nullopt)
+    bool insertProtocolImpl(Type* type, ProtocolConstraint* protocol, const ProtocolImplInfo& impl_info) {
+        if (lookupProtocolImpl(type, protocol) != std::nullopt)
             return false;
-        m_ProtocolImplTable.insert({key, impl_info});
+
+        if (!m_ProtocolImplTable.contains(type)) {
+            m_ProtocolImplTable.insert({type, {}});
+        } m_ProtocolImplTable[type].insert({protocol, impl_info});
         return true;
     }
 
@@ -191,7 +223,6 @@ private:
     std::vector<std::function<void()>>  m_Destructors{};
 
     ProtocolImplTable m_ProtocolImplTable;
-    std::vector<ProtocolImplTable*> m_ProtocolImplDeps;
 
     friend class CompilerInst;
     friend class SourceManager;

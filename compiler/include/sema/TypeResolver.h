@@ -79,7 +79,7 @@ public:
 
 
     std::optional<Module::ProtocolImplInfo> getProtocolInfo(Type* for_type, ProtocolConstraint* protocol) {
-        if (const auto lookup = m_Module->lookupProtocolImpl({for_type, protocol})) {
+        if (const auto lookup = m_Module->lookupProtocolImpl(for_type, protocol)) {
             if (!lookup->is_exported && m_Module != lookup->parent_module) {
                 reportError(ErrCode::PROTO_IMPL_NOT_EXPORTED, {
                     .str_1 = protocol->toString(),
@@ -87,6 +87,52 @@ public:
                 });
             } return lookup;
         } return std::nullopt;
+    }
+
+
+    /// Resolves `member` as a member of `primary_scope` and -- when `owner_type`
+    /// is a type -- of its protocol impl-scopes. Reports NO_SUCH_MEMBER /
+    /// AMBIGUOUS_MEMBER. Returns nullptr on failure.
+    IdentInfo* resolveMember(const Namespace* primary_scope, Type* owner_type, const std::string_view member) {
+        std::vector<const Namespace*> scopes;
+        std::vector<Module::ImplScopeRef> impl_refs;
+        if (primary_scope) scopes.push_back(primary_scope);
+        if (owner_type) {
+            for (const auto& ref : m_Module->getImplScopesFor(owner_type)) {
+                scopes.push_back(ref.info->scope);
+                impl_refs.push_back(ref);
+            }
+        }
+
+        const auto matches = SymMan.resolveMember(scopes, member);
+        if (matches.empty()) {
+            reportError(ErrCode::NO_SUCH_MEMBER, {.str_1 = member});
+            return nullptr;
+        }
+        if (matches.size() > 1) {
+            reportError(ErrCode::AMBIGUOUS_MEMBER, {.str_1 = member});
+            return nullptr;
+        }
+
+        // impl members are visible within the module that declared the impl;
+        // from other modules they require `export impl`
+        if (matches[0].found_in != primary_scope) {
+            for (const auto& ref : impl_refs) {
+                if (ref.info->scope == matches[0].found_in
+                    && ref.info->parent_module != m_Module
+                    && !ref.info->is_exported)
+                {
+                    reportError(ErrCode::PROTO_IMPL_NOT_EXPORTED, {
+                        .str_1 = ref.protocol->toString(),
+                        .str_2 = owner_type ?
+                                 owner_type->toString() : "???"
+                    });
+                    return nullptr;
+                }
+            }
+        }
+
+        return matches[0].id;
     }
 
 
@@ -306,7 +352,15 @@ public:
 
 
     TypeInfo evaluateType(Ident* node, const TypeContext& ctx) {
-        assert(node->value);
+        if (!node->value) {
+            // idents deferred by the SymbolResolver (e.g. impl-provided members)
+            node->value = SymMan.getIDInfoFor(*node,
+                [this](const ErrCode code, ErrorContext e) {
+                    reportError(code, std::move(e));
+                });
+            if (!node->value)
+                return {};  // an error was already reported
+        }
         Type* ret = nullptr;
         if (node->value->isFictitious()) {
             const auto enum_node = SymMan.getFictitiousIDValue(node->value);
@@ -337,6 +391,18 @@ public:
         if (ctx.is_method_call) {
             assert(ctx.method_id);
             node->ident->value = ctx.method_id;
+        } else if (!node->ident->value) {
+            // generic-param targets are resolved during monomorphization, so
+            // don't attempt to resolve them as globals here
+            if (!GenericParameters.contains(node->ident->full_qualification.front().name)) {
+                // idents deferred by the SymbolResolver (e.g. impl-provided members)
+                node->ident->value = SymMan.getIDInfoFor(*node->ident,
+                    [this](const ErrCode code, ErrorContext e) {
+                        reportError(code, std::move(e));
+                    });
+                if (!node->ident->value)
+                    return {};  // an error was already reported
+            }
         } visit(node->ident);
         // assuming `SymbolResolver` has resolved the ID otherwise
 
@@ -746,6 +812,8 @@ public:
 
                 case ND_FUNC: {
                     auto* func = member->to<Function>();
+                    SymMan.lookupDecl(func->ident).method_of = SymMan.lookupType(node->impl_for->value);
+
                     func->return_type = static_cast<TypeWrapper*>(
                         substitutor.substitute(func->return_type, alias_map));
 
@@ -900,7 +968,7 @@ public:
 
         // Check whether the impl already exists and insert it into the table
         if (!m_Module->insertProtocolImpl(
-            {impl_type, protocol_ty},
+            impl_type, protocol_ty,
             {   .is_exported = node->is_exported,
                 .scope = node->children->symbols,
                 .parent_module = m_Module}))

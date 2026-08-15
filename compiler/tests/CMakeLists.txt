@@ -5,6 +5,8 @@ add_executable(compiler_tests
     ${TEST_SOURCES}
     test_main.cpp
     test_lexer.cpp
+    test_generics.cpp
+    test_cross_module.cpp
 )
 
 target_link_libraries(compiler_tests PUBLIC Catch2::Catch2)

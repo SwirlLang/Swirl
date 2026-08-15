@@ -20,7 +20,7 @@ class SymbolManager;
 
 struct SwContext {
     Type* bound_type = nullptr;
-    Type* cast_to    = nullptr;  // used to pass down casting hints in certail contexts
+    Type* cast_to    = nullptr;  // used to pass down casting hints
     bool  is_generic_inst = false;
     std::vector<Type*> generic_args;
 
@@ -223,6 +223,7 @@ public:
     CGValue llvmCodegen(Condition* node, const SwContext& context);
     CGValue llvmCodegen(WhileLoop* node, SwContext context);
     CGValue llvmCodegen(Struct* node, const SwContext& context);
+    CGValue llvmCodegen(const ProtocolImpl* node, const SwContext& context);
     CGValue llvmCodegen(ArrayLit* node, const SwContext& context);
     CGValue llvmCodegen(const TypeWrapper* node, const SwContext& context);
     CGValue llvmCodegen(BoolLit* node, const SwContext& context);

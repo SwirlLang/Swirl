@@ -100,6 +100,7 @@ enum class ErrCode {
     RET_TYPE_REQUIRED,         // when explicitly specifying a return-type is required (e.g. recursive calls)
     QUALIFIER_UNDEFINED,
     NO_SUCH_MEMBER,
+    AMBIGUOUS_MEMBER,       // a member exists in more than one scope (e.g. a type and its protocol impls)
     NO_INSTANCE_PARAM_HERE,    // when an instance parameter appears in the wrong context
     MAIN_REDEFINED,            // when the main function is redefined
     CONFIG_VAR_UNINITIALIZED,  // a config-variable is left uninitialized

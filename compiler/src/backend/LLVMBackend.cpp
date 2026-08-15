@@ -1258,6 +1258,17 @@ CGValue LLVMBackend::llvmCodegen(Struct* node, const SwContext& context) {
 }
 
 
+CGValue LLVMBackend::llvmCodegen(const ProtocolImpl* node, const SwContext& context) {
+    for (Node* member : node->children->children) {
+        if (member->getNodeType() == ND_FUNC) {
+            codegen(member, context);
+        }
+    }
+
+    return {};
+}
+
+
 CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
     std::vector<llvm::Type*> paramTypes;
 

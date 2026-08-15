@@ -60,8 +60,15 @@ bool sema::TypeResolver::checkTypeCompatibility(
     }
 
 
+    if (from->getTypeTag() == Type::SLICE && to->getTypeTag() == Type::SLICE) {
+        if (!checkTypeCompatibility(from->getWrappedType(), to->getWrappedType(), report_errors, loc))
+            return false;
+        return true;
+    }
+
+
     if (from->isArrayType() && to->isArrayType()) {
-        if (from->getAggregateSize() != from->getAggregateSize()) {
+        if (from->getAggregateSize() != to->getAggregateSize()) {
             report_error(ErrCode::DISTINCTLY_SIZED_ARR, {.type_1 = from, .type_2 = to});
             return false;
         }
@@ -315,24 +322,23 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                     auto analysis_result = inferType(node->getLHS(), ctx);
                     Namespace* computed_namespace = analysis_result.computed_namespace;
 
-                    if (!computed_namespace) {
+                    if (!computed_namespace && analysis_result.deduced_type) {
                         computed_namespace = SymMan.lookupDecl(analysis_result.deduced_type->getIdent()).scope;
                     }
 
                     if (computed_namespace) {
-                        // look for the RHS in the namespace
-                        std::optional<IdentInfo*> id = computed_namespace->getIDInfoFor(accessed_member);
+                        // resolve the member across the namespace and the type's impl-scopes
+                        auto* member_id = resolveMember(
+                            computed_namespace,
+                            analysis_result.deduced_type,
+                            accessed_member);
 
-                        // indicates that no ID with the name exists
-                        if (!id.has_value()) {
-                            // TODO: put the namespace name in the error message
-                            reportError(ErrCode::NO_SUCH_MEMBER, {.str_1 = accessed_member});
+                        if (!member_id)
                             return {};
-                        }
 
                         // now when the ID with the name does exist
-                        const auto& member_tab_entry = SymMan.lookupDecl(*id);
-                        accessed_id->value = *id;
+                        const auto& member_tab_entry = SymMan.lookupDecl(member_id);
+                        accessed_id->value = member_id;
                         ret.computed_namespace = member_tab_entry.scope;
                         ret.deduced_type = member_tab_entry.swirl_type;
                         node->common_type = ret.deduced_type;
@@ -360,18 +366,14 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                         return {};
                     }
 
-                    // look for the member in the scope
-                    auto id = lhs_scope->getIDInfoFor(accessed_member);
-
-                    if (!id.has_value()) {
-                        reportError(ErrCode::NO_SUCH_MEMBER, {
-                            .str_1 = accessed_member, .str_2 = lhs_id_info->toString()});
+                    // resolve the member across the scope and the type's impl-scopes
+                    auto* member_id = resolveMember(lhs_scope, accessed_type, accessed_member);
+                    if (!member_id)
                         return {};
-                    }
 
+                    accessed_id->value = member_id;
 
-                    const auto& member_tab_entry = SymMan.lookupDecl(*id);
-                    accessed_id->value = *id;
+                    const auto& member_tab_entry = SymMan.lookupDecl(member_id);
 
                     auto deduced_type = member_tab_entry.swirl_type;
                     auto computed_namespace = member_tab_entry.scope;
@@ -380,7 +382,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                         const auto analysis_res = inferType(node->getRHS(), {
                             .is_method_call = true,
                             .bound_type = ctx.bound_type,
-                            .method_id = *id,
+                            .method_id = member_id,
                         });
 
                         deduced_type = analysis_res.deduced_type;

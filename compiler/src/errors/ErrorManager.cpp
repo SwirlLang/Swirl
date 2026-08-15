@@ -178,6 +178,13 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
             return "You will have to explicitly specify a return type here.";
         case ErrCode::QUALIFIER_UNDEFINED:
             return std::format("The qualifier '{}' is undefined.", ctx.str_1);
+        case ErrCode::AMBIGUOUS_MEMBER:
+            return std::format(
+                "The member '{}' is ambiguous: it is provided by more than one scope. "
+                "Use `(instance as Protocol).{}()` to disambiguate.",
+                ctx.str_1,
+                ctx.str_1
+                );
         case ErrCode::UNDEFINED_IDENTIFIER:
             return std::format("The identifier '{}' is undefined.", ctx.str_1);
         case ErrCode::NOT_A_NAMESPACE:

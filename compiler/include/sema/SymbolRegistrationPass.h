@@ -121,10 +121,10 @@ public:
         assert(!StructStack.empty());
         TableEntry entry {
             .is_exported = node->is_exported,
-            .is_static = node->is_static_method,
-            .swirl_type = fn_type,
-            .method_of = StructStack.back(),
-            .node_ptr = node
+            .is_static   = node->is_static_method,
+            .swirl_type  = fn_type,
+            .method_of   = StructStack.back(),
+            .node_ptr    = node
         };
 
         SymMan.registerType(node->ident, fn_type);
@@ -206,7 +206,7 @@ public:
             }
 
             // protocol methods traverse their parameters directly (without pushing
-            // onto FunctionStack, whose bottom is seeded with nullptr); the instance
+            // onto FunctionStack, whose bottom is seeded with nullptr), the instance
             // parameter's type is unbound here and gets resolved to a reference of
             // the implementing type when the impl's conformance against the protocol
             // is checked
@@ -220,9 +220,9 @@ public:
         node->ident = getNewIDInfo(node->name);
 
         TableEntry entry;
-        entry.is_const    = node->is_const;
-        entry.is_param    = true;
-        entry.node_ptr    = node;
+        entry.is_const = node->is_const;
+        entry.is_param = true;
+        entry.node_ptr = node;
 
         SymMan.registerDecl(node->ident, entry);
         return true;

@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <ranges>
+#include <span>
 #include <utility>
 #include <filesystem>
 #include <unordered_map>
@@ -118,6 +119,15 @@ public:
 
     IdentInfo* getIDInfoFor(const Ident& id, const std::optional<ErrorCallback_t>& err_callback = std::nullopt);
 
+    struct MemberLookup {
+        IdentInfo* id = nullptr;
+        const Namespace* found_in = nullptr;
+    };
+
+    /// Resolves `name` as a member of the given candidate namespaces, in order.
+    /// Returns ALL matches so the caller can detect ambiguity.
+    std::vector<MemberLookup> resolveMember(std::span<const Namespace*> scopes, std::string_view name);
+
     Enum* getFictitiousIDValue(IdentInfo* id);
 
 
@@ -185,14 +195,14 @@ public:
 
     Type* getReferenceType(Type* of_type, const bool is_mutable, const bool is_str_ref = false) {
         if (is_str_ref) {
-            return getSliceType(&GlobalTypeChar, is_mutable);
-        } return m_TypeManager.getReferenceType(of_type, is_mutable);
+            return getSliceType(&GlobalTypeChar, true);
+        } return m_TypeManager.getReferenceType(of_type, true);
     }
 
 
     /// (of_type, is_mutable) -> &[of_type]
     Type* getSliceType(Type* of_type, const bool is_mutable) {
-        return m_TypeManager.getSliceType(of_type, is_mutable);
+        return m_TypeManager.getSliceType(of_type, true);
     }
 
 
@@ -202,7 +212,7 @@ public:
 
 
     Type* getPointerType(Type* of_type, const bool is_mutable) {
-        return m_TypeManager.getPointerType(of_type, true); // TODO - re-enable immutability
+        return m_TypeManager.getPointerType(of_type, true);  // TODO - re-enable immutability
     }
 
 
@@ -245,8 +255,6 @@ public:
             throw std::runtime_error("SymbolTable::registerFictitiousIDValue: id already in the table");
         } m_FictitiousIDTable.insert({id, enum_node});
     }
-
-
 
 
     bool isForeignID(const IdentInfo* id) const {

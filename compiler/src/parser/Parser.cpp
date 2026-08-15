@@ -1128,6 +1128,15 @@ ProtocolImpl* Parser::parseProtocolImpl() {
         }
     );
 
+    // the export status of the impl applies to its methods, so that
+    // cross-module callers can link against them
+    if (ret->is_exported) {
+        for (Node* child : ret->children->children) {
+            if (child->getNodeType() == ND_FUNC)
+                child->to<GlobalNode>()->is_exported = true;
+        }
+    }
+
     ret->type_aliases = m_Module->internArray<TypeAlias*>(aliases);
     return ret;
 }

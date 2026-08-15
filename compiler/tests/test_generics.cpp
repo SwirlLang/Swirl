@@ -1,7 +1,5 @@
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
-#include <llvm/TargetParser/Host.h>
-#include <llvm/TargetParser/Triple.h>
 
 #include "modules/Module.h"
 #include "modules/ModuleManager.h"
@@ -17,14 +15,14 @@ struct SemaFixture {
     Module*         mod;
 
     std::vector<std::pair<ErrCode, ErrorContext>> errors;
+    sw::Target      target{sw::Target::fromHostTriple()};
 
     explicit SemaFixture(std::string_view source) {
-        using Triple = llvm::Triple;
-        const auto LLVMTargetTriple = Triple(llvm::sys::getDefaultTargetTriple());
+        const auto Triple = target.getTriple();
         fs.createVirtualFile(SW_BUILTIN_FILE_PATH, SW_BUILTIN_SOURCE);
 
         auto* fh = fs.createVirtualFile("test.sw", std::string(source));
-        const ModuleContext ctx{fh, modman, pool};
+        const ModuleContext ctx{fh, modman, pool, target};
         mod = modman.insert(ctx);
 
         mod->parse([this](ErrCode code, ErrorContext ctx) {
@@ -38,6 +36,10 @@ struct SemaFixture {
 
     bool hasErrors() const { return !errors.empty(); }
 };
+
+bool hasError(const std::vector<std::pair<ErrCode, ErrorContext>>& errors, ErrCode code) {
+    return std::ranges::find_if(errors, [&](const auto& e) { return e.first == code; }) != errors.end();
+}
 
 TEST_CASE("Simple function", "[sema][baseline]") {
     SemaFixture f(R"(
@@ -224,4 +226,105 @@ impl Writer for File { fn write(&self, content: i32): i32 { return content; } }
 fn run() { var f: File; var r = f.write(42); }
 )");
     CHECK_FALSE(f.hasErrors());
+}
+
+
+TEST_CASE("Multiple protocols on one type, both DOT-callable", "[sema][dot][protocol][multi-impl]") {
+    SemaFixture f(R"(
+protocol A { fn a(&self): i32; }
+protocol B { fn b(&self): i32; }
+struct T {}
+impl A for T { fn a(&self): i32 { return 1; } }
+impl B for T { fn b(&self): i32 { return 2; } }
+fn run() { var t: T; var x = t.a(); var y = t.b(); }
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Protocol with multiple methods, all DOT-callable", "[sema][dot][protocol][multi-method]") {
+    SemaFixture f(R"(
+protocol Shape { fn area(&self): i32; fn perimeter(&self): i32; }
+struct Rect {}
+impl Shape for Rect { fn area(&self): i32 { return 1; } fn perimeter(&self): i32 { return 2; } }
+fn run() { var r: Rect; var a = r.area(); var p = r.perimeter(); }
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Nested DOT through protocol impl member", "[sema][dot][protocol][nested]") {
+    SemaFixture f(R"(
+protocol Clickable { fn click(&self): i32; }
+struct Button {}
+impl Clickable for Button { fn click(&self): i32 { return 1; } }
+struct Dialog { var button: Button; }
+fn run() { var d: Dialog; var r = d.button.click(); }
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Two types implementing the same protocol resolve independently", "[sema][dot][protocol][shared-protocol]") {
+    SemaFixture f(R"(
+protocol Speaker { fn speak(&self): i32; }
+struct Dog {}
+struct Cat {}
+impl Speaker for Dog { fn speak(&self): i32 { return 1; } }
+impl Speaker for Cat { fn speak(&self): i32 { return 2; } }
+fn run() { var d: Dog; var c: Cat; var a = d.speak(); var b = c.speak(); }
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Instance and static methods in one protocol, both callable", "[sema][static][protocol][combined]") {
+    SemaFixture f(R"(
+protocol Gadget { fn activate(&self): i32; fn count(): i32; }
+struct G {}
+impl Gadget for G { fn activate(&self): i32 { return 1; } fn count(): i32 { return 2; } }
+fn run() { var g: G; var a = g.activate(); var c = G::count(); }
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Non-exported impl is visible within the same module", "[sema][protocol][same-module]") {
+    SemaFixture f(R"(
+protocol P { fn m(&self): i32; }
+struct T {}
+impl P for T { fn m(&self): i32 { return 1; } }
+fn run() { var t: T; var r = t.m(); }
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Impl missing a required protocol method", "[sema][protocol][violated]") {
+    SemaFixture f(R"(
+protocol Greeter { fn greet(&self): i32; fn farewell(&self): i32; }
+struct T {}
+impl Greeter for T { fn greet(&self): i32 { return 1; } }
+)");
+    CHECK(hasError(f.errors, ErrCode::PROTOCOL_VIOLATED));
+}
+
+TEST_CASE("Impl method with a mismatched return type", "[sema][protocol][mismatch]") {
+    SemaFixture f(R"(
+protocol Greeter { fn greet(&self): i32; }
+struct T {}
+impl Greeter for T { fn greet(&self): str { return "hi"; } }
+)");
+    CHECK(hasError(f.errors, ErrCode::PROTOCOL_METHOD_MISMATCH));
+}
+
+TEST_CASE("Impl method with the wrong kind (static vs instance)", "[sema][protocol][mismatch]") {
+    SemaFixture f(R"(
+protocol Greeter { fn greet(&self): i32; }
+struct T {}
+impl Greeter for T { fn greet(): i32 { return 1; } }
+)");
+    CHECK(hasError(f.errors, ErrCode::PROTOCOL_METHOD_MISMATCH));
+}
+
+TEST_CASE("DOT call on a type with no matching member or impl", "[sema][dot][protocol][no-member]") {
+    SemaFixture f(R"(
+struct T {}
+fn run() { var t: T; var r = t.missing(); }
+)");
+    CHECK(hasError(f.errors, ErrCode::NO_SUCH_MEMBER));
 }

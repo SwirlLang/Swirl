@@ -1,7 +1,6 @@
 #pragma once
 #include <ranges>
 
-#include "modules/ModuleManager.h"
 #include "SemaVisitor.h"
 
 
@@ -92,7 +91,6 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
         }
     }
 
-
     void handle(FuncCall* node, Data data) {
         std::span<GenericParam*>* generic_params = nullptr;
         if (node->ident->value) {
@@ -146,14 +144,32 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             return;
         }
 
-        if (!node->value) {
-            node->value = SymMan.getIDInfoFor(*node,
-                [this](const ErrCode code, ErrorContext ctx) {
-                    reportError(code, std::move(ctx));
-           });
-        }
+        // Type-qualified members (`Type::member`) may be provided by protocol
+        // impls, which are only registered by the TypeResolver, i.e. after this
+        // pass. Defer such lookups.
+        const bool defer_to_type_resolver = [this](const Ident& id) {
+            if (id.full_qualification.size() <= 1)
+                return false;
+
+            auto* first = SymMan.getIdInfoOfAGlobal(
+                std::string(id.full_qualification.front().name), false, false);
+            if (!first)
+                return false;
+
+            const auto& entry = SymMan.lookupDecl(first);
+            return entry.scope != nullptr && !entry.is_mod_namespace;
+        }(*node);
 
         if (!node->value) {
+            node->value = SymMan.getIDInfoFor(*node,
+                defer_to_type_resolver
+                    ? std::nullopt
+                    : std::optional<ErrorCallback_t>{[this](const ErrCode code, ErrorContext ctx) {
+                        reportError(code, ctx);
+                    }});
+        }
+
+        if (!node->value && !defer_to_type_resolver) {
             reportError(ErrCode::UNDEFINED_IDENTIFIER, {
                 .str_1 = node->full_qualification.back().name
             });
