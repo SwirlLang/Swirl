@@ -331,6 +331,8 @@ struct ProtocolConstraint final : Type {
     IdentInfo* id = nullptr;
     Protocol*  protocol = nullptr;
 
+    std::vector<ProtocolConstraint*> dependencies;
+
     // maps method constraint names to their required parameter types and return type
     // note: the last element of the vector is the return type
     std::unordered_map<std::string_view, std::vector<Type*>> method_constrains;

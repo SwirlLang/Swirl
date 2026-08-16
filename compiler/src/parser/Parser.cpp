@@ -997,6 +997,11 @@ Protocol* Parser::parseProtocol() {
     forwardStream(); // skip 'protocol'
     ret->name = m_StringPool.intern(forwardStream().value);
 
+    if (m_Stream.CurTok.tokenid == Token::PUNC_COLON) {
+        forwardStream();
+        ret->dependencies = parseProtocolList();
+    }
+
     ignoreButExpect(Token::PUNC_LBRACE);
 
     while (true) {
@@ -1054,7 +1059,6 @@ Protocol* Parser::parseProtocol() {
 
 std::span<Ident*> Parser::parseProtocolList() {
     std::vector<Ident*> ret;
-    forwardStream();  // skip ':'
 
     while (true) {
         if (m_Stream.eof()) {
@@ -1144,7 +1148,7 @@ ProtocolImpl* Parser::parseProtocolImpl() {
 
 Struct* Parser::parseStruct() {
     forwardStream();  // skip 'struct'
-    auto ret = m_Module->makeNode<Struct>();
+    const auto ret = m_Module->makeNode<Struct>();
     SET_NODE_ATTRS(ret);
 
     ret->name = m_StringPool.intern(forwardStream().value);
@@ -1154,10 +1158,6 @@ Struct* Parser::parseStruct() {
     // parse generic parameters
     if (m_Stream.CurTok.tokenid == Token::OP_LT) {
         ret->generic_params = parseGenericParamList();
-    }
-
-    if (m_Stream.CurTok.tokenid == Token::PUNC_COLON) {
-        ret->protocols = parseProtocolList();
     }
 
     m_LastSymWasExported = true;

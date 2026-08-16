@@ -714,6 +714,17 @@ public:
         const auto protocol_ty =
             SymMan.lookupDecl(node->ident).swirl_type->to<ProtocolConstraint>();
 
+        // resolve all the dependency protocols
+        for (Ident* ident : node->dependencies) {
+            visit(ident);
+            assert(ident->value);
+
+            const auto proto_node_decl = SymMan.lookupDecl(ident->value);
+            visit(proto_node_decl.node_ptr);
+
+            protocol_ty->dependencies.push_back(proto_node_decl.swirl_type->to<ProtocolConstraint>());
+        }
+
         // true if the type references one of the protocol-mandated associated types,
         // either directly or indirectly
         const auto references_mandated_alias = [](const auto& self, const TypeWrapper* ty,
@@ -904,6 +915,15 @@ public:
                             provided ? provided->toString() : "<void>"),
                 loc);
         };
+
+        // check whether the dependency protocols are implemented
+        for (ProtocolConstraint* proto : protocol_ty->dependencies) {
+            if (!m_Module->lookupProtocolImpl(impl_type, proto)) {
+                reportError(ErrCode::DEPENDENCY_PROTOCOL_MISSING, {
+                    .str_1 = proto->toString()
+                });
+            }
+        }
 
         for (const auto& sig : target_protocol->methods) {
             const auto impl_it = methods.find(sig.name);

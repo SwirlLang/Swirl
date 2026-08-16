@@ -113,6 +113,10 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
                 ctx.str_1,
                 ctx.msg
                 );
+        case ErrCode::DEPENDENCY_PROTOCOL_MISSING:
+            return std::format(
+                "The protocol `{}` which this protocol depends on has not been implemented.",
+                ctx.str_1);
         case ErrCode::TYPE_ALIAS_REQUIRED:
             return std::format(
                 "The type alias `{}` is required by the protocol `{}`.",

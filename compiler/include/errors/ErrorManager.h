@@ -44,29 +44,30 @@ enum class ErrCode {
 
     // The following error codes are related to types, `type_1` and/or `type_2` shall be set to give context
     // about the types involves
-    NO_SUCH_TYPE,             // when the type can't be resolved
-    NOT_CALLABLE,             // the object is not a callable
-    INCOMPATIBLE_TYPES,       // non-specific
-    NO_IMPLICIT_CONVERSION,   // non-specific catch-all for the edgy implicit-conversion cases
-    INT_AND_FLOAT_CONV,       // no implicit integral-floating conversions
-    NO_NARROWING_CONVERSION,  // narrowing conversions not allowed
-    NO_SIGNED_UNSIGNED_CONV,  // signed-unsigned conversions shall be explicit
-    DISTINCTLY_SIZED_ARR,     // arrays of distinct sizes are incompatible
-    CANNOT_ASSIGN_TO_CONST,   // attempt to re-assign a const
-    IMMUTABILITY_VIOLATION,   // when immutability rules are violated
-    SLICE_NOT_COMPATIBLE,     // when slice types are not compatible with each other
-    NOT_DEREFERENCE_ABLE,     // type cannot be dereferenced,
-    NO_SUCH_PROTOCOL,         // the protocol does not exist
-    TYPE_ALIAS_REQUIRED,      // when a type alias definition is mandated by the protocol
-    PROTOCOL_VIOLATED,        // the protocol hasn't been satisfied (a required method is missing)
-    PROTOCOL_METHOD_MISMATCH, // an implemented method's signature doesn't satisfy the protocol
-    DUPLICATE_PROTO_IMPL,     // the protocol impl already exists
-    PROTO_IMPL_NOT_EXPORTED,  // the protocol impl exists but not exported
-    PROTOCOL_NOT_IMPLEMENTED, // the type does not implement the protocol
-    ENUM_TYPE_NOT_INTEGRAL,   // enum types should be integral
-    ONLY_INTEGRAL_BITWISE,    // only integral bitwise operands are allowed in bitwise operators
-    EXPONENTIAL_RHS_INTEGRAL, // exponential operator's rhs must be of an integral type
-    // ----------*----------- //
+    NO_SUCH_TYPE,                // when the type can't be resolved
+    NOT_CALLABLE,                // the object is not a callable
+    INCOMPATIBLE_TYPES,          // non-specific
+    NO_IMPLICIT_CONVERSION,      // non-specific catch-all for the edgy implicit-conversion cases
+    INT_AND_FLOAT_CONV,          // no implicit integral-floating conversions
+    NO_NARROWING_CONVERSION,     // narrowing conversions not allowed
+    NO_SIGNED_UNSIGNED_CONV,     // signed-unsigned conversions shall be explicit
+    DISTINCTLY_SIZED_ARR,        // arrays of distinct sizes are incompatible
+    CANNOT_ASSIGN_TO_CONST,      // attempt to re-assign a const
+    IMMUTABILITY_VIOLATION,      // when immutability rules are violated
+    SLICE_NOT_COMPATIBLE,        // when slice types are not compatible with each other
+    NOT_DEREFERENCE_ABLE,        // type cannot be dereferenced,
+    NO_SUCH_PROTOCOL,            // the protocol does not exist
+    DEPENDENCY_PROTOCOL_MISSING, // a dependency protocol was not implemented
+    TYPE_ALIAS_REQUIRED,         // when a type alias definition is mandated by the protocol
+    PROTOCOL_VIOLATED,           // the protocol hasn't been satisfied (a required method is missing)
+    PROTOCOL_METHOD_MISMATCH,    // an implemented method's signature doesn't satisfy the protocol
+    DUPLICATE_PROTO_IMPL,        // the protocol impl already exists
+    PROTO_IMPL_NOT_EXPORTED,     // the protocol impl exists but not exported
+    PROTOCOL_NOT_IMPLEMENTED,    // the type does not implement the protocol
+    ENUM_TYPE_NOT_INTEGRAL,      // enum types should be integral
+    ONLY_INTEGRAL_BITWISE,       // only integral bitwise operands are allowed in bitwise operators
+    EXPONENTIAL_RHS_INTEGRAL,    // exponential operator's rhs must be of an integral type
+    // ----------*-------------- //
 
 
     // The following error codes are related to the Module System, `path_1`, `path_2` and `str_1` shall be

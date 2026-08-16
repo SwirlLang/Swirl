@@ -660,7 +660,7 @@ struct Intrinsic final : Node {
     explicit Intrinsic()
         : Node(ND_INTRINSIC) {}
 
-    void operator=(FuncCall* call) {
+    void operator=(const FuncCall* call) {
         args  = call->args;
         ident = call->ident;
 
@@ -799,6 +799,7 @@ struct Protocol final : GlobalNode {
             } return result;
         }
 
+        [[nodiscard]]
         std::string toString() const {
             std::string res = std::format("fn {}(", name);
             for (const TypeWrapper* ty : params) {
