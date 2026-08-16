@@ -131,6 +131,12 @@ inline std::string ErrorManager::generateMessage(const ErrCode code, const Error
                 ctx.str_1, ctx.str_2
             );
 
+        case ErrCode::PROTOCOL_NOT_IMPLEMENTED:
+            return std::format(
+                "The type `{}` does not implement the protocol `{}`.",
+                ctx.str_2, ctx.str_1
+            );
+
         case ErrCode::ENUM_TYPE_NOT_INTEGRAL:
             return "Enumeration types must be integral.";
 

@@ -129,7 +129,16 @@ std::string LLVMBackend::mangleString(IdentInfo* id, const ManglingContext& ctx)
             type = type->to<ReferenceType>()->of_type;
         assert(!type->isPointerType());
 
-        return type->toString() + '_' + ret + id->toString();
+        std::string mangle = type->toString() + '_' + ret;
+
+        // protocol-impl methods: include the protocol so that same-named methods
+        // of distinct impls on the same type do not collide
+        if (decl_lookup.protocol_of) {
+            mangle += std::string(decl_lookup.protocol_of->toString()) + '_' +
+                      ModuleManager.getModuleUID(decl_lookup.protocol_of->getModuleFileHandle()->getPath()) + '_';
+        }
+
+        return mangle + id->toString();
     } return ret + id->toString();
 }
 
@@ -703,19 +712,37 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
         }
 
         case Op::DOT: {
-            auto operand = codegen(node->operands.at(0), context);
+            // `(instance as Protocol).member` -- the cast is a scope-selector that sema
+            // resolves to a specific impl method; the receiver is the cast's inner operand.
+            // the LHS unwraps through any amount of expression-wrappers. the protocol cast
+            // is detected via the cast target's resolved type, which sema always sets,
+            // rather than `common_type` (left null when sema reported an error)
+            Node* receiver = node->operands.at(0);
+            auto* lhs_node = node->operands.at(0)->getWrappedNodeOrInstance();
+            if (lhs_node->getNodeType() == ND_OP) {
+                auto* lhs_op = lhs_node->to<Op>();
+                if (lhs_op->op_type == Op::CAST_OP) {
+                    auto* cast_target = lhs_op->operands.at(1)->getSwType();
+                    if (cast_target && cast_target->getTypeTag() == Type::PROTOCOL) {
+                        receiver = lhs_op->operands.at(0);
+                    }
+                }
+            }
+
+            auto operand = codegen(receiver, context);
 
             // fetch the instance's struct-type
-            auto struct_sw_ty = fetchSwType(node->operands.at(0));
+            auto struct_sw_ty = fetchSwType(receiver);
             auto struct_ty = struct_sw_ty->getWrappedTypeOrInstance()->to<StructType>();
 
             llvm::Value* inst_ptr;
             if (operand.isLValue()) {
                 inst_ptr = operand.getLValue();
             } else {
-                // when the LHS isn't an LValue
-                inst_ptr = Builder.CreateAlloca(codegen(struct_ty, context));
-                Builder.CreateStore(operand.getRValue(*this, context), inst_ptr);
+                // when the LHS isn't an LValue: materialize the value in memory from its own type
+                auto rvalue = operand.getRValue(*this, context);
+                inst_ptr = Builder.CreateAlloca(rvalue->getType());
+                Builder.CreateStore(rvalue, inst_ptr);
             }
 
             // in the special case when dot is using with pure-rvalues
@@ -726,7 +753,7 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
                 inst_ptr = tmp;
             }
 
-            // handle the special case of methods, lower them into regular function calls
+            // handle the special case of methods -- lower them into regular function calls
             if (node->operands.at(1)->getNodeType() == ND_CALL) {
                 ComputedPtr = inst_ptr;  // set ComputedPtr for the FuncCall node to grab it
                 auto ret = codegen(node->operands.at(1), context);

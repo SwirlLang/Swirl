@@ -90,12 +90,13 @@ public:
     }
 
 
-    /// Resolves `member` as a member of `primary_scope` and -- when `owner_type`
-    /// is a type -- of its protocol impl-scopes. Reports NO_SUCH_MEMBER /
-    /// AMBIGUOUS_MEMBER. Returns nullptr on failure.
+    /// Resolves `member` as a member of `primary_scope` and when `owner_type`
+    /// is a type -- of its protocol impl-scopes. Reports NO_SUCH_MEMBER or
+    /// AMBIGUOUS_MEMBER. Returns `nullptr` on failure.
     IdentInfo* resolveMember(const Namespace* primary_scope, Type* owner_type, const std::string_view member) {
         std::vector<const Namespace*> scopes;
         std::vector<Module::ImplScopeRef> impl_refs;
+
         if (primary_scope) scopes.push_back(primary_scope);
         if (owner_type) {
             for (const auto& ref : m_Module->getImplScopesFor(owner_type)) {
@@ -800,7 +801,16 @@ public:
         std::unordered_map<std::string_view, Protocol::MethodSignature<true>> methods;
         std::unordered_map<std::string_view, SourceLocation> impl_locs;
 
-        const auto impl_type = SymMan.lookupDecl(node->impl_for->value).swirl_type;
+        // the implementing type resolves through the type-table rather than the
+        // symbol table so that builtin types (e.g. `impl P for i32`) -- which
+        // have no decl entries -- can serve as the implementation target
+        Type* impl_type = SymMan.lookupType(node->impl_for->value);
+        if (!impl_type) {
+            const auto& name = node->impl_for->full_qualification.back().name;
+            if (const auto builtin = BuiltinTypes.find(name); builtin != BuiltinTypes.end())
+                impl_type = builtin->second;
+        }
+        assert(impl_type);
 
         for (Node* member : node->children->children) {
             switch (member->kind) {
@@ -813,6 +823,7 @@ public:
                 case ND_FUNC: {
                     auto* func = member->to<Function>();
                     SymMan.lookupDecl(func->ident).method_of = SymMan.lookupType(node->impl_for->value);
+                    SymMan.lookupDecl(func->ident).protocol_of = node->protocol->getIdentInfo();
 
                     func->return_type = static_cast<TypeWrapper*>(
                         substitutor.substitute(func->return_type, alias_map));

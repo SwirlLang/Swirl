@@ -298,6 +298,24 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
             case Op::CAST_OP: {
                 inferType(node->operands.at(1), ctx);
                 ret.deduced_type = node->operands.at(1)->getSwType();
+
+                // casting to a protocol is a scope-selector: the casted value's
+                // static type must implement the protocol, otherwise there is no
+                // impl to select the members from
+                if (ret.deduced_type && ret.deduced_type->getTypeTag() == Type::PROTOCOL) {
+                    auto* protocol_ty = ret.deduced_type->to<ProtocolConstraint>();
+                    if (analysis_1.deduced_type &&
+                        !getProtocolInfo(analysis_1.deduced_type, protocol_ty))
+                    {
+                        reportError(ErrCode::PROTOCOL_NOT_IMPLEMENTED, {
+                            .str_1 = protocol_ty->toString(),
+                            .str_2 = analysis_1.deduced_type->toString(),
+                            .location = node->location,
+                        });
+                        return {};
+                    }
+                }
+
                 node->common_type = ret.deduced_type;
                 break;
             }
@@ -321,6 +339,55 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                     // it via the deduced type's identifier
                     auto analysis_result = inferType(node->getLHS(), ctx);
                     Namespace* computed_namespace = analysis_result.computed_namespace;
+
+                    // `(instance as Protocol).member` is a scope-selector: the member is
+                    // resolved against the protocol's specific impl for the instance's
+                    // static type. the LHS unwraps through any amount of parentheses
+                    auto* lhs_node = node->getLHS()->getWrappedNodeOrInstance();
+                    if (lhs_node->getNodeType() == ND_OP &&
+                        lhs_node->to<Op>()->op_type == Op::CAST_OP &&
+                        analysis_result.deduced_type &&
+                        analysis_result.deduced_type->getTypeTag() == Type::PROTOCOL)
+                    {
+                        auto* protocol_ty = analysis_result.deduced_type->to<ProtocolConstraint>();
+                        auto* concrete_type =
+                            inferType(lhs_node->to<Op>()->operands.at(0), ctx).deduced_type;
+                        if (!concrete_type)
+                            return {};
+
+                        const auto impl_info = getProtocolInfo(concrete_type, protocol_ty);
+                        if (!impl_info)
+                            return {};  // an error was already reported
+
+                        const Namespace* impl_scopes[] = {impl_info->scope};
+                        const auto matches = SymMan.resolveMember(impl_scopes, accessed_member);
+                        if (matches.empty()) {
+                            reportError(ErrCode::NO_SUCH_MEMBER, {
+                                .str_1 = accessed_member,
+                                .str_2 = protocol_ty->toString(),
+                            });
+                            return {};
+                        }
+
+                        auto* member_id = matches.at(0).id;
+                        accessed_id->value = member_id;
+
+                        if (node->getRHS()->getWrappedNodeOrInstance()->getNodeType() == ND_CALL) {
+                            const auto analysis_res = inferType(node->getRHS(), {
+                                .is_method_call = true,
+                                .bound_type = ctx.bound_type,
+                                .method_id = member_id,
+                            });
+
+                            ret.deduced_type = analysis_res.deduced_type;
+                        } else {
+                            ret.deduced_type = SymMan.lookupDecl(member_id).swirl_type;
+                        }
+
+                        ret.computed_namespace = impl_info->scope;
+                        node->common_type = ret.deduced_type;
+                        return ret;
+                    }
 
                     if (!computed_namespace && analysis_result.deduced_type) {
                         computed_namespace = SymMan.lookupDecl(analysis_result.deduced_type->getIdent()).scope;
@@ -355,8 +422,11 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                 auto lhs_id_info = accessed_type->getIdent();
 
 
-                if (lhs_id_info != nullptr)
-                {
+                // resolve the member across the scope and the type's impl-scopes;
+                // types without a decl-scope (e.g. builtins like `i32`) resolve
+                // purely against their protocol-impl scopes
+                IdentInfo* member_id;
+                if (lhs_id_info != nullptr) {
                     const auto& lhs_tab_entry = SymMan.lookupDecl(lhs_id_info);
                     const Namespace* lhs_scope = lhs_tab_entry.scope;
 
@@ -366,38 +436,39 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                         return {};
                     }
 
-                    // resolve the member across the scope and the type's impl-scopes
-                    auto* member_id = resolveMember(lhs_scope, accessed_type, accessed_member);
-                    if (!member_id)
-                        return {};
+                    member_id = resolveMember(lhs_scope, accessed_type, accessed_member);
+                } else {
+                    member_id = resolveMember(nullptr, accessed_type, accessed_member);
+                }
 
-                    accessed_id->value = member_id;
+                if (!member_id)
+                    return {};
 
-                    const auto& member_tab_entry = SymMan.lookupDecl(member_id);
+                accessed_id->value = member_id;
 
-                    auto deduced_type = member_tab_entry.swirl_type;
-                    auto computed_namespace = member_tab_entry.scope;
+                const auto& member_tab_entry = SymMan.lookupDecl(member_id);
 
-                    if (node->getRHS()->getWrappedNodeOrInstance()->getNodeType() == ND_CALL) {
-                        const auto analysis_res = inferType(node->getRHS(), {
-                            .is_method_call = true,
-                            .bound_type = ctx.bound_type,
-                            .method_id = member_id,
-                        });
+                auto deduced_type = member_tab_entry.swirl_type;
+                auto computed_namespace = member_tab_entry.scope;
 
-                        deduced_type = analysis_res.deduced_type;
+                if (node->getRHS()->getWrappedNodeOrInstance()->getNodeType() == ND_CALL) {
+                    const auto analysis_res = inferType(node->getRHS(), {
+                        .is_method_call = true,
+                        .bound_type = ctx.bound_type,
+                        .method_id = member_id,
+                    });
 
-                        if (deduced_type && deduced_type->getIdent()) {
-                            computed_namespace = SymMan.lookupDecl(deduced_type->getIdent()).scope;
-                        }
+                    deduced_type = analysis_res.deduced_type;
+
+                    if (deduced_type && deduced_type->getIdent()) {
+                        computed_namespace = SymMan.lookupDecl(deduced_type->getIdent()).scope;
                     }
+                }
 
-                    ret.deduced_type = deduced_type;
-                    ret.computed_namespace = computed_namespace;
-                    node->common_type = ret.deduced_type;
-                    return ret;
-                } assert(0);
-                return {};
+                ret.deduced_type = deduced_type;
+                ret.computed_namespace = computed_namespace;
+                node->common_type = ret.deduced_type;
+                return ret;
             }
 
 

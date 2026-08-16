@@ -62,6 +62,7 @@ enum class ErrCode {
     PROTOCOL_METHOD_MISMATCH, // an implemented method's signature doesn't satisfy the protocol
     DUPLICATE_PROTO_IMPL,     // the protocol impl already exists
     PROTO_IMPL_NOT_EXPORTED,  // the protocol impl exists but not exported
+    PROTOCOL_NOT_IMPLEMENTED, // the type does not implement the protocol
     ENUM_TYPE_NOT_INTEGRAL,   // enum types should be integral
     ONLY_INTEGRAL_BITWISE,    // only integral bitwise operands are allowed in bitwise operators
     EXPONENTIAL_RHS_INTEGRAL, // exponential operator's rhs must be of an integral type
