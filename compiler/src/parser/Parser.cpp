@@ -1108,7 +1108,7 @@ ProtocolImpl* Parser::parseProtocolImpl() {
     ret->protocol = parseIdent();
 
     ignoreButExpect(Token::KW_FOR);
-    ret->impl_for = parseIdent();
+    ret->impl_for = parseType();
 
     std::vector<TypeAlias*> aliases;
     ret->children = parseScope(

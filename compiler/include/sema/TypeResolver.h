@@ -804,13 +804,10 @@ public:
         // the implementing type resolves through the type-table rather than the
         // symbol table so that builtin types (e.g. `impl P for i32`) -- which
         // have no decl entries -- can serve as the implementation target
-        Type* impl_type = SymMan.lookupType(node->impl_for->value);
-        if (!impl_type) {
-            const auto& name = node->impl_for->full_qualification.back().name;
-            if (const auto builtin = BuiltinTypes.find(name); builtin != BuiltinTypes.end())
-                impl_type = builtin->second;
-        }
-        assert(impl_type);
+
+        visit(node->impl_for);
+        Type* impl_type = node->impl_for->type;
+        if (!impl_type) return;
 
         for (Node* member : node->children->children) {
             switch (member->kind) {
@@ -822,7 +819,7 @@ public:
 
                 case ND_FUNC: {
                     auto* func = member->to<Function>();
-                    SymMan.lookupDecl(func->ident).method_of = SymMan.lookupType(node->impl_for->value);
+                    SymMan.lookupDecl(func->ident).method_of = impl_type;
                     SymMan.lookupDecl(func->ident).protocol_of = node->protocol->getIdentInfo();
 
                     func->return_type = static_cast<TypeWrapper*>(
@@ -986,7 +983,7 @@ public:
         {
             reportError(ErrCode::DUPLICATE_PROTO_IMPL, {
                 .str_1 = protocol_ty->toString(),
-                .str_2 = node->impl_for->toString(),
+                .str_2 = node->impl_for ? node->impl_for->type->toString() : "???"
             });
         }
     }

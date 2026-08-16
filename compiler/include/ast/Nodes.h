@@ -872,9 +872,10 @@ struct std::hash<Protocol::MethodSignature<true>> {
 
 
 struct ProtocolImpl final : GlobalNode {
-    Ident* protocol = nullptr;
-    Ident* impl_for = nullptr;
-    Scope* children = nullptr;
+    Ident*       protocol = nullptr;
+    TypeWrapper* impl_for = nullptr;
+    Scope*       children = nullptr;
+
     std::span<TypeAlias*> type_aliases;
 
     ProtocolImpl(): GlobalNode(ND_PROTOCOL_IMPL) {}
