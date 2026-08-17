@@ -403,17 +403,28 @@ void TokenStream::expectTokens(std::initializer_list<Token>&& tokens) {
     m_Filter.expected_tokens.assign(tokens.begin(), tokens.end());
 }
 
+void TokenStream::pushback(Token tok) {
+    m_Pushback.push_back(std::move(tok));
+}
+
 Token TokenStream::next(const bool modify_cur_tk) {
     Token cur_tk;
-    unsigned char c{};
 
-    // Discard junk tokens
-    do {
-        cur_tk = readNextTok();
-        if (!cur_tk.value.empty()) {
-            c = static_cast<unsigned char>(cur_tk.value[0]);
-        }
-    } while ((cur_tk.type == PUNC && (c <= ' ' || c == 0x7F)) || cur_tk.type == COMMENT);
+    // Check pushback buffer first
+    if (!m_Pushback.empty()) {
+        cur_tk = std::move(m_Pushback.back());
+        m_Pushback.pop_back();
+    } else {
+        unsigned char c{};
+
+        // Discard junk tokens
+        do {
+            cur_tk = readNextTok();
+            if (!cur_tk.value.empty()) {
+                c = static_cast<unsigned char>(cur_tk.value[0]);
+            }
+        } while ((cur_tk.type == PUNC && (c <= ' ' || c == 0x7F)) || cur_tk.type == COMMENT);
+    }
 
     if (modify_cur_tk)
         CurTok = cur_tk;

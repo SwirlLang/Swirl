@@ -137,7 +137,7 @@ TypeWrapper* Parser::parseType() {
 
     switch (m_Stream.CurTok.tokenid) {
         case Token::IDENT:
-            wrapper->type_id = parseIdent();
+            wrapper->type_id = parseIdent(true);
             assert(wrapper->type_id != nullptr);
             break;
 
@@ -642,6 +642,14 @@ std::span<GenericParam*> Parser::parseGenericParamList() {
             break;
         }
 
+        // Handle >> by splitting into two > tokens (the >> chars are already consumed by the lexer)
+        if (m_Stream.CurTok.tokenid == Token::OP_RBITSHIFT) {
+            m_Stream.CurTok.type = OP;
+            m_Stream.CurTok.value = ">";
+            m_Stream.CurTok.tokenid = Token::OP_GT;
+            break;
+        }
+
         if (m_Stream.CurTok.tokenid == Token::PUNC_COMMA) {
             forwardStream();
             continue;
@@ -660,7 +668,7 @@ GenericArgList Parser::parseGenericArgList() {
     GenericArgList ret;
     std::vector<GenericArg*> args;
 
-    ignoreButExpect(Token::PUNC_LBRACE);  // skip '{'
+    ignoreButExpect(Token::OP_LT);  // skip '<'
 
     while (true) {
         if (m_Stream.eof()) {
@@ -668,8 +676,16 @@ GenericArgList Parser::parseGenericArgList() {
             break;
         }
 
-        if (m_Stream.CurTok.tokenid == Token::PUNC_RBRACE) {
+        if (m_Stream.CurTok.tokenid == Token::OP_GT) {
             forwardStream();
+            break;
+        }
+
+        // Handle >> by splitting into two > tokens (the >> chars are already consumed by the lexer)
+        if (m_Stream.CurTok.tokenid == Token::OP_RBITSHIFT) {
+            m_Stream.CurTok.type = OP;
+            m_Stream.CurTok.value = ">";
+            m_Stream.CurTok.tokenid = Token::OP_GT;
             break;
         }
 
@@ -764,10 +780,6 @@ Node* Parser::parseCall(std::optional<Ident*> ident) {
     const auto call_node = m_Module->makeNode<FuncCall>();
     SET_NODE_ATTRS(call_node);
     call_node->ident = ident.value();
-
-    if (m_Stream.CurTok.tokenid == Token::OP_LT) {
-        call_node->generic_args = parseGenericArgList();
-    }
 
     // parse arguments
     forwardStream();  // skip '('
@@ -917,7 +929,7 @@ Condition* Parser::parseCondition(const bool is_comptime) {
 }
 
 
-Ident* Parser::parseIdent() {
+Ident* Parser::parseIdent(const bool type_context) {
     auto* ret = m_Module->makeNode<Ident>();
     SET_NODE_ATTRS(ret);
 
@@ -926,6 +938,9 @@ Ident* Parser::parseIdent() {
     full_qualification.emplace_back(m_StringPool.intern(forwardStream().value));
     if (m_Stream.CurTok.tokenid == Token::OP_NOT) {
         forwardStream();
+        ret->has_generic_args = true;
+        full_qualification.back().generic_args = parseGenericArgList();
+    } else if (type_context && m_Stream.CurTok.tokenid == Token::OP_LT) {
         ret->has_generic_args = true;
         full_qualification.back().generic_args = parseGenericArgList();
     }
@@ -937,6 +952,9 @@ Ident* Parser::parseIdent() {
         // check for generics
         if (m_Stream.CurTok.tokenid == Token::OP_NOT) {
             forwardStream();
+            ret->has_generic_args = true;
+            full_qualification.back().generic_args = parseGenericArgList();
+        } else if (type_context && m_Stream.CurTok.tokenid == Token::OP_LT) {
             ret->has_generic_args = true;
             full_qualification.back().generic_args = parseGenericArgList();
         }
@@ -1078,7 +1096,7 @@ std::span<Ident*> Parser::parseProtocolList() {
         }
 
         if (m_Stream.CurTok.tokenid == Token::IDENT) {
-            ret.push_back(parseIdent());
+            ret.push_back(parseIdent(true));
         }
     }
 
@@ -1109,7 +1127,7 @@ ProtocolImpl* Parser::parseProtocolImpl() {
     SET_NODE_ATTRS(ret);
 
     forwardStream();  // skip 'impl'
-    ret->protocol = parseIdent();
+    ret->protocol = parseIdent(true);
 
     ignoreButExpect(Token::KW_FOR);
     ret->impl_for = parseType();

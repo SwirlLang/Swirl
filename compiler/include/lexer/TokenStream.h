@@ -8,6 +8,7 @@
 
 class TokenStream {
     StreamState     m_Cache;    // For caching stream state
+    std::vector<Token> m_Pushback;  // Token pushback buffer for generic arg >> splitting
     SourceManager&  m_Stream;
 
     bool m_isPreviousTokIdent = false;
@@ -72,6 +73,7 @@ public:
     /// when particular tokens are expected next
     [[deprecated]] void expectTokens(std::initializer_list<Token>&& tokens);
 
+    void pushback(Token tok);
     Token next(bool modify_cur_tk = true);
     Token peek();
 

@@ -116,7 +116,7 @@ public:
 
     Token forwardStream(uint8_t n = 1);
 
-    Ident*           parseIdent();
+    Ident*           parseIdent(bool type_context = false);
     Expression*      parseExpr();
     TypeWrapper*     parseType();
     GenericArgList   parseGenericArgList();
