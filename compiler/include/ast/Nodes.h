@@ -47,6 +47,7 @@
     SW_NODE(ND_ENUM, Enum) \
     SW_NODE(ND_GEN_ARG, GenericArg) \
     SW_NODE(ND_GEN_ARG_LIST, GenericArgList) \
+    SW_NODE(ND_GENERIC_PARAM, GenericParam) \
     SW_NODE(ND_FOR_LOOP, ForLoop) \
     SW_NODE(ND_TYPE_ALIAS, TypeAlias) \
     SW_NODE(ND_PROTOCOL_IMPL, ProtocolImpl)
@@ -84,7 +85,7 @@ struct Node {
 
     /// Returns a tag which identifies the node's kind
     [[nodiscard]] virtual NodeType getNodeType() const {
-        return ND_INVALID;
+        return kind;
     }
 
     /// Is the node allowed to appear in global context (E.g. Functions, Vars)?
@@ -128,11 +129,17 @@ struct Node {
 
 
 struct GenericParam final : Node {
-    std::string_view name;
-    IdentInfo*       id;
+    std::string_view  name;
+    IdentInfo*        id;
+    std::span<Ident*> constraints;
 
     explicit
-    GenericParam() : Node(ND_INVALID), id(nullptr) {}
+    GenericParam() : Node(ND_GENERIC_PARAM), id(nullptr) {}
+
+    [[nodiscard]]
+    NodeType getNodeType() const override {
+        return ND_GENERIC_PARAM;
+    }
 };
 
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <ranges>
+#include <utility>
 
 #include "SemaVisitor.h"
 
@@ -58,8 +59,9 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
     void handle(const Function* node, Data data) {
         // when not being instantiated, do not attempt to resolve symbols which use generics
         if (!node->generic_params.empty() && data.generic_args.empty()) {
-            for (const GenericParam* param : node->generic_params) {
+            for (GenericParam* param : node->generic_params) {
                 data.ignore_symbols.insert(param->name);
+                visit(param, data);
             }
         }
 
@@ -164,7 +166,7 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             node->value = SymMan.getIDInfoFor(*node,
                 defer_to_type_resolver
                     ? std::nullopt
-                    : std::optional<ErrorCallback_t>{[this](const ErrCode code, ErrorContext ctx) {
+                    : std::optional<ErrorCallback_t>{[this](const ErrCode code, const ErrorContext& ctx) {
                         reportError(code, ctx);
                     }});
         }

@@ -110,6 +110,28 @@ public:
 
                 // --- build the key and map for the instantiation --- //
                 for (auto [arg, param] : std::views::zip(generic_args, target->generic_params)) {
+                    // check whether protocol constraints are satisfied
+                    bool constraints_satisfied = true;
+                    for (const Ident* protocol : param->constraints) {
+                        if (Type* arg_ty = arg->isType() ? arg->getType()->type : arg->getExpr()->expr_type) {
+                            const auto protocol_ty = m_Module->symbol_table.lookupDecl(protocol->value).swirl_type;
+                            assert(protocol_ty->getTypeTag() == Type::PROTOCOL);
+
+                            // report an error if the protocol isn't implemented
+                            if (!m_Module->lookupProtocolImpl(arg_ty, protocol_ty->to<ProtocolConstraint>())) {
+                                reportError(ErrCode::PROTOCOL_NOT_IMPLEMENTED, {
+                                    .str_1 = protocol_ty->toString(),
+                                    .str_2 = arg_ty->toString(),
+                                    .location = arg->location
+                                }); constraints_satisfied = false;
+                            }
+                        }
+                    }
+
+                    // do not proceed to prevent the error from cascading
+                    if (!constraints_satisfied)
+                        continue;
+
                     if (arg->isExpression()) {
                         Value expr_value = m_ComptimeEvaluator.evaluate(arg->getExpr(), {});
                         inst_key.args.emplace_back(expr_value);

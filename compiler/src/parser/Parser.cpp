@@ -656,7 +656,56 @@ std::span<GenericParam*> Parser::parseGenericParamList() {
         }
 
         auto* param = m_Module->makeNode<GenericParam>();
-        param->name = m_StringPool.intern(forwardStream().value);
+        SET_NODE_ATTRS(param);
+        param->name = m_StringPool.intern(m_Stream.CurTok.value);
+        ignoreButExpect(Token::IDENT);
+
+        // handle generic constraints
+        if (m_Stream.CurTok.tokenid == Token::PUNC_COLON) {
+            forwardStream();
+
+            // parse constraint list, syntax:
+            // <param: A> OR <param: [A, B, ...]> (for multiple constraints)
+            std::vector<Ident*> constraints;
+            bool is_bracket_start = false;
+            while (true) {
+                if (m_Stream.eof()) {
+                    reportError(ErrCode::UNEXPECTED_EOF);
+                    break;
+                }
+
+                if ((m_Stream.CurTok.tokenid == Token::PUNC_COMMA && !is_bracket_start) ||
+                    m_Stream.CurTok.tokenid == Token::OP_GT ||
+                    m_Stream.CurTok.tokenid == Token::OP_RBITSHIFT)
+                    break;
+
+                if (m_Stream.CurTok.tokenid == Token::PUNC_RBRACKET) {
+                    forwardStream();
+                    break;
+                }
+
+                if (m_Stream.CurTok.tokenid == Token::PUNC_COMMA) {
+                    forwardStream();
+                    continue;
+                }
+
+                if (m_Stream.CurTok.tokenid == Token::PUNC_LBRACKET) {
+                    is_bracket_start = true;
+                    forwardStream();
+                    continue;
+                }
+
+                const auto* constraint = parseType();
+                constraints.push_back(constraint->type_id);
+                if (constraints.back() == nullptr) {
+                    reportError(ErrCode::SYNTAX_ERROR, {
+                        .msg = "Expected a protocol.",
+                        .location = constraint->location
+                    });
+                }
+            } param->constraints = m_Module->internArray<Ident*>(constraints);
+        }
+
         params.push_back(param);
     }
 
@@ -695,12 +744,18 @@ GenericArgList Parser::parseGenericArgList() {
         }
 
         // if comptime - parseExpr, otherwise parseType
+        SourceLocation loc;
+        loc.from = m_Stream.getStreamState();
+
         if (m_Stream.CurTok.tokenid == Token::KW_COMPTIME) {
             forwardStream();
             auto expr = parseExpr();
             expr->is_comptime = true;
             args.emplace_back(m_Module->makeNode<GenericArg>(expr));
         } else args.emplace_back(m_Module->makeNode<GenericArg>(parseType()));
+
+        loc.to = m_Stream.getStreamState();
+        args.back()->location = loc;
     }
 
     ret.generic_args = m_Module->internArray<GenericArg*>(args);

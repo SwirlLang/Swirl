@@ -160,6 +160,14 @@ protected:
 
 
     template <typename... Args>
+    void traverse(GenericParam* node, Args&&... args) {
+        for (Ident* ident : node->constraints) {
+            visit(ident, std::forward<Args>(args)...);
+        }
+    }
+
+
+    template <typename... Args>
     void traverse(Condition* node, Args&&... args) {
         visit(node->bool_expr, std::forward<Args>(args)...);
         visit(node->if_children, std::forward<Args>(args)...);

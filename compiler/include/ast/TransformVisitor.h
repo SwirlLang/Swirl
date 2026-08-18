@@ -205,6 +205,22 @@ protected:
 
 
     template <typename... Args>
+    const Node* transformDefault(const GenericParam* node, Args&&... args) {
+        std::vector<Ident*> new_gen_constraints;
+        for (Ident* ident : node->constraints) {
+            new_gen_constraints.push_back(
+                cast<Ident>(run(ident, std::forward<Args>(args)...)));
+        }
+
+        if (!std::ranges::equal(new_gen_constraints, node->constraints)) {
+            GenericParam* new_node = makeNode<GenericParam>(*node);
+            new_node->constraints  = internArray<Ident*>(new_gen_constraints);
+            return new_node;
+        } return node;
+    }
+
+
+    template <typename... Args>
     const Node* transformDefault(const Condition* node, Args&&... args) {
         bool changed = false;
 

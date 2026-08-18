@@ -44,7 +44,9 @@ public:
     explicit TypeResolver(const SemaContext& context)
         : SemaVisitor(context.module, context.error_callback)
         , SymMan(context.module->symbol_table)
-        , GenericInstantiator(m_Module, context.error_callback)
+        , GenericInstantiator(m_Module,
+            [this](const ErrCode code, ErrorContext ctx) {
+                reportError(code, std::move(ctx)); })
         , ComptimeEvaluator(context.module, context.error_callback, &GenericParameters)
         , IsMonomorphization(context.is_monomorphization)
         , VariadicExpander(
@@ -1063,7 +1065,7 @@ public:
                 for (const GenericArg* arg : args) {
                     if (arg->isType()) {
                         visit(arg->getType());
-                    }
+                    } else visit(arg->getExpr());
                 }
             }
 
