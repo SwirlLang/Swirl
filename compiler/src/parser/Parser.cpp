@@ -749,7 +749,9 @@ GenericArgList Parser::parseGenericArgList() {
 
         if (m_Stream.CurTok.tokenid == Token::KW_COMPTIME) {
             forwardStream();
+            ignoreButExpect(Token::PUNC_LPAREN);
             auto expr = parseExpr();
+            ignoreButExpect(Token::PUNC_RPAREN);
             expr->is_comptime = true;
             args.emplace_back(m_Module->makeNode<GenericArg>(expr));
         } else args.emplace_back(m_Module->makeNode<GenericArg>(parseType()));
