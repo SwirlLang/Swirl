@@ -134,7 +134,7 @@ public:
         SymMan.registerDecl(node->ident, entry);
 
         if (!node->children) {
-            node->children = new Scope();
+            node->children = makeNode<Scope>();
         }
 
         ScopeStack.push_back(node->children);
