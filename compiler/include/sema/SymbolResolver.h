@@ -37,7 +37,9 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
                     continue;
                 }
 
-                if (!SymMan.lookupDecl(id).is_exported) {
+                if ((
+                    (!m_Module->isBuiltin() && !BuiltinTypes.contains(id->toString()))) &&
+                        !SymMan.lookupDecl(id).is_exported) {
                     reportError(
                         ErrCode::SYMBOL_NOT_EXPORTED,
                         {.str_1 = symbol.actual_name}
@@ -79,6 +81,12 @@ struct SymbolResolver : SemaVisitor<SymbolResolver> {
             if (!alias->alias_for) {
                 data.ignore_symbols.insert(alias->alias);
             }
+        }
+
+        // add generic parameters to ignored-symbols set
+        for (GenericParam* param : node->generic_params) {
+            visit(param, data);
+            data.ignore_symbols.insert(param->name);
         }
 
         for (const auto& method : node->methods) {

@@ -15,7 +15,10 @@ public:
         , m_Module(module)
         , m_ComptimeEvaluator(module, error_callback)
         , m_Substitutor(module, m_ComptimeEvaluator)
-        , m_ErrorCallback(std::move(error_callback)) {}
+        , m_ErrorCallback(std::move(error_callback))
+        , TypeManager(module->type_manager) {}
+
+    TypeManager& TypeManager;
 
     using SubstitutionMap_t   = GenericSubstitutor::SubstitutionMap_t;
     using SubstitutionContext = GenericSubstitutor::SubstitutionContext;
@@ -187,7 +190,7 @@ public:
 
     void postVisit(TypeWrapper* node) const {
         if (node->type && node->type->containsGeneric() && node->type_id && node->type_id->value) {
-            Type* new_type = m_SymMan.lookupType(node->type_id->value);
+            Type* new_type = TypeManager.lookupType(node->type_id->value);
             if (new_type && !new_type->containsGeneric()) {
                 node->type = new_type;
             }

@@ -1,5 +1,6 @@
 #pragma once
 #include "SemaVisitor.h"
+#include "types/TypeManager.h"
 #include "verifiers/SymbolRegistration.h"
 
 
@@ -9,7 +10,8 @@ public:
     explicit
     SymbolRegistrationPass(const SemaContext& context)
         : SemaVisitor(context.module, context.error_callback)
-        , SymMan(context.module->symbol_table) {}
+        , SymMan(context.module->symbol_table)
+        , TypeManger(context.module->type_manager) {}
 
 
     // The scope being nullptr => the current scope is global
@@ -20,7 +22,8 @@ public:
     // asks the immediate scope to use this namespace instead
     Namespace* PreCreatedScope = nullptr;
 
-    SymbolManager& SymMan;
+    SymbolManager&   SymMan;
+    sw::TypeManager& TypeManger;
 
     void handle(Scope* node) {
         assert(!ScopeStack.empty());
@@ -72,7 +75,7 @@ public:
             }
         }
 
-        SymMan.registerType(node->ident, struct_ty);
+        TypeManger.registerType(node->ident, struct_ty);
         SymMan.registerDecl(node->ident, {
             .is_exported = node->is_exported,
             .swirl_type = struct_ty,
@@ -127,7 +130,7 @@ public:
             .node_ptr    = node
         };
 
-        SymMan.registerType(node->ident, fn_type);
+        TypeManger.registerType(node->ident, fn_type);
         SymMan.registerDecl(node->ident, entry);
 
         if (!node->children) {
@@ -195,13 +198,13 @@ public:
             // fails, then it is concluded that the instance parameter isn't allowed in this context.
             if (!StructStack.empty() && StructStack.back()) {
                 node->type = makeNode<TypeWrapper>(
-                    SymMan.getReferenceType(StructStack.back(), !node->is_const));
+                    TypeManger.getReferenceType(StructStack.back(), !node->is_const));
             }
 
             else if (!FunctionStack.empty() && FunctionStack.back()) {
                 if (const auto parent = SymMan.lookupDecl(FunctionStack.back()->ident).method_of) {
                     node->type = makeNode<TypeWrapper>(
-                        SymMan.getReferenceType(parent, !node->is_const));
+                        TypeManger.getReferenceType(parent, !node->is_const));
                 }
             }
 
@@ -249,7 +252,7 @@ public:
         }
 
         SymMan.registerDecl(node->ident, entry);
-        SymMan.registerType(node->ident, ty);
+        TypeManger.registerType(node->ident, ty);
 
         return true;
     }
@@ -269,7 +272,7 @@ public:
         entry.is_exported = node->is_exported;
 
         SymMan.registerDecl(node->ident, entry);
-        SymMan.registerType(node->ident, type);
+        TypeManger.registerType(node->ident, type);
 
         return true;
     }
@@ -321,7 +324,7 @@ private:
             SymMan.registerDecl(id, {.swirl_type = gen_type});
 
             gen_type->id = id;
-            SymMan.registerType(id, gen_type);
+            TypeManger.registerType(id, gen_type);
         }
     }
 };

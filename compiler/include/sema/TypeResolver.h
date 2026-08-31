@@ -6,6 +6,7 @@
 #include "types/definitions.h"
 #include "sema/SemaVisitor.h"
 #include "transformers/VariadicGenerator.h"
+#include "types/TypeManager.h"
 
 
 namespace sw {
@@ -32,6 +33,7 @@ public:
     sw::GenericInstantiator GenericInstantiator;
     sw::ComptimeEvaluator   ComptimeEvaluator;
     sw::VariadicGenerator   VariadicExpander;
+    sw::TypeManager&        TypeManager;
 
     std::unordered_set<std::string_view> GenericParameters;
 
@@ -47,6 +49,7 @@ public:
         , GenericInstantiator(m_Module, context.error_callback)
         , ComptimeEvaluator(context.module, context.error_callback, &GenericParameters)
         , IsMonomorphization(context.is_monomorphization)
+        , TypeManager(context.module->type_manager)
         , VariadicExpander(
                 m_Module,
                 [this](const ErrCode code, const ErrorContext& ctx) {
@@ -153,7 +156,7 @@ public:
 
 
     void postVisit(const Function* node) {
-        auto* fn_type = SymMan.lookupType(node->ident)->to<FunctionType>();
+        auto* fn_type = TypeManager.lookupType(node->ident)->to<FunctionType>();
 
         // early return if `postVisit` skips over
         if (CurrentParentFunction.back() != node) {
@@ -220,7 +223,7 @@ public:
 
 
     TypeInfo evaluateType(StrLit* node, const TypeContext& ctx) {
-        return {.deduced_type = SymMan.lookupType(SymMan.getIdInfoOfAGlobal("str"))};
+        return {.deduced_type = TypeManager.lookupType(SymMan.getIdInfoOfAGlobal("str"))};
     }
 
 
@@ -240,7 +243,7 @@ public:
         }
 
         if (common_type) {
-            return {.deduced_type = SymMan.getArrayType(common_type, node->elements.size())};
+            return {.deduced_type = TypeManager.getArrayType(common_type, node->elements.size())};
         } return {};
     }
 
@@ -261,7 +264,7 @@ public:
 
             if (node->type_id->value != nullptr) {
                 monomorphize(node->type_id);
-                ret = SymMan.lookupType(node->type_id->value);
+                ret = TypeManager.lookupType(node->type_id->value);
             }
         }
 
@@ -280,7 +283,7 @@ public:
             }
 
             if (arr_of_type != nullptr) {
-                ret = SymMan.getArrayType(arr_of_type, array_size);
+                ret = TypeManager.getArrayType(arr_of_type, array_size);
             }
         }
 
@@ -288,7 +291,7 @@ public:
         else if (node->is_slice) {
             auto slice_of_type = evaluateType(node->of_type, ctx);
             if (slice_of_type.deduced_type != nullptr) {
-                ret = SymMan.getSliceType(slice_of_type.deduced_type, node->is_mutable);
+                ret = TypeManager.getSliceType(slice_of_type.deduced_type, node->is_mutable);
             }
         }
 
@@ -296,7 +299,7 @@ public:
         else if (node->is_pointer) {
             auto pointer_of_ty = evaluateType(node->of_type, ctx);
             if (pointer_of_ty.deduced_type != nullptr) {
-                ret = SymMan.getPointerType(pointer_of_ty.deduced_type, node->is_mutable);
+                ret = TypeManager.getPointerType(pointer_of_ty.deduced_type, node->is_mutable);
             }
         }
 
@@ -304,7 +307,7 @@ public:
         else if (node->is_reference) {
             auto ref_of_type = evaluateType(node->of_type, ctx);
             if (ref_of_type.deduced_type != nullptr) {
-                ret = SymMan.getReferenceType(ref_of_type.deduced_type, node->is_mutable);
+                ret = TypeManager.getReferenceType(ref_of_type.deduced_type, node->is_mutable);
             }
         }
 
@@ -369,7 +372,7 @@ public:
 
             // fetch the enum type
             const Enum* en = SymMan.getFictitiousIDValue(node->value);
-            ret = SymMan.lookupType(en->ident);
+            ret = TypeManager.lookupType(en->ident);
         } else {
             // instantiate generics
             monomorphize(node);
@@ -479,7 +482,7 @@ public:
         }
 
         // fetch the corresponding Function's type
-        auto* fn_type = SymMan.lookupType(id)->to<FunctionType>();
+        auto* fn_type = TypeManager.lookupType(id)->to<FunctionType>();
 
         // check whether the number of arguments is correct
         if (node->args.size() != fn_type->param_types.size()) {
@@ -536,7 +539,7 @@ public:
             inferType(node->return_type, {});
         } else node->return_type = makeNode<TypeWrapper>();
 
-        auto* fn_type = SymMan.lookupType(node->ident)->to<FunctionType>();
+        auto* fn_type = TypeManager.lookupType(node->ident)->to<FunctionType>();
         fn_type->ret_type = node->return_type->type;
 
         CommonFunctionType = fn_type->ret_type;
@@ -568,7 +571,7 @@ public:
             visit(node->alias_for);
             if (node->alias_for->type) {
                 assert(node->ident);
-                SymMan.registerType(node->ident, node->alias_for->type);
+                TypeManager.registerType(node->ident, node->alias_for->type);
             }
         }
     }
@@ -599,7 +602,7 @@ public:
         }
 
         assert(getCurrentParentFunc());
-        node->parent_fn_type = SymMan.lookupType(getCurrentParentFunc()->getIdentInfo())->to<FunctionType>();
+        node->parent_fn_type = TypeManager.lookupType(getCurrentParentFunc()->getIdentInfo())->to<FunctionType>();
         assert(node->parent_fn_type != nullptr);
     }
 
@@ -615,7 +618,7 @@ public:
             node->enum_type.value()->type = &GlobalTypeI32;
         }
 
-        const auto ty = SymMan.lookupType(node->ident)->to<EnumType>();
+        const auto ty = TypeManager.lookupType(node->ident)->to<EnumType>();
         ty->of_type = node->enum_type.value()->type;
     }
 
@@ -784,6 +787,7 @@ public:
 
 
     void handle(const ProtocolImpl* node) {
+        visit(node->protocol);
         assert(node->protocol->value);
 
         const auto target_protocol_id = node->protocol->value;
@@ -850,7 +854,7 @@ public:
                     // implementing type, matching the instance parameter's mutability
                     if (is_instance_method) {
                         func->params.front()->type = makeNode<TypeWrapper>(
-                            SymMan.getReferenceType(impl_type, !func->params.front()->is_const));
+                            TypeManager.getReferenceType(impl_type, !func->params.front()->is_const));
                     }
 
                     visit(func);
@@ -1027,7 +1031,7 @@ public:
 
 
     void postVisit(Struct* node) {
-        const auto ty = SymMan.lookupType(node->ident)->to<StructType>();
+        const auto ty = TypeManager.lookupType(node->ident)->to<StructType>();
         ty->field_types.clear();
 
         for (const auto& member : node->members->children) {
@@ -1104,12 +1108,12 @@ public:
             case ND_BOOL:
                 return &GlobalTypeBool;
             case ND_STR:
-                return SymMan.lookupType("str");
+                return TypeManager.lookupType(SymMan.getIdInfoOfAGlobal("str"));
             case ND_IDENT:
                 return SymMan.lookupDecl(node->getIdentInfo()).swirl_type;
             case ND_CALL:
                 return dynamic_cast<FunctionType*>(
-                    SymMan.lookupType(node->getIdentInfo()))->ret_type;
+                    TypeManager.lookupType(node->getIdentInfo()))->ret_type;
             case ND_EXPR:
             case ND_ARRAY:
             case ND_OP:

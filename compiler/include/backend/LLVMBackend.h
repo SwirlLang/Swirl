@@ -11,6 +11,8 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Target/TargetMachine.h>
 
+#include "types/TypeManager.h"
+
 
 class ModuleManager;
 class SymbolManager;
@@ -68,6 +70,8 @@ public:
     SymbolManager& SymMan;
 
     Module* SwModule;
+    sw::TypeManager& TypeManager;
+
     std::unique_ptr<llvm::Module> LModule;
     std::unordered_map<Type*, llvm::Type*> LLVMTypeCache;
 
@@ -182,7 +186,7 @@ public:
             case ND_IDENT:
                 return SymMan.lookupDecl(node->getIdentInfo()).swirl_type;
             case ND_CALL:
-                return dynamic_cast<FunctionType*>(SymMan.lookupType(node->getIdentInfo()))->ret_type;
+                return dynamic_cast<FunctionType*>(TypeManager.lookupType(node->getIdentInfo()))->ret_type;
             case ND_EXPR:
             case ND_ARRAY:
             case ND_OP:

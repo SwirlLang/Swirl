@@ -30,7 +30,7 @@ llvm::Type* LLVMBackend::llvmCodegen(TypeStr* type, SwContext ctx) {
         return LLVMTypeCache[type];
     }
 
-    const auto ret = codegen(SymMan.lookupType(SymMan.getIdInfoOfAGlobal("str")), ctx);
+    const auto ret = codegen(TypeManager.lookupType(SymMan.getIdInfoOfAGlobal("str")), ctx);
     LLVMTypeCache[type] = ret;
     return ret;
 }
@@ -73,7 +73,7 @@ llvm::Type* LLVMBackend::llvmCodegen(SliceType* type, const SwContext& context) 
     const auto struct_t = llvm::StructType::create(LLVMContext, "__Slice");
 
     struct_t->setBody({
-        codegen(SymMan.getPointerType(type->of_type, false), context),  // pointer to the first element
+        codegen(TypeManager.getPointerType(type->of_type, false), context),  // pointer to the first element
         llvm::Type::getInt64Ty(LLVMContext)  // size
     });
 

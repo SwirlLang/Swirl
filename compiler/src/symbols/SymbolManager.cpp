@@ -1,12 +1,31 @@
 #include "parser/Parser.h"
 #include "modules/ModuleManager.h"
+#include "types/TypeManager.h"
+
+
+SymbolManager::SymbolManager(const Module* module)
+    : m_ModulePath(module->file_handle->getPath())
+    , m_ModuleHandle(module->file_handle)
+{
+    m_ModuleMap = &module->getModuleManager();
+
+    // Create the global scope
+    m_ScopeTrack.push_back(&m_Scopes.emplace_back(module->file_handle));
+
+    // register all builtin types in the global scope if the module is builtin
+    if (module->isBuiltin()) {
+        for (auto& name : BuiltinTypes | std::views::keys) {
+            m_ScopeTrack.front()->getNewIDInfo(name);
+        }
+    }
+}
 
 
 TableEntry& SymbolManager::lookupDecl(IdentInfo* id) {
     static TableEntry fictitious_table_entry{.is_exported = true};
     if (id->isFictitious()) { return fictitious_table_entry; }
     if (sw::FileHandle* mod_path = id->getModuleFileHandle(); mod_path != m_ModuleHandle) {
-        return m_ModuleMap.get(mod_path).symbol_table.m_IdToTableEntry.at(id);
+        return m_ModuleMap->get(mod_path).symbol_table.m_IdToTableEntry.at(id);
     } return m_IdToTableEntry.at(id);
 }
 
@@ -14,22 +33,14 @@ TableEntry* SymbolManager::searchDecl(IdentInfo* id) {
     static TableEntry fictitious_table_entry{.is_exported = true};
     if (id->isFictitious()) { return &fictitious_table_entry; }
     if (sw::FileHandle* mod_path = id->getModuleFileHandle(); mod_path != m_ModuleHandle) {
-        auto& table = m_ModuleMap.get(mod_path).symbol_table.m_IdToTableEntry;
+        auto& table = m_ModuleMap->get(mod_path).symbol_table.m_IdToTableEntry;
         return table.contains(id) ? &table[id] : nullptr;
     } return m_IdToTableEntry.contains(id) ? &m_IdToTableEntry[id] : nullptr;
 }
 
 
-Type* SymbolManager::lookupType(IdentInfo* id) {
-    if (!id) return nullptr;
-    if (const auto mod_path = id->getModuleFileHandle(); mod_path != m_ModuleHandle) {
-        return m_ModuleMap.get(mod_path).symbol_table.m_TypeManager.getFor(id);
-    } return m_TypeManager.getFor(id);
-}
-
-
 IdentInfo* SymbolManager::getIdInfoFromModule(sw::FileHandle* mod_path, const std::string& name) const {
-    return m_ModuleMap.get(mod_path).symbol_table.getIdInfoOfAGlobal(name, true);
+    return m_ModuleMap->get(mod_path).symbol_table.getIdInfoOfAGlobal(name, true);
 }
 
 
@@ -37,7 +48,7 @@ Enum* SymbolManager::getFictitiousIDValue(IdentInfo* id) {
     auto& fictitious_id_table =
         id->getModuleFileHandle() == m_ModuleHandle
             ? m_FictitiousIDTable
-            : m_ModuleMap.get(id->getModuleFileHandle()).symbol_table.m_FictitiousIDTable;
+            : m_ModuleMap->get(id->getModuleFileHandle()).symbol_table.m_FictitiousIDTable;
 
     if (fictitious_id_table.contains(id)) {
         return fictitious_id_table[id];
@@ -131,7 +142,7 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
     std::vector<const Namespace*> scopes = {look_at};
     std::vector<Module::ImplScopeRef> impl_refs;
     if (owner_type) {
-        for (const auto& ref : m_ModuleMap.get(m_ModuleHandle).getImplScopesFor(owner_type)) {
+        for (const auto& ref : m_ModuleMap->get(m_ModuleHandle).getImplScopesFor(owner_type)) {
             scopes.push_back(ref.info->scope);
             impl_refs.push_back(ref);
         }
@@ -180,7 +191,7 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
         // from other modules they require `export impl`
         for (const auto& ref : impl_refs) {
             if (ref.info->scope == matches[0].found_in
-                && ref.info->parent_module != &m_ModuleMap.get(m_ModuleHandle)
+                && ref.info->parent_module != &m_ModuleMap->get(m_ModuleHandle)
                 && !ref.info->is_exported)
             {
                 report_error(
@@ -215,5 +226,5 @@ std::vector<SymbolManager::MemberLookup> SymbolManager::resolveMember(
 
 
 Namespace* SymbolManager::getGlobalScopeFromModule(sw::FileHandle* mod) const {
-    return m_ModuleMap.get(mod).symbol_table.getGlobalScope();
+    return m_ModuleMap->get(mod).symbol_table.getGlobalScope();
 }

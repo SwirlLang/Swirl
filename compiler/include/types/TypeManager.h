@@ -3,19 +3,21 @@
 #include <memory>
 #include <unordered_map>
 
-#include <utils/utils.h>
-
 #include "SwTypes.h"
+#include "utils/utils.h"
+#include "utils/logging.h"
+#include "types/definitions.h"
+#include "modules/ModuleManager.h"
+#include "symbols/IdentManager.h"
 
 
 struct Type;
 class  IdentInfo;
 
-
 namespace detail {
 struct Pointer {
-    Type* of_type = nullptr;
-    bool is_mutable = false;  // does it point to a mutable object?
+    Type* of_type    = nullptr;
+    bool  is_mutable = false;  // does it point to a mutable object?
 
     bool operator==(const Pointer& other) const {
         return is_mutable == other.is_mutable && of_type == other.of_type;
@@ -33,11 +35,60 @@ struct Array {
 
 struct Deleter {
     void operator()(const Type* ptr) const {
-        for (const auto& val: BuiltinTypes | std::views::values) {
+        for (const auto& val : BuiltinTypes | std::views::values) {
             if (val == ptr)
                 return;
         } delete ptr;
     }
+};
+
+
+/// Template class for creating a Sharded Interner, where N is the no. of shards.
+template <std::size_t N, typename Key, typename Value>
+class TypeInterner {
+public:
+    Value& intern(const std::size_t index, Key key, Value&& value) {
+        assert(index < N);
+        auto& entry = m_Entries.at(index);
+        typename Map_t::Guard guard(entry);
+
+        auto [it, _] = entry.map.try_emplace(
+            std::forward<Key>(key),
+            std::forward<Value>(value));
+        return it->second;
+    }
+
+    bool contains(const std::size_t index, Key key) {
+        assert(index < N);
+        auto& entry = m_Entries.at(index);
+        typename Map_t::Guard guard(entry);
+        return entry.map.contains(key);
+    }
+
+    Value& get(const std::size_t index, Key key) {
+        assert(index < N);
+        auto& entry = m_Entries.at(index);
+        typename Map_t::Guard guard(entry);
+        return entry.map.at(key);
+    }
+
+private:
+    struct Map_t {
+        std::unordered_map<Key, Value> map;
+        std::mutex mutex;
+
+        void lock()   { mutex.lock(); }
+        void unlock() { mutex.unlock(); }
+
+        struct Guard {
+            Map_t& map;
+            Guard(Map_t& map)
+            : map(map) { map.lock();   }
+            ~Guard()   { map.unlock(); }
+        };
+    };
+
+    std::array<Map_t, N> m_Entries;
 };
 }
 
@@ -64,95 +115,94 @@ struct std::hash<detail::Array> {
 };
 
 
-/// Factory class for all children of `Type`
+namespace sw {
 class TypeManager {
-    using Str_t = std::size_t;
-    std::unordered_map<IdentInfo*, std::unique_ptr
-        <Type, detail::Deleter>>                          m_TypeTable;  // for named types
-    std::unordered_map<Str_t, std::unique_ptr<TypeStr>>   m_StringTable;
-
-    std::unordered_map<detail::Array, std::unique_ptr<ArrayType>>         m_ArrayTable;
-    std::unordered_map<detail::Pointer, std::unique_ptr<PointerType>>     m_PointerTable;
-    std::unordered_map<detail::Pointer, std::unique_ptr<ReferenceType>>   m_ReferenceTable;
-    std::unordered_map<detail::Pointer, std::unique_ptr<SliceType>>       m_SliceTable;
-
-
 public:
-    /// returns the type with the id `name`, nullptr otherwise
-    Type* getFor(IdentInfo* name) {
-        if (const auto it = m_TypeTable.find(name); it != m_TypeTable.end())
-            return it->second.get();
-        return nullptr;
+    static constexpr std::size_t TypeShardsSize      = 32;
+    static constexpr std::size_t ArrayShardsSize     = 32;
+    static constexpr std::size_t SliceShardsSize     = 32;
+    static constexpr std::size_t PointerShardsSize   = 32;
+    static constexpr std::size_t ReferenceShardsSize = 32;
+
+    explicit
+    TypeManager(ModuleManager& mod_man)
+        : m_ModMan(mod_man) {}
+
+
+    void registerType(IdentInfo* ident, Type* type) {
+        const auto index = m_ModMan.getModuleIndex(ident->getModuleFileHandle()) % TypeShardsSize;
+        m_TypeInterner.intern(index, ident, std::unique_ptr<Type, detail::Deleter>{type});
+        type->location.source = ident->getModuleFileHandle();
     }
 
-    void registerType(IdentInfo* name, Type* type) {
-        if (m_TypeTable.contains(name))
-            throw std::runtime_error("TypeManager::registerType: Duplicate type registration request!");
-        m_TypeTable[name] = std::unique_ptr<Type, detail::Deleter>(type);
+    Type* getPointerType(Type* to, bool is_mutable = true) {
+        is_mutable = true;  // (temporarily disabled until mutability analysis is stable)
+        const detail::Pointer key{.of_type = to, .is_mutable = is_mutable};
+        const auto index = m_ModMan.getModuleIndex(to->location.source) % PointerShardsSize;
+
+        auto new_ty = std::make_unique<PointerType>(to, is_mutable);
+        return m_PointerInterner.intern(index, key, std::move(new_ty)).get();
     }
 
-    /// returns a pointer for the type `to`
-    Type* getPointerType(Type* to, const bool is_mutable) {
-        using namespace detail;
-        const Pointer ptr{to, is_mutable};
-        if (m_PointerTable.contains(ptr)) {
-            return m_PointerTable[ptr].get();
-        } m_PointerTable[ptr] = std::make_unique<PointerType>(to, is_mutable);
-        return m_PointerTable[ptr].get();
-    }
+    Type* getArrayType(Type* of, const std::size_t size) {
+        const detail::Array key{.of_type = of, .size = size};
+        const auto index = m_ModMan.getModuleIndex(of->location.source) % ArrayShardsSize;
 
-    /// returns the corresponding array-type for the type and size
-    Type* getArrayType(Type* of_type, std::size_t size) {
-        using namespace detail;
-        const Array arr{of_type, size};
-        if (m_ArrayTable.contains(arr)) {
-            return m_ArrayTable[arr].get();
-        } m_ArrayTable[arr] = std::make_unique<ArrayType>(of_type, size);
-        return m_ArrayTable[arr].get();
-    }
-
-    /// returns a reference for the type `to`
-    Type* getReferenceType(Type* to, const bool is_mutable) {
-        if (to->getTypeTag() == Type::ARRAY) {
-            // return a slice instead if `to` is an array
-            const auto arr_type = dynamic_cast<ArrayType*>(to);
-            return getSliceType(arr_type->of_type, is_mutable);
-        }
-
-        if (to->getTypeTag() == Type::REFERENCE && to->is_mutable == is_mutable)
-            return to;  // reference collapsing, & + & = &
-
-        const detail::Pointer obj{.of_type = to, .is_mutable = is_mutable};
-        if (m_ReferenceTable.contains(obj))
-            return m_ReferenceTable[obj].get();
-
-        m_ReferenceTable[obj] = std::make_unique<ReferenceType>(to);
-        m_ReferenceTable[obj]->is_mutable = is_mutable;
-        return m_ReferenceTable[obj].get();
-    }
-
-    [[deprecated]]
-    Type* getStringType(const std::size_t size) {
-        if (m_StringTable.contains(size)) {
-            return m_StringTable[size].get();
-        } m_StringTable[size] = std::make_unique<TypeStr>();
-        return m_StringTable[size].get();
+        auto new_ty = std::make_unique<ArrayType>(of, size);
+        return m_ArrayInterner.intern(index, key, std::move(new_ty)).get();
     }
 
     /// returns the slice type instance pointer for the given type, note that the type
-    /// is supposed to be what's within the array: &[type]
-    Type* getSliceType(Type* type, const bool is_mutable) {
-        auto slice_entry = detail::Pointer{type, is_mutable};
-        if (m_SliceTable.contains(slice_entry)) {
-            return m_SliceTable[slice_entry].get();
-        } m_SliceTable[slice_entry] =
-            std::make_unique<SliceType>(slice_entry.of_type);
-        m_SliceTable[slice_entry]->is_mutable = is_mutable;
-        return m_SliceTable[slice_entry].get();
+    /// is supposed to be what's within the target array.
+    Type* getSliceType(Type* of, bool is_mutable = true) {
+        is_mutable = true;  // (temporarily disabled until mutability analysis is stable)
+        const detail::Pointer key{.of_type = of, .is_mutable = is_mutable};
+        const auto index = m_ModMan.getModuleIndex(of->location.source) % SliceShardsSize;
+
+        auto new_ty = std::make_unique<SliceType>(of);
+        return m_SliceInterner.intern(index, key, std::move(new_ty)).get();
+    }
+
+    Type* getReferenceType(Type* to, bool is_mutable = true) {
+        is_mutable = true;  // (temporarily disabled until mutability analysis is stable)
+        const detail::Pointer key{.of_type = to, .is_mutable = is_mutable};
+        if (to->getTypeTag() == Type::ARRAY) {
+            return getSliceType(to, is_mutable);
+        }
+
+        // collapse the reference of a reference
+        if (to->isReferenceType() && to->is_mutable == is_mutable) {
+            return to;
+        }
+
+        const auto index = m_ModMan.getModuleIndex(to->location.source) % ReferenceShardsSize;
+
+        auto new_ty = std::make_unique<ReferenceType>(to);
+        return m_ReferenceInterner.intern(index, key, std::move(new_ty)).get();
+    }
+
+    Type* lookupType(IdentInfo* ident) {
+        const auto index = m_ModMan.getModuleIndex(ident->getModuleFileHandle()) % TypeShardsSize;
+        return m_TypeInterner.get(index, ident).get();
+    }
+
+    bool contains(IdentInfo* ident) {
+        const auto index = m_ModMan.getModuleIndex(ident->getModuleFileHandle()) % TypeShardsSize;
+        return m_TypeInterner.contains(index, ident);
     }
 
 
-    bool contains(IdentInfo* name) const {
-        return m_TypeTable.contains(name);
-    }
+private:
+    template <std::size_t N, typename Key, typename Value>
+    using TypeInterner = detail::TypeInterner<N, Key, Value>;
+
+    TypeInterner<ArrayShardsSize,     detail::Array,   std::unique_ptr<Type>> m_ArrayInterner;
+    TypeInterner<SliceShardsSize,     detail::Pointer, std::unique_ptr<Type>> m_SliceInterner;
+    TypeInterner<PointerShardsSize,   detail::Pointer, std::unique_ptr<Type>> m_PointerInterner;
+    TypeInterner<ReferenceShardsSize, detail::Pointer, std::unique_ptr<Type>> m_ReferenceInterner;
+
+    TypeInterner<TypeShardsSize, IdentInfo*, std::unique_ptr<Type, detail::Deleter>> m_TypeInterner;
+
+    ModuleManager& m_ModMan;
 };
+}  // namespace sw

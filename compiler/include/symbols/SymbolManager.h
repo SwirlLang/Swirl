@@ -1,7 +1,8 @@
 #pragma once
+#include <span>
+#include <list>
 #include <string>
 #include <ranges>
-#include <span>
 #include <utility>
 #include <filesystem>
 #include <unordered_map>
@@ -9,13 +10,15 @@
 #include "metadata.h"
 
 #include "types/definitions.h"
-#include "types/TypeManager.h"
 #include "symbols/IdentManager.h"
 #include "errors/ErrorManager.h"
 
 
+namespace sw { class TypeManager; }
+
 struct ErrorContext;
-class ModuleManager;
+class  ModuleManager;
+struct Module;
 using ErrorCallback_t = std::function<void (ErrCode, ErrorContext)>;
 
 
@@ -34,6 +37,9 @@ public:
         return getNewIDInfo(std::string(name), is_fictitious);
     }
 
+    void pushForeignID(const std::string_view name, IdentInfo* id) {
+        m_IDMan.pushForeignID(name, id);
+    }
 
     auto begin() const {
         return m_IDMan.begin();
@@ -59,8 +65,7 @@ public:
 
 
 class SymbolManager {
-    TypeManager m_TypeManager;
-    ModuleManager& m_ModuleMap;
+    ModuleManager* m_ModuleMap{};
 
     std::list<Namespace>    m_Scopes;       // for the stable-addressing of the namespaces
     std::vector<Namespace*> m_ScopeTrack;  // for tracking the insert-points
@@ -82,6 +87,8 @@ class SymbolManager {
     ErrorCallback_t m_ErrorCallback;
     sw::FileHandle* m_ModuleHandle{};
 
+    friend class sw::TypeManager;
+
 public:
     inline static const std::unordered_map<Intrinsic::Kind, IntrinsicDef> IntrinsicTable = {
         {Intrinsic::TYPEOF,  IntrinsicDef{}},
@@ -94,30 +101,16 @@ public:
     static std::unordered_map<Type*, std::function<void(Namespace*, SymbolManager&)>> DefaultTypeMethods;
 
 
-    explicit SymbolManager(sw::FileHandle* mod_handle, ModuleManager& module_man)
-       : m_ModuleMap(module_man)
-       , m_ModulePath(mod_handle->getPath())
-       , m_ModuleHandle(mod_handle)
-    {
-        // Create the global scope
-        m_ScopeTrack.push_back(&m_Scopes.emplace_back(mod_handle));
-        // Register all built-in types in the global scope
-        for (const auto &[str, type] : BuiltinTypes) {
-            const auto id = m_ScopeTrack.back()->getNewIDInfo(std::string(str));
-            registerType(id, type);
-        }
-    }
-
+    explicit SymbolManager(const Module*);
 
     TableEntry& lookupDecl(IdentInfo* id);
     TableEntry* searchDecl(IdentInfo* id);
-
-    Type* lookupType(IdentInfo* id);
 
     /// returns the IdentInfo* of a global name from the module `mod_handle`
     IdentInfo* getIdInfoFromModule(sw::FileHandle* mod_path, const std::string& name) const;
 
     IdentInfo* getIDInfoFor(const Ident& id, const std::optional<ErrorCallback_t>& err_callback = std::nullopt);
+
 
     struct MemberLookup {
         IdentInfo* id = nullptr;
@@ -172,49 +165,12 @@ public:
     Namespace* getGlobalScopeFromModule(sw::FileHandle* path) const;
 
 
-    /// Looks up a GLOBAL type
-    Type* lookupType(const std::string& id) {
-        return m_TypeManager.getFor(getIDInfoFor(id));
-    }
-
-
-    void registerType(IdentInfo* id, Type* type) {
-        if (m_TypeManager.contains(id))
-            return;
-        m_TypeManager.registerType(id, type);
-    }
-
-
     /// makes the symbol manager aware of the IDs of foreign (imported) symbols
     void registerForeignID(const std::string& name, IdentInfo* id, const bool is_exported = false) {
         m_ImportedSymIDTable.emplace(name, id);
         if (is_exported)
             registerExportedSymbol(name, {.id = id});
     }
-
-
-    Type* getReferenceType(Type* of_type, const bool is_mutable, const bool is_str_ref = false) {
-        if (is_str_ref) {
-            return getSliceType(&GlobalTypeChar, true);
-        } return m_TypeManager.getReferenceType(of_type, true);
-    }
-
-
-    /// (of_type, is_mutable) -> &[of_type]
-    Type* getSliceType(Type* of_type, const bool is_mutable) {
-        return m_TypeManager.getSliceType(of_type, true);
-    }
-
-
-    Type* getArrayType(Type* of_type, const std::size_t size) {
-        return m_TypeManager.getArrayType(of_type, size);
-    }
-
-
-    Type* getPointerType(Type* of_type, const bool is_mutable) {
-        return m_TypeManager.getPointerType(of_type, true);  // TODO - re-enable immutability
-    }
-
 
     /// Used to register a declaration, if `scope_index` is passed, registers the declaration at that scope rather than
     /// the one at the top.
@@ -249,7 +205,6 @@ public:
         m_IdToTableEntry.insert({id, entry});
     }
 
-
     void registerFictitiousID(IdentInfo* id, Enum* enum_node) {
         if (m_FictitiousIDTable.contains(id)) {
             throw std::runtime_error("SymbolTable::registerFictitiousIDValue: id already in the table");
@@ -261,11 +216,6 @@ public:
         if (id->getModuleFileHandle() == m_ModuleHandle) {
             return true;
         } return false;
-    }
-
-
-    bool typeExists(IdentInfo* id) const {
-        return m_TypeManager.contains(id);
     }
 
 

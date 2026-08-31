@@ -7,28 +7,35 @@
 #include "utils/StringPool.h"
 #include "builtins/builtins.h"
 #include "errors/ErrorManager.h"
+#include "types/TypeManager.h"
+#include "sema/TypeResolver.h"
 
 struct SemaFixture {
     sw::FileSystem  fs;
     sw::StringPool  pool{4096};
     ModuleManager   modman;
     Module*         mod;
+    sw::TypeManager type_manager;
 
     std::vector<std::pair<ErrCode, ErrorContext>> errors;
     sw::Target      target{sw::Target::fromHostTriple()};
 
-    explicit SemaFixture(std::string_view source) {
+    explicit SemaFixture(const std::string_view source)
+        : modman(pool, target, type_manager)
+        , type_manager(modman)
+    {
         const auto Triple = target.getTriple();
         fs.createVirtualFile(SW_BUILTIN_FILE_PATH, SW_BUILTIN_SOURCE);
 
         auto* fh = fs.createVirtualFile("test.sw", std::string(source));
-        const ModuleContext ctx{fh, modman, pool, target};
+        const ModuleContext ctx{fh, modman, pool, target, type_manager};
         mod = modman.insert(ctx);
 
         mod->parse([this](ErrCode code, ErrorContext ctx) {
             errors.emplace_back(code, std::move(ctx));
         });
 
+        sema::TypeResolver::VisitedNodes.clear();
         mod->performSema([this](ErrCode code, ErrorContext ctx) {
             errors.emplace_back(code, std::move(ctx));
         });
@@ -115,7 +122,7 @@ fn run() { var c = Color::RED; }
 TEST_CASE("Generic function instantiation", "[sema][generic]") {
     SemaFixture f(R"(
 fn identity<T>(x: T): T { return x; }
-fn run() { var x = identity!{i32}(42); }
+fn run() { var x = identity!<i32>(42); }
 )");
     CHECK_FALSE(f.hasErrors());
 }
@@ -123,7 +130,7 @@ fn run() { var x = identity!{i32}(42); }
 TEST_CASE("Generic struct usage", "[sema][generic][struct]") {
     SemaFixture f(R"(
 struct Box<T> { var value: T; }
-fn run() { var b: Box!{i32}; }
+fn run() { var b: Box<i32>; }
 )");
     CHECK_FALSE(f.hasErrors());
 }

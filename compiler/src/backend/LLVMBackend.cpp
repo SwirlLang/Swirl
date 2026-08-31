@@ -62,6 +62,7 @@ LLVMBackend::LLVMBackend(Module* module)
     : ModuleManager(module->getModuleManager())
     , SymMan(module->symbol_table)
     , SwModule(module)
+    , TypeManager(module->type_manager)
     , LModule{
         std::make_unique<llvm::Module>(
         ModuleManager.getModuleUID(module->file_handle->getPath()),
@@ -277,7 +278,7 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
     assert(node->common_type);
     context.bound_type = node->common_type;
 
-    static const Type* str_type = SymMan.lookupType(SymMan.getIdInfoOfAGlobal("str"));
+    static const Type* str_type = TypeManager.lookupType(SymMan.getIdInfoOfAGlobal("str"));
 
 
     switch (node->op_type) {
@@ -334,7 +335,7 @@ CGValue LLVMBackend::llvmCodegen(Op* node, SwContext context) {
 
             // handle slice-creation for array types
             if (type->isArrayType() && !node->common_type->isPointerType()) {
-                auto slice_type = SymMan.getSliceType(type->getWrappedType(), node->is_mutable);
+                auto slice_type = TypeManager.getSliceType(type->getWrappedType(), node->is_mutable);
 
                 auto slice_llvm_ty = codegen(slice_type, context);
 
@@ -903,7 +904,7 @@ CGValue LLVMBackend::llvmCodegen(const StrLit* node, const SwContext& context) {
         llvm::dyn_cast<llvm::StructType>(codegen(&GlobalTypeStr, context)), {
             ptr,
             llvm::dyn_cast<llvm::Constant>(toLLVMInt(node->value.size()))
-        }), SymMan.lookupType(SymMan.getIdInfoOfAGlobal("str")));
+        }), TypeManager.lookupType(SymMan.getIdInfoOfAGlobal("str")));
 }
 
 
@@ -955,7 +956,7 @@ CGValue LLVMBackend::llvmCodegen(const Function* node, const SwContext& context)
     if (early_return)
         return {};
 
-    const auto fn_sw_type = SymMan.lookupType(node->ident)->to<FunctionType>();
+    const auto fn_sw_type = TypeManager.lookupType(node->ident)->to<FunctionType>();
 
     const auto name = mangleString(node->ident, {.is_generic = true, .generic_args = context.generic_args});
 
@@ -1095,7 +1096,7 @@ CGValue LLVMBackend::llvmCodegen(WhileLoop* node, SwContext context) {
 CGValue LLVMBackend::llvmCodegen(ArrayLit* node, const SwContext& context) {
     assert(!node->elements.empty());
     Type* element_type = node->elements.at(0)->expr_type;
-    Type* sw_arr_type  = SymMan.getArrayType(element_type, node->elements.size());
+    Type* sw_arr_type  = TypeManager.getArrayType(element_type, node->elements.size());
 
     if (!isLocalScope()) {
         if (context.bound_memory) {
@@ -1118,7 +1119,7 @@ CGValue LLVMBackend::llvmCodegen(ArrayLit* node, const SwContext& context) {
                 llvm::dyn_cast<llvm::StructType>(codegen(sw_arr_type, context)),
                 {array_init}
             );
-            return CGValue::rValue(const_struct, SymMan.getArrayType(element_type, node->elements.size()));
+            return CGValue::rValue(const_struct, TypeManager.getArrayType(element_type, node->elements.size()));
         }
     }
 
@@ -1162,7 +1163,7 @@ CGValue LLVMBackend::llvmCodegen(ArrayLit* node, const SwContext& context) {
 
     auto tmp_load = Builder.CreateLoad(codegen(context.bound_type, context), tmp);
     assert(tmp_load);
-    return CGValue::rValue(tmp_load, SymMan.getArrayType(element_type, node->elements.size()));
+    return CGValue::rValue(tmp_load, TypeManager.getArrayType(element_type, node->elements.size()));
 }
 
 
@@ -1272,7 +1273,7 @@ CGValue LLVMBackend::llvmCodegen(Struct* node, const SwContext& context) {
         return {};
     }
 
-    const auto struct_sw_ty = SymMan.lookupType(node->ident);
+    const auto struct_sw_ty = TypeManager.lookupType(node->ident);
     assert(struct_sw_ty);
 
     for (const auto& member : node->members->children) {
@@ -1306,7 +1307,7 @@ CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
 
     if (!func) {
         [[maybe_unused]] auto fn = llvm::Function::Create(
-            llvm::dyn_cast<llvm::FunctionType>(codegen(SymMan.lookupType(node->ident->getIdentInfo()), context)),
+            llvm::dyn_cast<llvm::FunctionType>(codegen(TypeManager.lookupType(node->ident->getIdentInfo()), context)),
             llvm::GlobalValue::ExternalLinkage,
             mangleString(fn_name),
             LModule.get()
@@ -1332,7 +1333,7 @@ CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
     for (const auto& [index, item] : llvm::enumerate(node->args)) {
         auto new_ctx = context;
         new_ctx.bound_type =
-            SymMan.lookupType(node->getIdentInfo())
+            TypeManager.lookupType(node->getIdentInfo())
                 ->to<FunctionType>()->param_types.at(index + bias);
 
         arguments.push_back(codegen(item, new_ctx).getRValue(*this, new_ctx));
@@ -1340,7 +1341,7 @@ CGValue LLVMBackend::llvmCodegen(FuncCall* node, const SwContext& context) {
 
     if (!func->getReturnType()->isVoidTy()) {
         auto call = Builder.CreateCall(func, arguments, node->ident->value->toString());
-        return {call, call, SymMan.lookupType(node->getIdentInfo())->to<FunctionType>()->ret_type};
+        return {call, call, TypeManager.lookupType(node->getIdentInfo())->to<FunctionType>()->ret_type};
     }
 
     Builder.CreateCall(func, arguments);

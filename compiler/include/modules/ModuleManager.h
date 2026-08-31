@@ -4,7 +4,6 @@
 #include <unordered_map>
 
 #include "parser/Parser.h"
-#include "utils/BumpAllocator.h"
 #include "utils/FileSystem.h"
 #include "modules/Module.h"
 
@@ -23,10 +22,21 @@ class ModuleManager {
 
     Module* m_MainModule = nullptr;
 
+    sw::StringPool&  m_StringPool;
+    sw::Target&      m_Target;
+    sw::TypeManager& m_TypeManager;
+
     friend struct Module;
     friend class  Parser;
 
+
 public:
+    ModuleManager(sw::StringPool& str_pool, sw::Target& target, sw::TypeManager& type_manager)
+        : m_StringPool(str_pool)
+        , m_Target(target)
+        , m_TypeManager(type_manager) {}
+
+
     Module& get(sw::FileHandle* m) const {
         return *m_ModuleMap.at(m);
     }
@@ -57,6 +67,18 @@ public:
         const auto ret = new Module{context};
         insert(context.file_handle, ret);
         return ret;
+    }
+
+    /// Create and return a Module object with the given file handle
+    Module* insert(sw::FileHandle* file_handle) {
+        const auto ret = new Module{{
+                .file_handle    = file_handle,
+                .module_manager = *this,
+                .string_pool    = m_StringPool,
+                .target         = m_Target,
+                .type_manager   = m_TypeManager,
+        }}; insert(file_handle, ret);
+            return ret;
     }
 
 
@@ -99,6 +121,10 @@ public:
     std::string getModuleUID(const fs::path& path) const {
         return path.filename().replace_extension().string() +
                '_' + std::to_string(m_ModuleUIDTable.at(path));
+    }
+
+    std::size_t getModuleIndex(sw::FileHandle* mod) const {
+        return m_ModuleUIDTable.at(mod->getPath());
     }
 
     auto begin()  {

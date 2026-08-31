@@ -144,7 +144,7 @@ Type* sema::TypeResolver::unify(Type* type1, Type* type2) {
             return nullptr;
         }
 
-        return SymMan.getArrayType(
+        return TypeManager.getArrayType(
             unify(type1->getWrappedType(), type2->getWrappedType()), type1->getAggregateSize());
     }
 
@@ -183,7 +183,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                     if (!analysis_1.deduced_type->is_mutable && node->is_mutable) {
                         reportError(ErrCode::IMMUTABILITY_VIOLATION, {});
                     }
-                } ret.deduced_type = SymMan.getReferenceType(analysis_1.deduced_type, node->is_mutable);
+                } ret.deduced_type = TypeManager.getReferenceType(analysis_1.deduced_type, node->is_mutable);
                 break;
             }
 
@@ -284,7 +284,7 @@ sema::TypeResolver::TypeInfo sema::TypeResolver::evaluateType(Op* node, const Ty
                     break;
                 }
 
-                const auto type_str = SymMan.lookupType(SymMan.getIdInfoOfAGlobal("str"));
+                const auto type_str = TypeManager.lookupType(SymMan.getIdInfoOfAGlobal("str"));
                 if (analysis_1.deduced_type == type_str) {
                     ret.deduced_type = &GlobalTypeChar;
                 } else {

@@ -1,8 +1,9 @@
 #pragma once
-#include <list>
+#include <ranges>
 #include <string>
 #include <utility>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "utils/FileSystem.h"
 
@@ -38,7 +39,9 @@ public:
 
 
 class IdentManager {
-    std::unordered_map<std::string, std::unique_ptr<IdentInfo>> m_IdentTable;
+    std::unordered_map<std::string, IdentInfo*> m_IdentTable;
+    std::unordered_set<IdentInfo*> m_ExcludeDeletion{};
+
     sw::FileHandle* m_ModuleHandle{};
 
     friend class SymbolManager;
@@ -49,12 +52,23 @@ public:
     /// registers a new IdentInfo and returns its pointer
     IdentInfo* createNew(const std::string& id, const bool is_fictitious = false) {
         m_IdentTable.emplace(id, new IdentInfo(id, m_ModuleHandle, is_fictitious));
-        return m_IdentTable.at(id).get();
+        return m_IdentTable.at(id);
+    }
+
+    /// registers a new IdentInfo and returns its pointer
+    IdentInfo* createNew(const std::string_view id, const bool is_fictitious = false) {
+        return createNew(std::string(id), is_fictitious);
+    }
+
+    /// Registers a foreign `IdentInfo*`
+    void pushForeignID(const std::string_view name, IdentInfo* id) {
+        m_IdentTable.insert({std::string(name), id});
+        m_ExcludeDeletion.insert(id);
     }
 
     /// fetches `id`
     IdentInfo* fetch(const std::string& id) const {
-        return m_IdentTable.at(id).get();
+        return m_IdentTable.at(id);
     }
 
     bool contains(const std::string& id) const {
@@ -71,5 +85,13 @@ public:
 
     auto end() const  {
         return m_IdentTable.end();
+    }
+
+    ~IdentManager() {
+        for (const auto item : m_IdentTable | std::views::values) {
+            if (!m_ExcludeDeletion.contains(item)) {
+                delete item;
+            }
+        }
     }
 };

@@ -12,6 +12,7 @@
 #include "utils/FileSystem.h"
 #include "utils/StringPool.h"
 #include "builtins/builtins.h"
+#include "types/TypeManager.h"
 
 
 namespace fs = std::filesystem;
@@ -21,9 +22,10 @@ using ThreadPool = sw::ThreadPool;
 /// Represents a Compiler Instance used to compile a single Swirl Project. Ensure pointer stability for
 /// the instance of this class.
 class CompilerInst {
-    ThreadPool     m_ThreadPool;
-    ErrorManager   m_ErrorManager;
-    ModuleManager  m_ModuleManager;
+    ThreadPool      m_ThreadPool;
+    ErrorManager    m_ErrorManager;
+    ModuleManager   m_ModuleManager;
+    sw::TypeManager m_TypeManager;
 
     fs::path       m_SrcPath;
     unsigned       m_BaseThreadCount = std::thread::hardware_concurrency() / 2;
@@ -57,8 +59,10 @@ public:
     inline static bool RunExe = false;
 
     explicit CompilerInst(fs::path path)
-        : m_SrcPath(std::move(path))
+        : m_TypeManager(m_ModuleManager)
+        , m_SrcPath(std::move(path))
         , m_StringPool(16 * 1024)
+        , m_ModuleManager(m_StringPool, Target, m_TypeManager)
     {
         m_ErrorCallback = [this](const ErrCode code, const ErrorContext& ctx) {
             m_ErrorManager.newErrorLocked(code, ctx);
@@ -108,7 +112,9 @@ public:
 
         // create a module for the main source file
         const auto file_handle = m_Filesystem.open(m_SrcPath);
-        const auto main_module = new Module{{file_handle, m_ModuleManager, m_StringPool, Target}};
+        const auto main_module = new Module{
+            {file_handle, m_ModuleManager, m_StringPool, Target, m_TypeManager}};
+
         main_module->m_IsMainModule = true;
 
         // add an entry to the module manager

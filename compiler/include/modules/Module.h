@@ -5,9 +5,11 @@
 #include <unordered_map>
 
 #include "Target.h"
+#include "builtins/builtins.h"
 #include "parser/Parser.h"
 #include "utils/BumpAllocator.h"
 #include "utils/FileSystem.h"
+#include "symbols/SymbolManager.h"
 
 
 class ModuleManager;
@@ -15,21 +17,25 @@ class CompilerInst;
 
 namespace sw {
     class StringPool;
+    class TypeManager;
 }
 
 
 struct ModuleContext {
-    sw::FileHandle* file_handle{};
-    ModuleManager&  module_manager;
-    sw::StringPool& string_pool;
-    sw::Target&     target;
+    sw::FileHandle*  file_handle{};
+    ModuleManager&   module_manager;
+    sw::StringPool&  string_pool;
+    sw::Target&      target;
+    sw::TypeManager& type_manager;
 };
 
 
 struct Module {
     AST_t ast{};
-    SymbolManager symbol_table;
-    sw::FileHandle* file_handle = nullptr;
+    sw::FileHandle*   file_handle = nullptr;
+    sw::TypeManager&  type_manager;
+    ModuleManager&    module_man;
+    SymbolManager     symbol_table;
 
     struct ProtocolImplInfo {
         bool is_exported = false; Namespace* scope = nullptr;
@@ -70,17 +76,16 @@ struct Module {
     /// Returns whether the module has been marked erroneous
     bool isErroneous() const { return m_IsErroneous; }
 
+    /// Returns whether the module is builtin
+    bool isBuiltin() const { return file_handle->getPath() == SW_BUILTIN_FILE_PATH; }
+
     sw::Target& getTarget() const { return m_Target; }
 
     /// Marks the module as erroneous
     void markErroneous() { m_IsErroneous = true; }
 
     /// Creates a Parser instance and begins parsing
-    void parse(const ErrorCallback_t& error_callback) {
-        auto context = ParserContext{this, error_callback, m_ModuleManager, m_StringPool};
-        const auto parser = std::make_unique<Parser>(context);
-        parser->parse();
-    }
+    void parse(const ErrorCallback_t& error_callback);
 
     void performSema(const ErrorCallback_t& error_callback);
 
@@ -95,6 +100,13 @@ struct Module {
                 if (glob_node->is_exported && !glob_node->name.empty()) {
                     inserter(glob_node->name);
                 }
+            }
+        }
+
+        // put all builtin types into exported symbols if the module is builtin
+        if (file_handle->getPath() == SW_BUILTIN_FILE_PATH) {
+            for (auto& type : BuiltinTypes | std::views::keys) {
+                inserter(type);
             }
         }
     }
@@ -196,7 +208,7 @@ struct Module {
         return m_CtxCopy;
     }
 
-    ModuleManager& getModuleManager() const { return m_ModuleManager; }
+    ModuleManager& getModuleManager() const { return module_man; }
 
     // NOTE: the manual destructor calls is a temporary workaround until all Nodes become
     //       trivially destructible
@@ -212,7 +224,6 @@ private:
     bool m_IsSemaComplete = false;
     bool m_IsErroneous    = false;
 
-    ModuleManager&    m_ModuleManager;
     sw::BumpAllocator m_Allocator{64 * 1024};
     sw::StringPool&   m_StringPool;
     sw::Target&       m_Target;

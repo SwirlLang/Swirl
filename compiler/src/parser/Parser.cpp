@@ -1070,7 +1070,12 @@ Protocol* Parser::parseProtocol() {
     std::vector<TypeAlias*> type_aliases;
 
     forwardStream(); // skip 'protocol'
-    ret->name = m_StringPool.intern(forwardStream().value);
+    ret->name = m_StringPool.intern(m_Stream.CurTok.value);
+    ignoreButExpect(Token::IDENT);
+
+    if (m_Stream.CurTok.tokenid == Token::OP_LT) {
+        ret->generic_params = parseGenericParamList();
+    }
 
     if (m_Stream.CurTok.tokenid == Token::PUNC_COLON) {
         forwardStream();

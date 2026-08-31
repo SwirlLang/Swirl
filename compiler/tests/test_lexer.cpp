@@ -3,6 +3,7 @@
 #include "managers/SourceManager.h"
 #include "modules/Module.h"
 #include "modules/ModuleManager.h"
+#include "types/TypeManager.h"
 #include "utils/FileSystem.h"
 #include "utils/StringPool.h"
 
@@ -15,10 +16,14 @@ struct LexerFixture {
     SourceManager*  sm;
     TokenStream*    lex;
     sw::Target      target;
+    sw::TypeManager type_manager;
 
-    explicit LexerFixture(std::string_view source) {
+    explicit LexerFixture(std::string_view source)
+        : modman(pool, target, type_manager)
+        , type_manager(modman)
+    {
         auto* fh = fs.createVirtualFile("test.sw", std::string(source));
-        ModuleContext ctx{fh, modman, pool, target};
+        ModuleContext ctx{fh, modman, pool, target, type_manager};
         mod = modman.insert(ctx);
         sm  = new SourceManager(mod);
         lex = new TokenStream(*sm);
