@@ -37,10 +37,6 @@ public:
         return getNewIDInfo(std::string(name), is_fictitious);
     }
 
-    void pushForeignID(const std::string_view name, IdentInfo* id) {
-        m_IDMan.pushForeignID(name, id);
-    }
-
     auto begin() const {
         return m_IDMan.begin();
     }
