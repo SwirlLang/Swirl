@@ -5,7 +5,7 @@
 
 #include "SwTypes.h"
 #include "utils/utils.h"
-#include "utils/logging.h"
+#include "comptime/Value.h"
 #include "types/definitions.h"
 #include "modules/ModuleManager.h"
 #include "symbols/IdentManager.h"
@@ -90,6 +90,18 @@ private:
 
     std::array<Map_t, N> m_Entries;
 };
+
+
+struct InstKey {
+    using Args_t = std::vector<std::variant<std::monostate, Type*, sw::Value>>;
+
+    IdentInfo* id = nullptr;
+    Args_t args{};
+
+    bool operator==(const InstKey& other) const {
+        return id == other.id && args == other.args;
+    }
+};
 }
 
 
@@ -115,14 +127,27 @@ struct std::hash<detail::Array> {
 };
 
 
+template <>
+struct std::hash<detail::InstKey> {
+    std::size_t operator()(const detail::InstKey& key) const noexcept {
+        std::size_t vec_hash = 0;
+
+        for (auto& arg : key.args) {
+            vec_hash ^= std::hash<detail::InstKey::Args_t::value_type>{}(arg);
+        } return combineHashes(std::hash<IdentInfo*>{}(key.id), vec_hash);
+    }
+};
+
+
 namespace sw {
 class TypeManager {
 public:
-    static constexpr std::size_t TypeShardsSize      = 32;
-    static constexpr std::size_t ArrayShardsSize     = 32;
-    static constexpr std::size_t SliceShardsSize     = 32;
-    static constexpr std::size_t PointerShardsSize   = 32;
-    static constexpr std::size_t ReferenceShardsSize = 32;
+    static constexpr std::size_t TypeShardsSize         = 32;
+    static constexpr std::size_t ArrayShardsSize        = 32;
+    static constexpr std::size_t SliceShardsSize        = 32;
+    static constexpr std::size_t PointerShardsSize      = 32;
+    static constexpr std::size_t ReferenceShardsSize    = 32;
+    static constexpr std::size_t GenericCacheShardsSize = 32;
 
     explicit
     TypeManager(ModuleManager& mod_man)
@@ -186,6 +211,22 @@ public:
         return m_TypeInterner.get(index, ident).get();
     }
 
+    /// Returns the cached `IdentInfo*` for the generic-inst key, returns `nullptr` if it
+    /// doesn't exist.
+    IdentInfo* lookupGenericCache(const detail::InstKey& key) {
+        const auto index = m_ModMan.getModuleIndex(key.id->getModuleFileHandle()) % GenericCacheShardsSize;
+        if (m_GenericCache.contains(index, key)) {
+            return m_GenericCache.get(index, key);
+        } return nullptr;
+    }
+
+    /// Returns true if the cache submission was successful, false otherwise. The caller
+    /// must discard its result if this method returns false and recheck the cache.
+    bool submitToGenericCache(const detail::InstKey& key, IdentInfo* ident) {
+        const auto index = m_ModMan.getModuleIndex(key.id->getModuleFileHandle()) % GenericCacheShardsSize;
+        return m_GenericCache.intern(index, key, std::move(ident)) == ident;
+    }
+
     bool contains(IdentInfo* ident) {
         const auto index = m_ModMan.getModuleIndex(ident->getModuleFileHandle()) % TypeShardsSize;
         return m_TypeInterner.contains(index, ident);
@@ -196,10 +237,11 @@ private:
     template <std::size_t N, typename Key, typename Value>
     using TypeInterner = detail::TypeInterner<N, Key, Value>;
 
-    TypeInterner<ArrayShardsSize,     detail::Array,   std::unique_ptr<Type>> m_ArrayInterner;
-    TypeInterner<SliceShardsSize,     detail::Pointer, std::unique_ptr<Type>> m_SliceInterner;
-    TypeInterner<PointerShardsSize,   detail::Pointer, std::unique_ptr<Type>> m_PointerInterner;
-    TypeInterner<ReferenceShardsSize, detail::Pointer, std::unique_ptr<Type>> m_ReferenceInterner;
+    TypeInterner<ArrayShardsSize,        detail::Array,   std::unique_ptr<Type>> m_ArrayInterner;
+    TypeInterner<SliceShardsSize,        detail::Pointer, std::unique_ptr<Type>> m_SliceInterner;
+    TypeInterner<PointerShardsSize,      detail::Pointer, std::unique_ptr<Type>> m_PointerInterner;
+    TypeInterner<ReferenceShardsSize,    detail::Pointer, std::unique_ptr<Type>> m_ReferenceInterner;
+    TypeInterner<GenericCacheShardsSize, detail::InstKey, IdentInfo*> m_GenericCache;
 
     TypeInterner<TypeShardsSize, IdentInfo*, std::unique_ptr<Type, detail::Deleter>> m_TypeInterner;
 

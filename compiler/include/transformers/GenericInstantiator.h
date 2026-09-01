@@ -23,31 +23,6 @@ public:
     using SubstitutionMap_t   = GenericSubstitutor::SubstitutionMap_t;
     using SubstitutionContext = GenericSubstitutor::SubstitutionContext;
 
-    struct InstKey {
-        using Args_t = std::vector<std::variant<std::monostate, Type*, Value>>;
-
-        IdentInfo* id = nullptr;
-        Args_t args{};
-
-        struct hasher {
-            std::size_t operator()(const InstKey& key) const noexcept {
-                std::size_t vec_hash = 0;
-
-                for (auto& arg : key.args) {
-                    vec_hash ^= std::hash<Args_t::value_type>{}(arg);
-                } return combineHashes(std::hash<IdentInfo*>{}(key.id), vec_hash);
-            }
-        };
-
-        bool operator==(const InstKey& other) const {
-            return id == other.id && args == other.args;
-        }
-    };
-
-
-    std::unordered_map<InstKey, IdentInfo*, InstKey::hasher> Cache;
-
-
     /// Runs symbol registration and symbol resolution passes on the node, returns `nullptr` if errors
     /// were reported.
     Node* runPasses(Node* node) {
@@ -94,7 +69,7 @@ public:
                 const Node* node = m_SymMan.lookupDecl(id).node_ptr;
                 assert(node != nullptr);
 
-                InstKey inst_key;
+                detail::InstKey inst_key;
                 inst_key.id = id;
 
                 SubstitutionMap_t subst_map;
@@ -131,7 +106,7 @@ public:
                         }
                     }
 
-                    // do not proceed to prevent the error from cascading
+                    // constraints are not satisfied so move on
                     if (!constraints_satisfied)
                         continue;
 
@@ -155,7 +130,7 @@ public:
                 }
 
                 // monomorphize the generic and push it to the ast if not already done
-                if (!Cache.contains(inst_key)) {
+                if (!TypeManager.lookupGenericCache(inst_key)) {
                     SubstitutionContext ctx;
                     ctx.map = subst_map;
                     ctx.substitution_name = subst_name;
@@ -173,14 +148,20 @@ public:
 
                     if (!new_node) return;
 
-                    m_Module->ast.push_back(new_node);
-                    Cache.insert({inst_key, new_node->getIdentInfo()});
+                    // if cache submission fails, discard the result, use the cached item and continue
+                    if (!TypeManager.submitToGenericCache(inst_key, new_node->getIdentInfo())) {
+                        IdentInfo* cached_id = TypeManager.lookupGenericCache(inst_key);
+                        ident->value = cached_id;
+                        ident->has_generic_args = false;
+                        continue;
+                    }
 
+                    m_Module->ast.push_back(new_node);
                     ident->value = new_node->getIdentInfo();
                     ident->has_generic_args = false;
 
                 } else {
-                    ident->value = Cache.at(inst_key);
+                    ident->value = TypeManager.lookupGenericCache(inst_key);
                     ident->has_generic_args = false;
                 }
             }
