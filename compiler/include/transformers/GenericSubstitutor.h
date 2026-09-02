@@ -60,9 +60,12 @@ public:
 
             // otherwise, assume that it is a type and do a partial resolution
             assert(std::holds_alternative<Type*>(element));
-            auto ty = std::get<Type*>(element);
-            node->full_qualification.front().value = ty->getIdent();
-            assert(node->full_qualification.front().value);
+            const auto ty = std::get<Type*>(element);
+
+            auto* id = makeNode<Ident>(*node);
+            id->full_qualification.front().value = ty->getIdent();
+            assert(id->full_qualification.front().value);
+            return cast<Node>(id);
 
         } return const_cast<Node*>(transformDefault(node, ctx));
     }
@@ -115,6 +118,18 @@ public:
         // always reset var_ident so SymbolRegistrationPass re-registers params
         new_node->to<Parameter>()->ident = nullptr;
         return new_node;
+    }
+
+    /// If the expression's inferred type contains a generic, rebuild it to trigger
+    /// a re-evaluation into a concrete type.
+    Node* transform(const Expression* node, SubstitutionContext& ctx) {
+        if (node->expr_type && node->expr_type->containsGeneric()) {
+            auto* new_node = makeNode<Expression>(
+                *cast<Expression>(transformDefault(node, ctx)));
+
+            new_node->expr_type = nullptr;
+            return new_node;
+        } return cast<Node>(transformDefault(node, ctx));
     }
 
 

@@ -1071,6 +1071,16 @@ public:
                 }
             }
 
+            // skip instantiation when any type argument is still unresolved
+            for (auto& [name, args, _] : ident->full_qualification) {
+                for (const GenericArg* arg : args) {
+                    if (arg->isType() && (
+                        arg->getType()->type == nullptr ||
+                        arg->getType()->type->getTypeTag() == Type::GENERIC))
+                        return;
+                }
+            }
+
             GenericInstantiator.handle(ident);
             assert(ident->getIdentInfo());
             assert(SymMan.lookupDecl(ident->getIdentInfo()).node_ptr);
