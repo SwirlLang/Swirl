@@ -40,7 +40,7 @@ TableEntry* SymbolManager::searchDecl(IdentInfo* id) {
 
 
 IdentInfo* SymbolManager::getIdInfoFromModule(sw::FileHandle* mod_path, const std::string& name) const {
-    return m_ModuleMap->get(mod_path).symbol_table.getIdInfoOfAGlobal(name, true);
+    return m_ModuleMap->get(mod_path).symbol_table.getIdInfoOfAGlobal(name, true, false);
 }
 
 

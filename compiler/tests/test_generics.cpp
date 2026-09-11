@@ -135,6 +135,168 @@ fn run() { var b: Box<i32>; }
     CHECK_FALSE(f.hasErrors());
 }
 
+// ──────────────────────────────────────────────────────────
+// Complex generic scenarios
+// ──────────────────────────────────────────────────────────
+
+TEST_CASE("Generic function instantiated with multiple distinct types", "[sema][generic][reuse]") {
+    SemaFixture f(R"(
+fn identity<T>(x: T): T { return x; }
+fn run() {
+    var a: i32 = identity!<i32>(42);
+    var b: f64 = identity!<f64>(3.14);
+    var c: bool = identity!<bool>(true);
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Same generic instantiation reused across multiple call sites", "[sema][generic][reuse][cache]") {
+    SemaFixture f(R"(
+fn identity<T>(x: T): T { return x; }
+fn run() {
+    var a = identity!<i32>(1);
+    var b = identity!<i32>(2);
+    var c = identity!<i32>(3);
+    var d = identity!<f64>(1.5);
+    var e = identity!<f64>(2.5);
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Generic struct instantiated with multiple distinct types", "[sema][generic][struct][reuse]") {
+    SemaFixture f(R"(
+struct Box<T> { var value: T; }
+fn run() {
+    var bi: Box<i32>;
+    var bf: Box<f64>;
+    var bb: Box<bool>;
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Generic struct type aliased through function usage", "[sema][generic][struct][reuse]") {
+    SemaFixture f(R"(
+struct Box<T> { var value: T; }
+fn make<T>(x: T): Box<T> { var b: Box<T>; b.value = x; return b; }
+fn run() {
+    var b1: Box<i32> = make!<i32>(5);
+    var b2: Box<i32> = make!<i32>(7);
+    var b3: Box<f64> = make!<f64>(2.5);
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Generic struct with methods on the instantiating type", "[sema][generic][struct][methods]") {
+    SemaFixture f(R"(
+struct Pair<T> {
+    var first: T;
+    var second: T;
+    fn swap(&self): T { return self.second; }
+}
+fn run() {
+    var p: Pair<i32>;
+    var v: i32 = p.swap();
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Generic struct with static method", "[sema][generic][struct][methods][static]") {
+    SemaFixture f(R"(
+struct Pair<T> {
+    var first: T;
+    var second: T;
+    fn create(a: T, b: T): Pair<T> { var p: Pair<T>; p.first = a; p.second = b; return p; }
+}
+fn run() {
+    var p = Pair!<i32>::create(1, 2);
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Multi-parameter generic struct", "[sema][generic][multi-param]") {
+    SemaFixture f(R"(
+struct Pair<A, B> {
+    var first: A;
+    var second: B;
+}
+fn run() {
+    var p: Pair<i32, str>;
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Multi-parameter generic function", "[sema][generic][multi-param]") {
+    SemaFixture f(R"(
+fn make_pair<A, B>(a: A, b: B): Pair<A, B> { var p: Pair<A, B>; p.first = a; p.second = b; return p; }
+struct Pair<A, B> { var first: A; var second: B; }
+fn run() {
+    var p = make_pair!<i32, str>(1, "x");
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Generic constrained by a single protocol", "[sema][generic][constraint]") {
+    SemaFixture f(R"(
+protocol Show { fn show(&self): str; }
+fn make<T: Show>(x: T): T { return x; }
+struct Impl {}
+impl Show for Impl { fn show(&self): str { return "impl"; } }
+fn run() {
+    var i: Impl;
+    var r = make!<Impl>(i);
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Generic constrained by multiple protocols", "[sema][generic][constraint][multi]") {
+    SemaFixture f(R"(
+protocol P1 { fn a(&self): i32; }
+protocol P2 { fn b(&self): i32; }
+fn make<T: [P1, P2]>(x: T): T { return x; }
+struct Impl {}
+impl P1 for Impl { fn a(&self): i32 { return 1; } }
+impl P2 for Impl { fn b(&self): i32 { return 2; } }
+fn run() {
+    var i: Impl;
+    var r = make!<Impl>(i);
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Nested generic instantiation", "[sema][generic][nested]") {
+    SemaFixture f(R"(
+struct Pair<A, B> { var first: A; var second: B; }
+struct Box<T> { var value: T; }
+fn run() {
+    var b: Box<Pair<i32, str>>;
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Nested generic with function instantiation", "[sema][generic][nested]") {
+    SemaFixture f(R"(
+struct Box<T> { var value: T; }
+fn pack<T>(x: T): Box<T> { var b: Box<T>; b.value = x; return b; }
+fn wrap<U>(u: U): Box<U> { var b: Box<U>; b.value = u; return b; }
+fn run() {
+    var b1 = pack!<i32>(1);
+    var b2 = wrap!<f64>(2.5);
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
 TEST_CASE("Comptime local variable", "[sema][comptime]") {
     SemaFixture f(R"(
 fn run() { comptime let x: i32 = 42; var y: i32 = x; }
@@ -334,4 +496,66 @@ struct T {}
 fn run() { var t: T; var r = t.missing(); }
 )");
     CHECK(hasError(f.errors, ErrCode::NO_SUCH_MEMBER));
+}
+
+TEST_CASE("Generic struct static method on multiple instantiations", "[sema][generic][struct][methods][static][reuse]") {
+    SemaFixture f(R"(
+struct Pair<T> {
+    var first: T;
+    var second: T;
+    fn create(a: T, b: T): Pair<T> { var p: Pair<T>; p.first = a; p.second = b; return p; }
+    fn empty(): Pair<T> { var p: Pair<T>; return p; }
+}
+fn run() {
+    var pa = Pair!<i32>::create(1, 2);
+    var pb = Pair!<f64>::create(1.0, 2.0);
+    var pc = Pair!<i32>::empty();
+    var pd = Pair!<i32>::create(3, 4);
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Generic struct static method missing member on instantiation", "[sema][generic][struct][methods][static][no-member]") {
+    SemaFixture f(R"(
+struct Pair<T> {
+    var first: T;
+    fn create(): Pair<T> { var p: Pair<T>; return p; }
+}
+fn run() {
+    var p = Pair!<i32>::missing(1, 2);
+}
+)");
+    CHECK(hasError(f.errors, ErrCode::NO_SYMBOL_IN_NAMESPACE));
+}
+
+
+TEST_CASE("Generic struct generic method static access", "[sema][generic][struct][methods][static][own-param]") {
+    SemaFixture f(R"(
+struct Pair<T> {
+    var first: T;
+    var second: T;
+    fn another<N>(a: T, b: N): Pair<T> { var p: Pair<T>; p.first = a; p.second = b; return p; }
+}
+fn run() {
+    var b = Pair!<i32>::another!<i32>(4, 5);
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Generic struct generic method distinct instantiation combos", "[sema][generic][struct][methods][static][own-param][reuse]") {
+    SemaFixture f(R"(
+struct Pair<T> {
+    var first: T;
+    fn label<N>(a: T, b: N): N { return b; }
+}
+fn run() {
+    var a = Pair!<i32>::label!<i32>(1, 2);
+    var b = Pair!<i32>::label!<f64>(3, 4.0);
+    var c = Pair!<f64>::label!<i32>(1.0, 5);
+    var d = Pair!<i32>::label!<i32>(6, 7);
+}
+)");
+    CHECK_FALSE(f.hasErrors());
 }

@@ -7,6 +7,7 @@ add_executable(compiler_tests
     test_lexer.cpp
     test_generics.cpp
     test_cross_module.cpp
+    test_modules.cpp
 )
 
 target_link_libraries(compiler_tests PUBLIC Catch2::Catch2)
