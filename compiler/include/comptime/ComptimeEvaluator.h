@@ -83,8 +83,12 @@ public:
 
     Node* transform(const Function* node) {
         // variadics have been processed before, comptime evaluator is not supposed
-        // to do anything with it
-        if (!node->params.empty() && node->params.back()->is_variadic) {
+        // to do anything with it, same for other generic constructs
+        const bool should_be_ignored =
+            (!node->params.empty() && node->params.back()->is_variadic) ||
+            (!node->generic_params.empty() && !node->is_monomorphization);
+
+        if (should_be_ignored) {
             return cast<Node>(node);
         }
 
