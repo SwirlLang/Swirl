@@ -139,7 +139,7 @@ IdentInfo* SymbolManager::getIDInfoFor(const Ident& id, const std::optional<Erro
 
     // final hop: the qualifier's own scope, plus the impl-scopes of the owner
     // type (which make `Type::impl_method` resolve)
-    std::vector<const Namespace*> scopes = {look_at};
+    std::vector scopes = {look_at};
     std::vector<Module::ImplScopeRef> impl_refs;
     if (owner_type) {
         for (const auto& ref : m_ModuleMap->get(m_ModuleHandle).getImplScopesFor(owner_type)) {

@@ -164,6 +164,12 @@ public:
                     ident->value = TypeManager.lookupGenericCache(inst_key);
                     ident->has_generic_args = false;
                 }
+            } else if (tmp.size() > 1) {
+                // when the second entry of the full qualification is non-generic, ensure that its
+                // IdentInfo*, rather than the previous generic entry's, is written into the Ident
+                Ident res_id = *ident;
+                res_id.full_qualification.back().value = ident->value;  // use partial-resolution
+                ident->value = m_SymMan.getIDInfoFor(res_id);
             }
         }
     }
