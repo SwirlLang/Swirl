@@ -2,6 +2,7 @@
 #include <vector>
 #include <filesystem>
 
+#include "lexer/Tokens.h"
 
 class IdentInfo;
 struct Module;
