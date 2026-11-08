@@ -788,6 +788,7 @@ public:
 
     void handle(const ProtocolImpl* node) {
         visit(node->protocol);
+        monomorphize(node->protocol);  // monomorphize if generic
         assert(node->protocol->value);
 
         const auto target_protocol_id = node->protocol->value;

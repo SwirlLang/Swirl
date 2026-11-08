@@ -258,7 +258,7 @@ public:
     }
 
 
-    bool preVisit(Protocol* node) const {
+    bool preVisit(Protocol* node) {
         node->ident = getNewIDInfo(node->name);
 
         const auto type = new ProtocolConstraint();
@@ -271,10 +271,21 @@ public:
         entry.swirl_type  = type;
         entry.is_exported = node->is_exported;
 
+        node->scope = makeNode<Scope>();
+        node->scope->symbols = SymMan.newScope();
+        ScopeStack.push_back(node->scope);
+        registerGenericParameters(node->generic_params, node->scope);
+
         SymMan.registerDecl(node->ident, entry);
         TypeManger.registerType(node->ident, type);
 
         return true;
+    }
+
+
+    void postVisit(Protocol*) {
+        assert(!ScopeStack.empty());
+        ScopeStack.pop_back();
     }
 
 

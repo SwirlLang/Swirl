@@ -559,3 +559,99 @@ fn run() {
 )");
     CHECK_FALSE(f.hasErrors());
 }
+
+TEST_CASE("Generic protocol implementation matching type argument", "[sema][protocol][generic][positive]") {
+    SemaFixture f(R"(
+protocol P<T> {
+    fn empty_fn(a: T) {}
+}
+struct Foo {}
+impl P<i64> for Foo {
+    fn empty_fn(a: i64) {}
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Generic protocol implementation with mismatched parameter type", "[sema][protocol][generic][negative][param-mismatch]") {
+    SemaFixture f(R"(
+protocol P<T> {
+    fn empty_fn(a: T) {}
+}
+struct Foo {}
+impl P<i64> for Foo {
+    fn empty_fn(a: i32) {}
+}
+)");
+    CHECK(hasError(f.errors, ErrCode::PROTOCOL_METHOD_MISMATCH));
+}
+
+TEST_CASE("Generic protocol with multiple type parameters", "[sema][protocol][generic][positive][multi-param]") {
+    SemaFixture f(R"(
+protocol Pair2<A, B> {
+    fn combine(a: A, b: B) {}
+}
+struct Foo {}
+impl Pair2<i32, f64> for Foo {
+    fn combine(a: i32, b: f64) {}
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Generic protocol with multiple type parameters, swapped impl", "[sema][protocol][generic][positive][multi-param]") {
+    SemaFixture f(R"(
+protocol Pair2<A, B> {
+    fn combine(a: A, b: B) {}
+}
+struct Foo {}
+impl Pair2<str, i32> for Foo {
+    fn combine(a: str, b: i32) {}
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Generic protocol instantiated for multiple types", "[sema][protocol][generic][positive][reuse]") {
+    SemaFixture f(R"(
+protocol P<T> {
+    fn empty_fn(a: T) {}
+}
+struct Foo {}
+struct Bar {}
+impl P<i32> for Foo {
+    fn empty_fn(a: i32) {}
+}
+impl P<f64> for Bar {
+    fn empty_fn(a: f64) {}
+}
+)");
+    CHECK_FALSE(f.hasErrors());
+}
+
+TEST_CASE("Generic protocol implementation with mismatched return type", "[sema][protocol][generic][negative][return-mismatch]") {
+    SemaFixture f(R"(
+protocol P<T> {
+    fn get(): T;
+}
+struct Foo {}
+impl P<i64> for Foo {
+    fn get(): i32 { return 1; }
+}
+)");
+    CHECK(hasError(f.errors, ErrCode::PROTOCOL_METHOD_MISMATCH));
+}
+
+TEST_CASE("Generic protocol with a missing method", "[sema][protocol][generic][negative][violated]") {
+    SemaFixture f(R"(
+protocol P<T> {
+    fn empty_fn(a: T);
+    fn other(): T;
+}
+struct Foo {}
+impl P<i64> for Foo {
+    fn empty_fn(a: i64) {}
+}
+)");
+    CHECK(hasError(f.errors, ErrCode::PROTOCOL_VIOLATED));
+}

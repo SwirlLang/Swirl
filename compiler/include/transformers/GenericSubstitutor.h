@@ -47,6 +47,16 @@ public:
     }
 
 
+    Node* transform(const Protocol* node, SubstitutionContext& ctx) {
+        const auto transformed_proto = const_cast<Node*>(transformDefault(node, ctx));
+
+        const auto new_node = makeNode<Protocol>(*(transformed_proto->to<Protocol>()));
+        new_node->name = ctx.substitution_name;
+        new_node->generic_params = {};
+        return new_node;
+    }
+
+
     Node* transform(const Ident* node, SubstitutionContext& ctx) {
         assert(!node->full_qualification.empty());
 

@@ -824,6 +824,7 @@ struct Protocol final : GlobalNode {
     std::span<Ident*> dependencies;
     std::span<MethodSignature<>> methods;
     std::span<TypeAlias*> type_aliases;
+    Scope* scope = nullptr;
 
     IdentInfo* getIdentInfo() override {
         return ident;
