@@ -33,6 +33,11 @@ bool sema::TypeResolver::checkTypeCompatibility(
         if (from->getBitWidth() > to->getBitWidth()) {
             report_error(ErrCode::NO_NARROWING_CONVERSION, {.type_1 = from, .type_2 = to});
             return false;
+        }
+
+        if (from->isUnsigned() != to->isUnsigned()) {
+            report_error(ErrCode::NO_SIGNED_UNSIGNED_CONV, {.type_1 = from, .type_2 = to});
+            return false;
         } return true;
     }
 
