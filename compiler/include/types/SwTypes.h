@@ -185,7 +185,7 @@ struct FunctionType final : Type {
     bool containsGeneric() override {
         return std::ranges::any_of(param_types, [](auto p) {
             return p->containsGeneric();
-        });
+        }) || (ret_type && ret_type->containsGeneric());
     }
 
     [[nodiscard]] std::string toString() const override;
